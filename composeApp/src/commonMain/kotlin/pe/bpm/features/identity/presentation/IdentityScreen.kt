@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
+import pe.bpm.core.designsystem.*
 
 @Composable
 fun IdentityScreen(
@@ -36,14 +37,29 @@ fun IdentityScreen(
         state.mode == AuthMode.Verification -> "Revisa tu correo"
         else -> "Bienvenido de nuevo"
     }
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {
-            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(68.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("BPM", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
+        val wide = maxWidth >= 900.dp
+        Row(Modifier.fillMaxSize()) {
+            if (wide) Surface(Modifier.weight(1f).fillMaxHeight(), color = MaterialTheme.colorScheme.primaryContainer) {
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(48.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
+                    Brand()
+                    Spacer(Modifier.height(24.dp))
+                    Eyebrow("BIENVENIDO A UNA MEJOR FORMA DE APRENDER")
+                    Text("Pequeños hábitos.\nGrandes cuidados.", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold)
+                    Text("Un espacio para aprender, cuidar los alimentos y crecer con tu equipo.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Mascot(Modifier.size(260.dp).align(Alignment.CenterHorizontally), learning = true)
+                    BpmCard(Modifier.fillMaxWidth()) {
+                        Text("Aprende. Practica. Comparte.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("La seguridad empieza con lo que hacemos cada día. Hagámoslo juntos.")
+                    }
                 }
+            }
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+            if (!wide) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Brand()
+                Mascot(Modifier.size(80.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
@@ -79,7 +95,7 @@ fun IdentityScreen(
                         if (state.mode != AuthMode.Recovery) {
                             AuthField(password, { password = it }, "Contraseña", fields["password"], !state.busy, KeyboardType.Password, !visible)
                             if (state.mode == AuthMode.Register) {
-                                Text("Entre 8 y 128 caracteres. Firebase puede exigir una política adicional.", style = MaterialTheme.typography.bodySmall,
+                                Text("Usa entre 8 y 128 caracteres y evita contraseñas fáciles de adivinar.", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 AuthField(confirmation, { confirmation = it }, "Confirmar contraseña", fields["confirmPassword"], !state.busy, KeyboardType.Password, !visible)
                             }
@@ -130,6 +146,8 @@ fun IdentityScreen(
             Text("By: Kadin, Evelyn y Piero", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
+        }
+        }
     }
 }
 
@@ -145,7 +163,5 @@ private fun AuthField(value: String, onValue: (String) -> Unit, label: String, e
 
 @Composable
 private fun AuthButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Button(onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(15.dp)) {
-        Text(label, fontWeight = FontWeight.SemiBold)
-    }
+    RaisedButton(label, onClick, modifier = Modifier.fillMaxWidth(), enabled = enabled)
 }

@@ -10,6 +10,7 @@ lifecycle = "2.10.0"
 activity = "1.12.4"
 
 [libraries]
+compose-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
 ktor-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }

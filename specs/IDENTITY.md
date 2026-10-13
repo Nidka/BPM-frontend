@@ -34,9 +34,10 @@ adaptador Ktor/Firebase y el puerto Google con implementaciones por plataforma.
 presentation expone AuthMode/IdentityUiState y un ViewModel con casos de uso,
 sin HTTP ni SDK. AppGraph inyecta todo por constructor.
 
-Estilo inspirado en iOS: fondo gris agrupado, superficies blancas redondeadas,
-azul de acción, selector Entrar/Crear cuenta, campos claros y controles de
-mínimo 52 dp para acciones principales. No depende de imágenes ni CDN visuales.
+Estilo BPM Aula lúdico profesional: petróleo/coral, superficies redondeadas,
+selector Entrar/Crear cuenta, campos claros y acciones de mínimo 52 dp.
+Usa ilustraciones originales empaquetadas con Compose, sin CDN visuales.
+Al confirmar sesión se abre el nuevo workspace (WORKSPACE.md).
 
 La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas
@@ -135,7 +136,8 @@ ID token. Recargar/reiniciar exige entrar de nuevo. Registro y recuperación
 necesitan internet; los enlaces se gestionan con las páginas de acción Firebase.
 Si una creación Firebase parcial falla, no se borra la cuenta: iniciar sesión,
 reenviar verificación o recuperar acceso. Una actualización de perfil posterior
-y la administración de membresías son recorridos futuros.
+y la edición/desactivación de membresías son recorridos futuros. El alta de
+miembros y selección de organización ya están en features/workspace.
 
 Fuentes: [Firebase REST](https://firebase.google.com/docs/reference/rest/auth),
 [Google web](https://firebase.google.com/docs/auth/web/google-signin),

@@ -1,6 +1,6 @@
 # Reparto y siguientes recorridos
 
-Esta entrega implementa conexión técnica y login/registro/perfil. El acceso real
+Esta entrega implementa conexión técnica, login/registro y workspace. El acceso real
 requiere configurar Firebase y verificar email; el backend completa el perfil
 mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 
@@ -8,7 +8,7 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
 | Identidad | features/identity | Login/registro/recuperación listos; siguiente: Google nativo, renovación y persistencia segura |
-| Organización activa | identity/domain y data | Validar membresía con el backend, seleccionar sede |
+| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición, bajas y paginación |
 | Checklists | nueva features/checklists | Catálogo local, borradores, idempotencia y sincronización |
 | Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |
 | Academia | nueva features/training | Catálogo, progreso local y evaluaciones |
@@ -32,6 +32,9 @@ agregar reinicio sin red, reintentos duplicados, conflictos y aislamiento tenant
 
 La API disponible se documenta en:
 https://bpm-service-production.up.railway.app/docs/
+
+Ver `WORKSPACE.md` para el rediseño y el alcance exacto. Aprender/Control muestran
+catálogos reales de base; no ejecutan todavía lecciones, controles o incidencias.
 
 Identidad requiere Firebase configurado. /me rechaza usuarios sin perfil; el
 cliente completa el registro mínimo por /auth/register solo con email verificado.

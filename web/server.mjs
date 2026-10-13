@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workspaceRoute, proxyWorkspace } from './workspace-proxy.mjs';
 
 // Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
 const firebasePublic = JSON.parse(readFileSync(new URL('../config/firebase.public.json', import.meta.url), 'utf8'));
@@ -68,12 +69,14 @@ export function createAppServer({
       response.end(request.method === 'HEAD' ? undefined : body);
     };
     const isRegistration = request.method === 'POST' && request.url === '/backend/api/v1/auth/register';
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration) {
+    const isWorkspace = workspaceRoute(request.url?.split('?')[0] || '');
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isWorkspace) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
     try {
       const url = new URL(request.url, 'http://localhost');
+      if (isWorkspace) return await proxyWorkspace(request, url, upstream, send);
       if (url.pathname === '/config.json' && !url.search) {
         // Lista explícita de configuración pública: nunca serializar process.env.
         return send(200, JSON.stringify({ firebaseApiKey, firebaseProjectId, firebaseAuthDomain }));
@@ -171,6 +174,7 @@ export function createAppServer({
             });
             return send(200, JSON.stringify({ data: {
               id: profile.id, email: profile.email, displayName: profile.displayName, organizations,
+              ...(['USER', 'SUPER_ADMIN'].includes(profile.platformRole) ? { platformRole: profile.platformRole } : {}),
             } }));
           }
           if (path === '/health' && data.status === 'ok' && typeof data.version === 'string') {

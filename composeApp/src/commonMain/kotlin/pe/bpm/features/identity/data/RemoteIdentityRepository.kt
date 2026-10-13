@@ -31,6 +31,9 @@ class RemoteIdentityRepository(
     private var pendingName: String? = null
     private var pendingUid: String? = null
 
+    // Solo el composition root entrega este acceso a otros adaptadores de red.
+    fun sessionToken(): String? = idToken
+
     override suspend fun signIn(email: String, password: String): IdentityResult<Profile> {
         signOut()
         return safely {
@@ -224,7 +227,7 @@ class RemoteIdentityRepository(
         val profile = response.body<ProfileEnvelope>().data
         if (profile.id.isBlank() || profile.email.isBlank() || profile.displayName.isBlank()) return failure("INVALID_RESPONSE")
         return IdentityResult.Success(Profile(profile.id, profile.email, profile.displayName,
-            profile.organizations.map { Organization(it.id, it.tradeName?.takeIf(String::isNotBlank) ?: it.legalName, it.role) }))
+            profile.organizations.map { Organization(it.id, it.tradeName?.takeIf(String::isNotBlank) ?: it.legalName, it.role) }, profile.platformRole))
     }
 
     private suspend fun <T> safely(block: suspend () -> IdentityResult<T>): IdentityResult<T> = try {
@@ -291,5 +294,5 @@ private fun failure(code: String): IdentityResult.Failure {
 @Serializable private data class ApiErrorEnvelope(val errors: List<ApiErrorDto> = emptyList())
 @Serializable private data class ApiErrorDto(val code: String)
 @Serializable private data class ProfileEnvelope(val data: ProfileDto)
-@Serializable private data class ProfileDto(val id: String, val email: String, val displayName: String, val organizations: List<OrganizationDto>)
+@Serializable private data class ProfileDto(val id: String, val email: String, val displayName: String, val organizations: List<OrganizationDto>, val platformRole: String = "USER")
 @Serializable private data class OrganizationDto(val id: String, val legalName: String, val tradeName: String? = null, val role: String)

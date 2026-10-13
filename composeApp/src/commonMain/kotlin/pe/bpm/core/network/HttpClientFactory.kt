@@ -18,7 +18,7 @@ fun createHttpClient(engine: HttpClientEngine = platformHttpEngine()): HttpClien
             socketTimeoutMillis = 12_000
         }
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+            json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
         }
         // Sin logging de cuerpos, tokens ni URL firmadas.
     }

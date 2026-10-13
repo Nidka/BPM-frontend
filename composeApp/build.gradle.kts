@@ -11,6 +11,8 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+compose.resources { packageOfResClass = "pe.bpm.resources" }
+
 val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
     .orElse(providers.environmentVariable("API_BASE_URL"))
     .orElse("https://bpm-service-production.up.railway.app")
@@ -67,6 +69,7 @@ kotlin {
                 implementation("org.jetbrains.compose.foundation:foundation:${libs.versions.compose.get()}")
                 implementation("org.jetbrains.compose.ui:ui:${libs.versions.compose.get()}")
                 implementation(libs.material3)
+            implementation(libs.compose.resources)
                 implementation(libs.lifecycle.viewmodel)
                 implementation(libs.lifecycle.runtime)
                 implementation(libs.coroutines.core)

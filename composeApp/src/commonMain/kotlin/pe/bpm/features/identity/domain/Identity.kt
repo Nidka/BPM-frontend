@@ -5,6 +5,7 @@ data class Profile(
     val email: String,
     val displayName: String,
     val organizations: List<Organization>,
+    val platformRole: String = "USER",
 )
 
 data class Organization(val id: String, val name: String, val role: String)

@@ -16,6 +16,9 @@ import pe.bpm.features.identity.domain.ResetPassword
 import pe.bpm.features.identity.domain.ResendVerification
 import pe.bpm.features.identity.data.platformGoogleAuthProvider
 import pe.bpm.features.identity.presentation.IdentityViewModel
+import pe.bpm.features.workspace.data.RemoteWorkspaceRepository
+import pe.bpm.features.workspace.domain.*
+import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 
 // Raíz de composición manual. Los ViewModels reciben casos de uso, no clientes HTTP.
 class AppGraph(
@@ -25,6 +28,11 @@ class AppGraph(
     private val checkConnection = CheckConnection(RemoteConnectionRepository(httpClient, config))
     private val googleAuth = platformGoogleAuthProvider()
     private val identityRepository = RemoteIdentityRepository(httpClient, config, googleAuth)
+    private val workspaceRepository = RemoteWorkspaceRepository(httpClient, config, identityRepository::sessionToken)
+
+    fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
+        LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
+        CreateLocation(workspaceRepository), AddMember(workspaceRepository))
 
     fun connectionViewModel(): ConnectionViewModel = ConnectionViewModel(checkConnection)
     fun identityViewModel(): IdentityViewModel = IdentityViewModel(
