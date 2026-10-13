@@ -1,150 +1,116 @@
-# Login inicial
+# Identidad: login y registro
 
-Correo/contraseña implementado para Android, iOS y web; Google implementado en
-web. El acceso real requiere configurar
-Firebase y habilitar el UID en PostgreSQL. Sin proveedor se muestra
-AUTH_NOT_CONFIGURED; no existen credenciales por defecto ni modo demo.
+## Alcance
 
-Proyecto registrado: `app-bpm-af59c`, app web `bpm`. La configuración pública
-vive en `config/firebase.public.json`, compartida por el build KMP y el servidor
-web. No contiene clave privada ni cuenta Admin. Authentication habilitado,
-cuenta Admin del backend y alta del UID siguen requiriendo verificación.
-La key fue comprobada contra Firebase con una cuenta ficticia inexistente:
-respondió INVALID_LOGIN_CREDENTIALS. No se crearon usuarios ni sesiones reales.
+Correo/contraseña, registro, verificación de email, reenvío y recuperación
+implementados para web, Android e iOS. Google implementado en web; sus adaptadores
+nativos siguen pendientes de registrar apps/clientes OAuth en Firebase.
 
-## Recorrido y arquitectura
+Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.json
+(o overrides públicos). La cuenta Admin pertenece exclusivamente al backend.
 
-Formulario → IdentityViewModel → SignIn → IdentityRepository → Firebase Auth REST
-→ ID token → GET /api/v1/me → perfil autorizado desde PostgreSQL.
+## Recorridos
 
-Continuar con Google (web) → SignInWithGoogle → GoogleAuthProvider → popup Firebase
-→ ID token Firebase → mismo /api/v1/me. No se envían access tokens ni tokens crudos
-de Google a la API. El puerto compartido tiene adaptadores por plataforma; en
-Android/iOS Google aún no está habilitado y el botón no se muestra.
+- Entrar: Firebase → ID token → GET /api/v1/me → perfil y sesión en memoria.
+- Crear cuenta: formulario validado → Firebase signUp → guardar nombre →
+  enviar VERIFY_EMAIL → pantalla de instrucciones. Todavía no hay sesión BPM.
+- Después de verificar email: iniciar sesión nuevamente → si falta perfil,
+  POST /api/v1/auth/register con Bearer y displayName → perfil USER/ACTIVE.
+- Google web: popup oficial → ID token Firebase → mismo recorrido de perfil.
+  Una identidad nueva con email verificado puede completar el registro.
+- Recuperar acceso: PASSWORD_RESET enviado directamente a Firebase; el mensaje
+  siempre es neutral respecto a si el correo existe.
+- Verificar sesión: consultar /me nuevamente. Logout cancela trabajo y borra
+  tokens locales, incluyendo el token temporal para reenviar verificación.
 
-Solo se muestra «Sesión verificada» si Firebase y la API responden correctamente
-y los UID coinciden. Firebase autentica; el backend decide estado, roles y tenant.
-La API Go no recibe contraseñas. No hay registro público ni autoalta en PostgreSQL.
+Crear una cuenta no crea organizaciones, membresías, locales ni roles elevados.
+Un usuario inactivo nunca se reactiva mediante login/registro. No se fusionan
+UID por coincidencia de correo. Los permisos salen de PostgreSQL.
 
-`features/identity/domain`: modelos, contrato, SignIn, GetCurrentProfile y SignOut.
-`data`: adaptador Firebase/perfil con Ktor. `presentation`: pantalla, estado y
-ViewModel. AppGraph compone por constructor. El token es privado del repositorio.
+## Arquitectura y UI
 
-Los errores son un arreglo con code, message y fields para fallos de formulario.
-Se traducen códigos conocidos a mensajes seguros en español, nunca el error crudo
-del proveedor. Correo inexistente, contraseña incorrecta y usuario Firebase
-deshabilitado tienen el mismo mensaje para no revelar existencia de cuentas.
+features/identity/domain declara contratos y casos de uso. data contiene el
+adaptador Ktor/Firebase y el puerto Google con implementaciones por plataforma.
+presentation expone AuthMode/IdentityUiState y un ViewModel con casos de uso,
+sin HTTP ni SDK. AppGraph inyecta todo por constructor.
 
-## Preparar Firebase
+Estilo inspirado en iOS: fondo gris agrupado, superficies blancas redondeadas,
+azul de acción, selector Entrar/Crear cuenta, campos claros y controles de
+mínimo 52 dp para acciones principales. No depende de imágenes ni CDN visuales.
 
-1. Crear un proyecto en https://console.firebase.google.com.
-2. Authentication → Get started → Sign-in method → Email/Password: habilitar
-   correo/contraseña. No habilitar acceso anónimo.
-3. Project settings → General: registrar una app web, copiar `apiKey` (Web API
-   Key pública) y Project ID. La API key no es la cuenta de servicio Admin.
-4. Authentication → Users: crear una cuenta de prueba y copiar su UID exacto.
-   El titular establece la contraseña allí; no enviarla por chat ni guardarla en Git.
-5. Settings → Authorized domains: registrar appbpm.com y los dominios Railway
-   utilizados, además de localhost para pruebas locales. No se registran puertos
-   ni protocolos. Revisar restricciones de la API key para permitir Identity Toolkit.
-6. Sign-in method → Google: habilitar y seleccionar el correo de asistencia.
-   Google puede crear la identidad en Firebase en el primer acceso, pero NO crea
-   usuarios, membresías ni permisos en PostgreSQL. Copiar el UID desde Users para
-   habilitarlo manualmente. No vincular cuentas automáticamente por coincidencia de correo.
+La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
+acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas
+no usan rememberSaveable y se vacían al enviar o cambiar de modo.
 
-Fuentes: [Firebase Auth REST](https://firebase.google.com/docs/reference/rest/auth),
-[API keys Firebase](https://firebase.google.com/docs/projects/api-keys).
+## Contratos y errores
+
+Todos los fallos se representan con errors[]: code, message y fields. Los fallos
+de formulario señalan displayName, email, password y confirmPassword. Nunca se
+presentan excepciones, mensajes SQL, tokens o mensajes originales de Firebase.
+
+Códigos importantes: VALIDATION_ERROR, INVALID_CREDENTIALS, EMAIL_NOT_VERIFIED,
+PASSWORD_POLICY, REGISTRATION_REJECTED, REGISTRATION_CONFLICT, USER_INACTIVE,
+AUTH_DOMAIN_NOT_AUTHORIZED, AUTH_NOT_CONFIGURED, RATE_LIMITED y NETWORK_ERROR.
+Un popup cerrado no crea sesión. Solo un perfil autorizado con UID coincidente
+permite entrar; nunca se simula éxito con una respuesta de salud.
+
+## Configuración
+
+En Firebase Authentication habilitar Email/Password y Google; seleccionar el
+correo de asistencia. En Configuración → Dominios autorizados agregar:
+
+- localhost
+- bpm-frontend-production.up.railway.app
+- appbpm.com
+- Otros dominios Railway que realmente se utilicen, sin protocolos ni puertos.
+
+En el backend Railway: FIREBASE_ENABLED=true, FIREBASE_PROJECT_ID=app-bpm-af59c
+y FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 como secreto sellado. El JSON permanece
+fuera de Git y del frontend. DATABASE_URL sigue siendo la referencia Postgres.
+
+En frontend Railway: API_BASE_URL con el origen HTTPS backend; FIREBASE_API_KEY
+y FIREBASE_PROJECT_ID son públicos. /config.json expone únicamente esos datos y
+el authDomain derivado, con no-store. Una API key explícitamente vacía desactiva
+el acceso. Android/iOS reciben la key pública al compilar.
+
+La web usa SDK Firebase 13.0.0 fijado para Google e inMemoryPersistence. El SDK se
+cierra tras obtener el ID token. La CSP permite gstatic, apis.google.com, Firebase
+Auth y el iframe del proyecto; no se piden scopes Drive/Gmail ni Analytics.
+
+## Proxy y seguridad
+
+El proxy Node tiene lista cerrada:
+GET /backend/health, /backend/ready, /backend/api/v1/me;
+POST /backend/api/v1/auth/register acepta solo displayName, JSON hasta 4 KiB y
+Bearer. No reenvía contraseñas, cookies, tenant, roles ni destinos arbitrarios.
+Sanitiza códigos y campos del backend y limita tiempos de espera.
+
+El backend deriva UID/email/emailVerified del token revocable. Registro requiere
+correo verificado y conserva cuentas existentes, con auditoría y unicidad de
+correo normalizado. Un rechazo 403/409 nunca se convierte en sesión válida.
+
+## Verificación
+
+Pruebas compartidas: validación antes de red, orden signUp/update/VERIFY_EMAIL,
+recuperación neutral, registro backend sin contraseña/roles, UID coincidente,
+correo no verificado, errores y borrado de sesión. Node prueba el proxy y Google.
+Go prueba el registro idempotente, email verificado, rechazos y PostgreSQL real.
+
+Prueba manual: crear cuenta propia → abrir enlace del correo → volver a entrar
+→ comprobar perfil sin organizaciones → verificar sesión → cerrar sesión.
+Probar además formulario vacío, contraseñas diferentes, popup cancelado y cuenta
+inactiva. El titular introduce su contraseña y completa Google; no enviarlas al
+equipo ni al chat. Las pruebas automatizadas no crean cuentas Firebase reales.
+
+## Límites explícitos
+
+No hay persistencia ni autenticación offline, ni renovación automática del
+ID token. Recargar/reiniciar exige entrar de nuevo. Registro y recuperación
+necesitan internet; los enlaces se gestionan con las páginas de acción Firebase.
+Si una creación Firebase parcial falla, no se borra la cuenta: iniciar sesión,
+reenviar verificación o recuperar acceso. Una actualización de perfil posterior
+y la administración de membresías son recorridos futuros.
+
+Fuentes: [Firebase REST](https://firebase.google.com/docs/reference/rest/auth),
 [Google web](https://firebase.google.com/docs/auth/web/google-signin),
-[persistencia](https://firebase.google.com/docs/auth/web/auth-state-persistence).
-
-## Variables de Railway
-
-Servicio **BPM-frontend**:
-```env
-FIREBASE_API_KEY=<Web API Key pública>
-FIREBASE_PROJECT_ID=app-bpm-af59c
-API_BASE_URL=https://bpm-service-production.up.railway.app
-```
-
-La web obtiene solo configuración pública desde `/config.json`, con no-store:
-firebaseApiKey, firebaseProjectId y firebaseAuthDomain. El authDomain se deriva
-del Project ID, no se acepta un dominio arbitrario.
-Se evalúa al iniciar Node. Android/iOS la reciben en el build con
-`-PfirebaseApiKey=<clave-pública>` o la variable FIREBASE_API_KEY del entorno.
-Si no existe override, web/Android/iOS usan config/firebase.public.json.
-Una variable FIREBASE_API_KEY explícitamente vacía deshabilita el login. El .env
-local está ignorado; cargarlo con `node --env-file=.env web/server.mjs`.
-Correo/contraseña usa REST. Google web usa el SDK oficial Firebase 13.0.0, fijado
-desde gstatic y cargado como módulos. `web/google-auth-controller.mjs` es el
-puente probado sin navegador; el adaptador Wasm lo invoca desde el click sin
-espera previa para evitar bloqueadores de popup. La CSP permite únicamente los
-orígenes necesarios. Actualizar deliberadamente SDK y CSP juntos.
-
-Servicio **BPM-service**:
-```env
-FIREBASE_ENABLED=true
-FIREBASE_PROJECT_ID=<ID del mismo proyecto>
-FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=<secreto sellado>
-```
-
-Crear la cuenta de servicio desde Project settings → Service accounts. El base64
-de su JSON se configura como secreto sellado solo en el backend. El JSON contiene
-clave privada: mantenerlo fuera del repositorio, frontend y chat. Para comprobar
-revocación requiere permisos Firebase Auth de lectura. No modificar DATABASE_URL.
-
-## Habilitar la cuenta en PostgreSQL
-
-Ejecutar manualmente en pgAdmin, base bpm, sustituyendo los marcadores. No es una
-migración ni se ejecuta al desplegar:
-
-```sql
-INSERT INTO application_users
-    (id, email, display_name, platform_role, status, created_by, updated_by)
-VALUES
-    ('UID_FIREBASE', 'CORREO_DE_PRUEBA', 'NOMBRE_DE_PRUEBA',
-     'USER', 'ACTIVE', 'ACTOR_ADMINISTRATIVO', 'ACTOR_ADMINISTRATIVO');
-```
-
-Usar el UID real, no un UUID inventado. No dar SUPER_ADMIN para esta prueba ni
-reactivar/sobrescribir cuentas existentes. Una cuenta sin membresías puede
-verificar su perfil, pero no operar en tenants. La gestión de membresías queda pendiente.
-
-## Seguridad y límites
-
-- Contraseña enmascarada, solo en memoria, sin rememberSaveable; se vacía al
-  enviar/salir. Se transmite solo a Firebase por HTTPS, nunca al proxy Node.
-- ID token solo en memoria; recargar/reiniciar exige nuevo login. No se retiene
-  refreshToken. Al vencer/revocar el token, /me devuelve 401 y se exige login.
-- Google usa `inMemoryPersistence`, sin localStorage/IndexedDB/cookies propios
-  para la sesión Firebase. El SDK se cierra después de obtener el ID token;
-  solo KMP retiene el token si /me autoriza y coincide el UID. Las cookies de la
-  cuenta Google en su propio dominio son gestionadas por Google, no por BPM.
-- Renovación automática y persistencia segura son recorridos posteriores.
-- Cerrar sesión cancela solicitudes y borra el token local; no revoca otras sesiones.
-- Login necesita red: no hay autenticación offline ni acceso ficticio.
-- Proxy web: GET /backend/api/v1/me, solo Bearer; no reenvía cookies, tenant ni
-  destinos arbitrarios. La CSP permite Firebase en identitytoolkit.googleapis.com.
-- Fallos temporales durante verificación mantienen el perfil anterior con error;
-  no significan que la sesión se haya revalidado. Un 401/403 borra el acceso.
-
-## Verificación manual
-
-Probar formulario inválido, credenciales incorrectas, usuario Firebase sin alta
-PostgreSQL, usuario inactivo y usuario activo. Solo este último debe mostrar
-«Sesión verificada». «Verificar sesión con la API» vuelve a consultar /me;
-«Cerrar sesión» vuelve al formulario. Recargar exige login. Las pruebas
-automatizadas usan dobles y credenciales ficticias, nunca cuentas reales.
-
-Google: probar popup cerrado/bloqueado, dominio no autorizado, cuenta sin alta
-en PostgreSQL y UID autorizado. Un conflicto entre proveedores pide usar el
-método original; no se fusionan usuarios por email. La prueba completa requiere
-que el titular complete la selección de cuenta y el consentimiento.
-
-## Pendientes explícitos
-
-- Configurar la cuenta Admin como secreto en Railway backend antes de activar
-  FIREBASE_ENABLED. La configuración web pública NO sustituye ese JSON.
-- Registrar Android/iOS en Firebase y sus clientes OAuth (SHA de Android y
-  configuración iOS), integrar proveedores nativos y sus pruebas. No reutilizar
-  el popup web como login nativo.
-- Renovación de sesión y almacenamiento seguro, si se aprueban posteriormente.
+[persistencia Firebase](https://firebase.google.com/docs/auth/web/auth-state-persistence).

@@ -41,7 +41,7 @@ export function createGoogleAuthController({ sdk, loadConfig }) {
         const idToken = await result.user.getIdToken();
         if (attempt !== generation) throw error('auth/cancelled');
         // Se entrega el ID token Firebase, no el access token ni ID token crudo de Google.
-        return JSON.stringify({ idToken, uid: result.user.uid });
+        return JSON.stringify({ idToken, uid: result.user.uid, displayName: result.user.displayName || 'Usuario BPM' });
       } catch (cause) {
         // Solo el código, nunca el mensaje, email ni credencial del proveedor.
         throw error(typeof cause?.code === 'string' ? cause.code : 'auth/unavailable');

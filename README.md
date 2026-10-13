@@ -24,5 +24,6 @@ Abrir http://localhost:3000. Para Android usar
 La configuración usa el backend público de Railway. Ninguna credencial de
 PostgreSQL, Firebase Admin o R2 pertenece a este repositorio.
 
-El acceso real requiere configurar Firebase y habilitar la cuenta en PostgreSQL.
+El acceso real requiere configurar Firebase. El registro completa el perfil
+USER en PostgreSQL después de verificar el email, sin asignar organizaciones.
 No hay registro público, módulos operativos, almacenamiento local ni sincronizador.

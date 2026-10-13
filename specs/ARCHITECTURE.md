@@ -53,7 +53,8 @@ API_BASE_URL. Android/iOS consultan directamente el origen HTTPS configurado al
 compilar. Los módulos futuros ampliarán el proxy con rutas y encabezados
 autorizados explícitamente.
 
-La base visual usa petróleo, fondo claro y acento naranja de la propuesta BPM.
-El inicio implementa login/perfil y permite abrir la comprobación de conexión.
-Ver IDENTITY.md. No hay persistencia, sincronización, registro público, selección
-de tenant ni otros módulos de negocio.
+La base visual usa estilo iOS: azul de acción, fondo gris agrupado, superficies
+blancas y bordes redondeados. Identidad implementa login/registro, verificación
+de email, recuperación y perfil; permite abrir la comprobación de conexión.
+Ver IDENTITY.md. No hay persistencia, sincronización, selección de tenant ni otros
+módulos de negocio. El registro solo crea USER sin acceso a organizaciones.

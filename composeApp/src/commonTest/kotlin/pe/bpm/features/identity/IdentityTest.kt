@@ -65,7 +65,7 @@ class IdentityTest {
                     google(GoogleAuthResult.Success(GoogleCredential("firebase.google.test", "uid-1"))))
                 assertEquals(expected, assertIs<IdentityResult.Failure>(repository.signInWithGoogle()).errors.single().code)
                 assertIs<IdentityResult.Failure>(repository.currentProfile())
-                assertEquals(1, calls)
+                assertEquals(if (status == HttpStatusCode.Forbidden) 2 else 1, calls)
             } finally { client.close() }
         }
     }

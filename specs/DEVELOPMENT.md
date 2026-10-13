@@ -55,7 +55,7 @@ no incluye fallback Kotlin/JS para navegadores antiguos.
 
 Verificar antes del push:
 ```bash
-node --test web/server.test.mjs
+node --test web/*.test.mjs
 ./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug
 git diff --check
 ```

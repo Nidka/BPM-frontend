@@ -24,14 +24,44 @@ interface IdentityRepository {
     suspend fun signIn(email: String, password: String): IdentityResult<Profile>
     suspend fun signInWithGoogle(): IdentityResult<Profile>
     suspend fun currentProfile(): IdentityResult<Profile>
+    suspend fun register(name: String, email: String, password: String): IdentityResult<Unit>
+    suspend fun resetPassword(email: String): IdentityResult<Unit>
+    suspend fun resendVerification(): IdentityResult<Unit>
     fun signOut()
+}
+
+private fun validEmail(email: String) = email.length <= 320 && email.matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
+
+class Register(private val repository: IdentityRepository) {
+    suspend operator fun invoke(name: String, email: String, password: String, confirmation: String): IdentityResult<Unit> {
+        val fields = buildMap {
+            if (name.trim().length !in 2..100 || name.any { it.code < 32 || it.code in 127..159 })
+                put("displayName", "Ingresa un nombre de entre 2 y 100 caracteres.")
+            if (!validEmail(email.trim())) put("email", "Ingresa un correo válido.")
+            if (password.length !in 8..128) put("password", "Usa entre 8 y 128 caracteres.")
+            if (password != confirmation) put("confirmPassword", "Las contraseñas no coinciden.")
+        }
+        if (fields.isNotEmpty()) return IdentityResult.Failure(listOf(IdentityError("VALIDATION_ERROR", "Revisa los campos del formulario.", fields)))
+        return repository.register(name.trim(), email.trim(), password)
+    }
+}
+
+class ResetPassword(private val repository: IdentityRepository) {
+    suspend operator fun invoke(email: String): IdentityResult<Unit> {
+        if (!validEmail(email.trim())) return IdentityResult.Failure(listOf(IdentityError("VALIDATION_ERROR", "Revisa el correo.", mapOf("email" to "Ingresa un correo válido."))))
+        return repository.resetPassword(email.trim())
+    }
+}
+
+class ResendVerification(private val repository: IdentityRepository) {
+    suspend operator fun invoke(): IdentityResult<Unit> = repository.resendVerification()
 }
 
 class SignIn(private val repository: IdentityRepository) {
     suspend operator fun invoke(email: String, password: String): IdentityResult<Profile> {
         val normalizedEmail = email.trim()
         val fields = buildMap {
-            if (normalizedEmail.length > 320 || !normalizedEmail.matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))) {
+            if (!validEmail(normalizedEmail)) {
                 put("email", "Ingresa un correo válido.")
             }
             // No transformar contraseñas ni imponer una política distinta a la del proveedor al iniciar sesión.

@@ -40,6 +40,8 @@ fun App() {
             }
         } else IdentityScreen(identityState, identityViewModel::login, identityViewModel::logout,
             identityViewModel::verifySession, onConnection = { showConnection = true; connectionViewModel.retry() },
-            googleSupported = identityViewModel.googleSupported, onGoogle = identityViewModel::loginWithGoogle)
+            googleSupported = identityViewModel.googleSupported, onGoogle = identityViewModel::loginWithGoogle,
+            onMode = identityViewModel::changeMode, onRegister = identityViewModel::register,
+            onRecover = identityViewModel::recover, onResend = identityViewModel::resend)
     }
 }

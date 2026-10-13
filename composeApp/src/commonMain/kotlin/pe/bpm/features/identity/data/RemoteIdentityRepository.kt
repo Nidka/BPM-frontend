@@ -7,6 +7,8 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
@@ -25,6 +27,7 @@ class RemoteIdentityRepository(
     // Solo memoria. No usar almacenamiento del navegador ni guardar la contraseña.
     private var idToken: String? = null
     private var apiKey: String? = null
+    private var verificationToken: String? = null
 
     override suspend fun signIn(email: String, password: String): IdentityResult<Profile> {
         signOut()
@@ -49,7 +52,7 @@ class RemoteIdentityRepository(
             }
             val credential = response.body<FirebaseCredential>()
             if (credential.idToken.isBlank() || credential.localId.isBlank()) return@safely failure("INVALID_RESPONSE")
-            acceptCredential(credential.idToken, credential.localId)
+            acceptCredential(credential.idToken, credential.localId, credential.displayName)
         }
     }
 
@@ -58,14 +61,22 @@ class RemoteIdentityRepository(
         return safely {
             when (val result = googleAuth.signIn()) {
                 is GoogleAuthResult.Failure -> failure(result.code)
-                is GoogleAuthResult.Success -> acceptCredential(result.credential.idToken, result.credential.uid)
+                is GoogleAuthResult.Success -> acceptCredential(result.credential.idToken, result.credential.uid, result.credential.displayName)
             }
         }
     }
 
-    private suspend fun acceptCredential(token: String, uid: String): IdentityResult<Profile> {
+    private suspend fun acceptCredential(token: String, uid: String, displayName: String): IdentityResult<Profile> {
         if (token.isBlank() || uid.isBlank()) return failure("INVALID_RESPONSE")
-        val profile = fetchProfile(token)
+        var profile = fetchProfile(token)
+        if (profile is IdentityResult.Failure && profile.errors.any { it.code == "USER_NOT_REGISTERED" }) {
+            val response = client.post("${config.apiBaseUrl}/api/v1/auth/register") {
+                bearerAuth(token); contentType(ContentType.Application.Json)
+                setBody(RegisterProfileRequest(displayName.ifBlank { "Usuario BPM" }))
+            }
+            profile = readProfile(response)
+        }
+        if (profile is IdentityResult.Failure && profile.errors.any { it.code == "EMAIL_NOT_VERIFIED" }) verificationToken = token
         if (profile is IdentityResult.Success) {
             if (profile.value.id != uid) return failure("INVALID_RESPONSE")
             idToken = token
@@ -84,7 +95,75 @@ class RemoteIdentityRepository(
 
     override fun signOut() {
         idToken = null
+        verificationToken = null
         googleAuth.clear()
+    }
+
+    override suspend fun register(name: String, email: String, password: String): IdentityResult<Unit> {
+        signOut()
+        return safely {
+            val key = firebaseKey()
+            if (key.isBlank()) return@safely failure("AUTH_NOT_CONFIGURED")
+            val created = client.post("https://identitytoolkit.googleapis.com/v1/accounts:signUp") {
+                url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
+                setBody(SignInRequest(email, password, returnSecureToken = true))
+            }
+            if (!created.status.isSuccess()) return@safely firebaseFailure(created, registration = true)
+            val credential = created.body<FirebaseCredential>()
+            if (credential.idToken.isBlank() || credential.localId.isBlank()) return@safely failure("INVALID_RESPONSE")
+            verificationToken = credential.idToken
+            val updated = client.post("https://identitytoolkit.googleapis.com/v1/accounts:update") {
+                url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
+                setBody(UpdateNameRequest(credential.idToken, name, returnSecureToken = true))
+            }
+            if (!updated.status.isSuccess()) return@safely failure("REGISTRATION_INCOMPLETE")
+            val updatedCredential = updated.body<FirebaseCredential>()
+            if (updatedCredential.localId != credential.localId || updatedCredential.idToken.isBlank()) return@safely failure("INVALID_RESPONSE")
+            verificationToken = updatedCredential.idToken
+            resendVerification()
+        }
+    }
+
+    override suspend fun resendVerification(): IdentityResult<Unit> = safely {
+        val token = verificationToken ?: return@safely failure("UNAUTHENTICATED")
+        val key = firebaseKey()
+        if (key.isBlank()) return@safely failure("AUTH_NOT_CONFIGURED")
+        val response = client.post("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode") {
+            url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
+            header("X-Firebase-Locale", "es")
+            setBody(VerificationRequest("VERIFY_EMAIL", token))
+        }
+        if (!response.status.isSuccess()) return@safely firebaseFailure(response)
+        IdentityResult.Success(Unit)
+    }
+
+    override suspend fun resetPassword(email: String): IdentityResult<Unit> = safely {
+        val key = firebaseKey()
+        if (key.isBlank()) return@safely failure("AUTH_NOT_CONFIGURED")
+        val response = client.post("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode") {
+            url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
+            header("X-Firebase-Locale", "es")
+            setBody(ResetRequest("PASSWORD_RESET", email))
+        }
+        if (!response.status.isSuccess()) {
+            if (response.status.value == 400 && response.body<FirebaseErrorEnvelope>().error.message == "EMAIL_NOT_FOUND")
+                return@safely IdentityResult.Success(Unit)
+            return@safely firebaseFailure(response)
+        }
+        IdentityResult.Success(Unit)
+    }
+
+    private suspend fun firebaseFailure(response: HttpResponse, registration: Boolean = false): IdentityResult.Failure {
+        if (response.status.value == 429) return failure("RATE_LIMITED")
+        if (response.status.value >= 500) return failure("AUTH_UNAVAILABLE")
+        val code = response.body<FirebaseErrorEnvelope>().error.message.substringBefore(" : ")
+        return failure(when (code) {
+            "OPERATION_NOT_ALLOWED", "CONFIGURATION_NOT_FOUND", "API_KEY_INVALID" -> "AUTH_NOT_CONFIGURED"
+            "TOO_MANY_ATTEMPTS_TRY_LATER" -> "RATE_LIMITED"
+            "WEAK_PASSWORD", "PASSWORD_DOES_NOT_MEET_REQUIREMENTS" -> "PASSWORD_POLICY"
+            "INVALID_ID_TOKEN", "TOKEN_EXPIRED" -> "UNAUTHENTICATED"
+            else -> if (registration) "REGISTRATION_REJECTED" else "AUTH_UNAVAILABLE"
+        })
     }
 
     private suspend fun firebaseKey(): String {
@@ -101,11 +180,17 @@ class RemoteIdentityRepository(
 
     private suspend fun fetchProfile(token: String): IdentityResult<Profile> {
         val response = client.get("${config.apiBaseUrl}/api/v1/me") { bearerAuth(token) }
+        return readProfile(response)
+    }
+
+    private suspend fun readProfile(response: HttpResponse): IdentityResult<Profile> {
         if (!response.status.isSuccess()) {
             val code = response.body<ApiErrorEnvelope>().errors.firstOrNull()?.code
             return when (response.status.value) {
                 401 -> failure("UNAUTHENTICATED")
-                403 -> failure(if (code == "USER_INACTIVE") "USER_INACTIVE" else "USER_NOT_REGISTERED")
+                403 -> failure(when (code) { "USER_INACTIVE" -> "USER_INACTIVE"; "EMAIL_NOT_VERIFIED" -> "EMAIL_NOT_VERIFIED"; else -> "USER_NOT_REGISTERED" })
+                409 -> failure("REGISTRATION_CONFLICT")
+                422 -> failure("INVALID_PROFILE_NAME")
                 429 -> failure("RATE_LIMITED")
                 503 -> failure(if (code == "AUTHENTICATION_UNAVAILABLE") "AUTH_NOT_CONFIGURED" else "AUTH_UNAVAILABLE")
                 else -> failure("AUTH_UNAVAILABLE")
@@ -117,7 +202,7 @@ class RemoteIdentityRepository(
             profile.organizations.map { Organization(it.id, it.tradeName?.takeIf(String::isNotBlank) ?: it.legalName, it.role) }))
     }
 
-    private suspend fun safely(block: suspend () -> IdentityResult<Profile>): IdentityResult<Profile> = try {
+    private suspend fun <T> safely(block: suspend () -> IdentityResult<T>): IdentityResult<T> = try {
         block()
     } catch (cancelled: CancellationException) {
         throw cancelled
@@ -136,6 +221,13 @@ private fun failure(code: String): IdentityResult.Failure {
     val message = when (code) {
         "INVALID_CREDENTIALS" -> "El correo o la contraseña no son correctos."
         "AUTH_NOT_CONFIGURED" -> "El inicio de sesión aún no está configurado. Contacta al administrador."
+        "AUTH_DOMAIN_NOT_AUTHORIZED" -> "Este dominio no está autorizado en Firebase. Contacta al administrador."
+        "EMAIL_NOT_VERIFIED" -> "Verifica tu correo y vuelve a iniciar sesión para completar tu cuenta BPM."
+        "REGISTRATION_REJECTED" -> "No pudimos crear la cuenta. Intenta iniciar sesión o recuperar tu contraseña."
+        "REGISTRATION_INCOMPLETE" -> "La cuenta Firebase se creó, pero falta completar el perfil. Inicia sesión para continuar."
+        "REGISTRATION_CONFLICT" -> "Usa el método original de tu cuenta o contacta al administrador."
+        "PASSWORD_POLICY" -> "La contraseña no cumple la política de seguridad de Firebase. Usa una más segura."
+        "INVALID_PROFILE_NAME" -> "Revisa el nombre de tu perfil. Debe tener entre 2 y 100 caracteres."
         "USER_NOT_REGISTERED" -> "Tu cuenta no está habilitada en BPM. Contacta al administrador."
         "USER_INACTIVE" -> "Tu cuenta se encuentra inactiva. Contacta al administrador."
         "UNAUTHENTICATED" -> "Tu sesión terminó. Inicia sesión nuevamente."
@@ -150,11 +242,20 @@ private fun failure(code: String): IdentityResult.Failure {
         "ACCOUNT_CONFLICT" -> "Ingresa con el método original de tu cuenta. Su vinculación con Google requiere verificación."
         else -> "El servicio de autenticación no está disponible. Inténtalo nuevamente."
     }
-    return IdentityResult.Failure(listOf(IdentityError(code, message)))
+    val fields = when (code) {
+        "PASSWORD_POLICY" -> mapOf("password" to message)
+        "INVALID_PROFILE_NAME" -> mapOf("displayName" to message)
+        else -> emptyMap()
+    }
+    return IdentityResult.Failure(listOf(IdentityError(code, message, fields)))
 }
 
 @Serializable private class SignInRequest(val email: String, val password: String, val returnSecureToken: Boolean)
-@Serializable private class FirebaseCredential(val idToken: String, val localId: String)
+@Serializable private class FirebaseCredential(val idToken: String, val localId: String, val displayName: String = "Usuario BPM")
+@Serializable private class UpdateNameRequest(val idToken: String, val displayName: String, val returnSecureToken: Boolean)
+@Serializable private class RegisterProfileRequest(val displayName: String)
+@Serializable private class VerificationRequest(val requestType: String, val idToken: String)
+@Serializable private class ResetRequest(val requestType: String, val email: String)
 @Serializable private data class FirebaseErrorEnvelope(val error: FirebaseError)
 @Serializable private data class FirebaseError(val message: String)
 @Serializable private data class PublicConfigDto(val firebaseApiKey: String = "")

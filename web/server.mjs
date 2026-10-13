@@ -16,6 +16,27 @@ const types = {
 };
 const errorBody = (code, message) => JSON.stringify({ errors: [{ code, message, fields: {} }] });
 
+function registrationBody(request) {
+  return new Promise((resolveBody, reject) => {
+    let size = 0; const chunks = [];
+    request.on('data', chunk => {
+      size += chunk.length;
+      if (size > 4096) { chunks.length = 0; reject(new Error('Body too large')); }
+      else chunks.push(chunk);
+    });
+    request.on('error', reject);
+    request.on('end', () => {
+      if (size > 4096) return;
+      try {
+        const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (!data || Array.isArray(data) || typeof data.displayName !== 'string' ||
+            Object.keys(data).some(key => key !== 'displayName')) throw new Error('Invalid registration');
+        resolveBody(JSON.stringify({ displayName: data.displayName }));
+      } catch { reject(new Error('Invalid registration')); }
+    });
+  });
+}
+
 export function createAppServer({
   distDir = resolve('composeApp/build/dist/wasmJs/productionExecutable'),
   apiBaseUrl = process.env.API_BASE_URL || 'https://bpm-service-production.up.railway.app',
@@ -34,7 +55,7 @@ export function createAppServer({
   }
   if (!/^[a-z][a-z0-9-]{4,62}$/.test(firebaseProjectId)) throw new Error('FIREBASE_PROJECT_ID inválido.');
   const firebaseAuthDomain = firebaseProjectId + '.firebaseapp.com';
-  return http.createServer(async (request, response) => {
+  return http.createServer({ requestTimeout: 15000, headersTimeout: 10000 }, async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
     response.setHeader('Referrer-Policy', 'no-referrer');
@@ -46,7 +67,8 @@ export function createAppServer({
       response.writeHead(status, { 'Content-Type': contentType });
       response.end(request.method === 'HEAD' ? undefined : body);
     };
-    if (!['GET', 'HEAD'].includes(request.method)) {
+    const isRegistration = request.method === 'POST' && request.url === '/backend/api/v1/auth/register';
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
@@ -70,11 +92,13 @@ export function createAppServer({
       if (url.pathname.startsWith('/backend/')) {
         // Lista cerrada inicial. No aceptar destinos, tokens ni URLs desde el navegador.
         const path = url.pathname.slice('/backend'.length);
-        if (!['/health', '/ready', '/api/v1/me'].includes(path) || url.search) {
+        if (!['/health', '/ready', '/api/v1/me', '/api/v1/auth/register'].includes(path) || url.search) {
           return send(404, errorBody('NOT_FOUND', 'Recurso no disponible.'));
         }
         const headers = { Accept: 'application/json' };
-        if (path === '/api/v1/me') {
+        const isProfile = path === '/api/v1/me' || path === '/api/v1/auth/register';
+        if (path === '/api/v1/auth/register' && !isRegistration) return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
+        if (isProfile) {
           const authorization = request.headers.authorization;
           if (typeof authorization !== 'string' || authorization.length > 8192 ||
               !/^Bearer [A-Za-z0-9._-]+$/.test(authorization)) {
@@ -82,14 +106,24 @@ export function createAppServer({
           }
           headers.Authorization = authorization;
         }
+        let payload;
+        if (isRegistration) {
+          if (request.headers.origin && new URL(request.headers.origin).host !== request.headers.host)
+            return send(403, errorBody('ORIGIN_NOT_ALLOWED', 'Origen no permitido.'));
+          if (!/^application\/json(?:;|$)/i.test(request.headers['content-type'] || ''))
+            return send(415, errorBody('UNSUPPORTED_MEDIA_TYPE', 'Envía una solicitud JSON.'));
+          try { payload = await registrationBody(request); }
+          catch { return send(400, errorBody('INVALID_REQUEST', 'La solicitud no es válida o excede el límite.')); }
+          headers['Content-Type'] = 'application/json';
+        }
         try {
           const result = await fetch(new URL(path, upstream), {
-            method: 'GET', redirect: 'error',
+            method: isRegistration ? 'POST' : 'GET', redirect: 'error', body: payload,
             headers,
             signal: AbortSignal.timeout(10_000),
           });
           if (!result.ok) {
-            if (path === '/api/v1/me') {
+            if (isProfile) {
               const data = await result.json().catch(() => ({}));
               const code = data.errors?.[0]?.code;
               const errors = {
@@ -97,8 +131,14 @@ export function createAppServer({
                 USER_NOT_REGISTERED: [403, 'Tu cuenta no está habilitada en BPM.'],
                 USER_INACTIVE: [403, 'Tu cuenta se encuentra inactiva.'],
                 AUTHENTICATION_UNAVAILABLE: [503, 'El servicio de autenticación no está configurado.'],
+                EMAIL_NOT_VERIFIED: [403, 'Verifica tu correo antes de continuar.'],
+                REGISTRATION_CONFLICT: [409, 'No se pudo completar el registro. Usa tu método de acceso original.'],
+                INVALID_REQUEST: [400, 'La solicitud no es válida.'],
+                VALIDATION_ERROR: [422, 'Revisa los campos del formulario.'],
               };
               if (Object.hasOwn(errors, code) && errors[code][0] === result.status) {
+                if (code === 'VALIDATION_ERROR') return send(422, JSON.stringify({ errors: [{ code,
+                  message: 'Revisa el nombre de tu perfil.', fields: { displayName: 'Ingresa un nombre de entre 2 y 100 caracteres.' } }] }));
                 return send(result.status, errorBody(code, errors[code][1]));
               }
               if (result.status === 429) return send(429, errorBody('RATE_LIMITED', 'Demasiadas solicitudes. Inténtalo más tarde.'));
@@ -112,7 +152,7 @@ export function createAppServer({
           }
           // Reenviar únicamente los campos públicos esperados.
           const data = JSON.parse(body);
-          if (path === '/api/v1/me') {
+          if (isProfile) {
             const profile = data.data;
             if (!profile || typeof profile.id !== 'string' || typeof profile.email !== 'string' ||
                 typeof profile.displayName !== 'string' || !Array.isArray(profile.organizations)) {

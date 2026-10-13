@@ -11,6 +11,9 @@ import pe.bpm.features.identity.domain.GetCurrentProfile
 import pe.bpm.features.identity.domain.SignIn
 import pe.bpm.features.identity.domain.SignOut
 import pe.bpm.features.identity.domain.SignInWithGoogle
+import pe.bpm.features.identity.domain.Register
+import pe.bpm.features.identity.domain.ResetPassword
+import pe.bpm.features.identity.domain.ResendVerification
 import pe.bpm.features.identity.data.platformGoogleAuthProvider
 import pe.bpm.features.identity.presentation.IdentityViewModel
 
@@ -26,7 +29,8 @@ class AppGraph(
     fun connectionViewModel(): ConnectionViewModel = ConnectionViewModel(checkConnection)
     fun identityViewModel(): IdentityViewModel = IdentityViewModel(
         SignIn(identityRepository), GetCurrentProfile(identityRepository), SignOut(identityRepository),
-        SignInWithGoogle(identityRepository), googleAuth.supported)
+        SignInWithGoogle(identityRepository), googleAuth.supported,
+        Register(identityRepository), ResetPassword(identityRepository), ResendVerification(identityRepository))
     override fun close() {
         identityRepository.signOut()
         httpClient.close()

@@ -24,7 +24,7 @@ test('opens popup synchronously and returns only Firebase credentials, with memo
   await controller.initialization;
   const result = controller.signIn();
   assert.equal(calls.filter(([name]) => name === 'popup').length, 1);
-  assert.deepEqual(JSON.parse(await result), { idToken: 'firebase-test-token', uid: 'uid-test' });
+  assert.deepEqual(JSON.parse(await result), { idToken: 'firebase-test-token', uid: 'uid-test', displayName: 'Usuario BPM' });
   assert.deepEqual(calls.find(([name]) => name === 'parameters')[1], { prompt: 'select_account' });
   assert.equal(calls.at(-1)[0], 'signOut');
 });

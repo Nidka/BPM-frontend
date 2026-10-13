@@ -1,12 +1,13 @@
 # Reparto y siguientes recorridos
 
-Esta entrega implementa conexión técnica y login/perfil. El acceso real requiere
-configurar Firebase y habilitar el UID en PostgreSQL según IDENTITY.md.
+Esta entrega implementa conexión técnica y login/registro/perfil. El acceso real
+requiere configurar Firebase y verificar email; el backend completa el perfil
+mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 
 | Área | Punto de entrada | Próximo trabajo |
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
-| Identidad | features/identity | Login/perfil listo; siguiente: recuperación, renovación y persistencia segura |
+| Identidad | features/identity | Login/registro/recuperación listos; siguiente: Google nativo, renovación y persistencia segura |
 | Organización activa | identity/domain y data | Validar membresía con el backend, seleccionar sede |
 | Checklists | nueva features/checklists | Catálogo local, borradores, idempotencia y sincronización |
 | Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |
@@ -32,6 +33,6 @@ agregar reinicio sin red, reintentos duplicados, conflictos y aislamiento tenant
 La API disponible se documenta en:
 https://bpm-service-production.up.railway.app/docs/
 
-Para comenzar identidad, primero habilitar Firebase en el backend y registrar
-el usuario interno. Un token válido sin usuario habilitado debe producir acceso
-denegado. El cliente jamás determina roles/permisos definitivos.
+Identidad requiere Firebase configurado. /me rechaza usuarios sin perfil; el
+cliente completa el registro mínimo por /auth/register solo con email verificado.
+El cliente jamás determina roles/permisos definitivos ni reactiva cuentas inactivas.
