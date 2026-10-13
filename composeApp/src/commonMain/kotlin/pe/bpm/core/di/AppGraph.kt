@@ -6,6 +6,11 @@ import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.connection.data.RemoteConnectionRepository
 import pe.bpm.features.connection.domain.CheckConnection
 import pe.bpm.features.connection.presentation.ConnectionViewModel
+import pe.bpm.features.identity.data.RemoteIdentityRepository
+import pe.bpm.features.identity.domain.GetCurrentProfile
+import pe.bpm.features.identity.domain.SignIn
+import pe.bpm.features.identity.domain.SignOut
+import pe.bpm.features.identity.presentation.IdentityViewModel
 
 // Raíz de composición manual. Los ViewModels reciben casos de uso, no clientes HTTP.
 class AppGraph(
@@ -13,7 +18,13 @@ class AppGraph(
     private val httpClient: HttpClient = createHttpClient(),
 ) : AutoCloseable {
     private val checkConnection = CheckConnection(RemoteConnectionRepository(httpClient, config))
+    private val identityRepository = RemoteIdentityRepository(httpClient, config)
 
     fun connectionViewModel(): ConnectionViewModel = ConnectionViewModel(checkConnection)
-    override fun close() = httpClient.close()
+    fun identityViewModel(): IdentityViewModel = IdentityViewModel(
+        SignIn(identityRepository), GetCurrentProfile(identityRepository), SignOut(identityRepository))
+    override fun close() {
+        identityRepository.signOut()
+        httpClient.close()
+    }
 }

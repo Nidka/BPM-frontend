@@ -1,7 +1,7 @@
 # Guía del frontend BPM
 
 Leer `specs/ARCHITECTURE.md`, `specs/DEVELOPMENT.md`, `specs/OFFLINE.md`,
-`specs/FEATURES.md` y `RAILWAY.md` antes de cambiar la base.
+`specs/FEATURES.md`, `specs/IDENTITY.md` y `RAILWAY.md` antes de cambiar la base.
 
 - KMP + Compose Multiplatform, MVVM, Clean Architecture por features.
 - `core/di/AppGraph` compone dependencias manualmente; no usar service locators.
@@ -13,6 +13,7 @@ Leer `specs/ARCHITECTURE.md`, `specs/DEVELOPMENT.md`, `specs/OFFLINE.md`,
 - Nuevas features se desarrollan como recorridos completos bajo features/.
 - Compartir componentes solo cuando exista reutilización real.
 - Ninguna clave PostgreSQL, cuenta de servicio Firebase ni credencial R2 va al cliente.
+- Login confirma /me; no simular éxito ni persistir contraseña/token en el navegador.
 - Toda operación empresarial futura valida tenant/permisos en el backend.
 - Offline sigue el contrato de specs/OFFLINE.md; aún no hay persistencia ni sincronizador.
 - Verificar `./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug`

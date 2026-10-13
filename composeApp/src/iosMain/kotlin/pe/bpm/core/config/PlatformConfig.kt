@@ -1,3 +1,3 @@
 package pe.bpm.core.config
 
-actual fun platformAppConfig(): AppConfig = AppConfig(NATIVE_API_BASE_URL)
+actual fun platformAppConfig(): AppConfig = AppConfig(NATIVE_API_BASE_URL, FIREBASE_API_KEY)

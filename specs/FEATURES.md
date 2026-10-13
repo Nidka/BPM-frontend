@@ -1,11 +1,12 @@
 # Reparto y siguientes recorridos
 
-Esta entrega solo implementa el recorrido técnico de conexión.
+Esta entrega implementa conexión técnica y login/perfil. El acceso real requiere
+configurar Firebase y habilitar el UID en PostgreSQL según IDENTITY.md.
 
 | Área | Punto de entrada | Próximo trabajo |
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
-| Identidad | nueva features/identity | Firebase cliente, sesión y GET /api/v1/me |
+| Identidad | features/identity | Login/perfil listo; siguiente: recuperación, renovación y persistencia segura |
 | Organización activa | identity/domain y data | Validar membresía con el backend, seleccionar sede |
 | Checklists | nueva features/checklists | Catálogo local, borradores, idempotencia y sincronización |
 | Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |

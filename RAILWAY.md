@@ -13,6 +13,7 @@ Variables del servicio frontend:
 ```env
 API_BASE_URL=https://bpm-service-production.up.railway.app
 NODE_ENV=production
+FIREBASE_API_KEY=
 ```
 
 API_BASE_URL se evalúa al iniciar el servidor web; es el origen del backend, sin
@@ -44,8 +45,8 @@ Dominio appbpm.com:
 No cambiar registros MX, correo ni otros subdominios. La web usa proxy del mismo
 origen, por lo que cambiar al dominio propio no exige ampliar CORS en el backend.
 
-La primera pantalla no exige Firebase porque solo consulta salud; los módulos
-autenticados lo incorporarán con ID token y autorización real del backend.
+El inicio muestra login; la comprobación de salud sigue accesible sin sesión.
+Configurar Firebase según specs/IDENTITY.md para probar un acceso real.
 
 El dominio necesita acceso DNS a la zona Cloudflare o que su administrador
 publique los registros. Crear el dominio en Railway no modifica el DNS externo.
@@ -54,6 +55,7 @@ publique los registros. Crear el dominio en Railway no modifica el DNS externo.
 
 - Proyecto: bpm / production. Servicio: BPM-frontend.
 - URL web: https://bpm-frontend-production.up.railway.app
+- Ambos dominios usan target port 8080, el PORT efectivo de Railway (no el 3000 local).
 - appbpm.com ya está registrado en Railway, pendiente de DNS y certificado.
 
 Registros solicitados por Railway (consultar `railway domain status appbpm.com --json`

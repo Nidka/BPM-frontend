@@ -5,6 +5,7 @@
 3. OFFLINE.md: contrato previsto y capacidades aún pendientes.
 4. FEATURES.md: división del trabajo y plantilla de módulos.
 5. ../RAILWAY.md: CI/CD, variables, dominio y conexión real.
+6. IDENTITY.md: login, configuración Firebase y habilitación de cuentas de prueba.
 
 Actualizar estas decisiones junto con el código; no describir como implementadas
 capacidades que solo están planificadas.

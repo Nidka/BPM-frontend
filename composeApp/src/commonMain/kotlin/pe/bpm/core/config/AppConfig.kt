@@ -1,6 +1,10 @@
 package pe.bpm.core.config
 
-data class AppConfig(val apiBaseUrl: String) {
+data class AppConfig(
+    val apiBaseUrl: String,
+    val firebaseApiKey: String = "",
+    val publicConfigUrl: String? = null,
+) {
     init {
         require(apiBaseUrl.startsWith("https://") ||
             apiBaseUrl.startsWith("http://localhost:") ||

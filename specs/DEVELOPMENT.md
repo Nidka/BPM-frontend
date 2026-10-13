@@ -33,6 +33,8 @@ local.properties (ignorado), por ejemplo sdk.dir=/ruta/al/Android/sdk.
 El origen API nativo se fija al compilar:
 `./gradlew :composeApp:assembleDebug -PapiBaseUrl=https://api.ejemplo.com`.
 Nunca incluye contraseñas ni credenciales de infraestructura.
+Para login nativo, agregar `-PfirebaseApiKey=<Web-API-Key-pública>` al build.
+El proveedor y la cuenta se preparan según IDENTITY.md.
 
 iOS:
 ```bash

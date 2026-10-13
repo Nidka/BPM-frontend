@@ -14,8 +14,11 @@ val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
     .orElse(providers.environmentVariable("API_BASE_URL"))
     .orElse("https://bpm-service-production.up.railway.app")
 val generatedConfig = layout.buildDirectory.dir("generated/config/commonMain")
+val firebaseApiKey = providers.gradleProperty("firebaseApiKey")
+    .orElse(providers.environmentVariable("FIREBASE_API_KEY")).orElse("")
 val generateAppConfig by tasks.registering {
     inputs.property("apiBaseUrl", apiBaseUrl)
+    inputs.property("firebaseApiKey", firebaseApiKey)
     outputs.dir(generatedConfig)
     doLast {
         val url = apiBaseUrl.get().trimEnd('/')
@@ -25,8 +28,13 @@ val generateAppConfig by tasks.registering {
             "API_BASE_URL debe ser un origen HTTPS público sin credenciales ni rutas."
         }
         val file = generatedConfig.get().file("pe/bpm/core/config/BuildConfig.kt").asFile
+        val key = firebaseApiKey.get().trim()
+        require(key.isEmpty() || key.matches(Regex("[A-Za-z0-9_-]{20,100}"))) {
+            "FIREBASE_API_KEY debe ser la clave pública de Firebase, no un JSON ni un secreto Admin."
+        }
         file.parentFile.mkdirs()
-        file.writeText("package pe.bpm.core.config\n\ninternal const val NATIVE_API_BASE_URL = \"" + url + "\"\n")
+        file.writeText("package pe.bpm.core.config\n\ninternal const val NATIVE_API_BASE_URL = \"" + url + "\"\n" +
+            "internal const val FIREBASE_API_KEY = \"" + key + "\"\n")
     }
 }
 

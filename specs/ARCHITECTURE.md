@@ -21,6 +21,10 @@ composeApp/src/commonMain/kotlin/pe/bpm/
     domain/                  modelo, puerto de repositorio y caso de uso
     data/                    DTO y adaptador Ktor
     presentation/            ViewModel, estado y pantalla
+  features/identity/
+    domain/                  perfil y casos de uso de sesión
+    data/                    Firebase REST y perfil de la API
+    presentation/            formulario, sesión y ViewModel
 ```
 
 Flujo: pantalla → ViewModel → caso de uso → interfaz del repositorio →
@@ -44,10 +48,12 @@ Así sobrevive a cambios de configuración Android sin reutilizar un cliente cer
 permite ejecutar pruebas compartidas sin emulador. No es un producto de escritorio.
 
 La web llama a `/backend/health` y `/backend/ready` del mismo origen. El servidor
-Node reenvía exclusivamente esas rutas al backend HTTPS definido por
+Node reenvía esas rutas y GET /backend/api/v1/me al backend HTTPS definido por
 API_BASE_URL. Android/iOS consultan directamente el origen HTTPS configurado al
 compilar. Los módulos futuros ampliarán el proxy con rutas y encabezados
 autorizados explícitamente.
 
 La base visual usa petróleo, fondo claro y acento naranja de la propuesta BPM.
-No se ha implementado navegación, identidad, persistencia ni módulos de negocio.
+El inicio implementa login/perfil y permite abrir la comprobación de conexión.
+Ver IDENTITY.md. No hay persistencia, sincronización, registro público, selección
+de tenant ni otros módulos de negocio.

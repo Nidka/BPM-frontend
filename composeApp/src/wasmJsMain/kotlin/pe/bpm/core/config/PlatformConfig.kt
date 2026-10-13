@@ -4,4 +4,7 @@ package pe.bpm.core.config
 @JsFun("() => window.location.origin")
 private external fun browserOrigin(): String
 
-actual fun platformAppConfig(): AppConfig = AppConfig(browserOrigin() + "/backend")
+actual fun platformAppConfig(): AppConfig = AppConfig(
+    apiBaseUrl = browserOrigin() + "/backend",
+    publicConfigUrl = browserOrigin() + "/config.json",
+)
