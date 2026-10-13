@@ -58,7 +58,8 @@ publique los registros. Crear el dominio en Railway no modifica el DNS externo.
 - Proyecto: bpm / production. Servicio: BPM-frontend.
 - URL web: https://bpm-frontend-production.up.railway.app
 - Ambos dominios usan target port 8080, el PORT efectivo de Railway (no el 3000 local).
-- appbpm.com ya está registrado en Railway, pendiente de DNS y certificado.
+- appbpm.com ya está registrado en Railway. El 13/10/2026 seguía pendiente de
+  verificación de propiedad y certificado; usar la URL Railway mientras tanto.
 
 Registros solicitados por Railway (consultar `railway domain status appbpm.com --json`
 antes de modificarlos si se vuelve a crear el dominio):
@@ -68,10 +69,15 @@ antes de modificarlos si se vuelve a crear el dominio):
 | CNAME | @ | jt7bsxt7.up.railway.app |
 | TXT | _railway-verify | railway-verify=0cafc3593eba3b615fd9dbfb8c657a9aead2db83a7e4cb49f2734fd1a4d7ea08 |
 
-DNS observado el 12/10/2026: nameservers `verify-contact-details.namecheap.com`
-y `failed-whois-verification.namecheap.com`. Esto apunta a verificación pendiente
-del titular. El titular confirmó después la verificación exitosa del correo;
-Namecheap indicó reactivación usual en 24–48 horas. Reconsultar DNS antes de activar.
-[Proceso oficial de verificación](https://www.namecheap.com/support/knowledgebase/article.aspx/9305/5/whois-verification-process/).
-Una zona creada en Cloudflare solo será autoritativa después de configurar sus
-nameservers en el registrador. No se han cambiado registros DNS externos.
+Estado observado el 13/10/2026: el dominio ya resuelve por Cloudflare y tiene
+certificado TLS en el borde, pero `railway domain status appbpm.com --json` aún
+informa CNAME raíz `REQUIRES_UPDATE` y `verified: false`. El dominio propio no
+responde; no confundir TLS del borde con verificación del origen Railway.
+
+En Cloudflare → DNS, reemplazar **solo** el A de `@` que apunta al parking de
+Namecheap por el CNAME `@ → jt7bsxt7.up.railway.app`. Configurarlo inicialmente
+como **Solo DNS** (nube gris). Añadir el TXT `_railway-verify` de la tabla si
+no existe. Mantener intactos MX, SPF y otros subdominios. Luego esperar la
+propagación y comprobar que Railway muestre `verified: true`, certificado listo
+y `https://appbpm.com/healthz` responda 200. Solo entonces evaluar activar el
+proxy naranja de Cloudflare.
