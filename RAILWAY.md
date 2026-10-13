@@ -49,3 +49,25 @@ autenticados lo incorporarán con ID token y autorización real del backend.
 
 El dominio necesita acceso DNS a la zona Cloudflare o que su administrador
 publique los registros. Crear el dominio en Railway no modifica el DNS externo.
+
+## Servicio creado
+
+- Proyecto: bpm / production. Servicio: BPM-frontend.
+- URL web: https://bpm-frontend-production.up.railway.app
+- appbpm.com ya está registrado en Railway, pendiente de DNS y certificado.
+
+Registros solicitados por Railway (consultar `railway domain status appbpm.com --json`
+antes de modificarlos si se vuelve a crear el dominio):
+
+| Tipo | Nombre | Valor |
+|---|---|---|
+| CNAME | @ | jt7bsxt7.up.railway.app |
+| TXT | _railway-verify | railway-verify=0cafc3593eba3b615fd9dbfb8c657a9aead2db83a7e4cb49f2734fd1a4d7ea08 |
+
+DNS observado el 12/10/2026: nameservers `verify-contact-details.namecheap.com`
+y `failed-whois-verification.namecheap.com`. Esto apunta a verificación pendiente
+del titular. El titular confirmó después la verificación exitosa del correo;
+Namecheap indicó reactivación usual en 24–48 horas. Reconsultar DNS antes de activar.
+[Proceso oficial de verificación](https://www.namecheap.com/support/knowledgebase/article.aspx/9305/5/whois-verification-process/).
+Una zona creada en Cloudflare solo será autoritativa después de configurar sus
+nameservers en el registrador. No se han cambiado registros DNS externos.
