@@ -13,6 +13,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.identity.data.RemoteIdentityRepository
+import pe.bpm.features.identity.data.GoogleAuthProvider
+import pe.bpm.features.identity.data.GoogleAuthResult
+import pe.bpm.features.identity.data.GoogleCredential
 import pe.bpm.features.identity.domain.*
 import kotlin.test.*
 
@@ -21,6 +24,62 @@ class IdentityTest {
     private val jsonHeaders = headersOf("Content-Type", "application/json")
     private val credential = """{"idToken":"test.id.token","localId":"uid-1"}"""
     private val profile = """{"data":{"id":"uid-1","email":"test@example.com","displayName":"Persona BPM","organizations":[]}}"""
+
+    private fun google(result: GoogleAuthResult) = object : GoogleAuthProvider {
+        override val supported = true
+        override suspend fun signIn() = result
+        override fun clear() {}
+    }
+
+    @Test
+    fun googleUsesSameProtectedProfileEndpointAndStoresOnlyAcceptedToken() = runTest {
+        var calls = 0
+        val client = createHttpClient(MockEngine { request ->
+            calls++
+            assertEquals("api.example.com", request.url.host)
+            assertEquals("/api/v1/me", request.url.encodedPath)
+            assertEquals("Bearer firebase.google.test", request.headers["Authorization"])
+            respond(profile, HttpStatusCode.OK, jsonHeaders)
+        })
+        try {
+            val repository = RemoteIdentityRepository(client, config,
+                google(GoogleAuthResult.Success(GoogleCredential("firebase.google.test", "uid-1"))))
+            assertIs<IdentityResult.Success<Profile>>(SignInWithGoogle(repository)())
+            assertIs<IdentityResult.Success<Profile>>(repository.currentProfile())
+            repository.signOut()
+            assertEquals("UNAUTHENTICATED", assertIs<IdentityResult.Failure>(repository.currentProfile()).errors.single().code)
+            assertEquals(2, calls)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun googleDoesNotCreateSessionForUnregisteredOrMismatchedUid() = runTest {
+        for ((status, body, expected) in listOf(
+            Triple(HttpStatusCode.Forbidden, """{"errors":[{"code":"USER_NOT_REGISTERED"}]}""", "USER_NOT_REGISTERED"),
+            Triple(HttpStatusCode.OK, profile.replace("uid-1", "other-uid"), "INVALID_RESPONSE"),
+        )) {
+            var calls = 0
+            val client = createHttpClient(MockEngine { calls++; respond(body, status, jsonHeaders) })
+            try {
+                val repository = RemoteIdentityRepository(client, config,
+                    google(GoogleAuthResult.Success(GoogleCredential("firebase.google.test", "uid-1"))))
+                assertEquals(expected, assertIs<IdentityResult.Failure>(repository.signInWithGoogle()).errors.single().code)
+                assertIs<IdentityResult.Failure>(repository.currentProfile())
+                assertEquals(1, calls)
+            } finally { client.close() }
+        }
+    }
+
+    @Test
+    fun googleCancellationDoesNotCallBackendOrPublishSession() = runTest {
+        val client = createHttpClient(MockEngine { error("Must not call backend") })
+        try {
+            val repository = RemoteIdentityRepository(client, config, google(GoogleAuthResult.Failure("GOOGLE_CANCELLED")))
+            val result = assertIs<IdentityResult.Failure>(repository.signInWithGoogle())
+            assertEquals("GOOGLE_CANCELLED", result.errors.single().code)
+            assertIs<IdentityResult.Failure>(repository.currentProfile())
+        } finally { client.close() }
+    }
 
     @Test
     fun validatesFieldsBeforeAnyNetworkRequest() = runTest {

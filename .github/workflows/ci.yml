@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: "24"
       - name: Test web server
-        run: node --test web/server.test.mjs
+        run: node --test web/*.test.mjs
       - name: Test shared code and build web and Android
         run: ./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v7

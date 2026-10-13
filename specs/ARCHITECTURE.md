@@ -23,7 +23,7 @@ composeApp/src/commonMain/kotlin/pe/bpm/
     presentation/            ViewModel, estado y pantalla
   features/identity/
     domain/                  perfil y casos de uso de sesión
-    data/                    Firebase REST y perfil de la API
+    data/                    Firebase REST, puerto Google y perfil de la API
     presentation/            formulario, sesión y ViewModel
 ```
 

@@ -1,6 +1,7 @@
 # Login inicial
 
-Código implementado para Android, iOS y web. El acceso real requiere configurar
+Correo/contraseña implementado para Android, iOS y web; Google implementado en
+web. El acceso real requiere configurar
 Firebase y habilitar el UID en PostgreSQL. Sin proveedor se muestra
 AUTH_NOT_CONFIGURED; no existen credenciales por defecto ni modo demo.
 
@@ -15,6 +16,11 @@ respondió INVALID_LOGIN_CREDENTIALS. No se crearon usuarios ni sesiones reales.
 
 Formulario → IdentityViewModel → SignIn → IdentityRepository → Firebase Auth REST
 → ID token → GET /api/v1/me → perfil autorizado desde PostgreSQL.
+
+Continuar con Google (web) → SignInWithGoogle → GoogleAuthProvider → popup Firebase
+→ ID token Firebase → mismo /api/v1/me. No se envían access tokens ni tokens crudos
+de Google a la API. El puerto compartido tiene adaptadores por plataforma; en
+Android/iOS Google aún no está habilitado y el botón no se muestra.
 
 Solo se muestra «Sesión verificada» si Firebase y la API responden correctamente
 y los UID coinciden. Firebase autentica; el backend decide estado, roles y tenant.
@@ -39,26 +45,40 @@ deshabilitado tienen el mismo mensaje para no revelar existencia de cuentas.
 4. Authentication → Users: crear una cuenta de prueba y copiar su UID exacto.
    El titular establece la contraseña allí; no enviarla por chat ni guardarla en Git.
 5. Settings → Authorized domains: registrar appbpm.com y los dominios Railway
-   utilizados. Revisar restricciones de la API key para permitir Identity Toolkit.
+   utilizados, además de localhost para pruebas locales. No se registran puertos
+   ni protocolos. Revisar restricciones de la API key para permitir Identity Toolkit.
+6. Sign-in method → Google: habilitar y seleccionar el correo de asistencia.
+   Google puede crear la identidad en Firebase en el primer acceso, pero NO crea
+   usuarios, membresías ni permisos en PostgreSQL. Copiar el UID desde Users para
+   habilitarlo manualmente. No vincular cuentas automáticamente por coincidencia de correo.
 
 Fuentes: [Firebase Auth REST](https://firebase.google.com/docs/reference/rest/auth),
 [API keys Firebase](https://firebase.google.com/docs/projects/api-keys).
+[Google web](https://firebase.google.com/docs/auth/web/google-signin),
+[persistencia](https://firebase.google.com/docs/auth/web/auth-state-persistence).
 
 ## Variables de Railway
 
 Servicio **BPM-frontend**:
 ```env
 FIREBASE_API_KEY=<Web API Key pública>
+FIREBASE_PROJECT_ID=app-bpm-af59c
 API_BASE_URL=https://bpm-service-production.up.railway.app
 ```
 
-La web obtiene exclusivamente firebaseApiKey desde `/config.json`, con no-store.
+La web obtiene solo configuración pública desde `/config.json`, con no-store:
+firebaseApiKey, firebaseProjectId y firebaseAuthDomain. El authDomain se deriva
+del Project ID, no se acepta un dominio arbitrario.
 Se evalúa al iniciar Node. Android/iOS la reciben en el build con
 `-PfirebaseApiKey=<clave-pública>` o la variable FIREBASE_API_KEY del entorno.
 Si no existe override, web/Android/iOS usan config/firebase.public.json.
 Una variable FIREBASE_API_KEY explícitamente vacía deshabilita el login. El .env
 local está ignorado; cargarlo con `node --env-file=.env web/server.mjs`.
-Este recorrido usa REST, no necesita agregar un SDK Firebase por plataforma.
+Correo/contraseña usa REST. Google web usa el SDK oficial Firebase 13.0.0, fijado
+desde gstatic y cargado como módulos. `web/google-auth-controller.mjs` es el
+puente probado sin navegador; el adaptador Wasm lo invoca desde el click sin
+espera previa para evitar bloqueadores de popup. La CSP permite únicamente los
+orígenes necesarios. Actualizar deliberadamente SDK y CSP juntos.
 
 Servicio **BPM-service**:
 ```env
@@ -95,6 +115,10 @@ verificar su perfil, pero no operar en tenants. La gestión de membresías queda
   enviar/salir. Se transmite solo a Firebase por HTTPS, nunca al proxy Node.
 - ID token solo en memoria; recargar/reiniciar exige nuevo login. No se retiene
   refreshToken. Al vencer/revocar el token, /me devuelve 401 y se exige login.
+- Google usa `inMemoryPersistence`, sin localStorage/IndexedDB/cookies propios
+  para la sesión Firebase. El SDK se cierra después de obtener el ID token;
+  solo KMP retiene el token si /me autoriza y coincide el UID. Las cookies de la
+  cuenta Google en su propio dominio son gestionadas por Google, no por BPM.
 - Renovación automática y persistencia segura son recorridos posteriores.
 - Cerrar sesión cancela solicitudes y borra el token local; no revoca otras sesiones.
 - Login necesita red: no hay autenticación offline ni acceso ficticio.
@@ -110,3 +134,17 @@ PostgreSQL, usuario inactivo y usuario activo. Solo este último debe mostrar
 «Sesión verificada». «Verificar sesión con la API» vuelve a consultar /me;
 «Cerrar sesión» vuelve al formulario. Recargar exige login. Las pruebas
 automatizadas usan dobles y credenciales ficticias, nunca cuentas reales.
+
+Google: probar popup cerrado/bloqueado, dominio no autorizado, cuenta sin alta
+en PostgreSQL y UID autorizado. Un conflicto entre proveedores pide usar el
+método original; no se fusionan usuarios por email. La prueba completa requiere
+que el titular complete la selección de cuenta y el consentimiento.
+
+## Pendientes explícitos
+
+- Configurar la cuenta Admin como secreto en Railway backend antes de activar
+  FIREBASE_ENABLED. La configuración web pública NO sustituye ese JSON.
+- Registrar Android/iOS en Firebase y sus clientes OAuth (SHA de Android y
+  configuración iOS), integrar proveedores nativos y sus pruebas. No reutilizar
+  el popup web como login nativo.
+- Renovación de sesión y almacenamiento seguro, si se aprueban posteriormente.

@@ -20,6 +20,8 @@ fun IdentityScreen(
     onLogout: () -> Unit,
     onVerify: () -> Unit,
     onConnection: () -> Unit,
+    googleSupported: Boolean,
+    onGoogle: () -> Unit,
 ) {
     // Nunca rememberSaveable para contraseñas. Se vacían al enviar y al salir.
     var email by remember { mutableStateOf("") }
@@ -69,6 +71,12 @@ fun IdentityScreen(
                             onLogin(email, submittedPassword)
                         }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy) {
                             Text(if (state.busy) "Verificando…" else "Iniciar sesión")
+                        }
+                        if (googleSupported) OutlinedButton(onClick = {
+                            password = ""
+                            onGoogle()
+                        }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy) {
+                            Text("Continuar con Google")
                         }
                     } else {
                         Button(onClick = onVerify, enabled = !state.busy) { Text("Verificar sesión con la API") }

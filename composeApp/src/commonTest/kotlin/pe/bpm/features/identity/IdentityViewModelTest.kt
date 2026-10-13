@@ -19,12 +19,14 @@ class IdentityViewModelTest {
         var signedOut = false
         val repository = object : IdentityRepository {
             override suspend fun signIn(email: String, password: String) = IdentityResult.Success(profile)
+            override suspend fun signInWithGoogle() = IdentityResult.Success(profile)
             override suspend fun currentProfile(): IdentityResult<Profile> = IdentityResult.Failure(listOf(
                 IdentityError("UNAUTHENTICATED", "Tu sesión terminó.")))
             override fun signOut() { signedOut = true }
         }
         try {
-            val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository))
+            val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), googleSupported = true)
             store.put("identity", model)
             model.login("test@example.com", "password")
             runCurrent()
@@ -46,6 +48,7 @@ class IdentityViewModelTest {
         val store = ViewModelStore()
         var cancelled = false
         val repository = object : IdentityRepository {
+            override suspend fun signInWithGoogle(): IdentityResult<Profile> = error("Not called")
             override suspend fun signIn(email: String, password: String): IdentityResult<Profile> {
                 try { awaitCancellation() } finally { cancelled = true }
             }
@@ -53,7 +56,8 @@ class IdentityViewModelTest {
             override fun signOut() {}
         }
         try {
-            val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository))
+            val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), googleSupported = true)
             store.put("identity", model)
             model.login("test@example.com", "password")
             runCurrent()

@@ -20,6 +20,7 @@ import pe.bpm.features.identity.domain.*
 class RemoteIdentityRepository(
     private val client: HttpClient,
     private val config: AppConfig,
+    private val googleAuth: GoogleAuthProvider = platformGoogleAuthProvider(),
 ) : IdentityRepository {
     // Solo memoria. No usar almacenamiento del navegador ni guardar la contraseña.
     private var idToken: String? = null
@@ -48,13 +49,28 @@ class RemoteIdentityRepository(
             }
             val credential = response.body<FirebaseCredential>()
             if (credential.idToken.isBlank() || credential.localId.isBlank()) return@safely failure("INVALID_RESPONSE")
-            val profile = fetchProfile(credential.idToken)
-            if (profile is IdentityResult.Success) {
-                if (profile.value.id != credential.localId) return@safely failure("INVALID_RESPONSE")
-                idToken = credential.idToken
-            }
-            profile
+            acceptCredential(credential.idToken, credential.localId)
         }
+    }
+
+    override suspend fun signInWithGoogle(): IdentityResult<Profile> {
+        signOut()
+        return safely {
+            when (val result = googleAuth.signIn()) {
+                is GoogleAuthResult.Failure -> failure(result.code)
+                is GoogleAuthResult.Success -> acceptCredential(result.credential.idToken, result.credential.uid)
+            }
+        }
+    }
+
+    private suspend fun acceptCredential(token: String, uid: String): IdentityResult<Profile> {
+        if (token.isBlank() || uid.isBlank()) return failure("INVALID_RESPONSE")
+        val profile = fetchProfile(token)
+        if (profile is IdentityResult.Success) {
+            if (profile.value.id != uid) return failure("INVALID_RESPONSE")
+            idToken = token
+        }
+        return profile
     }
 
     override suspend fun currentProfile(): IdentityResult<Profile> = safely {
@@ -66,7 +82,10 @@ class RemoteIdentityRepository(
         result
     }
 
-    override fun signOut() { idToken = null }
+    override fun signOut() {
+        idToken = null
+        googleAuth.clear()
+    }
 
     private suspend fun firebaseKey(): String {
         apiKey?.let { return it }
@@ -124,6 +143,11 @@ private fun failure(code: String): IdentityResult.Failure {
         "TIMEOUT" -> "La conexión tardó demasiado. Inténtalo nuevamente."
         "NETWORK_ERROR" -> "No pudimos conectar. Revisa tu conexión a internet."
         "INVALID_RESPONSE" -> "No pudimos verificar tu sesión. Inténtalo nuevamente."
+        "GOOGLE_CANCELLED" -> "Se canceló el acceso con Google."
+        "GOOGLE_POPUP_BLOCKED" -> "Permite la ventana emergente para iniciar sesión con Google."
+        "GOOGLE_NOT_READY" -> "Google se está preparando. Vuelve a intentarlo en un momento."
+        "GOOGLE_NOT_SUPPORTED" -> "El acceso con Google todavía no está habilitado en esta plataforma."
+        "ACCOUNT_CONFLICT" -> "Ingresa con el método original de tu cuenta. Su vinculación con Google requiere verificación."
         else -> "El servicio de autenticación no está disponible. Inténtalo nuevamente."
     }
     return IdentityResult.Failure(listOf(IdentityError(code, message)))

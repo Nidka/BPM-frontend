@@ -20,6 +20,7 @@ export function createAppServer({
   distDir = resolve('composeApp/build/dist/wasmJs/productionExecutable'),
   apiBaseUrl = process.env.API_BASE_URL || 'https://bpm-service-production.up.railway.app',
   firebaseApiKey = process.env.FIREBASE_API_KEY ?? firebasePublic.apiKey,
+  firebaseProjectId = process.env.FIREBASE_PROJECT_ID ?? firebasePublic.projectId,
   allowInsecureForTests = false,
 } = {}) {
   const upstream = new URL(apiBaseUrl);
@@ -31,13 +32,15 @@ export function createAppServer({
   if (firebaseApiKey && !/^[A-Za-z0-9_-]{20,100}$/.test(firebaseApiKey)) {
     throw new Error('FIREBASE_API_KEY debe ser la clave pública del cliente Firebase.');
   }
+  if (!/^[a-z][a-z0-9-]{4,62}$/.test(firebaseProjectId)) throw new Error('FIREBASE_PROJECT_ID inválido.');
+  const firebaseAuthDomain = firebaseProjectId + '.firebaseapp.com';
   return http.createServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     response.setHeader('Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com/firebasejs/13.0.0/ https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://" + firebaseAuthDomain + "; frame-src https://" + firebaseAuthDomain + "; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     response.setHeader('Cache-Control', 'no-store');
     const send = (status, body, contentType = 'application/json; charset=utf-8') => {
       response.writeHead(status, { 'Content-Type': contentType });
@@ -51,7 +54,14 @@ export function createAppServer({
       const url = new URL(request.url, 'http://localhost');
       if (url.pathname === '/config.json' && !url.search) {
         // Lista explícita de configuración pública: nunca serializar process.env.
-        return send(200, JSON.stringify({ firebaseApiKey }));
+        return send(200, JSON.stringify({ firebaseApiKey, firebaseProjectId, firebaseAuthDomain }));
+      }
+      const authScripts = {
+        '/auth/google.mjs': 'google-auth-browser.mjs',
+        '/auth/google-controller.mjs': 'google-auth-controller.mjs',
+      };
+      if (Object.hasOwn(authScripts, url.pathname) && !url.search) {
+        return send(200, await readFile(new URL(authScripts[url.pathname], import.meta.url)), types['.mjs']);
       }
       if (url.pathname === '/healthz') {
         await stat(resolve(root, 'index.html'));

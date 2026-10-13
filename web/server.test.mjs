@@ -85,7 +85,11 @@ test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t
   const base = 'http://127.0.0.1:' + app.address().port;
   const config = await fetch(base + '/config.json');
   assert.equal(config.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await config.json(), { firebaseApiKey: 'public-key-for-tests-only' });
+  const publicConfig = await config.json();
+  assert.equal(publicConfig.firebaseApiKey, 'public-key-for-tests-only');
+  assert.equal(publicConfig.firebaseAuthDomain, publicConfig.firebaseProjectId + '.firebaseapp.com');
+  assert.equal((await fetch(base + '/auth/google.mjs')).status, 200);
+  assert.equal((await fetch(base + '/auth/google-controller.mjs')).status, 200);
   assert.equal((await fetch(base + '/backend/api/v1/me')).status, 401);
   assert.equal(calls, 0);
   const result = await fetch(base + '/backend/api/v1/me', { headers: {
@@ -117,5 +121,5 @@ test('una key explícitamente vacía deshabilita el login aunque exista configur
     await new Promise(resolve => app.close(resolve));
   });
   const response = await fetch('http://127.0.0.1:' + app.address().port + '/config.json');
-  assert.deepEqual(await response.json(), { firebaseApiKey: '' });
+  assert.equal((await response.json()).firebaseApiKey, '');
 });

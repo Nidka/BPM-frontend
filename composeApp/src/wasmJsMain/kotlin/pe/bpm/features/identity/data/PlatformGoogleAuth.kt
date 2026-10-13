@@ -1,0 +1,44 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
+package pe.bpm.features.identity.data
+
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlin.coroutines.resume
+
+@JsFun("(resolve, reject) => { const bridge = window.bpmGoogleAuth; if (!bridge) { reject('auth/unavailable'); return; } bridge.signIn().then(resolve).catch(error => reject(error.code || 'auth/unavailable')); }")
+private external fun startGoogle(resolve: (String) -> Unit, reject: (String) -> Unit)
+
+@JsFun("() => { window.bpmGoogleAuth?.clear(); }")
+private external fun clearGoogle()
+
+actual fun platformGoogleAuthProvider(): GoogleAuthProvider = BrowserGoogleAuthProvider()
+
+private class BrowserGoogleAuthProvider : GoogleAuthProvider {
+    override val supported = true
+    override suspend fun signIn(): GoogleAuthResult = suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation { clearGoogle() }
+        startGoogle(resolve = { raw ->
+            if (continuation.isActive) {
+                val result = try {
+                    val credential = Json.decodeFromString<GoogleCredentialDto>(raw)
+                    GoogleAuthResult.Success(GoogleCredential(credential.idToken, credential.uid))
+                } catch (_: Exception) { GoogleAuthResult.Failure("INVALID_RESPONSE") }
+                continuation.resume(result)
+            }
+        }, reject = { code ->
+            if (continuation.isActive) continuation.resume(GoogleAuthResult.Failure(when (code) {
+                "auth/popup-closed-by-user", "auth/cancelled-popup-request", "auth/cancelled" -> "GOOGLE_CANCELLED"
+                "auth/popup-blocked" -> "GOOGLE_POPUP_BLOCKED"
+                "auth/account-exists-with-different-credential" -> "ACCOUNT_CONFLICT"
+                "auth/unauthorized-domain", "auth/operation-not-allowed", "auth/not-configured", "auth/invalid-api-key" -> "AUTH_NOT_CONFIGURED"
+                "auth/not-ready" -> "GOOGLE_NOT_READY"
+                else -> "AUTH_UNAVAILABLE"
+            }))
+        })
+    }
+    override fun clear() = clearGoogle()
+}
+
+@Serializable private class GoogleCredentialDto(val idToken: String, val uid: String)

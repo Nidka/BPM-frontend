@@ -39,6 +39,7 @@ fun App() {
                 ConnectionScreen(state, connectionViewModel::retry)
             }
         } else IdentityScreen(identityState, identityViewModel::login, identityViewModel::logout,
-            identityViewModel::verifySession, onConnection = { showConnection = true; connectionViewModel.retry() })
+            identityViewModel::verifySession, onConnection = { showConnection = true; connectionViewModel.retry() },
+            googleSupported = identityViewModel.googleSupported, onGoogle = identityViewModel::loginWithGoogle)
     }
 }

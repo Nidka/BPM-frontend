@@ -18,6 +18,8 @@ class IdentityViewModel(
     private val signIn: SignIn,
     private val getCurrentProfile: GetCurrentProfile,
     private val signOut: SignOut,
+    private val signInWithGoogle: SignInWithGoogle,
+    val googleSupported: Boolean,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(IdentityUiState())
     val state = mutableState.asStateFlow()
@@ -36,6 +38,15 @@ class IdentityViewModel(
         mutableState.value = mutableState.value.copy(busy = true, errors = emptyList())
         requestJob = viewModelScope.launch {
             applyResult(getCurrentProfile(), keepProfileOnTransientFailure = true)
+        }
+    }
+
+    fun loginWithGoogle() {
+        if (mutableState.value.busy) return
+        mutableState.value = IdentityUiState(busy = true)
+        // UNDISPATCHED conserva el gesto del usuario al abrir el popup en web.
+        requestJob = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            applyResult(signInWithGoogle())
         }
     }
 

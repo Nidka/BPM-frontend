@@ -22,6 +22,7 @@ sealed interface IdentityResult<out T> {
 
 interface IdentityRepository {
     suspend fun signIn(email: String, password: String): IdentityResult<Profile>
+    suspend fun signInWithGoogle(): IdentityResult<Profile>
     suspend fun currentProfile(): IdentityResult<Profile>
     fun signOut()
 }
@@ -45,6 +46,10 @@ class SignIn(private val repository: IdentityRepository) {
 
 class GetCurrentProfile(private val repository: IdentityRepository) {
     suspend operator fun invoke(): IdentityResult<Profile> = repository.currentProfile()
+}
+
+class SignInWithGoogle(private val repository: IdentityRepository) {
+    suspend operator fun invoke(): IdentityResult<Profile> = repository.signInWithGoogle()
 }
 
 class SignOut(private val repository: IdentityRepository) {
