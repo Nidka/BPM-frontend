@@ -107,3 +107,15 @@ test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t
 test('rechaza secretos Admin como API key pública', () => {
   assert.throws(() => createAppServer({ firebaseApiKey: '{"private_key":"secret"}' }));
 });
+
+test('una key explícitamente vacía deshabilita el login aunque exista configuración pública', async t => {
+  const app = createAppServer({ firebaseApiKey: '' });
+  app.listen(0, '127.0.0.1');
+  await once(app, 'listening');
+  t.after(async () => {
+    app.closeAllConnections();
+    await new Promise(resolve => app.close(resolve));
+  });
+  const response = await fetch('http://127.0.0.1:' + app.address().port + '/config.json');
+  assert.deepEqual(await response.json(), { firebaseApiKey: '' });
+});

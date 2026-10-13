@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 && a
 WORKDIR /src
 COPY gradlew gradle.properties settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
+COPY config ./config
 COPY kotlin-js-store ./kotlin-js-store
 COPY composeApp ./composeApp
 RUN chmod +x gradlew && ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --console=plain
@@ -13,6 +14,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /src/composeApp/build/dist/wasmJs/productionExecutable ./public
 COPY --chown=node:node web/server.mjs ./web/server.mjs
+COPY --chown=node:node config/firebase.public.json ./config/firebase.public.json
 ENV DIST_DIR=/app/public
 USER node
 EXPOSE 3000

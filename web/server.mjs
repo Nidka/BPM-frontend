@@ -1,7 +1,11 @@
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
+const firebasePublic = JSON.parse(readFileSync(new URL('../config/firebase.public.json', import.meta.url), 'utf8'));
 
 const types = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -15,7 +19,7 @@ const errorBody = (code, message) => JSON.stringify({ errors: [{ code, message, 
 export function createAppServer({
   distDir = resolve('composeApp/build/dist/wasmJs/productionExecutable'),
   apiBaseUrl = process.env.API_BASE_URL || 'https://bpm-service-production.up.railway.app',
-  firebaseApiKey = process.env.FIREBASE_API_KEY || '',
+  firebaseApiKey = process.env.FIREBASE_API_KEY ?? firebasePublic.apiKey,
   allowInsecureForTests = false,
 } = {}) {
   const upstream = new URL(apiBaseUrl);

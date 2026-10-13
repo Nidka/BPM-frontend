@@ -13,7 +13,7 @@ Variables del servicio frontend:
 ```env
 API_BASE_URL=https://bpm-service-production.up.railway.app
 NODE_ENV=production
-FIREBASE_API_KEY=
+# FIREBASE_API_KEY se configura con la clave pública del proyecto Firebase.
 ```
 
 API_BASE_URL se evalúa al iniciar el servidor web; es el origen del backend, sin
@@ -47,6 +47,8 @@ origen, por lo que cambiar al dominio propio no exige ampliar CORS en el backend
 
 El inicio muestra login; la comprobación de salud sigue accesible sin sesión.
 Configurar Firebase según specs/IDENTITY.md para probar un acceso real.
+Proyecto cliente configurado: app-bpm-af59c. La key pública predeterminada está
+en config/firebase.public.json; FIREBASE_API_KEY permite cambiarla por entorno.
 
 El dominio necesita acceso DNS a la zona Cloudflare o que su administrador
 publique los registros. Crear el dominio en Railway no modifica el DNS externo.

@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import java.net.URI
+import groovy.json.JsonSlurper
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -14,8 +15,12 @@ val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
     .orElse(providers.environmentVariable("API_BASE_URL"))
     .orElse("https://bpm-service-production.up.railway.app")
 val generatedConfig = layout.buildDirectory.dir("generated/config/commonMain")
+// Firebase publica esta configuración de cliente; nunca usar la cuenta Admin aquí.
+val firebasePublicFile = rootProject.file("config/firebase.public.json")
+val firebasePublic = JsonSlurper().parse(firebasePublicFile) as Map<*, *>
 val firebaseApiKey = providers.gradleProperty("firebaseApiKey")
-    .orElse(providers.environmentVariable("FIREBASE_API_KEY")).orElse("")
+    .orElse(providers.environmentVariable("FIREBASE_API_KEY"))
+    .orElse(firebasePublic["apiKey"] as String)
 val generateAppConfig by tasks.registering {
     inputs.property("apiBaseUrl", apiBaseUrl)
     inputs.property("firebaseApiKey", firebaseApiKey)

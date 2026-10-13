@@ -4,6 +4,13 @@ Código implementado para Android, iOS y web. El acceso real requiere configurar
 Firebase y habilitar el UID en PostgreSQL. Sin proveedor se muestra
 AUTH_NOT_CONFIGURED; no existen credenciales por defecto ni modo demo.
 
+Proyecto registrado: `app-bpm-af59c`, app web `bpm`. La configuración pública
+vive en `config/firebase.public.json`, compartida por el build KMP y el servidor
+web. No contiene clave privada ni cuenta Admin. Authentication habilitado,
+cuenta Admin del backend y alta del UID siguen requiriendo verificación.
+La key fue comprobada contra Firebase con una cuenta ficticia inexistente:
+respondió INVALID_LOGIN_CREDENTIALS. No se crearon usuarios ni sesiones reales.
+
 ## Recorrido y arquitectura
 
 Formulario → IdentityViewModel → SignIn → IdentityRepository → Firebase Auth REST
@@ -48,6 +55,9 @@ API_BASE_URL=https://bpm-service-production.up.railway.app
 La web obtiene exclusivamente firebaseApiKey desde `/config.json`, con no-store.
 Se evalúa al iniciar Node. Android/iOS la reciben en el build con
 `-PfirebaseApiKey=<clave-pública>` o la variable FIREBASE_API_KEY del entorno.
+Si no existe override, web/Android/iOS usan config/firebase.public.json.
+Una variable FIREBASE_API_KEY explícitamente vacía deshabilita el login. El .env
+local está ignorado; cargarlo con `node --env-file=.env web/server.mjs`.
 Este recorrido usa REST, no necesita agregar un SDK Firebase por plataforma.
 
 Servicio **BPM-service**:
