@@ -9,6 +9,9 @@ import kotlinx.serialization.json.*
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.identity.data.RemoteIdentityRepository
+import pe.bpm.features.identity.data.GoogleAuthProvider
+import pe.bpm.features.identity.data.GoogleAuthResult
+import pe.bpm.features.identity.data.GoogleCredential
 import pe.bpm.features.identity.domain.*
 import kotlin.test.*
 
@@ -16,6 +19,76 @@ class RegistrationTest {
     private val config = AppConfig("https://api.example.com", "public-key-for-tests-only")
     private val headers = headersOf("Content-Type", "application/json")
     private val credential = """{"idToken":"firebase-test-token","localId":"uid-test","displayName":"Persona"}"""
+
+    @Test fun newGoogleIdentityEnrollsOnceWithVerifiedBackendProfileOnly() = runTest {
+        var registrations = 0
+        val client = createHttpClient(MockEngine { request ->
+            assertEquals("api.example.com", request.url.host)
+            assertEquals("Bearer firebase-google-token", request.headers["Authorization"])
+            if (request.url.encodedPath == "/api/v1/me" && registrations == 0)
+                respond("""{"errors":[{"code":"USER_NOT_REGISTERED"}]}""", HttpStatusCode.Forbidden, headers)
+            else {
+                if (request.url.encodedPath == "/api/v1/auth/register") {
+                    registrations++
+                    assertEquals("""{"displayName":"Usuario BPM"}""", assertIs<TextContent>(request.body).text)
+                }
+                respond("""{"data":{"id":"new-google-uid","email":"person@example.com","displayName":"Usuario BPM","organizations":[]}}""", HttpStatusCode.OK, headers)
+            }
+        })
+        val google = object : GoogleAuthProvider {
+            override val supported = true
+            override suspend fun signIn() = GoogleAuthResult.Success(GoogleCredential("firebase-google-token", "new-google-uid", "X"))
+            override fun clear() {}
+        }
+        try {
+            val repo = RemoteIdentityRepository(client, config, google)
+            assertIs<IdentityResult.Success<Profile>>(repo.signInWithGoogle())
+            assertIs<IdentityResult.Success<Profile>>(repo.currentProfile())
+            assertEquals(1, registrations)
+        } finally { client.close() }
+    }
+
+    @Test fun unknownForbiddenNeverTriggersAutomaticRegistration() = runTest {
+        var calls = 0
+        val client = createHttpClient(MockEngine { request ->
+            calls++
+            if (request.url.host == "identitytoolkit.googleapis.com") respond(credential, HttpStatusCode.OK, headers)
+            else {
+                assertEquals("/api/v1/me", request.url.encodedPath)
+                respond("""{"errors":[{"code":"FORBIDDEN","message":"private SQL details"}]}""", HttpStatusCode.Forbidden, headers)
+            }
+        })
+        try {
+            val repo = RemoteIdentityRepository(client, config)
+            val result = assertIs<IdentityResult.Failure>(repo.signIn("person@example.com", "password8"))
+            assertEquals("ACCESS_DENIED", result.errors.single().code)
+            assertFalse(result.errors.single().message.contains("SQL"))
+            assertIs<IdentityResult.Failure>(repo.currentProfile())
+            assertEquals(2, calls)
+        } finally { client.close() }
+    }
+
+    @Test fun partialCreationPreservesVerificationWithoutRetryingSignup() = runTest {
+        for (failedStep in listOf("/v1/accounts:update", "/v1/accounts:sendOobCode")) {
+            var failed = false
+            var creations = 0
+            val client = createHttpClient(MockEngine { request ->
+                if (request.url.encodedPath == "/v1/accounts:signUp") creations++
+                if (request.url.encodedPath == failedStep && !failed) {
+                    failed = true
+                    respond("{}", HttpStatusCode.ServiceUnavailable, headers)
+                } else respond(credential, HttpStatusCode.OK, headers)
+            })
+            try {
+                val repo = RemoteIdentityRepository(client, config)
+                val result = assertIs<IdentityResult.Failure>(repo.register("Persona", "person@example.com", "password8"))
+                assertEquals("REGISTRATION_INCOMPLETE", result.errors.single().code)
+                assertIs<IdentityResult.Failure>(repo.currentProfile())
+                assertIs<IdentityResult.Success<Unit>>(repo.resendVerification())
+                assertEquals(1, creations)
+            } finally { client.close() }
+        }
+    }
 
     @Test fun registrationValidatesBeforeCreatingFirebaseAccount() = runTest {
         val client = createHttpClient(MockEngine { error("No network expected") })

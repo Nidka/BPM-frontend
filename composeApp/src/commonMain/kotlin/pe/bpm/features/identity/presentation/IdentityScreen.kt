@@ -89,7 +89,11 @@ fun IdentityScreen(
                         }
                     }
                     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                    state.errors.forEach { Text(it.message, color = MaterialTheme.colorScheme.error) }
+                    state.errors.forEach {
+                        Text(it.message, color = MaterialTheme.colorScheme.error)
+                        Text("Código: ${it.code}", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (profile != null) {
                         AuthButton("Verificar sesión", !state.busy, onVerify)

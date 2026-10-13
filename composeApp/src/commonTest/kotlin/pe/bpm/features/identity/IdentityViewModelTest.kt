@@ -19,7 +19,9 @@ class IdentityViewModelTest {
         var registrations = 0
         val repository = object : IdentityRepository {
             override suspend fun register(name: String, email: String, password: String): IdentityResult<Unit> {
-                registrations++; return IdentityResult.Success(Unit)
+                registrations++
+                if (name == "Pendiente") return IdentityResult.Failure(listOf(IdentityError("REGISTRATION_INCOMPLETE", "Verificación pendiente.")))
+                return IdentityResult.Success(Unit)
             }
             override suspend fun resetPassword(email: String) = IdentityResult.Success(Unit)
             override suspend fun resendVerification() = IdentityResult.Success(Unit)
@@ -38,6 +40,15 @@ class IdentityViewModelTest {
             assertEquals(0, registrations)
             assertEquals(AuthMode.Register, model.state.value.mode)
             assertTrue(model.state.value.errors.single().fields.containsKey("confirmPassword"))
+            model.register("Pendiente", "person@example.com", "password8", "password8")
+            advanceUntilIdle()
+            assertEquals(AuthMode.Verification, model.state.value.mode)
+            assertTrue(model.state.value.canResendVerification)
+            assertNull(model.state.value.profile)
+            model.resend()
+            advanceUntilIdle()
+            assertTrue(model.state.value.errors.isEmpty())
+            model.changeMode(AuthMode.Register)
             model.register("Persona", "person@example.com", "password8", "password8")
             advanceUntilIdle()
             assertEquals(AuthMode.Verification, model.state.value.mode)

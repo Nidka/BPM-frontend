@@ -28,6 +28,8 @@ class RemoteIdentityRepository(
     private var idToken: String? = null
     private var apiKey: String? = null
     private var verificationToken: String? = null
+    private var pendingName: String? = null
+    private var pendingUid: String? = null
 
     override suspend fun signIn(email: String, password: String): IdentityResult<Profile> {
         signOut()
@@ -57,7 +59,12 @@ class RemoteIdentityRepository(
     }
 
     override suspend fun signInWithGoogle(): IdentityResult<Profile> {
-        signOut()
+        // El puente controla su propia limpieza. No cancelar ni cerrar el SDK
+        // justo antes de abrir una nueva ventana OAuth.
+        idToken = null
+        verificationToken = null
+        pendingName = null
+        pendingUid = null
         return safely {
             when (val result = googleAuth.signIn()) {
                 is GoogleAuthResult.Failure -> failure(result.code)
@@ -72,7 +79,10 @@ class RemoteIdentityRepository(
         if (profile is IdentityResult.Failure && profile.errors.any { it.code == "USER_NOT_REGISTERED" }) {
             val response = client.post("${config.apiBaseUrl}/api/v1/auth/register") {
                 bearerAuth(token); contentType(ContentType.Application.Json)
-                setBody(RegisterProfileRequest(displayName.ifBlank { "Usuario BPM" }))
+                // Google permite nombres cortos o vacíos. No bloquear el alta por
+                // un nombre externo que no cumple el formulario BPM.
+                val safeName = displayName.trim().takeIf { it.length in 2..100 && it.none { char -> char.code < 32 || char.code in 127..159 } }
+                setBody(RegisterProfileRequest(safeName ?: "Usuario BPM"))
             }
             profile = readProfile(response)
         }
@@ -88,7 +98,7 @@ class RemoteIdentityRepository(
         val token = idToken ?: return@safely failure("UNAUTHENTICATED")
         val result = fetchProfile(token)
         if (result is IdentityResult.Failure && result.errors.any {
-            it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED")
+            it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
         }) signOut()
         result
     }
@@ -96,6 +106,8 @@ class RemoteIdentityRepository(
     override fun signOut() {
         idToken = null
         verificationToken = null
+        pendingName = null
+        pendingUid = null
         googleAuth.clear()
     }
 
@@ -112,22 +124,32 @@ class RemoteIdentityRepository(
             val credential = created.body<FirebaseCredential>()
             if (credential.idToken.isBlank() || credential.localId.isBlank()) return@safely failure("INVALID_RESPONSE")
             verificationToken = credential.idToken
-            val updated = client.post("https://identitytoolkit.googleapis.com/v1/accounts:update") {
-                url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
-                setBody(UpdateNameRequest(credential.idToken, name, returnSecureToken = true))
-            }
-            if (!updated.status.isSuccess()) return@safely failure("REGISTRATION_INCOMPLETE")
-            val updatedCredential = updated.body<FirebaseCredential>()
-            if (updatedCredential.localId != credential.localId || updatedCredential.idToken.isBlank()) return@safely failure("INVALID_RESPONSE")
-            verificationToken = updatedCredential.idToken
-            resendVerification()
+            pendingName = name
+            pendingUid = credential.localId
+            val completed = resendVerification()
+            // Firebase ya creó la cuenta: no ofrecer otro signUp como si hubiera
+            // fallado toda la operación ni borrar la identidad del proveedor.
+            if (completed is IdentityResult.Failure) failure("REGISTRATION_INCOMPLETE") else completed
         }
     }
 
     override suspend fun resendVerification(): IdentityResult<Unit> = safely {
-        val token = verificationToken ?: return@safely failure("UNAUTHENTICATED")
+        var token = verificationToken ?: return@safely failure("UNAUTHENTICATED")
         val key = firebaseKey()
         if (key.isBlank()) return@safely failure("AUTH_NOT_CONFIGURED")
+        pendingName?.let { name ->
+            val updated = client.post("https://identitytoolkit.googleapis.com/v1/accounts:update") {
+                url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
+                setBody(UpdateNameRequest(token, name, returnSecureToken = true))
+            }
+            if (!updated.status.isSuccess()) return@safely firebaseFailure(updated)
+            val credential = updated.body<FirebaseCredential>()
+            if (credential.localId != pendingUid || credential.idToken.isBlank()) return@safely failure("INVALID_RESPONSE")
+            token = credential.idToken
+            verificationToken = token
+            pendingName = null
+            pendingUid = null
+        }
         val response = client.post("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode") {
             url { parameters.append("key", key) }; contentType(ContentType.Application.Json)
             header("X-Firebase-Locale", "es")
@@ -188,7 +210,10 @@ class RemoteIdentityRepository(
             val code = response.body<ApiErrorEnvelope>().errors.firstOrNull()?.code
             return when (response.status.value) {
                 401 -> failure("UNAUTHENTICATED")
-                403 -> failure(when (code) { "USER_INACTIVE" -> "USER_INACTIVE"; "EMAIL_NOT_VERIFIED" -> "EMAIL_NOT_VERIFIED"; else -> "USER_NOT_REGISTERED" })
+                403 -> failure(when (code) {
+                    "USER_INACTIVE", "EMAIL_NOT_VERIFIED", "USER_NOT_REGISTERED" -> code
+                    else -> "ACCESS_DENIED"
+                })
                 409 -> failure("REGISTRATION_CONFLICT")
                 422 -> failure("INVALID_PROFILE_NAME")
                 429 -> failure("RATE_LIMITED")
@@ -224,18 +249,22 @@ private fun failure(code: String): IdentityResult.Failure {
         "AUTH_DOMAIN_NOT_AUTHORIZED" -> "Este dominio no está autorizado en Firebase. Contacta al administrador."
         "EMAIL_NOT_VERIFIED" -> "Verifica tu correo y vuelve a iniciar sesión para completar tu cuenta BPM."
         "REGISTRATION_REJECTED" -> "No pudimos crear la cuenta. Intenta iniciar sesión o recuperar tu contraseña."
-        "REGISTRATION_INCOMPLETE" -> "La cuenta Firebase se creó, pero falta completar el perfil. Inicia sesión para continuar."
+        "REGISTRATION_INCOMPLETE" -> "Tu cuenta se creó, pero no pudimos completar la verificación. Reenvía el enlace o inicia sesión para continuar; no necesitas registrarte otra vez."
         "REGISTRATION_CONFLICT" -> "Usa el método original de tu cuenta o contacta al administrador."
         "PASSWORD_POLICY" -> "La contraseña no cumple la política de seguridad de Firebase. Usa una más segura."
         "INVALID_PROFILE_NAME" -> "Revisa el nombre de tu perfil. Debe tener entre 2 y 100 caracteres."
         "USER_NOT_REGISTERED" -> "Tu cuenta no está habilitada en BPM. Contacta al administrador."
         "USER_INACTIVE" -> "Tu cuenta se encuentra inactiva. Contacta al administrador."
+        "ACCESS_DENIED" -> "No tienes permiso para acceder. Contacta al administrador."
         "UNAUTHENTICATED" -> "Tu sesión terminó. Inicia sesión nuevamente."
         "RATE_LIMITED" -> "Demasiados intentos. Espera un momento antes de volver a intentar."
         "TIMEOUT" -> "La conexión tardó demasiado. Inténtalo nuevamente."
         "NETWORK_ERROR" -> "No pudimos conectar. Revisa tu conexión a internet."
         "INVALID_RESPONSE" -> "No pudimos verificar tu sesión. Inténtalo nuevamente."
         "GOOGLE_CANCELLED" -> "Se canceló el acceso con Google."
+        "GOOGLE_IN_PROGRESS" -> "Ya hay un acceso con Google en curso. Completa o cierra la ventana antes de volver a intentar."
+        "GOOGLE_NETWORK_ERROR" -> "Google no pudo completar la conexión. Revisa tu red y vuelve a intentar."
+        "GOOGLE_UNAVAILABLE" -> "Google no pudo completar el acceso. Vuelve a intentarlo; si continúa, contacta al administrador."
         "GOOGLE_POPUP_BLOCKED" -> "Permite la ventana emergente para iniciar sesión con Google."
         "GOOGLE_NOT_READY" -> "Google se está preparando. Vuelve a intentarlo en un momento."
         "GOOGLE_NOT_SUPPORTED" -> "El acceso con Google todavía no está habilitado en esta plataforma."

@@ -31,7 +31,7 @@ export function createGoogleAuthController({ sdk, loadConfig }) {
     async signIn() {
       // No await previo al popup: debe abrirse dentro del gesto de click.
       if (!ready) throw error(initializationCode);
-      if (running) throw error('auth/cancelled-popup-request');
+      if (running) throw error('auth/in-progress');
       running = true;
       const attempt = ++generation;
       try {
@@ -46,13 +46,15 @@ export function createGoogleAuthController({ sdk, loadConfig }) {
         // Solo el código, nunca el mensaje, email ni credencial del proveedor.
         throw error(typeof cause?.code === 'string' ? cause.code : 'auth/unavailable');
       } finally {
-        running = false;
         await sdk.signOut(auth).catch(() => {});
+        running = false;
       }
     },
     clear() {
       generation++;
-      if (auth) void sdk.signOut(auth).catch(() => {});
+      // La operación activa limpia el SDK en finally. No lanzar un signOut
+      // concurrente con el intercambio OAuth ni con el siguiente click.
+      // Fuera de una operación el SDK ya está vacío (persistencia en memoria).
     },
   };
 }

@@ -54,6 +54,27 @@ AUTH_DOMAIN_NOT_AUTHORIZED, AUTH_NOT_CONFIGURED, RATE_LIMITED y NETWORK_ERROR.
 Un popup cerrado no crea sesión. Solo un perfil autorizado con UID coincidente
 permite entrar; nunca se simula éxito con una respuesta de salud.
 
+El puente abre el popup dentro del click y mantiene un bloqueo hasta terminar
+la limpieza del SDK. Logout invalida resultados tardíos sin ejecutar signOut
+concurrente con OAuth. GOOGLE_CANCELLED, GOOGLE_IN_PROGRESS,
+GOOGLE_POPUP_BLOCKED, GOOGLE_NETWORK_ERROR y GOOGLE_UNAVAILABLE distinguen
+cancelación, concurrencia, navegador, red y fallo del proveedor. La UI muestra
+el código seguro; nunca el mensaje original de Google.
+
+Solo USER_NOT_REGISTERED explícito permite intentar el alta BPM. Un 403
+desconocido se convierte en ACCESS_DENIED: no crea usuarios ni modifica permisos.
+Un nombre Google vacío, demasiado corto/largo o con controles usa Usuario BPM
+para el alta mínima; los nombres existentes nunca se sobrescriben.
+
+Si Firebase ya creó la cuenta y falla actualizar el nombre o enviar el correo,
+REGISTRATION_INCOMPLETE lleva a verificación y habilita reenvío. El reintento
+completa el nombre pendiente antes de enviar el enlace, sin repetir signUp.
+El nombre/UID/token pendientes solo viven en memoria y se borran al salir.
+No confundir esta cuenta pendiente con una sesión BPM válida.
+
+GET /me también exige emailVerified: un perfil antiguo no evita verificar el
+correo. La verificación se confía exclusivamente al token validado del backend.
+
 ## Configuración
 
 En Firebase Authentication habilitar Email/Password y Google; seleccionar el
@@ -95,6 +116,11 @@ Pruebas compartidas: validación antes de red, orden signUp/update/VERIFY_EMAIL,
 recuperación neutral, registro backend sin contraseña/roles, UID coincidente,
 correo no verificado, errores y borrado de sesión. Node prueba el proxy y Google.
 Go prueba el registro idempotente, email verificado, rechazos y PostgreSQL real.
+
+Regresiones cubiertas: alta Google nueva, nombre externo inválido, 403 desconocido,
+registro parcial y reenvío sin duplicación, bloqueo durante limpieza Google,
+logout durante OAuth, Origin malformado y correo sin verificar en perfil existente.
+Las pruebas con dobles no sustituyen una prueba manual con una cuenta nueva real.
 
 Prueba manual: crear cuenta propia → abrir enlace del correo → volver a entrar
 → comprobar perfil sin organizaciones → verificar sesión → cerrar sesión.

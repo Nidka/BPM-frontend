@@ -31,6 +31,11 @@ test('registration proxy accepts only bounded name JSON and Bearer, no credentia
     assert.equal((await fetch(url, { method: 'POST', headers, body })).status, 400);
   }
   assert.equal((await fetch(url, { method: 'POST', headers: { ...headers, Origin: 'https://other.example' }, body: '{"displayName":"Persona"}' })).status, 403);
+  for (const Origin of ['null', 'invalid', 'https://user:secret@' + app.address().address]) {
+    const denied = await fetch(url, { method: 'POST', headers: { ...headers, Origin }, body: '{"displayName":"Persona"}' });
+    assert.equal(denied.status, 403);
+    assert.deepEqual(await denied.json(), { errors: [{ code: 'ORIGIN_NOT_ALLOWED', message: 'Origen no permitido.', fields: {} }] });
+  }
   assert.equal((await fetch(url)).status, 405);
   assert.equal(calls, 0);
   const result = await fetch(url, { method: 'POST', headers, body: '{"displayName":"Persona"}' });

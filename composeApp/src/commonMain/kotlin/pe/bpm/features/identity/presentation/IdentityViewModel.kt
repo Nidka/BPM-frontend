@@ -86,7 +86,12 @@ class IdentityViewModel(
             mutableState.value = when (val result = action()) {
                 is IdentityResult.Success -> IdentityUiState(mode = successMode, notice = notice,
                     canResendVerification = successMode == AuthMode.Verification)
-                is IdentityResult.Failure -> mutableState.value.copy(busy = false, errors = result.errors)
+                is IdentityResult.Failure -> {
+                    val pending = result.errors.any { it.code == "REGISTRATION_INCOMPLETE" }
+                    mutableState.value.copy(busy = false, errors = result.errors,
+                        mode = if (pending) AuthMode.Verification else mutableState.value.mode,
+                        canResendVerification = pending || mutableState.value.canResendVerification)
+                }
             }
         }
     }
@@ -96,7 +101,7 @@ class IdentityViewModel(
             is IdentityResult.Success -> IdentityUiState(profile = result.value)
             is IdentityResult.Failure -> {
                 val sessionDenied = result.errors.any {
-                    it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED")
+                    it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
                 }
                 IdentityUiState(profile = mutableState.value.profile.takeIf { keepProfileOnTransientFailure && !sessionDenied },
                     errors = result.errors, canResendVerification = result.errors.any { it.code == "EMAIL_NOT_VERIFIED" })

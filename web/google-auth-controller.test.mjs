@@ -53,7 +53,7 @@ test('does not open concurrent popups', async () => {
   const { controller, calls } = fixture(() => new Promise(resolve => { complete = resolve; }));
   await controller.initialization;
   const first = controller.signIn();
-  await assert.rejects(controller.signIn(), { code: 'auth/cancelled-popup-request' });
+  await assert.rejects(controller.signIn(), { code: 'auth/in-progress' });
   assert.equal(calls.filter(([name]) => name === 'popup').length, 1);
   complete({ user: { uid: 'uid-test', getIdToken: async () => 'firebase-test-token' } });
   await first;
@@ -69,4 +69,34 @@ test('missing config and untrusted auth domains cannot initialize Firebase', asy
     await assert.rejects(controller.signIn(), { code: 'auth/not-configured' });
     assert.equal(calls.length, 0);
   }
+});
+
+test('keeps the single-flight lock until SDK cleanup finishes', async () => {
+  const { controller, sdk, calls } = fixture();
+  let finishCleanup;
+  sdk.signOut = () => new Promise(resolve => { finishCleanup = resolve; });
+  await controller.initialization;
+  const first = controller.signIn();
+  await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(controller.signIn(), { code: 'auth/in-progress' });
+  assert.equal(calls.filter(([name]) => name === 'popup').length, 1);
+  finishCleanup();
+  await first;
+  sdk.signOut = async () => {};
+  await controller.signIn();
+  assert.equal(calls.filter(([name]) => name === 'popup').length, 2);
+});
+
+test('clearing does not race SDK signOut against an active OAuth exchange', async () => {
+  let complete;
+  const { controller, calls } = fixture(() => new Promise(resolve => { complete = resolve; }));
+  await controller.initialization;
+  controller.clear();
+  assert.equal(calls.filter(([name]) => name === 'signOut').length, 0);
+  const result = controller.signIn();
+  controller.clear();
+  assert.equal(calls.filter(([name]) => name === 'signOut').length, 0);
+  complete({ user: { uid: 'uid-test', getIdToken: async () => 'firebase-test-token' } });
+  await assert.rejects(result, { code: 'auth/cancelled' });
+  assert.equal(calls.filter(([name]) => name === 'signOut').length, 1);
 });

@@ -29,13 +29,17 @@ private class BrowserGoogleAuthProvider : GoogleAuthProvider {
             }
         }, reject = { code ->
             if (continuation.isActive) continuation.resume(GoogleAuthResult.Failure(when (code) {
-                "auth/popup-closed-by-user", "auth/cancelled-popup-request", "auth/cancelled" -> "GOOGLE_CANCELLED"
+                "auth/popup-closed-by-user", "auth/cancelled" -> "GOOGLE_CANCELLED"
+                "auth/cancelled-popup-request", "auth/in-progress" -> "GOOGLE_IN_PROGRESS"
                 "auth/popup-blocked" -> "GOOGLE_POPUP_BLOCKED"
                 "auth/account-exists-with-different-credential" -> "ACCOUNT_CONFLICT"
                 "auth/unauthorized-domain" -> "AUTH_DOMAIN_NOT_AUTHORIZED"
                 "auth/operation-not-allowed", "auth/not-configured", "auth/invalid-api-key" -> "AUTH_NOT_CONFIGURED"
                 "auth/not-ready" -> "GOOGLE_NOT_READY"
-                else -> "AUTH_UNAVAILABLE"
+                "auth/network-request-failed" -> "GOOGLE_NETWORK_ERROR"
+                "auth/too-many-requests" -> "RATE_LIMITED"
+                "auth/user-disabled" -> "INVALID_CREDENTIALS"
+                else -> "GOOGLE_UNAVAILABLE"
             }))
         })
     }

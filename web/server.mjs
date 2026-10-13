@@ -108,8 +108,13 @@ export function createAppServer({
         }
         let payload;
         if (isRegistration) {
-          if (request.headers.origin && new URL(request.headers.origin).host !== request.headers.host)
-            return send(403, errorBody('ORIGIN_NOT_ALLOWED', 'Origen no permitido.'));
+          if (request.headers.origin) {
+            let origin;
+            try { origin = new URL(request.headers.origin); } catch {}
+            if (!origin || !['http:', 'https:'].includes(origin.protocol) ||
+                origin.username || origin.password || origin.host !== request.headers.host)
+              return send(403, errorBody('ORIGIN_NOT_ALLOWED', 'Origen no permitido.'));
+          }
           if (!/^application\/json(?:;|$)/i.test(request.headers['content-type'] || ''))
             return send(415, errorBody('UNSUPPORTED_MEDIA_TYPE', 'Envía una solicitud JSON.'));
           try { payload = await registrationBody(request); }
