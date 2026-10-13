@@ -1,4 +1,6 @@
 FROM eclipse-temurin:21-jdk AS build
+# El Node descargado por Kotlin necesita libatomic en Linux.
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 && apt-get clean
 WORKDIR /src
 COPY gradlew gradle.properties settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
