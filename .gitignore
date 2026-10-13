@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.env
+.env.*
+!.env.example
+.idea/
+*.iml
+.DS_Store
+node_modules/
+iosApp/*.xcodeproj/
+iosApp/Pods/
+artifacts/
