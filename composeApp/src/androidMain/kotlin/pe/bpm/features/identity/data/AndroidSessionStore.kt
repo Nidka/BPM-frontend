@@ -11,7 +11,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/** App-private, non-backed-up ciphertext. The AES key never leaves Android Keystore. */
+/** Guarda datos cifrados privados de la aplicación y excluidos de copias de seguridad; la clave AES permanece en Android Keystore. */
 class AndroidSessionStore(context: Context) : SessionStore {
     private val file = AtomicFile(File(context.noBackupFilesDir, "bpm-session.enc"))
     private val alias = "${context.packageName}.session.v1"

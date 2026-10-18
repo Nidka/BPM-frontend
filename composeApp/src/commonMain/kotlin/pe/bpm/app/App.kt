@@ -85,7 +85,7 @@ fun App(
             WorkspaceDestination.entries.forEach { destination ->
                 composable(destination.route) {
                     if (profile == null) {
-                        // Direct URLs and history never bypass authentication, including after logout.
+                        // Las URL directas y el historial deben comprobar la autenticación, incluso después de cerrar sesión.
                         if (identityState.restoring) RestoringSession()
                         else LaunchedEffect(destination) {
                             if (entry?.destination?.route == destination.route) {

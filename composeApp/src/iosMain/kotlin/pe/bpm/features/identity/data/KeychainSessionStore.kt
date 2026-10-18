@@ -7,7 +7,7 @@ import platform.CoreFoundation.*
 import platform.Foundation.NSBundle
 import platform.Security.*
 
-/** Device-only Keychain item, accessible while unlocked; never synchronized to iCloud. */
+/** Guarda la credencial en Keychain solo para este dispositivo, accesible al desbloquear y sin sincronización con iCloud. */
 class KeychainSessionStore : SessionStore {
     private val service = (NSBundle.mainBundle.bundleIdentifier ?: "pe.bpm.app") + ".session.v1"
 
@@ -68,7 +68,7 @@ class KeychainSessionStore : SessionStore {
     }
 
     private fun <T> dictionary(block: (CFMutableDictionaryRef) -> T): T {
-        // Values are kept alive explicitly until the Security API returns.
+        // Mantener los valores referenciados hasta que termine la llamada a la API Security.
         val dictionary = CFDictionaryCreateMutable(null, 0, null, null)!!
         return try { block(dictionary) } finally { CFRelease(dictionary) }
     }

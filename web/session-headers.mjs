@@ -1,4 +1,4 @@
-// Only server-provided, bounded numeric deadlines cross the proxy.
+// El proxy solo reenvía plazos numéricos acotados proporcionados por el servidor.
 export function forwardSessionHeaders(result, response) {
   for (const key of ['X-BPM-Session-Expires-At', 'X-BPM-Session-Idle-Expires-At']) {
     const value = result.headers.get(key);

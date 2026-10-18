@@ -54,7 +54,7 @@ class RemoteIdentityRepository(
     override fun sessionInvalidations() = invalidations.asSharedFlow()
     override fun sessionWindow() = window.asStateFlow()
 
-    // Headers describe server policy, never locally decoded/unverified JWT claims.
+    // Las cabeceras describen la política del servidor; no se confía en un JWT decodificado localmente sin verificar.
     fun observeSessionResponse(response: HttpResponse) {
         val token = idToken ?: return
         if (response.call.request.headers["Authorization"] != "Bearer $token") return
@@ -66,7 +66,7 @@ class RemoteIdentityRepository(
         val idle = response.headers["X-BPM-Session-Idle-Expires-At"]?.toLongOrNull() ?: return
         if (absolute > 0 && idle > 0) {
             val previous = window.value
-            // A late /me must not undo a more recent successful activity response.
+            // Una respuesta tardía de /me no debe revertir una actividad confirmada más reciente.
             window.value = SessionWindow(absolute,
                 if (previous?.absoluteExpiresAt == absolute) maxOf(previous.idleExpiresAt, idle) else idle)
         }
@@ -74,7 +74,7 @@ class RemoteIdentityRepository(
 
     override suspend fun recordActivity(): IdentityResult<Unit> = safely {
         activityMutex.withLock {
-            // Older backends do not advertise the new policy. No speculative keep-alives.
+            // Los servidores anteriores no anuncian esta política; no se envían solicitudes de actividad sin ese contrato.
             if (window.value == null) return@withLock IdentityResult.Success(Unit)
             val now = nowSeconds()
             if (lastActivitySent?.let { now >= it && now - it < 60 } == true) return@withLock IdentityResult.Success(Unit)
@@ -94,7 +94,7 @@ class RemoteIdentityRepository(
     override suspend fun endSession(): IdentityResult<Unit> {
         val token = idToken
         val serverSessions = window.value != null
-        // Clear locally before suspending; late replies never restore credentials.
+        // Borrar las credenciales locales antes de suspender; las respuestas tardías no deben restaurarlas.
         signOut()
         if (token == null || !serverSessions) return IdentityResult.Success(Unit)
         return safely {
@@ -102,7 +102,7 @@ class RemoteIdentityRepository(
             when {
                 response.status.isSuccess() -> IdentityResult.Success(Unit)
                 response.status.value == 401 && response.body<ApiErrorEnvelope>().errors.any { it.code == "SESSION_EXPIRED" } -> IdentityResult.Success(Unit)
-                // An expired ID token alone does not prove its Firebase context was revoked.
+                // Un ID token vencido no demuestra que su contexto Firebase haya sido revocado.
                 else -> failure("AUTH_UNAVAILABLE")
             }
         }
@@ -116,7 +116,7 @@ class RemoteIdentityRepository(
     // Solo el composition root entrega este acceso a otros adaptadores de red.
     fun sessionToken(): String? = idToken
 
-    /** Single-flight refresh; used only by adapters wired in AppGraph. */
+    /** Renueva el token con una única operación concurrente desde los adaptadores conectados en AppGraph. */
     suspend fun validSessionToken(): String? = refreshMutex.withLock {
         val token = idToken ?: return@withLock null
         if (nowSeconds() < expiresAt - 60) return@withLock token
@@ -167,7 +167,7 @@ class RemoteIdentityRepository(
                 expiresAt = nowSeconds() + credential.expiresIn.toLong()
                 profile
             } else {
-                // Preserve credentials on transient failures so the user can retry restoration.
+                // Conservar las credenciales ante fallos temporales para permitir reintentar la restauración.
                 if (profile is IdentityResult.Success || (profile is IdentityResult.Failure && profile.errors.any { it.code in sessionDenials })) signOut()
                 if (profile is IdentityResult.Success) failure("INVALID_RESPONSE") else profile
             }
@@ -197,7 +197,7 @@ class RemoteIdentityRepository(
         currentCoroutineContext().ensureActive()
         if (attempt != generation) throw SessionAccessException(true)
         if (!response.status.isSuccess()) {
-            // Only definitive credential rejection ends a session; network/5xx/429 remain retryable.
+            // Solo un rechazo definitivo de las credenciales cierra la sesión; los fallos de red, 5xx y 429 admiten reintento.
             val code = if (response.status.value == 400) response.body<FirebaseErrorEnvelope>().error.message.substringBefore(" : ") else ""
             if (code in setOf("TOKEN_EXPIRED", "INVALID_REFRESH_TOKEN", "USER_DISABLED", "USER_NOT_FOUND")) {
                 invalidateSession(); throw SessionAccessException(true)
@@ -210,7 +210,7 @@ class RemoteIdentityRepository(
         return credential
     }
 
-    /** Graph disposal preserves the mobile refresh credential; explicit logout erases it. */
+    /** Liberar el grafo conserva la credencial móvil de renovación; cerrar sesión explícitamente la elimina. */
     fun close() {
         generation++
         idToken = null; refreshToken = null; sessionUid = null
@@ -444,7 +444,7 @@ class RemoteIdentityRepository(
     } catch (_: JsonConvertException) {
         failure("INVALID_RESPONSE")
     } catch (_: Throwable) {
-        // Wasm fetch failures may extend Error rather than Exception. Cancellation was handled above.
+        // En Wasm, los fallos de fetch pueden heredar de Error en vez de Exception. La cancelación ya se trató antes.
         failure("NETWORK_ERROR")
     }
 }

@@ -6,7 +6,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 
-// Observe input without consuming it. Used by the app and separate dialog roots.
+// Observa entradas sin consumirlas, tanto en la aplicación como en los diálogos independientes.
 fun Modifier.trackUserActivity(onActivity: () -> Unit): Modifier =
     onPreviewKeyEvent { onActivity(); false }.pointerInput(onActivity) {
         awaitPointerEventScope {

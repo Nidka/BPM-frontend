@@ -71,7 +71,7 @@ class IdentityViewModel(
                 }
             }
         }
-        // Refreshes both token and backend profile while a session is open.
+        // Renueva el token y comprueba el perfil del backend mientras existe una sesión.
         if (observeInvalidations != null) viewModelScope.launch {
             while (true) {
                 delay(60_000)

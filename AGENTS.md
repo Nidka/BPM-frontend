@@ -4,6 +4,7 @@ Leer `specs/ARCHITECTURE.md`, `specs/DEVELOPMENT.md`, `specs/OFFLINE.md`,
 `specs/FEATURES.md`, `specs/IDENTITY.md` y `RAILWAY.md` antes de cambiar la base.
 Para UI, tenant y formularios de empresa/equipo leer también `specs/WORKSPACE.md`.
 
+- Escribir comentarios, KDoc, GoDoc y documentación nueva en español; conservar los identificadores técnicos y nombres de API.
 - KMP + Compose Multiplatform, MVVM, Clean Architecture por features.
 - `core/di/AppGraph` compone dependencias manualmente; no usar service locators.
 - Dominio no importa Compose, Ktor, SDK Firebase, almacenamiento ni DTO.
