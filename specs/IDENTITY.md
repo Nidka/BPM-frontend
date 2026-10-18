@@ -13,10 +13,12 @@ Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.jso
 
 - Entrar: Firebase → ID token → GET /api/v1/me → perfil confirmado y sesión.
   El refresh token se guarda protegido solo en móvil; web conserva todo en memoria.
-- Crear cuenta: formulario validado → Firebase signUp → guardar nombre →
+- Crear cuenta: nombres y apellidos separados y validados → Firebase signUp → guardar nombre →
   enviar VERIFY_EMAIL → pantalla de instrucciones. Todavía no hay sesión BPM.
-- Después de verificar email: iniciar sesión nuevamente → si falta perfil,
+- Después de verificar email: volver a la app y pulsar «Ya confirmé mi correo» →
+  renovar el token temporal con Secure Token → confirmar /me → si falta perfil,
   POST /api/v1/auth/register con Bearer y displayName → perfil USER/ACTIVE.
+  Si la app se cerró o la credencial temporal venció, iniciar sesión de nuevo.
 - Google web: popup oficial → ID token Firebase → mismo recorrido de perfil.
   Una identidad nueva con email verificado puede completar el registro.
 - Recuperar acceso: PASSWORD_RESET enviado directamente a Firebase; el mensaje
@@ -24,18 +26,37 @@ Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.jso
 - Verificar sesión: consultar /me nuevamente. Logout cancela trabajo y borra
   tokens locales, incluyendo el token temporal para reenviar verificación.
 
+La verificación manual muestra «Verificando…», progreso y una confirmación
+visible solo tras recibir un perfil válido. Si no hay membresías, aclara que la
+sesión es válida pero falta asignar una organización. No crea empresas ni concede
+roles. La confirmación se limpia al reintentar, fallar o salir y no se genera
+desde el sondeo periódico; se conserva tras este solo si el perfil no cambió.
+
 Crear una cuenta no crea organizaciones, membresías, locales ni roles elevados.
 Un usuario inactivo nunca se reactiva mediante login/registro. No se fusionan
 UID por coincidencia de correo. Los permisos salen de PostgreSQL.
 
 ## Arquitectura y UI
 
-features/identity/domain declara contratos y casos de uso. data contiene el
-adaptador Ktor/Firebase y el puerto Google con implementaciones por plataforma.
-presentation expone AuthMode/IdentityUiState y un ViewModel con casos de uso,
-sin HTTP ni SDK. AppGraph inyecta todo por constructor.
+features/identity/domain declara los contratos `AccountAuthentication`,
+`AccountRegistration`, `ProfileAccess` y `SessionLifecycle`. Cada caso de uso
+depende de la capacidad que necesita. El adaptador implementa su composición
+`IdentityRepository`; el dominio no contiene HTTP, DTO, SDK ni almacenamiento.
 
-Estilo BPM Aula lúdico profesional: petróleo/coral, superficies redondeadas,
+`FirebaseIdentityDataSource` administra los contratos de Firebase y la clave
+pública; `BpmIdentityDataSource` interpreta perfil, alta mínima y rutas de sesión
+de BPM. `RemoteIdentityRepository` coordina las credenciales, el alta pendiente,
+la renovación y el almacenamiento por origen/UID. No interpreta DTO de los
+proveedores ni construye solicitudes HTTP. AppGraph inyecta las fuentes y los
+casos de uso explícitamente. La coordinación depende de los contratos internos
+`FirebaseIdentityGateway` y `BpmIdentityGateway`, no de las clases de transporte.
+`SessionStore` conserva los adaptadores cifrados.
+
+presentation expone AuthMode/IdentityUiState y un ViewModel con casos de uso.
+`SessionMonitor` concentra reloj, cuenta regresiva y actividad; su StateFlow
+alimenta `SessionExpirationNotice`. La UI no consulta servicios directamente.
+
+Estilo BPM lúdico profesional: petróleo/coral, superficies redondeadas,
 selector Entrar/Crear cuenta, campos claros y acciones de mínimo 52 dp.
 Usa ilustraciones originales empaquetadas con Compose, sin CDN visuales.
 Al confirmar sesión se abre el nuevo workspace (WORKSPACE.md).
@@ -44,10 +65,31 @@ La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recupera
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas
 no usan rememberSaveable y se vacían al enviar o cambiar de modo.
 
+Nombres y apellidos son obligatorios, admiten caracteres Unicode y nombres
+compuestos. Se normalizan los espacios y se componen como `displayName` (hasta
+100 caracteres) para el contrato actual; no se modifica el backend ni se afirma
+que almacene ambos campos por separado. Los errores locales señalan `firstName`
+y `lastName`. Un fallo de alta conserva los datos públicos del formulario y
+ofrece acciones para entrar o recuperar acceso cuando corresponde.
+
+La pantalla de verificación identifica el correo de destino, explica los dos
+pasos y solo anuncia el envío tras una respuesta satisfactoria del proveedor.
+Un fallo posterior al alta indica que la cuenta ya existe y ofrece reintentar,
+sin repetir signUp. Si aún no se confirmó ningún envío, «Reintentar envío» es
+la acción principal y no se indica que ya deba haber un correo en la bandeja.
+La comprobación de un enlace anterior sigue disponible como acción secundaria.
+Reenviar tiene una espera de 60 segundos tras éxito o límite
+de intentos; esto mejora la experiencia y no reemplaza los límites de Firebase.
+«Ya confirmé mi correo» renueva el token y deja la autorización al backend;
+un correo no verificado no crea una sesión BPM. Las credenciales temporales
+permanecen en memoria, se actualizan cuando rotan y se descartan al terminar,
+salir o volver al login. No se conserva la contraseña para este paso.
+
 ## Contratos y errores
 
 Todos los fallos se representan con errors[]: code, message y fields. Los fallos
-de formulario señalan displayName, email, password y confirmPassword. Nunca se
+de formulario señalan firstName, lastName, email, password y confirmPassword;
+displayName se conserva para el contrato remoto. Nunca se
 presentan excepciones, mensajes SQL, tokens o mensajes originales de Firebase.
 
 Códigos importantes: VALIDATION_ERROR, INVALID_CREDENTIALS, EMAIL_NOT_VERIFIED,
@@ -56,12 +98,29 @@ AUTH_DOMAIN_NOT_AUTHORIZED, AUTH_NOT_CONFIGURED, RATE_LIMITED y NETWORK_ERROR.
 Un popup cerrado no crea sesión. Solo un perfil autorizado con UID coincidente
 permite entrar; nunca se simula éxito con una respuesta de salud.
 
+AUTH_UNAVAILABLE identifica un 503 remoto: puede ser indisponibilidad temporal
+de verificación o almacenamiento de sesión, y no prueba que falte configurar
+Firebase. AUTH_NOT_CONFIGURED se reserva para configuración pública cliente
+ausente. Al revalidar, un fallo transitorio conserva el perfil previo, libera
+el botón y permite reintentar; no concede nuevos permisos ni genera un registro.
+
 El puente abre el popup dentro del click y mantiene un bloqueo hasta terminar
 la limpieza del SDK. Logout invalida resultados tardíos sin ejecutar signOut
 concurrente con OAuth. GOOGLE_CANCELLED, GOOGLE_IN_PROGRESS,
 GOOGLE_POPUP_BLOCKED, GOOGLE_NETWORK_ERROR y GOOGLE_UNAVAILABLE distinguen
 cancelación, concurrencia, navegador, red y fallo del proveedor. La UI muestra
-el código seguro; nunca el mensaje original de Google.
+un mensaje en español con una acción concreta; los códigos tipados permanecen
+internos y no se muestran en la pantalla de acceso.
+
+`IdentityErrorPolicy` define una sola vez qué errores cierran una sesión,
+permiten reintentar restauración o conservan un registro pendiente. La UI y
+los adaptadores utilizan esas políticas sin volver a declarar listas de códigos.
+Los fallos incluyen opcionalmente `IdentityDiagnostic`: etapa, estado HTTP
+cuando está disponible y motivo sanitizado. No guarda correo, UID, contraseña,
+tokens, URL, cuerpo ni mensajes originales del proveedor. No se añadió registro
+de tráfico ni se exponen estos diagnósticos en el formulario.
+Un registro parcial conserva el diagnóstico de la etapa fallida; así se distingue
+actualizar el nombre de solicitar el correo sin volver a crear la cuenta.
 
 Solo USER_NOT_REGISTERED explícito permite intentar el alta BPM. Un 403
 desconocido se convierte en ACCESS_DENIED: no crea usuarios ni modifica permisos.
@@ -69,7 +128,8 @@ Un nombre Google vacío, demasiado corto/largo o con controles usa Usuario BPM
 para el alta mínima; los nombres existentes nunca se sobrescriben.
 
 Si Firebase ya creó la cuenta y falla actualizar el nombre o enviar el correo,
-REGISTRATION_INCOMPLETE lleva a verificación y habilita reenvío. El reintento
+REGISTRATION_INCOMPLETE lleva a verificación y habilita reenvío;
+REGISTRATION_RATE_LIMITED conserva además la espera antes de reenviar. El reintento
 completa el nombre pendiente antes de enviar el enlace, sin repetir signUp.
 El nombre/UID/token pendientes solo viven en memoria y se borran al salir.
 No confundir esta cuenta pendiente con una sesión BPM válida.
@@ -125,9 +185,12 @@ registro parcial y reenvío sin duplicación, bloqueo durante limpieza Google,
 logout durante OAuth, Origin malformado y correo sin verificar en perfil existente.
 Las pruebas con dobles no sustituyen una prueba manual con una cuenta nueva real.
 
-Prueba manual: crear cuenta propia → abrir enlace del correo → volver a entrar
+Prueba manual: crear cuenta propia con nombres y apellidos → abrir enlace del correo
+→ volver a la app → pulsar «Ya confirmé mi correo»
 → comprobar perfil sin organizaciones → verificar sesión → cerrar sesión.
-Probar además formulario vacío, contraseñas diferentes, popup cancelado y cuenta
+Probar además correo aún sin confirmar, reenvío fallido sin repetir el alta,
+espera de reenvío, volver al login y entrar con una cuenta pendiente,
+formulario vacío, contraseñas diferentes, popup cancelado y cuenta
 inactiva. El titular introduce su contraseña y completa Google; no enviarlas al
 equipo ni al chat. Las pruebas automatizadas no crean cuentas Firebase reales.
 
@@ -137,7 +200,7 @@ La política de sesión coordinada con backend añade máximo absoluto de 8 hora
 desde la autenticación Firebase y 15 minutos sin actividad. El servidor decide
 con `auth_time` verificado y estado persistente; los tokens renovados no extienden
 ese máximo. `GET /me` comprueba la sesión sin prolongarla. La UI notifica entradas
-reales (incluidos diálogos, desplazamiento y teclado virtual), con un POST
+reales (incluidos formularios, desplazamiento y teclado virtual), con un POST
 `/auth/activity` como máximo por minuto; no genera actividad desde temporizadores.
 Los endpoints empresariales también actualizan actividad en servidor.
 
@@ -146,6 +209,25 @@ avisar durante el último minuto y retirar acceso local al vencer. El reloj del
 cliente solo mejora la experiencia; el backend impide operaciones fuera de plazo.
 Un 401 `SESSION_EXPIRED` borra también credenciales móviles y exige autenticación
 nueva. No se reintentan escrituras. Las respuestas tardías no restauran sesión.
+
+El aviso de inactividad muestra segundos restantes, «Seguir conectado» y
+«Cerrar sesión». Continuar usa la misma operación de actividad real y solo
+desaparece cuando el servidor confirma nuevas fechas. Un fallo conserva el
+aviso y permite reintentar; las solicitudes fallidas no consumen el intervalo
+de actividad exitosa. El temporizador nunca llama a actividad.
+El límite absoluto muestra otra explicación y solo ofrece volver al login;
+no puede prolongarse con el botón ni con entradas del usuario.
+
+El aviso forma parte del árbol de UI, debajo de la cabecera y dentro del contenido
+desplazable, con título anunciado y contador sin anuncios continuos. Su aparición
+lleva el desplazamiento al inicio, sin mover la cabecera. Los botones se distribuyen
+en varias líneas si falta espacio. Se compone también después del título de los
+formularios abiertos mediante un slot, sin importar identity desde workspace.
+No usa una nueva capa Popup. Tras vencer, la explicación en español se muestra
+en el acceso, después de su título y antes del formulario; nunca se imprimen los
+códigos `SESSION_EXPIRED` o `TOKEN_EXPIRED` en la UI.
+Al vencer, se limpian credenciales y acceso local incluso si hay una solicitud
+de actividad pendiente. No hay período de gracia que reabra una sesión vencida.
 
 Logout limpia las credenciales locales inmediatamente y solicita
 `POST /auth/logout` para revocar el contexto de autenticación. Si no se confirma

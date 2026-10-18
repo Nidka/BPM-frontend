@@ -16,29 +16,38 @@ import pe.bpm.features.workspace.domain.*
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Eyebrow("PEQUEÑOS HÁBITOS. GRANDES CUIDADOS.")
-                Text("Hagamos de cada día\nun día más seguro.", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                Text("Aprende, acompaña a tu equipo y cuida lo que más importa.")
+                Text(if (learningAllowed) "Capacitación y buenas prácticas" else "Gestión de organizaciones",
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
+                    else "Consulta las empresas, sus sedes y los permisos del equipo.")
                 if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp))
             }
-            if (wide) Mascot(Modifier.size(240.dp))
+            if (wide) Mascot(Modifier.size(140.dp))
         }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf("Sedes" to workspace.locations.size, "Cursos" to workspace.courses.size, "Controles" to workspace.checklists.size).forEach { (label, count) ->
-            BpmCard(Modifier.weight(1f)) {
+    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
+    Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        listOf("Sedes" to (workspace.totals["locations"] ?: workspace.locations.size), "Cursos" to (workspace.totals["courses"] ?: workspace.courses.size), "Controles" to (workspace.totals["checklists"] ?: workspace.checklists.size)).forEach { (label, count) ->
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                Text(label, style = MaterialTheme.typography.labelLarge)
+                Text(label, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
+    }
     BpmCard(Modifier.fillMaxWidth()) {
-        Eyebrow("PRIMEROS PASOS")
-        Text("Un buen comienzo, juntos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text("✓  Cuenta verificada")
-        Text("✓  Organización disponible")
-        Text(if (workspace.locations.isEmpty()) "○  Configura la primera sede" else "✓  Sedes disponibles")
+        Text("Estado de tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        SetupStatus("Cuenta verificada", complete = true)
+        SetupStatus("Organización disponible", complete = true)
+        SetupStatus(if ((workspace.totals["locations"] ?: workspace.locations.size) == 0) "Configura la primera sede" else "Sedes disponibles", (workspace.totals["locations"] ?: workspace.locations.size) > 0)
         if (workspace.canManage) OutlinedButton(onClick = onCompany) { Text("Ver mi organización") }
+    }
+}
+
+@Composable private fun SetupStatus(label: String, complete: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        BpmIcon(if (complete) BpmSymbol.Check else BpmSymbol.Clock, tint = MaterialTheme.colorScheme.primary)
+        Text(label)
     }
 }
 

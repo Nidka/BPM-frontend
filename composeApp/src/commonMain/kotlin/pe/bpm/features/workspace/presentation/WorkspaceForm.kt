@@ -1,6 +1,9 @@
 package pe.bpm.features.workspace.presentation
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -9,19 +12,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-internal enum class WorkspaceFormKind { Organization, Location, Member }
+internal enum class WorkspaceFormKind(val route: String, val destination: WorkspaceDestination) {
+    Organization("empresa/nueva-organizacion", WorkspaceDestination.Company),
+    Location("empresa/nueva-sede", WorkspaceDestination.Company),
+    Member("equipo/agregar-persona", WorkspaceDestination.Team);
+
+    fun isAllowed(platformAdmin: Boolean, canManage: Boolean) =
+        if (this == Organization) platformAdmin else canManage
+}
 
 @OptIn(ExperimentalUuidApi::class)
 @Composable internal fun WorkspaceForm(kind: WorkspaceFormKind, state: WorkspaceState, onClose: () -> Unit,
     onOrganization: (Organization) -> Unit, onLocation: (Location) -> Unit,
-    onMember: (String, String, List<String>) -> Unit, onUserActivity: () -> Unit = {}) {
+    onMember: (String, String, List<String>) -> Unit, onUserActivity: () -> Unit = {},
+    sessionNotice: @Composable () -> Unit = {}, noticeVisible: Boolean = false,
+    onPageSearch: (WorkspaceResource, String) -> Unit, onPageNext: (WorkspaceResource) -> Unit,
+    onPagePrevious: (WorkspaceResource) -> Unit, onPageRetry: (WorkspaceResource) -> Unit) {
     val id = remember(kind) { Uuid.random().toString() }
     var name by remember { mutableStateOf("") }
     var trade by remember { mutableStateOf("") }
@@ -33,13 +47,20 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
     var email by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("WORKER") }
     var business by remember { mutableStateOf("RESTAURANT") }
-    var locations by remember { mutableStateOf(emptyList<String>()) }
+    var locations by remember { mutableStateOf(emptySet<String>()) }
+    val formScroll = rememberScrollState()
+    LaunchedEffect(noticeVisible) { if (noticeVisible) formScroll.scrollTo(0) }
     val fields = state.errors.flatMap { it.fields.entries }.associate { it.key to it.value }
-    Dialog(onDismissRequest = onClose) {
-        BpmCard(Modifier.widthIn(max = 520.dp).fillMaxWidth().heightIn(max = 720.dp).trackUserActivity(onUserActivity)) {
-            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    BoxWithConstraints(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
+        val shortWindow = maxHeight < 500.dp
+        // En horizontal o con teclado, las acciones no deben comprimir el contenido del formulario.
+        BpmCard(Modifier.fillMaxWidth().trackUserActivity(onUserActivity)
+            .then(if (shortWindow) Modifier.verticalScroll(formScroll) else Modifier)) {
+            Column(if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(formScroll),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Eyebrow("CRECER EN EQUIPO")
                 Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                sessionNotice()
                 if (kind == WorkspaceFormKind.Member) {
                     Text("La persona debe registrarse y verificar su correo en BPM primero. No se envían invitaciones por correo.", style = MaterialTheme.typography.bodySmall)
                     FormField(email, { email = it }, "Correo de la cuenta BPM", fields["email"], !state.saving, onUserActivity)
@@ -47,12 +68,15 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
                     else {
-                        Text("Sedes permitidas", fontWeight = FontWeight.Bold)
-                        state.workspace?.locations.orEmpty().forEach { location -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(location.id in locations, enabled = !state.saving, onCheckedChange = { checked -> locations = if (checked) locations + location.id else locations - location.id })
-                            Text(location.name)
-                        } }
-                        if (state.workspace?.locations.isNullOrEmpty()) Text("Crea una sede antes de asignar colaboradores.")
+                        Text("Sedes permitidas · ${locations.size} seleccionadas", fontWeight = FontWeight.Bold)
+                        WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
+                        state.workspace?.locations.orEmpty().forEach { location ->
+                            LocationChoice(location.name, location.id in locations, !state.saving) { checked ->
+                                locations = if (checked) locations + location.id else locations - location.id
+                            }
+                        }
+                        if (state.workspace?.locations.isNullOrEmpty()) Text("No hay sedes para esta búsqueda. Busca otro nombre o crea una sede si aún no existe.")
+                        }
                         fields["locationIds"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 } else {
@@ -78,7 +102,7 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
                 when (kind) {
                     WorkspaceFormKind.Organization -> onOrganization(Organization(id, name, trade, business, tax, contactName, phone, email))
                     WorkspaceFormKind.Location -> onLocation(Location(id, name, address, district, phone))
-                    WorkspaceFormKind.Member -> onMember(email, role, if (role == "ADMIN") emptyList() else locations)
+                    WorkspaceFormKind.Member -> onMember(email, role, if (role == "ADMIN") emptyList() else locations.toList())
                 }
             })
             TextButton(onClick = onClose, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
@@ -86,6 +110,19 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
     }
 }
 @Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean, onUserActivity: () -> Unit) {
-    OutlinedTextField(value, { onUserActivity(); onValue(it) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(label) },
+    OutlinedTextField(value, { onUserActivity(); onValue(it) }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }, singleLine = true, label = { Text(label) },
         enabled = enabled, shape = RoundedCornerShape(14.dp), isError = error != null, supportingText = error?.let { { Text(it) } })
+}
+
+/** La fila completa comparte etiqueta, estado y área de interacción con la casilla. */
+@Composable private fun LocationChoice(name: String, selected: Boolean, enabled: Boolean, onChecked: (Boolean) -> Unit) {
+    BpmFeedback(MaterialTheme.colorScheme.primary) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.small)
+            .toggleable(value = selected, enabled = enabled, role = Role.Checkbox, onValueChange = onChecked)
+            .padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Checkbox(checked = selected, enabled = enabled, onCheckedChange = null)
+            Text(name, Modifier.weight(1f))
+        }
+    }
 }

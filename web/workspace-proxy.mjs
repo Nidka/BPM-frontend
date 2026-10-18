@@ -1,6 +1,7 @@
 // Proxy cerrado: el backend conserva la autoridad sobre tenant, identidad y roles.
+import { pageQuery, publicPagination } from './pagination.mjs';
 import { forwardSessionHeaders } from './session-headers.mjs';
-const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members))?$/;
+const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members|courses|checklist-summaries|incidents))?$/;
 export const workspaceRoute = path => routes.test(path);
 const orgFields = ['id', 'legalName', 'tradeName', 'businessType', 'taxId', 'contactName', 'contactPhone', 'contactEmail'];
 const locationFields = ['id', 'name', 'address', 'district', 'contactPhone'];
@@ -29,11 +30,12 @@ function list(value, map) {
   return value.map(map);
 }
 function publicData(data, action, method) {
-  if (action === 'members') return strings(data, ['status']);
-  if (action === 'locations') return strings(data, locationFields);
+  if (action === 'members') return method === 'POST' ? strings(data, ['status']) : list(data, x => ({ ...strings(x, ['id','name','email','role']), locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('ID inválido'); return id; }) }));
+  if (action === 'locations') return method === 'POST' ? strings(data, locationFields) : list(data, x => strings(x, locationFields));
+  if (['courses','checklist-summaries','incidents'].includes(action)) return list(data, x => strings(x, ['id','title','detail','status']));
   if (action !== 'workspace') return method === 'GET' ? list(data, x => strings(x, orgFields)) : strings(data, orgFields);
   return {
-    organization: strings(data.organization, orgFields), ...strings(data, ['role']),
+    ...workspaceMetadata(data), organization: strings(data.organization, orgFields), ...strings(data, ['role']),
     locations: list(data.locations, x => strings(x, locationFields)),
     members: list(data.members, x => ({ ...strings(x, ['id', 'name', 'email', 'role']),
       locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('Invalid ID'); return id; }) })),
@@ -44,9 +46,12 @@ function publicData(data, action, method) {
 export async function proxyWorkspace(request, url, upstream, send, response) {
   const match = url.pathname.match(routes);
   const action = match?.[2];
-  const allowed = action === 'workspace' ? ['GET'] : action ? ['POST'] : ['GET', 'POST'];
-  if (!match || url.search) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
+  const allowed = ['workspace','courses','checklist-summaries','incidents'].includes(action) ? ['GET'] : ['GET', 'POST'];
+  if (!match) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   if (!allowed.includes(request.method)) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
+  let query;
+  try { query = pageQuery(url, { workspace: action === 'workspace', detail: request.method !== 'GET' }); }
+  catch { return send(404, error('NOT_FOUND', 'Recurso no disponible.')); }
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || authorization.length > 8192 || !/^Bearer [A-Za-z0-9._-]+$/.test(authorization))
     return send(401, error('UNAUTHENTICATED', 'Debes iniciar sesión.'));
@@ -70,12 +75,12 @@ export async function proxyWorkspace(request, url, upstream, send, response) {
     headers['Content-Type'] = 'application/json';
   }
   try {
-    const result = await fetch(new URL(url.pathname.slice('/backend'.length), upstream), {
+    const result = await fetch(new URL(url.pathname.slice('/backend'.length) + query, upstream), {
       method: request.method, body, headers, redirect: 'error', signal: AbortSignal.timeout(10000),
     });
     if (response) forwardSessionHeaders(result, response);
     const payload = await jsonBody(result.body, 1048576);
-    if (result.ok) return send(200, JSON.stringify({ data: publicData(payload.data, action, request.method) }));
+    if (result.ok) return send(200, JSON.stringify({ data: publicData(payload.data, action, request.method), ...(request.method === 'GET' && action !== 'workspace' ? { pagination: publicPagination(payload.pagination) } : {}) }));
     const codes = {
       400: ['INVALID_REQUEST', 'La solicitud no es válida.'],
       401: ['UNAUTHENTICATED', 'Vuelve a iniciar sesión.'],
@@ -94,4 +99,24 @@ export async function proxyWorkspace(request, url, upstream, send, response) {
     }
     return send(503, error('BACKEND_UNAVAILABLE', 'El servicio no está disponible.'));
   } catch { return send(503, error('BACKEND_UNAVAILABLE', 'No se pudo conectar con el servicio.')); }
+}
+
+function workspaceMetadata(data) {
+  const result = {};
+  if (data.nextPageTokens !== undefined) {
+    result.nextPageTokens = {};
+    for (const key of ['locations','members','courses','checklist-summaries','incidents']) {
+      const token = data.nextPageTokens[key];
+      if (token !== undefined) result.nextPageTokens[key] = publicPagination({nextPageToken:token}).nextPageToken;
+    }
+  }
+  if (data.totals !== undefined) {
+    result.totals = {};
+    for (const key of ['locations','courses','checklists']) {
+      const total = data.totals[key];
+      if (!Number.isSafeInteger(total) || total < 0) throw new Error('Total inválido');
+      result.totals[key] = total;
+    }
+  }
+  return result;
 }

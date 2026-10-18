@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import pe.bpm.core.designsystem.Brand
 
 @Composable
 fun ConnectionScreen(state: ConnectionUiState, onRetry: () -> Unit) {
@@ -23,13 +24,12 @@ fun ConnectionScreen(state: ConnectionUiState, onRetry: () -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
-            Text("BPM / AULA", color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Brand()
             Spacer(Modifier.height(18.dp))
-            Text("Una base para\ntrabajar juntos.", style = MaterialTheme.typography.headlineLarge,
+            Text("Estado del servicio", style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            Text("El espacio de aprendizaje y buenas prácticas de tu equipo.",
+            Text("Comprueba la disponibilidad del servicio si tienes problemas para acceder.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(32.dp))
@@ -57,12 +57,6 @@ fun ConnectionScreen(state: ConnectionUiState, onRetry: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(24.dp))
-            Text("Base inicial · Los módulos se incorporarán progresivamente.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-            Text("By: Kadin, Evelyn y Piero", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

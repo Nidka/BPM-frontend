@@ -14,6 +14,8 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.*
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
+import pe.bpm.core.domain.Page
+import pe.bpm.core.domain.PageRequest
 import pe.bpm.features.workspace.data.RemoteWorkspaceRepository
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
@@ -43,7 +45,7 @@ class WorkspaceTest {
             assertIs<Result.Failure>(repository.organizations())
             assertEquals(0, calls)
             token = "test.token"
-            assertEquals(emptyList(), assertIs<Result.Success<List<Organization>>>(repository.organizations()).value)
+            assertEquals(emptyList(), assertIs<Result.Success<Page<Organization>>>(repository.organizations()).value.items)
             assertIs<Result.Success<Unit>>(repository.createOrganization(Organization("id", "BPM")))
             assertEquals(2, calls)
         } finally { client.close() }
@@ -68,7 +70,8 @@ class WorkspaceTest {
         val first = Organization("first", "Primera")
         val second = Organization("second", "Segunda")
         val repository = object : WorkspaceRepository {
-            override suspend fun organizations() = Result.Success(listOf(first, second))
+            override suspend fun organizations(request: PageRequest) = Result.Success(Page(listOf(first, second)))
+            override suspend fun page(organizationId: String, resource: WorkspaceResource, request: PageRequest): Result<WorkspaceItems> = Result.Failure(emptyList())
             override suspend fun workspace(id: String): Result<Workspace> {
                 if (id == second.id) awaitCancellation()
                 return Result.Success(Workspace(first, "ADMIN", emptyList(), emptyList(), emptyList(), emptyList(), emptyList()))
@@ -78,7 +81,7 @@ class WorkspaceTest {
             override suspend fun addMember(organizationId: String, email: String, role: String, locations: List<String>) = Result.Success(Unit)
         }
         try {
-            val model = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository))
+            val model = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository), LoadWorkspacePage(repository))
             store.put("workspace", model)
             model.load(); advanceUntilIdle()
             assertEquals(first.id, model.state.value.workspace?.organization?.id)
@@ -98,7 +101,8 @@ class WorkspaceTest {
         val response = CompletableDeferred<Unit>()
         val organization = Organization("first", "Primera")
         val repository = object : WorkspaceRepository {
-            override suspend fun organizations() = Result.Success(listOf(organization))
+            override suspend fun organizations(request: PageRequest) = Result.Success(Page(listOf(organization)))
+            override suspend fun page(organizationId: String, resource: WorkspaceResource, request: PageRequest): Result<WorkspaceItems> = Result.Failure(emptyList())
             override suspend fun workspace(id: String): Result<Workspace> {
                 // Simulate an external adapter that finishes even after cancellation.
                 withContext(NonCancellable) { response.await() }
@@ -109,7 +113,7 @@ class WorkspaceTest {
             override suspend fun addMember(organizationId: String, email: String, role: String, locations: List<String>) = Result.Success(Unit)
         }
         try {
-            val model = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository))
+            val model = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository), LoadWorkspacePage(repository))
             store.put("workspace", model)
             model.load()
             runCurrent()

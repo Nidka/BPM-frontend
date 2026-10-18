@@ -228,14 +228,38 @@ class IdentityTest {
     }
 
     @Test
-    fun backendWithFirebaseDisabledNeverCreatesSession() = runTest {
+    fun expiredBackendSessionUsesSpanishMessageAndDiscardsProviderDetail() = runTest {
+        var profileCalls = 0
+        val client = createHttpClient(MockEngine { request ->
+            when {
+                request.url.host == "identitytoolkit.googleapis.com" -> respond(credential, HttpStatusCode.OK, jsonHeaders)
+                ++profileCalls == 1 -> respond(profile, HttpStatusCode.OK, jsonHeaders)
+                else -> respond("""{"errors":[{"code":"SESSION_EXPIRED","message":"Token expired: private detail"}]}""",
+                    HttpStatusCode.Unauthorized, jsonHeaders)
+            }
+        })
+        try {
+            val repository = RemoteIdentityRepository(client, config)
+            assertIs<IdentityResult.Success<Profile>>(repository.signIn("test@example.com", "password"))
+            val error = assertIs<IdentityResult.Failure>(repository.currentProfile()).errors.single()
+            assertEquals("SESSION_EXPIRED", error.code)
+            assertEquals("Tu sesión venció por tiempo o inactividad. Inicia sesión nuevamente.", error.message)
+            assertFalse(error.message.contains("Token expired"))
+            assertFalse(error.message.contains("SESSION_EXPIRED"))
+            assertIs<IdentityResult.Failure>(repository.currentProfile())
+            assertEquals(2, profileCalls)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun unavailableBackendNeverCreatesSessionOrAssumesMissingConfiguration() = runTest {
         val client = createHttpClient(MockEngine { request ->
             if (request.url.host == "identitytoolkit.googleapis.com") respond(credential, HttpStatusCode.OK, jsonHeaders)
             else respond("""{"errors":[{"code":"AUTHENTICATION_UNAVAILABLE"}]}""", HttpStatusCode.ServiceUnavailable, jsonHeaders)
         })
         try {
             val repository = RemoteIdentityRepository(client, config)
-            assertEquals("AUTH_NOT_CONFIGURED", assertIs<IdentityResult.Failure>(repository.signIn("test@example.com", "password"))
+            assertEquals("AUTH_UNAVAILABLE", assertIs<IdentityResult.Failure>(repository.signIn("test@example.com", "password"))
                 .errors.single().code)
             assertIs<IdentityResult.Failure>(repository.currentProfile())
         } finally { client.close() }

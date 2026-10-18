@@ -232,7 +232,7 @@ class SessionTest {
         try {
             val repository = RemoteIdentityRepository(client, config, sessionStore = store)
             val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
-                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository), ConfirmEmailVerification(repository),
                 RestoreSession(repository), ObserveSessionInvalidations(repository))
             viewModels.put("identity", model)
             runCurrent()

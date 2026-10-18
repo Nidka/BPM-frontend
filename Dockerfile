@@ -15,6 +15,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /src/composeApp/build/dist/wasmJs/productionExecutable ./public
 COPY --chown=node:node web/server.mjs ./web/server.mjs
 COPY --chown=node:node web/workspace-proxy.mjs ./web/workspace-proxy.mjs
+COPY --chown=node:node web/checklists-proxy.mjs ./web/checklists-proxy.mjs
 COPY --chown=node:node web/session-headers.mjs ./web/session-headers.mjs
 COPY --chown=node:node web/google-auth-browser.mjs web/google-auth-controller.mjs ./web/
 COPY --chown=node:node config/firebase.public.json ./config/firebase.public.json

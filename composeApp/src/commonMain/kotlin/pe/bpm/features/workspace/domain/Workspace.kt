@@ -40,6 +40,8 @@ data class Workspace(
     val courses: List<Entry>,
     val checklists: List<Entry>,
     val incidents: List<Entry>,
+    val nextPageTokens: Map<String, String> = emptyMap(),
+    val totals: Map<String, Int> = emptyMap(),
 ) {
     val canManage get() = role in setOf("ADMIN", "SUPER_ADMIN")
 }

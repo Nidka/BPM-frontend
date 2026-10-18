@@ -23,12 +23,16 @@ composeApp/src/commonMain/kotlin/pe/bpm/
     presentation/            ViewModel, estado y pantalla
   features/identity/
     domain/                  perfil y casos de uso de sesión
-    data/                    Firebase REST, puerto Google y perfil de la API
-    presentation/            formulario, sesión y ViewModel
+    data/                    adaptadores Firebase/BPM, coordinación de credenciales y almacenamiento seguro
+    presentation/            formularios, ViewModel y monitor/aviso de sesión
   features/workspace/
     domain/                  organizaciones, sedes, equipo y casos de uso
     data/                    DTO y adaptador Ktor autenticado
     presentation/            contenedor adaptable, contenido, formularios, estado y ViewModel
+  features/checklists/
+    domain/                  plantillas publicadas, preguntas, puerto y caso de uso de consulta
+    data/                    DTO privados y adaptador remoto autenticado del catálogo
+    presentation/            estado, ViewModel, búsqueda y detalle de preguntas
 ```
 
 Flujo: pantalla → ViewModel → caso de uso → interfaz del repositorio →
@@ -57,7 +61,7 @@ API_BASE_URL. Android/iOS consultan directamente el origen HTTPS configurado al
 compilar. Los módulos futuros ampliarán el proxy con rutas y encabezados
 autorizados explícitamente.
 
-La base visual BPM Aula usa petróleo/coral, mascota propia, botones con relieve,
+La base visual BPM usa petróleo/coral, mascota propia, botones con relieve,
 tarjetas y navegación adaptable. Identidad conserva login/registro, verificación
 y recuperación. Al autenticarse abre workspace con tenant autorizado, altas de
 empresa/sede/equipo y catálogos de Aprender/Control. Ver IDENTITY.md y WORKSPACE.md.
@@ -85,7 +89,15 @@ se reinician al cambiar de contexto.
 App utiliza Navigation Compose Multiplatform 2.9.2 y NavHost. Los fragmentos web
 se enlazan mediante bindToBrowserNavigation; Android usa atrás del sistema.
 Cada ruta protegida comprueba sesión y destinos permitidos antes de componer UI.
-Las pantallas de detalle futuras se registrarán al implementar su recorrido.
+El detalle de preguntas usa `control/plantilla/{templateId}` en el mismo NavHost,
+con las comprobaciones de sesión y capacidades de Control. Solo muestra una
+plantilla presente en el catálogo de la empresa activa; admite historial y
+enlace directo. Ver CHECKLISTS.md.
+Las altas de organización/sede/miembro también tienen rutas propias en ese
+NavHost. App comprueba las capacidades antes de mostrarlas y observa la revisión
+de guardado para regresar solo después del éxito confirmado. WorkspaceForm
+contiene la UI y los datos temporales, sin capa Dialog ni dependencia de app.
+Ver WORKSPACE.md para rutas, permisos y accesibilidad.
 Los enlaces nativos del sistema operativo aún no se han registrado.
 
 La cancelación se verifica antes de aplicar cada respuesta del workspace,
@@ -109,3 +121,24 @@ suspendido de tokens vigentes y una función de rechazo del token actual. Ambos
 adaptadores comparten únicamente el error técnico de core/network; no se importan
 entre funcionalidades. ObserveSessionInvalidations permite limpiar la UI desde
 el ViewModel; no hay dependencias de red en presentación.
+
+Checklists sigue el mismo contrato de inyección de sesión. App coordina su estado
+por usuario/empresa y lo inserta en WorkspaceScreen mediante un slot Compose;
+workspace no importa checklists. El repositorio solo consulta plantillas publicadas.
+Ver CHECKLISTS.md para límites, reintentos y limpieza del contexto.
+
+## Responsabilidades de identidad y sesión
+
+La separación de transporte y coordinación se documenta en IDENTITY.md.
+FirebaseIdentityDataSource y BpmIdentityDataSource contienen los contratos
+externos; RemoteIdentityRepository coordina el contexto de identidad y rechaza
+respuestas de generaciones anteriores. Los casos de uso reciben interfaces por
+capacidad. IdentityErrorPolicy concentra la clasificación de errores y
+SessionMonitor concentra reloj/actividad, sin HTTP ni SDK en presentación.
+AppGraph construye estas dependencias y la UI observa sus StateFlow.
+
+El aviso de sesión se compone desde app mediante slots en el contenido de workspace
+debajo de su cabecera y en los formularios después de su título.
+No agrega dependencias entre features ni cambia las reglas del
+backend. La prueba estática de imports confirma fronteras; no certifica por sí
+sola el cumplimiento completo de SOLID ni sustituye la revisión de comportamiento.

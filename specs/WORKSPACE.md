@@ -1,4 +1,4 @@
-# Espacio de trabajo y diseño BPM Aula
+# Espacio de trabajo y diseño BPM
 
 ## Base visual
 
@@ -13,6 +13,42 @@ vacíos compartidos. Login usa composición dividida a partir de 900 dp. Workspa
 usa menú lateral desde 950 dp y navegación inferior en tamaños menores. Los
 formularios permiten desplazamiento, muestran errores por campo y bloquean
 envíos mientras se guardan. No hay XP, rachas ni progreso inventados.
+
+El README del prototipo declara «BPM Aula» como nombre provisional. La app muestra
+temporalmente «BPM», sin eslogan, hasta que el equipo defina el nombre definitivo.
+`BpmBrand` centraliza el nombre de UI; Android, iOS y el título web mantienen la
+misma denominación. El brote de la biblioteca sustituye la letra `b.` inventada.
+Es el símbolo del prototipo, no una marca definitiva aprobada.
+
+`WorkspaceTopBar` usa `TopAppBar` de Material 3: marca, organización en una segunda
+línea acotada y una acción «Actualizar datos» con descripción accesible. El selector
+solo está habilitado si hay varias organizaciones o permiso para crearlas. Las
+secciones principales no acumulan botones de historial; el detalle conserva su
+regreso al catálogo. «Cerrar sesión» pertenece a Mi cuenta. La navegación lateral
+o inferior mantiene los destinos autorizados; no se añaden funciones simuladas.
+
+Los avisos se insertan al inicio del contenido, debajo de la cabecera. Al aparecer
+una advertencia de sesión o de acceso, el contenido se desplaza hasta el aviso.
+La cabecera permanece en su posición. En formularios, el mismo aviso se inserta
+después del título y vuelve al inicio del desplazamiento cuando aparece.
+
+Las altas tienen rutas propias: `empresa/nueva-organizacion`, `empresa/nueva-sede`
+y `equipo/agregar-persona`. App las registra en Navigation Compose y comprueba
+tanto el destino como la capacidad de crear antes de componer el formulario,
+incluidas URL directas. La organización exige SUPER_ADMIN; sede/equipo requieren
+gestión de la empresa activa. El backend mantiene la autorización definitiva.
+Mientras se carga el contexto se espera su resultado, sin anunciar un rechazo
+prematuro. El éxito confirmado vuelve a la pantalla previa y recarga los datos;
+cancelar o usar el historial no envía el formulario. Las claves de reintento
+permanecen estables mientras la misma pantalla sigue abierta.
+
+El formulario usa el árbol normal de UI, con contenido desplazable e íconos
+etiquetados para regresar. En ventanas bajas, las acciones se desplazan con el
+contenido; con altura suficiente permanecen al pie sin ocultar los campos. Se retiró Dialog después de reproducir
+en la versión fijada de Compose web que, al cerrarlo, el árbol accesible no
+recuperaba la navegación principal. La misma pantalla se comparte con móvil,
+donde el NavHost conserva el regreso del sistema, sin añadir handlers propios
+ni adaptadores visuales por plataforma.
 
 ## Recorrido implementado
 
@@ -37,13 +73,13 @@ administrativas reales como parte del despliegue.
 | Sección | Disponible | Siguiente implementación |
 |---|---|---|
 | Inicio | Bienvenida y conteos de listas autorizadas | Indicadores agregados y actividad |
-| Empresa | Datos, sedes y altas autorizadas | Edición/desactivación y paginación |
+| Empresa | Datos, sedes y altas autorizadas | Edición/desactivación |
 | Equipo | Miembros y alta por correo de cuenta existente | Invitaciones, cambios de rol y bajas |
 | Aprender | Catálogo publicado y estado de progreso existente | Lecciones, evaluaciones, XP y constancias |
-| Control | Plantillas activas e incidencias visibles | Ejecutar/responder controles y gestionar incidencias |
+| Control | Catálogo, búsqueda y preguntas de plantillas publicadas; incidencias visibles | Ejecutar/responder controles y gestionar incidencias |
 
-Cada lista es de hasta 100 registros; los conteos son de los registros cargados,
-no estadísticas globales. No se presentan botones que simulen completar cursos
+Cada página carga 25 registros, con un máximo de 100 por solicitud. Inicio usa
+`totals` autorizados del backend para sedes, cursos y controles publicados. No se presentan botones que simulen completar cursos
 o registrar controles. R2, operación diaria, investigación y alertas quedan en
 sus specs, no están terminados por tener navegación.
 
@@ -63,8 +99,8 @@ limpia la pila; formularios y menús se reinician al cambiar de contexto.
 AppGraph inyecta repositorio/casos de uso/VM. El backend valida usuario, tenant,
 rol y sedes en cada llamada; ocultar botones solo mejora la experiencia.
 
-El proxy `web/workspace-proxy.mjs` acepta únicamente los cinco endpoints del
-workspace, métodos explícitos, Bearer, JSON limitado y origen válido para POST.
+El proxy `web/workspace-proxy.mjs` acepta únicamente las rutas explícitas del
+workspace y sus listas, Bearer, JSON limitado y origen válido para POST.
 No reenvía cookies ni cabeceras de tenant. Filtra los campos públicos y sanitiza
 errores/fields. El DTO de /me conserva platformRole para mostrar las acciones
 permitidas, pero nunca lo envía como autoridad al backend.
@@ -79,3 +115,109 @@ La política de destinos y el historial se describen en el README. WORKER accede
 Inicio/Aprender/Mi cuenta; CHEF añade Control/Equipo; ADMIN incluye Empresa y su
 aprendizaje; SUPER_ADMIN conserva gestión sin mostrarse como alumno u operador.
 Esto no amplía los endpoints disponibles ni reemplaza autorización del backend.
+
+El catálogo de Control pertenece a features/checklists y se compone desde App
+mediante un slot, sin dependencias entre funcionalidades. Su detalle con ruta propia,
+contrato de lectura y pruebas se describen en CHECKLISTS.md.
+
+El selector de organización tiene la ruta `organizaciones`, con búsqueda en servidor, páginas y filas de selección en LazyColumn, organización actual
+señalada y regreso mediante la navegación existente. No agrega una columna de
+botones al contenido empresarial. La acción para crear una organización está
+separada y solo aparece con permiso de plataforma. En pantallas grandes el
+selector limita su ancho; en ventanas bajas reduce contenido secundario para
+conservar espacio de búsqueda y selección. Los avisos de sesión permanecen en
+la lista desplazable y vuelven al inicio cuando aparecen.
+La altura se ajusta al contenido hasta su máximo, para no reservar un panel
+vacío cuando hay pocas organizaciones o coincidencias.
+No usa una capa Popup: en la versión fijada de Compose web, el menú anterior
+dejaba el árbol de accesibilidad asociado a la capa retirada al cerrarse. La
+selección conserva la cancelación y limpieza de contexto existentes, sin
+ampliar permisos. Los endpoints paginados se describen abajo. El encabezado es un acceso a esa pantalla, no un combobox.
+El regreso explícito usa el historial del navegador en web y el NavController en
+móvil. La integración experimental fijada agrega una entrada web cuando se hace
+pop solo en NavController; delegar el regreso al navegador evita que «Atrás»
+reabra inmediatamente el formulario que se acaba de cancelar. La adaptación
+pertenece a la raíz app/wasmJsMain y no introduce APIs de navegador en features.
+
+## Respuesta a la interacción y páginas de servidor
+
+`BpmFeedback` configura la indicación Material por control, con una capa suave
+del color apropiado para su fondo. Se aplica al selector, filas de organización,+navegación y RaisedButton. No se impone una configuración global de ripple ni
+se eliminan las señales de interacción. La cabecera acota la superficie pulsable
+y respeta sus esquinas. El botón con relieve se desplaza 2 dp al pulsarlo mediante
+una animación breve, sin modificar su espacio de layout. `animateDpAsState`
+respeta MotionDurationScale del contexto Compose; con escala cero no se prolonga.
+El selector y los botones con relieve mantienen un contorno visible al recibir
+foco por teclado; el estado deshabilitado conserva su significado.
+
+Las organizaciones, sedes, miembros, cursos e incidencias ya se consultan por
+páginas reales, con `pageSize=25`, `pageToken` y `query`. El backend devuelve
+`pagination.nextPageToken` y permite continuar después del registro 100. `Anterior`
+reutiliza el historial de cursores y `Siguiente` consume el cursor recibido;
+«Página N» es una posición de navegación, no un total de páginas inventado.
+Solo se conserva la página visible y un historial de cadenas opacas.
+
+La búsqueda espera 300 ms y cancela la consulta anterior; limpiar o cambiar el
+texto vuelve a la primera página. No se filtra solo la página en memoria. Buscar
+organizaciones no cambia la empresa activa: el cambio ocurre al seleccionar una
+fila. Recargar conserva la selección y vuelve a autorizarla mediante workspace,
+aunque la organización esté fuera de la primera página del selector.
+
+Cada recurso tiene estado de carga y error propio. Un fallo de red permite
+reintentar la misma página; un cursor inválido reinicia esa lista. Una denegación
+vacía el contexto empresarial y nunca se presenta como «sin resultados». Las
+respuestas canceladas no pueden restaurar otra empresa o una sesión cerrada.
+El formulario de miembro conserva IDs seleccionados al buscar o cambiar de
+página de sedes y muestra cuántas se eligieron. El servidor valida los IDs y
+conserva el límite de 100 asignaciones por alta.
+
+`core/domain/Page` comparte solo valores puros; los DTO, parámetros Ktor y
+validación de cursores viven en `core/network/Pagination`, usados por los dos
+adaptadores reales. El VM invoca casos de uso, nunca HTTP. `PageNavigation`
+comparte controles accesibles y respuesta de interacción del tema. Los proxies
+permiten exclusivamente parámetros acotados y reenvían solo campos públicos,
+metadatos de página y totales validados. Android e iOS usan el mismo contrato
+y validan tamaño de página y continuidad del cursor.
+
+Publicación: primero backend con los nuevos endpoints/metadatos y después el
+frontend. No hay nuevas variables ni migraciones. Hasta publicarlo, Railway sigue
+ejecutando la versión anterior; reconstruir el frontend local no publica el API.
+No hay sondeo periódico de listas ni actividad artificial para mantener sesiones.
+Las lecturas de negocio siguen contando como actividad según la política del API.
+
+Referencia: [interacciones e indicaciones de Compose](https://developer.android.com/develop/ui/compose/touch-input/user-interactions/handling-interactions).
+
+## Íconos y estados de acceso
+
+La navegación usa recursos vectoriales Lucide de 24 dp y trazo de 2 unidades,
+extraídos del mismo archivo local `assets/lucide.js` del prototipo. `BpmIcon`
+comparte estos recursos entre marca, cabecera, navegación y estados; no dibuja
+variantes manuales ni descarga fuentes. Cada destino conserva su etiqueta visible
+y accesible; el dibujo es decorativo para evitar anuncios duplicados.
+La licencia ISC se empaqueta también en `composeApp/src/commonMain/composeResources/files/lucide-license.txt`; las formas SVG se
+trasladaron a XML VectorDrawable para `painterResource` multiplataforma.
+Se mantienen los puntos de cambio de distribución y los colores del prototipo.
+
+`WorkspacePlaceholder` diferencia cuenta sin organización, acceso restringido,
+sesión terminada y servicio no disponible. Una respuesta 403 no se presenta
+como una lista vacía ni ofrece crear una empresa. Un fallo de carga permite
+reintentar sin afirmar que no existen organizaciones. Los formularios conservan
+los errores de campo y el aviso de sesión compartido.
+Las URL de secciones no permitidas llevan a Inicio con una explicación visible;
+el backend continúa autorizando cada solicitud. El rol CHEF tiene un mensaje
+explícito en Equipo y no obtiene acciones administrativas.
+
+Verificar una sesión vuelve a cargar el espacio si cambiaron las membresías o
+el rol de plataforma, incluso si antes no había organización seleccionada.
+Actualizar Control solicita tanto el workspace como el catálogo de preguntas;
+no depende de que Compose observe un estado intermedio de carga.
+
+Referencias: [barras de aplicación Material 3](https://developer.android.com/develop/ui/compose/components/app-bars),
+[recursos Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-multiplatform-resources-usage.html)
+y [Lucide](https://lucide.dev/guide/). Estas decisiones adaptan el prototipo a los
+recorridos disponibles; no declaran implementados todos sus módulos.
+
+La elección de sedes agrupa etiqueta y casilla en una fila toggleable de al menos
+48 dp; Checkbox delega la acción al padre. La selección usa un conjunto de IDs,
+sin duplicados, y no depende de la página visible. Patrón de
+[accesibilidad Compose](https://developer.android.com/develop/ui/compose/accessibility/api-defaults).

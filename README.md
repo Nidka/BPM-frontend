@@ -30,6 +30,10 @@ composeApp/src/
 │   │   └── features/
 │   │       ├── connection/            salud y disponibilidad reales del backend
 │   │       ├── identity/              acceso, registro, verificación y recuperación
+│   │       ├── checklists/            catálogo publicado, búsqueda y detalle de preguntas
+│   │       │   ├── domain/            plantillas, preguntas, puerto y caso de uso
+│   │       │   ├── data/              consulta autenticada y DTO privados
+│   │       │   └── presentation/      StateFlow, ViewModel, catálogo y detalle navegable
 │   │       └── workspace/             organización activa, sedes, miembros y resúmenes
 │   │           ├── domain/            modelos, repositorio y casos de uso
 │   │           ├── data/              adaptador remoto, DTO privados y traducción de errores
@@ -109,7 +113,7 @@ propietario. Los ViewModels usan `viewModelScope`; la UI observa con
 
 La raíz usa Navigation Compose Multiplatform 2.9.2, con NavHost y una lista
 cerrada de rutas: `acceso`, `conexion`, `inicio`, `aprender`, `control`, `equipo`,
-`empresa` y `cuenta`. Android integra atrás del sistema; web conecta el mismo
+`empresa`, `cuenta` y `control/plantilla/{templateId}`. Android integra atrás del sistema; web conecta el mismo
 grafo mediante `bindToBrowserNavigation` para atrás/adelante y URLs como
 `#aprender`. No se incluyen tokens, usuario ni empresa en la URL.
 
@@ -137,8 +141,9 @@ no una autorización del cliente. Los roles elevados proceden de la API.
 
 El contenedor presenta navegación inferior en ventanas pequeñas y lateral desde
 950 dp. Las pantallas comparten lógica y responden al ancho de ventana. Formularios
-y menús se reinician al cambiar usuario/organización. Los futuros recorridos de
-detalle se registrarán en el mismo grafo con sus permisos y contratos reales.
+y menús se reinician al cambiar usuario/organización. Control consulta el catálogo
+publicado y muestra sus preguntas en una ruta de detalle propia. El contrato, decisiones y
+límites de este primer incremento están en [specs/CHECKLISTS.md](specs/CHECKLISTS.md).
 
 Cambiar organización cancela consultas y limpia el contenido anterior. Logout
 cancela operaciones y limpia workspace y sesión. Antes de aplicar respuestas se
@@ -298,3 +303,26 @@ como resultados reales a producción.
 - [Estructura oficial de KMP](https://kotlinlang.org/docs/multiplatform/multiplatform-hierarchy.html)
 - [ViewModel multiplataforma](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html)
 - [Recomendaciones de arquitectura Android](https://developer.android.com/topic/architecture/recommendations)
+
+### Revisión de identidad y estados adaptables
+
+El transporte de identidad está separado en `FirebaseIdentityDataSource` y
+`BpmIdentityDataSource`; el repositorio coordina credenciales y los casos de uso
+dependen de contratos por capacidad. `SessionMonitor` expone el aviso con cuenta
+regresiva: continuar requiere actividad confirmada por servidor; el máximo
+absoluto exige autenticación nueva. Ver [IDENTITY.md](specs/IDENTITY.md).
+
+La cabecera usa Material 3 y los íconos Lucide locales del prototipo, con etiquetas
+accesibles. La marca temporal «BPM» sustituye el nombre provisional «BPM Aula»
+y su eslogan; «Cerrar sesión» vive en Mi cuenta y los avisos aparecen debajo de
+la cabecera. Los estados distinguen
+acceso denegado, datos vacíos y fallos de carga, conservando el contrato del
+backend y la base visual del prototipo. Ver [WORKSPACE.md](specs/WORKSPACE.md).
+
+La elección de organización usa una pantalla con búsqueda y filas de selección,
+separada del contenido empresarial. La respuesta a pulsación se configura por
+control, con colores del tema y foco visible. Los listados consultan páginas de
+25 registros y búsqueda en servidor, con Anterior/Siguiente. El backend autoriza
+cada página y devuelve totales para Inicio; el detalle de controles se consulta
+por ID independientemente del catálogo. Publicar primero backend y después
+frontend; no hay migraciones ni variables nuevas. Ver [WORKSPACE.md](specs/WORKSPACE.md).

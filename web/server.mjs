@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workspaceRoute, proxyWorkspace } from './workspace-proxy.mjs';
+import { checklistCatalogRoute, proxyChecklistCatalog } from './checklists-proxy.mjs';
 import { forwardSessionHeaders } from './session-headers.mjs';
 
 // Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
@@ -80,6 +81,7 @@ export function createAppServer({
     }
     try {
       const url = new URL(request.url, 'http://localhost');
+      if (checklistCatalogRoute(url.pathname)) return await proxyChecklistCatalog(request, url, upstream, send, response);
       if (isWorkspace) return await proxyWorkspace(request, url, upstream, send, response);
       if (url.pathname === '/config.json' && !url.search) {
         // Lista explícita de configuración pública: nunca serializar process.env.
@@ -145,7 +147,7 @@ export function createAppServer({
                 SESSION_EXPIRED: [401, 'Tu sesión venció por tiempo o inactividad. Inicia sesión nuevamente.'],
                 USER_NOT_REGISTERED: [403, 'Tu cuenta no está habilitada en BPM.'],
                 USER_INACTIVE: [403, 'Tu cuenta se encuentra inactiva.'],
-                AUTHENTICATION_UNAVAILABLE: [503, 'El servicio de autenticación no está configurado.'],
+                AUTHENTICATION_UNAVAILABLE: [503, 'No se pudo comprobar la sesión. Inténtalo nuevamente.'],
                 EMAIL_NOT_VERIFIED: [403, 'Verifica tu correo antes de continuar.'],
                 REGISTRATION_CONFLICT: [409, 'No se pudo completar el registro. Usa tu método de acceso original.'],
                 INVALID_REQUEST: [400, 'La solicitud no es válida.'],

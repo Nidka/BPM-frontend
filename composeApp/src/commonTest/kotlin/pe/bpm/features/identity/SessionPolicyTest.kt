@@ -11,6 +11,7 @@ import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.identity.data.*
 import pe.bpm.features.identity.domain.*
 import pe.bpm.features.identity.presentation.IdentityViewModel
+import pe.bpm.features.identity.presentation.SessionMonitor
 import kotlin.test.*
 
 class SessionPolicyTest {
@@ -22,6 +23,128 @@ class SessionPolicyTest {
         "X-BPM-Session-Expires-At" to listOf("29800"),
         "X-BPM-Session-Idle-Expires-At" to listOf(idle.toString()),
     )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun continuingRequiresRealActivityAndConfirmedServerDeadline() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        var activities = 0
+        var fail = true
+        val client = createHttpClient(MockEngine(MockEngineConfig().apply {
+            dispatcher = StandardTestDispatcher(testScheduler)
+            addHandler { request ->
+            when (request.url.encodedPath) {
+                "/v1/accounts:signInWithPassword" -> respond(credential, HttpStatusCode.OK, headers(1060))
+                "/api/v1/auth/activity" -> {
+                    activities++
+                    if (fail) respond("{}", HttpStatusCode.ServiceUnavailable, headers(1060))
+                    else respond("{}", HttpStatusCode.OK, headers(1000 + testScheduler.currentTime / 1000 + 900))
+                }
+                else -> respond(profile, HttpStatusCode.OK, headers(1060))
+            }
+            }
+        }))
+        val store = ViewModelStore()
+        try {
+            val now = { 1000 + testScheduler.currentTime / 1000 }
+            val repository = RemoteIdentityRepository(client, config, nowSeconds = now)
+            val vm = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository), ConfirmEmailVerification(repository),
+                sessionMonitor = SessionMonitor(ObserveSessionWindow(repository), RecordSessionActivity(repository), now))
+            store.put("identity", vm)
+            vm.login("p@example.com", "password"); runCurrent()
+            advanceTimeBy(10_000); runCurrent()
+            assertEquals(0, activities)
+            assertEquals(50L, vm.sessionStatus.value.warning!!.secondsRemaining)
+            vm.continueSession(); runCurrent()
+            assertEquals(1, activities)
+            assertNotNull(vm.sessionStatus.value.warning)
+            assertNotNull(vm.sessionStatus.value.error)
+            assertNotNull(vm.state.value.profile)
+            fail = false
+            vm.continueSession(); runCurrent()
+            assertEquals(2, activities)
+            assertNull(vm.sessionStatus.value.warning)
+            assertNull(vm.sessionStatus.value.error)
+            assertEquals(29800L, repository.sessionWindow().first()!!.absoluteExpiresAt)
+            advanceTimeBy(100_000); runCurrent()
+            assertEquals(2, activities)
+        } finally { store.clear(); client.close(); Dispatchers.resetMain() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun anUnconfirmedActivityRequestCannotKeepAnExpiredSessionOpen() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val client = createHttpClient(MockEngine(MockEngineConfig().apply {
+            dispatcher = StandardTestDispatcher(testScheduler)
+            addHandler { request ->
+                when (request.url.encodedPath) {
+                    "/v1/accounts:signInWithPassword" -> respond(credential, HttpStatusCode.OK, headers(1060))
+                    "/api/v1/auth/activity" -> {
+                        entered.complete(Unit)
+                        withContext(NonCancellable) { release.await() }
+                        respond("{}", HttpStatusCode.OK, headers(1960))
+                    }
+                    else -> respond(profile, HttpStatusCode.OK, headers(1060))
+                }
+            }
+        }))
+        val store = ViewModelStore()
+        try {
+            val now = { 1000 + testScheduler.currentTime / 1000 }
+            val repository = RemoteIdentityRepository(client, config, nowSeconds = now)
+            val vm = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository), ConfirmEmailVerification(repository),
+                sessionMonitor = SessionMonitor(ObserveSessionWindow(repository), RecordSessionActivity(repository), now))
+            store.put("identity", vm)
+            vm.login("p@example.com", "password"); runCurrent()
+            advanceTimeBy(55_000); runCurrent()
+            vm.continueSession(); runCurrent()
+            assertTrue(entered.isCompleted)
+            assertTrue(vm.sessionStatus.value.continuing)
+            advanceTimeBy(5_000); runCurrent()
+            assertNull(vm.state.value.profile)
+            assertNull(repository.sessionToken())
+            release.complete(Unit); runCurrent()
+            assertNull(vm.state.value.profile)
+            assertNull(repository.sessionWindow().first())
+        } finally { release.complete(Unit); store.clear(); client.close(); Dispatchers.resetMain() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun absoluteExpirationCannotBeExtendedByContinueOrUserInput() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        var activities = 0
+        val absoluteHeaders = headersOf(
+            "Content-Type" to listOf("application/json"), "X-BPM-Session-Expires-At" to listOf("1060"),
+            "X-BPM-Session-Idle-Expires-At" to listOf("1900"))
+        val client = createHttpClient(MockEngine(MockEngineConfig().apply {
+            dispatcher = StandardTestDispatcher(testScheduler)
+            addHandler { request ->
+            if (request.url.encodedPath == "/api/v1/auth/activity") activities++
+            respond(if (request.url.host == "identitytoolkit.googleapis.com") credential else profile, HttpStatusCode.OK, absoluteHeaders)
+            }
+        }))
+        val store = ViewModelStore()
+        try {
+            val now = { 1000 + testScheduler.currentTime / 1000 }
+            val repository = RemoteIdentityRepository(client, config, nowSeconds = now)
+            val vm = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository), ConfirmEmailVerification(repository),
+                sessionMonitor = SessionMonitor(ObserveSessionWindow(repository), RecordSessionActivity(repository), now))
+            store.put("identity", vm)
+            vm.login("p@example.com", "password"); runCurrent()
+            advanceTimeBy(1_000); runCurrent()
+            assertEquals(pe.bpm.features.identity.presentation.SessionExpiryReason.ABSOLUTE, vm.sessionStatus.value.warning!!.reason)
+            vm.continueSession(); vm.userActivity(); runCurrent()
+            assertEquals(0, activities)
+            advanceTimeBy(59_000); runCurrent()
+            assertNull(vm.state.value.profile)
+            assertNull(repository.sessionToken())
+            assertTrue(vm.state.value.errors.single().message.contains("duración máxima"))
+        } finally { store.clear(); client.close(); Dispatchers.resetMain() }
+    }
 
     @Test fun activityIsThrottledAndDoesNotReopenAnExpiredContext() = runTest {
         var now = 1000L
@@ -126,13 +249,13 @@ class SessionPolicyTest {
         try {
             val repository = RemoteIdentityRepository(client, config, nowSeconds = { 1000 + testScheduler.currentTime / 1000 })
             val vm = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
-                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository),
-                observeWindow = ObserveSessionWindow(repository), nowSeconds = { 1000 + testScheduler.currentTime / 1000 })
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository), ConfirmEmailVerification(repository),
+                sessionMonitor = SessionMonitor(ObserveSessionWindow(repository), RecordSessionActivity(repository), nowSeconds = { 1000 + testScheduler.currentTime / 1000 }))
             store.put("identity", vm)
             vm.login("p@example.com", "password"); runCurrent()
             assertNotNull(vm.state.value.profile)
             advanceTimeBy(5_000); runCurrent()
-            assertNotNull(vm.state.value.notice)
+            assertNotNull(vm.sessionStatus.value.warning)
             advanceTimeBy(55_000); runCurrent()
             assertNull(vm.state.value.profile)
             assertNull(repository.sessionToken())

@@ -6,6 +6,8 @@
 4. FEATURES.md: división del trabajo y plantilla de módulos.
 5. ../RAILWAY.md: CI/CD, variables, dominio y conexión real.
 6. IDENTITY.md: login, configuración Firebase y habilitación de cuentas de prueba.
+7. WORKSPACE.md: contexto empresarial, navegación y diseño adaptable.
+8. CHECKLISTS.md: catálogo en línea, detalle, contrato y límites del primer incremento.
 
 Actualizar estas decisiones junto con el código; no describir como implementadas
 capacidades que solo están planificadas.

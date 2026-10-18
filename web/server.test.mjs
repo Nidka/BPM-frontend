@@ -67,6 +67,10 @@ test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t
       res.writeHead(403);
       return res.end(JSON.stringify({ errors: [{ code: 'USER_NOT_REGISTERED', message: 'SQL internal secret' }] }));
     }
+    if (req.headers.authorization === 'Bearer unavailable.token') {
+      res.writeHead(503);
+      return res.end(JSON.stringify({ errors: [{ code: 'AUTHENTICATION_UNAVAILABLE', message: 'SQL internal secret' }] }));
+    }
     assert.equal(req.headers.authorization, 'Bearer test.id.token');
     res.end(JSON.stringify({ data: { id: 'uid', email: 'test@example.com', displayName: 'Persona',
       internalSecret: 'hidden', organizations: [{ id: 'org', legalName: 'BPM', role: 'WORKER', secret: 'hidden' }] } }));
@@ -103,9 +107,15 @@ test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t
   const error = await denied.json();
   assert.equal(error.errors[0].code, 'USER_NOT_REGISTERED');
   assert.equal(JSON.stringify(error).includes('SQL'), false);
+  const unavailable = await fetch(base + '/backend/api/v1/me', { headers: { Authorization: 'Bearer unavailable.token' } });
+  assert.equal(unavailable.status, 503);
+  const outage = await unavailable.json();
+  assert.equal(outage.errors[0].code, 'AUTHENTICATION_UNAVAILABLE');
+  assert.equal(outage.errors[0].message.includes('configurado'), false);
+  assert.equal(JSON.stringify(outage).includes('SQL'), false);
   assert.equal((await fetch(base + '/backend/api/v1/me?organizationId=other')).status, 404);
   assert.equal((await fetch(base + '/backend/api/v1/me', { method: 'POST' })).status, 405);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
 });
 
 test('rechaza secretos Admin como API key pública', () => {

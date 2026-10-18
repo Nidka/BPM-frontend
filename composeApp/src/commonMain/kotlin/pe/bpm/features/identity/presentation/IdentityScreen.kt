@@ -12,29 +12,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
+import pe.bpm.features.identity.domain.hasPendingRegistration
 
 @Composable
 fun IdentityScreen(
     state: IdentityUiState, onLogin: (String, String) -> Unit, onLogout: () -> Unit,
     onVerify: () -> Unit, onConnection: () -> Unit, googleSupported: Boolean, onGoogle: () -> Unit,
-    onMode: (AuthMode) -> Unit, onRegister: (String, String, String, String) -> Unit,
-    onRecover: (String) -> Unit, onResend: () -> Unit,
+    onMode: (AuthMode) -> Unit, onRegister: (String, String, String, String, String) -> Unit,
+    onRecover: (String) -> Unit, onResend: () -> Unit, onConfirmEmail: () -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    val scroll = rememberScrollState()
+    LaunchedEffect(state.mode) { scroll.scrollTo(0) }
     // Contraseñas efímeras; no se conservan al cambiar de pantalla o enviar.
     var password by remember(state.mode) { mutableStateOf("") }
     var confirmation by remember(state.mode) { mutableStateOf("") }
     var visible by remember(state.mode) { mutableStateOf(false) }
     val fields = state.errors.flatMap { it.fields.entries }.associate { it.key to it.value }
     val profile = state.profile
+    val needsVerificationEmail = state.verificationDeliveryFailed && !state.verificationEmailSent
+    val sessionErrors = state.errors.filter { it.code == "SESSION_EXPIRED" || it.code == "UNAUTHENTICATED" }
     val title = when {
         profile != null -> if (state.errors.isEmpty()) "Tu cuenta BPM" else "Revisa tu conexión"
         state.mode == AuthMode.Register -> "Crea tu cuenta"
         state.mode == AuthMode.Recovery -> "Recupera el acceso"
-        state.mode == AuthMode.Verification -> "Revisa tu correo"
+        state.mode == AuthMode.Verification -> "Confirma tu correo"
         else -> "Bienvenido de nuevo"
     }
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
@@ -44,18 +54,13 @@ fun IdentityScreen(
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(48.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
                     Brand()
                     Spacer(Modifier.height(24.dp))
-                    Eyebrow("BIENVENIDO A UNA MEJOR FORMA DE APRENDER")
-                    Text("Pequeños hábitos.\nGrandes cuidados.", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold)
-                    Text("Un espacio para aprender, cuidar los alimentos y crecer con tu equipo.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Buenas prácticas de manipulación", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                    Text("Capacitación y gestión para los equipos de restaurantes y servicios afines.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Mascot(Modifier.size(260.dp).align(Alignment.CenterHorizontally), learning = true)
-                    BpmCard(Modifier.fillMaxWidth()) {
-                        Text("Aprende. Practica. Comparte.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("La seguridad empieza con lo que hacemos cada día. Hagámoslo juntos.")
-                    }
                 }
             }
-        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
         Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {
             if (!wide) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Brand()
@@ -64,12 +69,17 @@ fun IdentityScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 Text(when {
-                    profile != null -> "Tu identidad está conectada con el backend de BPM."
-                    state.mode == AuthMode.Register -> "Un solo acceso para tu experiencia BPM."
+                    profile != null -> "Consulta tu cuenta y tus permisos de acceso."
+                    state.mode == AuthMode.Register -> "Completa tus datos. Después te pediremos confirmar tu correo."
                     state.mode == AuthMode.Recovery -> "Te ayudaremos a volver a tu cuenta."
-                    state.mode == AuthMode.Verification -> "Confirma tu email antes de continuar."
+                    state.mode == AuthMode.Verification -> "Solo falta confirmar tu correo para continuar."
                     else -> "Accede de forma segura a tu espacio de trabajo."
                 }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (sessionErrors.isNotEmpty()) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
+                Text("Tu sesión ha terminado", fontWeight = FontWeight.Bold)
+                sessionErrors.forEach { Text(it.message,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
             }
             if (profile == null && state.mode in listOf(AuthMode.Login, AuthMode.Register)) {
                 Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)).padding(4.dp)) {
@@ -89,13 +99,27 @@ fun IdentityScreen(
                         Text(profile.email, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (profile.organizations.isEmpty()) Text("Cuenta activa. Todavía no tienes una organización asignada.")
                         profile.organizations.forEach { Text(it.name + " · " + it.role) }
-                    } else if (state.mode != AuthMode.Verification) {
-                        if (state.mode == AuthMode.Register) AuthField(name, { name = it }, "Nombre completo", fields["displayName"], !state.busy)
+                    } else if (state.mode == AuthMode.Verification) {
+                        Text("Correo de tu cuenta", style = MaterialTheme.typography.labelLarge)
+                        state.verificationEmail?.let { Text(it, fontWeight = FontWeight.SemiBold) }
+                        if (needsVerificationEmail) {
+                            Text("Solicita el enlace con «Reintentar envío». Cuando lo recibas, ábrelo y vuelve a esta pantalla.")
+                        } else {
+                            Text("1. Abre el correo de BPM y pulsa el enlace de verificación.")
+                            Text("2. Vuelve a esta pantalla y pulsa «Ya confirmé mi correo».")
+                            Text("Si no lo encuentras, revisa la carpeta de spam.", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        if (state.mode == AuthMode.Register) {
+                            AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, capitalization = KeyboardCapitalization.Words)
+                            AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, capitalization = KeyboardCapitalization.Words)
+                        }
                         AuthField(email, { email = it }, "Correo electrónico", fields["email"], !state.busy, KeyboardType.Email)
                         if (state.mode != AuthMode.Recovery) {
                             AuthField(password, { password = it }, "Contraseña", fields["password"], !state.busy, KeyboardType.Password, !visible)
                             if (state.mode == AuthMode.Register) {
-                                Text("Usa entre 8 y 128 caracteres y evita contraseñas fáciles de adivinar.", style = MaterialTheme.typography.bodySmall,
+                                Text("Usa entre 8 y 128 caracteres. Combina letras, números y símbolos.", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 AuthField(confirmation, { confirmation = it }, "Confirmar contraseña", fields["confirmPassword"], !state.busy, KeyboardType.Password, !visible)
                             }
@@ -104,11 +128,11 @@ fun IdentityScreen(
                             }
                         }
                     }
-                    state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                    state.errors.forEach {
-                        Text(it.message, color = MaterialTheme.colorScheme.error)
-                        Text("Código: ${it.code}", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+                    state.errors.filterNot { it in sessionErrors }.forEach {
+                        Text(it.message, color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                     }
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (profile != null) {
@@ -121,13 +145,31 @@ fun IdentityScreen(
                             val submitted = password; val confirmed = confirmation
                             password = ""; confirmation = ""
                             when (state.mode) {
-                                AuthMode.Register -> onRegister(name, email, submitted, confirmed)
+                                AuthMode.Register -> onRegister(firstName, lastName, email, submitted, confirmed)
                                 AuthMode.Recovery -> onRecover(email)
                                 else -> onLogin(email, submitted)
                             }
                         }
-                        if (state.canResendVerification) OutlinedButton(onClick = onResend, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
-                            Text("Reenviar verificación")
+                        if (state.mode == AuthMode.Verification && !needsVerificationEmail)
+                            AuthButton(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo", !state.busy, onConfirmEmail)
+                        if (state.canResendVerification) {
+                            val resendLabel = when {
+                                state.busy && !state.confirmingEmail -> "Enviando correo…"
+                                needsVerificationEmail -> "Reintentar envío"
+                                state.verificationEmailSent -> "Reenviar correo"
+                                else -> "Enviar correo de verificación"
+                            }
+                            if (needsVerificationEmail) AuthButton(resendLabel, !state.busy && state.resendCooldownSeconds == 0, onResend)
+                            else OutlinedButton(onClick = onResend, enabled = !state.busy && state.resendCooldownSeconds == 0,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(resendLabel) }
+                            if (state.resendCooldownSeconds > 0) Text("Puedes reenviar en ${state.resendCooldownSeconds} s.",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (state.mode == AuthMode.Verification && needsVerificationEmail)
+                            TextButton(onClick = onConfirmEmail, enabled = !state.busy) { Text(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo") }
+                        if (state.mode == AuthMode.Register && state.errors.any { it.code == "REGISTRATION_REJECTED" }) {
+                            OutlinedButton(onClick = { onMode(AuthMode.Login) }, modifier = Modifier.fillMaxWidth()) { Text("Ir a iniciar sesión") }
+                            TextButton(onClick = { onMode(AuthMode.Recovery) }) { Text("Recuperar contraseña") }
                         }
                         if (state.mode == AuthMode.Login) TextButton(onClick = { onMode(AuthMode.Recovery) }, enabled = !state.busy) { Text("¿Olvidaste tu contraseña?") }
                         if (state.mode in listOf(AuthMode.Recovery, AuthMode.Verification)) TextButton(onClick = { onMode(AuthMode.Login) }, enabled = !state.busy) { Text("Volver a iniciar sesión") }
@@ -140,11 +182,9 @@ fun IdentityScreen(
                 OutlinedButton(onClick = { password = ""; confirmation = ""; onGoogle() }, enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(15.dp)) { Text("Continuar con Google", fontWeight = FontWeight.SemiBold) }
             }
-            Text("Tus permisos de organización los administra tu equipo. Crear una cuenta no concede acceso a datos de otros locales.",
+            Text("Tu administrador te dará acceso a la empresa después de crear tu cuenta.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = onConnection, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Comprobar conexión") }
-            Text("By: Kadin, Evelyn y Piero", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
         }
         }
@@ -153,12 +193,13 @@ fun IdentityScreen(
 
 @Composable
 private fun AuthField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
-    keyboard: KeyboardType = KeyboardType.Text, hidden: Boolean = false) {
-    OutlinedTextField(value, onValue, modifier = Modifier.fillMaxWidth(), label = { Text(label) },
+    keyboard: KeyboardType = KeyboardType.Text, hidden: Boolean = false,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None) {
+    OutlinedTextField(value, onValue, modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }, label = { Text(label) },
         singleLine = true, enabled = enabled, shape = RoundedCornerShape(14.dp), isError = error != null,
         supportingText = error?.let { { Text(it) } },
         visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false))
+        keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = capitalization, autoCorrectEnabled = false))
 }
 
 @Composable
