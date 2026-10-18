@@ -37,9 +37,12 @@ sealed interface ChecklistCatalogResult {
     data class Failure(val reason: ChecklistFailure) : ChecklistCatalogResult
 }
 
-interface ChecklistCatalogRepository {
-    suspend fun catalog(organizationId: String, request: PageRequest = PageRequest()): ChecklistCatalogResult
+interface PublishedChecklistReader {
     suspend fun template(organizationId: String, templateId: String): ChecklistTemplateResult
+}
+
+interface ChecklistCatalogRepository : PublishedChecklistReader {
+    suspend fun catalog(organizationId: String, request: PageRequest = PageRequest()): ChecklistCatalogResult
 }
 
 class LoadChecklistCatalog(private val repository: ChecklistCatalogRepository) {
@@ -50,6 +53,6 @@ sealed interface ChecklistTemplateResult {
     data class Success(val template: ChecklistTemplate) : ChecklistTemplateResult
     data class Failure(val reason: ChecklistFailure) : ChecklistTemplateResult
 }
-class LoadChecklistTemplate(private val repository: ChecklistCatalogRepository) {
+class LoadChecklistTemplate(private val repository: PublishedChecklistReader) {
     suspend operator fun invoke(organizationId: String, templateId: String) = repository.template(organizationId, templateId)
 }

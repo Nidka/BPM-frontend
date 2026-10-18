@@ -8,8 +8,8 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
 | Identidad | features/identity | Login/registro/recuperación listos; siguiente: Google nativo y validación de almacenamiento seguro en dispositivos |
-| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición, bajas y paginación |
-| Checklists | features/checklists | Catálogo en línea, búsqueda y detalle listos; siguiente: ejecuciones, borradores, idempotencia y sincronización |
+| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición y bajas |
+| Checklists | features/checklists | Catálogo paginado, búsqueda, detalle y publicación de primera versión listos; siguiente: ejecuciones, borradores, idempotencia y sincronización |
 | Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |
 | Academia | nueva features/training | Catálogo, progreso local y evaluaciones |
 | Incidencias | nueva features/incidents | Registro, estados y acciones correctivas |

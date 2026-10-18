@@ -75,7 +75,8 @@ export function createAppServer({
     const isRegistration = request.method === 'POST' && request.url === '/backend/api/v1/auth/register';
     const isSession = request.method === 'POST' && ['/backend/api/v1/auth/activity', '/backend/api/v1/auth/logout'].includes(request.url);
     const isWorkspace = workspaceRoute(request.url?.split('?')[0] || '');
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace) {
+    const isChecklist = checklistCatalogRoute(request.url?.split('?')[0] || '');
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }

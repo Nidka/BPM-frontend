@@ -32,7 +32,7 @@ test('catálogo: ruta de lectura cerrada, campos públicos, criterios y fallos s
   const headers = { Authorization: 'Bearer test.token', Cookie: 'secret', 'X-Organization-Id': 'foreign', 'X-Role': 'ADMIN' };
   assert.equal((await fetch(url)).status, 401);
   assert.equal((await fetch(url + '?destination=https://evil.example', { headers })).status, 404);
-  assert.equal((await fetch(url, { method: 'POST', headers, body: '{}' })).status, 405);
+  assert.equal((await fetch(url, { method: 'DELETE', headers, body: '{}' })).status, 405);
   assert.equal((await fetch(url, { method: 'HEAD', headers })).status, 405);
   assert.equal((await fetch(url + '/private/extra', { headers })).status, 404);
   assert.equal(calls, 0);

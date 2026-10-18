@@ -30,9 +30,9 @@ composeApp/src/commonMain/kotlin/pe/bpm/
     data/                    DTO y adaptador Ktor autenticado
     presentation/            contenedor adaptable, contenido, formularios, estado y ViewModel
   features/checklists/
-    domain/                  plantillas publicadas, preguntas, puerto y caso de uso de consulta
-    data/                    DTO privados y adaptador remoto autenticado del catálogo
-    presentation/            estado, ViewModel, búsqueda y detalle de preguntas
+    domain/                  plantillas, preguntas y puertos separados de consulta/publicación
+    data/                    DTO y adaptadores autenticados de lectura/publicación
+    presentation/            catálogo, editor, revisión y publicación por ViewModels separados
 ```
 
 Flujo: pantalla → ViewModel → caso de uso → interfaz del repositorio →
@@ -90,8 +90,8 @@ App utiliza Navigation Compose Multiplatform 2.9.2 y NavHost. Los fragmentos web
 se enlazan mediante bindToBrowserNavigation; Android usa atrás del sistema.
 Cada ruta protegida comprueba sesión y destinos permitidos antes de componer UI.
 El detalle de preguntas usa `control/plantilla/{templateId}` en el mismo NavHost,
-con las comprobaciones de sesión y capacidades de Control. Solo muestra una
-plantilla presente en el catálogo de la empresa activa; admite historial y
+con las comprobaciones de sesión y capacidades de Control. Consulta por ID una
+plantilla publicada de la empresa activa, independientemente de la página cargada; admite historial y
 enlace directo. Ver CHECKLISTS.md.
 Las altas de organización/sede/miembro también tienen rutas propias en ese
 NavHost. App comprueba las capacidades antes de mostrarlas y observa la revisión
@@ -124,7 +124,7 @@ el ViewModel; no hay dependencias de red en presentación.
 
 Checklists sigue el mismo contrato de inyección de sesión. App coordina su estado
 por usuario/empresa y lo inserta en WorkspaceScreen mediante un slot Compose;
-workspace no importa checklists. El repositorio solo consulta plantillas publicadas.
+workspace no importa checklists. El lector consulta plantillas publicadas; el publicador consume un puerto de escritura independiente.
 Ver CHECKLISTS.md para límites, reintentos y limpieza del contexto.
 
 ## Responsabilidades de identidad y sesión

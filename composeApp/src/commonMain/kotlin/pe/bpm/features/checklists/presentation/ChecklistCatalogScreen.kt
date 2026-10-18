@@ -30,9 +30,10 @@ fun ChecklistCatalogScreen(
     onCloseDetail: () -> Unit,
     onUserActivity: () -> Unit,
     onNext: () -> Unit, onPrevious: () -> Unit,
+    management: Boolean = false,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        if (templateId == null) BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (templateId == null && !management) BoxWithConstraints(Modifier.fillMaxWidth()) {
             val showMascot = maxWidth >= 600.dp
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {

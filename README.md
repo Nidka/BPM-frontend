@@ -326,3 +326,11 @@ control, con colores del tema y foco visible. Los listados consultan páginas de
 cada página y devuelve totales para Inicio; el detalle de controles se consulta
 por ID independientemente del catálogo. Publicar primero backend y después
 frontend; no hay migraciones ni variables nuevas. Ver [WORKSPACE.md](specs/WORKSPACE.md).
+
+
+La primera versión de plantillas ya se puede preparar desde **Empresa → Gestionar
+plantillas → Crear plantilla** con ADMIN o SUPER_ADMIN. El editor permite preguntas,
+criterios, revisión y publicación confirmada, con recuperación de respuestas perdidas
+sin generar nuevos IDs. El borrador de autoría vive solo en memoria; aún no hay
+persistencia offline ni ejecución de controles. Contrato y límites en
+[CHECKLISTS.md](specs/CHECKLISTS.md).

@@ -221,3 +221,10 @@ La elección de sedes agrupa etiqueta y casilla en una fila toggleable de al men
 48 dp; Checkbox delega la acción al padre. La selección usa un conjunto de IDs,
 sin duplicados, y no depende de la página visible. Patrón de
 [accesibilidad Compose](https://developer.android.com/develop/ui/compose/accessibility/api-defaults).
+
+Empresa ofrece «Gestionar plantillas» a ADMIN y SUPER_ADMIN. El editor y su catálogo
+se componen desde `app` mediante slots; workspace no importa la feature checklists.
+La autoría tiene su propio scroll y oculta la navegación inferior en ventanas
+compactas para dar espacio al formulario. Cambiar de organización o cerrar sesión
+limpia el borrador. Rutas, recuperación de publicación y límites se describen en
+[`CHECKLISTS.md`](CHECKLISTS.md); esta entrada no habilita permisos en el cliente.

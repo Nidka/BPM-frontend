@@ -6,7 +6,8 @@ Primer incremento del recorrido de checklist previsto en el plan del proyecto,
 relacionado con RF-12 a RF-17. Implementa consulta de plantillas publicadas,
 búsqueda por nombre/área/descripción y detalle de preguntas. No completa todavía
 esos requerimientos: iniciar ejecuciones, responder, enviar, evidencias e historial
-pertenecen a incrementos posteriores.
+pertenecen a incrementos posteriores. La autoría y publicación de la primera
+versión ya están disponibles para administradores, según la sección final.
 
 El diseño sigue el prototipo BPM Aula de Requerimientos: petróleo/coral,
 superficies redondeadas y jerarquía de área, plantilla y criterio. Se reutilizan
@@ -134,8 +135,8 @@ La revisión en navegador detectó que las capas emergentes anteriores conservab
 semántica de la capa cerrada. No se actualizaron dependencias ni se añadieron
 parches JavaScript al DOM para resolver ese recorrido.
 
-Esta entrega requiere internet. No hay caché persistente, borradores, envío,
-sincronización, carga de archivos ni creación/edición de plantillas en el cliente.
+Esta entrega requiere internet. No hay caché persistente, borradores de ejecución,
+envío de respuestas, sincronización, carga de archivos ni edición de versiones publicadas.
 Se mantienen como trabajo posterior según `OFFLINE.md`; no se declaran terminadas
 por existir una pantalla de consulta.
 
@@ -143,7 +144,7 @@ Referencias oficiales: [ViewModel compartido](https://kotlinlang.org/docs/multip
 [ciclo de vida Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-lifecycle.html)
 y [conversión JSON de Ktor](https://api.ktor.io/ktor-serialization/io.ktor.serialization/-json-convert-exception/index.html).
 El contrato de negocio se contrastó con `specs/CHECKLISTS.md` y OpenAPI del backend
-del workspace, consultados sin modificar ese repositorio.
+del workspace. La publicación consume el API existente y no modifica el backend.
 
 ## Páginas y enlaces directos
 
@@ -158,3 +159,85 @@ la página presente del catálogo. Una ruta directa recupera la plantilla autori
 por ID; volver mantiene la página/búsqueda del catálogo. Cambiar usuario/empresa
 o cerrar sesión cancela ambas consultas. Compartir PageRequest/controles técnicos
 no introduce dependencias entre features. Publicar primero backend y luego cliente.
+
+## Autoría y publicación de la primera versión
+
+Recorrido administrativo (fase 3 del plan, RF-12): Empresa → Gestionar plantillas
+→ Crear plantilla → Revisar plantilla → Publicar plantilla. ADMIN del tenant y
+SUPER_ADMIN tienen acceso; CHEF y WORKER no reciben estos destinos. SUPER_ADMIN
+mantiene su navegación de gestión y no necesita acceder a Control como operador.
+La raíz verifica capacidad también al abrir directamente las rutas
+`empresa/plantillas`, `empresa/plantillas/nueva` y
+`empresa/plantillas/detalle/{templateId}`. Cada solicitud se autoriza de nuevo en la API.
+
+La plantilla permite nombre, área y descripción; de 1 a 100 preguntas con sección,
+enunciado, obligatoriedad y tipo COMPLIANCE/TEXT/TEMPERATURE/NUMBER. Las preguntas
+numéricas requieren rango aprobado, hasta dos decimales y unidad breve; no hay
+rangos sanitarios predeterminados. La entrada acepta coma decimal y el transporte
+usa números JSON. Se puede cambiar orden, eliminar y deshacer la última eliminación
+mediante Snackbar. La fila compartida BpmCheckboxRow agrupa casilla y etiqueta con
+área de al menos 48 dp, usada también por la selección de sedes.
+
+La revisión muestra el contenido y la primera versión antes de la acción de
+publicar. El contenido publicado se consulta como versión inmutable; no se añade
+edición, borrado ni publicación de versión 2. La evidencia obligatoria sigue
+reservada al módulo multimedia y no se ofrece como función disponible.
+
+Responsabilidades:
+
+- `domain/PublishChecklistTemplate`: validación, propuesta y puerto mínimo de publicación.
+- `PublishedChecklistReader`: capacidad mínima de lectura por ID; publicar no depende del listado.
+- `data/RemoteChecklistTemplatePublisher`: token inyectado, DTO, límite real de 64 KiB,
+  HTTP y confirmación por lectura. Reutiliza el mapeo de preguntas del catálogo.
+- `presentation/ChecklistTemplateEditorViewModel`: estado de autoría, orden, deshacer,
+  identificadores estables, revisión y cancelación de publicación al cambiar contexto.
+- `presentation/ChecklistTemplateEditorScreen`: campos adaptables y acciones; sin red,
+  SDK, permisos de base de datos ni generación de identificadores.
+- `AppGraph` compone puertos, casos de uso y VM; app coordina rutas y slots de sesión.
+
+El borrador existe en memoria durante la sesión del mismo usuario y organización.
+Volver por navegación y abrir el editor conserva ese estado; descartar pide
+confirmación en el contenido. Cambiar usuario/organización, perder permisos o
+cerrar sesión lo limpia y cancela solicitudes. Cerrar el proceso o recargar la web
+pierde el borrador. No es persistencia, cola ni sincronización offline; esa parte
+sigue el contrato OFFLINE.md y no queda completada por este editor.
+
+El transporte usa GET `/checklists/{id}` para comprobar si ya existe y POST
+`/checklists` (201) para publicar. Los IDs de plantilla, versión y preguntas se
+generan una vez por propuesta en el VM mediante una función inyectada. Un reintento
+conserva todos esos IDs. Si la lectura confirma exactamente versión, metadata,
+orden, tipos, criterios y preguntas, se confirma publicación sin otro POST. Si
+una creación concurrente da 409, se vuelve a leer y comparar. Una coincidencia
+parcial o un contenido distinto nunca se anuncia como éxito ni se sobrescribe.
+Esto es recuperación del cliente; el POST del backend no se declara idempotente.
+Si el 409 corresponde a un nombre ya utilizado y el ID de la propuesta no existe,
+el editor permite corregir el nombre sin confundirlo con una publicación propia.
+
+Si no puede confirmarse el resultado, se conserva la propuesta enviada sin dejar
+editar ese contenido hasta resolver la publicación. Se ofrece comprobar y
+reintentar; un nuevo límite de tasa no convierte un resultado incierto en conocido.
+401/403 limpian el borrador y muestran un estado explícito. El cuerpo y los
+mensajes internos del proveedor nunca se muestran; solo campos de error conocidos.
+Una respuesta tardía cancelada no puede restaurar el borrador de otro contexto.
+
+El proxy permite POST solamente en el catálogo sin query, Bearer, origen válido
+cuando existe, JSON de hasta 64 KiB y campos explícitos de plantilla/preguntas.
+No reenvía cookies ni cabeceras de rol/tenant, no acepta actores ni organizationId
+como campos, ni habilita PUT/DELETE. Las respuestas se filtran a campos públicos;
+los errores se sanitizan. Android/iOS usan directamente el mismo contrato HTTPS.
+
+La revisión y la confirmación de descarte forman parte de la pantalla para
+conservar navegación y accesibilidad en Compose web; no usan capas Popup/Dialog.
+Los criterios numéricos se apilan en ventanas estrechas y comparten fila cuando
+hay espacio. La validación lleva al inicio al revisar; corregir un campo no debe
+mover automáticamente el scroll en cada pulsación.
+
+Pruebas: validación sin escritura, autorización, DTO sin campos de autoridad,
+conflictos, respuesta perdida y confirmación sin duplicado, orden e IDs estables,
+Deshacer, cancelación y cambio de contexto, límites de cuerpo y proxy cerrado.
+La publicación depende del GET de detalle añadido con paginación: publicar primero
+ese backend antes de distribuir este cliente. No requiere nuevas variables ni
+migraciones y no crea contenido de prueba en producción.
+
+Referencias: [ViewModel KMP](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html),
+[accesibilidad de controles Compose](https://developer.android.com/develop/ui/compose/accessibility/api-defaults).

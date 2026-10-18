@@ -1,9 +1,6 @@
 package pe.bpm.features.workspace.presentation
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -71,7 +68,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                         Text("Sedes permitidas · ${locations.size} seleccionadas", fontWeight = FontWeight.Bold)
                         WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                         state.workspace?.locations.orEmpty().forEach { location ->
-                            LocationChoice(location.name, location.id in locations, !state.saving) { checked ->
+                            BpmCheckboxRow(location.name, location.id in locations, !state.saving) { checked ->
                                 locations = if (checked) locations + location.id else locations - location.id
                             }
                         }
@@ -112,17 +109,4 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
 @Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean, onUserActivity: () -> Unit) {
     OutlinedTextField(value, { onUserActivity(); onValue(it) }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }, singleLine = true, label = { Text(label) },
         enabled = enabled, shape = RoundedCornerShape(14.dp), isError = error != null, supportingText = error?.let { { Text(it) } })
-}
-
-/** La fila completa comparte etiqueta, estado y área de interacción con la casilla. */
-@Composable private fun LocationChoice(name: String, selected: Boolean, enabled: Boolean, onChecked: (Boolean) -> Unit) {
-    BpmFeedback(MaterialTheme.colorScheme.primary) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.small)
-            .toggleable(value = selected, enabled = enabled, role = Role.Checkbox, onValueChange = onChecked)
-            .padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Checkbox(checked = selected, enabled = enabled, onCheckedChange = null)
-            Text(name, Modifier.weight(1f))
-        }
-    }
 }

@@ -27,6 +27,11 @@ internal fun WorkspaceScreen(
     form: WorkspaceFormKind?, onOpenForm: (WorkspaceFormKind) -> Unit, onCloseForm: () -> Unit,
     choosingOrganization: Boolean, onChooseOrganization: () -> Unit,
     checklistContent: @Composable () -> Unit,
+    onManageTemplates: () -> Unit,
+    secondaryContent: (@Composable () -> Unit)? = null,
+    secondaryEditor: Boolean = false,
+    secondaryTitle: String? = null,
+    secondaryBusy: Boolean = false,
     screenNotice: @Composable () -> Unit = {},
     noticeVisible: Boolean = false,
     sessionNotice: @Composable () -> Unit = {},
@@ -67,12 +72,14 @@ internal fun WorkspaceScreen(
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 WorkspaceTopBar(workspace?.organization?.name, wide,
-                    canChangeOrganization = form == null && !choosingOrganization && (state.canChooseOrganization || superAdmin),
-                    enabled = !state.saving, refreshing = state.loading,
+                    canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && (state.canChooseOrganization || superAdmin),
+                    enabled = !state.saving && !secondaryBusy, refreshing = state.loading,
                     onToggleOrganization = onChooseOrganization, onRefresh = onRefresh,
-                    onBack = if (form == null && !choosingOrganization) null else onCloseForm)
+                    onBack = if (form == null && secondaryContent == null && !choosingOrganization) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
+                if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
+                    contentAlignment = Alignment.TopCenter) { secondaryContent() }
+                else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
                         onOrganization, onLocation, onMember, onUserActivity, sessionNotice, noticeVisible, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
@@ -86,7 +93,7 @@ internal fun WorkspaceScreen(
                 } else Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(contentScroll).padding(if (wide) 32.dp else 20.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     screenNotice()
-                    Text(if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else section.label,
+                    Text(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else section.label,
                         style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
                     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
@@ -125,7 +132,8 @@ internal fun WorkspaceScreen(
 
                         }
                     }
-                    workspace?.let { current -> when (section) {
+                    if (secondaryContent != null) secondaryContent()
+                    else workspace?.let { current -> when (section) {
                         WorkspaceDestination.Account -> Unit
                         WorkspaceDestination.Home -> Home(current, wide, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
                         WorkspaceDestination.Company -> {
@@ -135,6 +143,11 @@ internal fun WorkspaceScreen(
                                 Text(current.organization.legalName)
                                 if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
                                 if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
+                            }
+                            if (current.canManage) BpmCard(Modifier.fillMaxWidth()) {
+                                Text("Plantillas de control", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Prepara preguntas y publica los criterios que utilizará tu equipo.")
+                                OutlinedButton(onClick = onManageTemplates) { Text("Gestionar plantillas") }
                             }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -187,7 +200,7 @@ internal fun WorkspaceScreen(
                     } }
                     Text("Los datos se consultan en línea. No se guardan cambios pendientes sin conexión.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (!wide && form == null && !choosingOrganization) NavigationBar {
+                if (!wide && form == null && !secondaryEditor && !choosingOrganization) NavigationBar {
                     destinations.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = section == item,
                         onClick = { navigate(item) }, icon = { WorkspaceIcon(item) },

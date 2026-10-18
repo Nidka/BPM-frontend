@@ -4,6 +4,11 @@ import io.ktor.client.HttpClient
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
+import pe.bpm.features.checklists.data.RemoteChecklistTemplatePublisher
+import pe.bpm.features.checklists.domain.PublishChecklistTemplate
+import pe.bpm.features.checklists.presentation.ChecklistTemplateEditorViewModel
+import kotlin.uuid.Uuid
+import kotlin.uuid.ExperimentalUuidApi
 import pe.bpm.features.checklists.domain.LoadChecklistTemplate
 import pe.bpm.features.checklists.domain.LoadChecklistCatalog
 import pe.bpm.features.checklists.presentation.ChecklistCatalogViewModel
@@ -51,6 +56,12 @@ class AppGraph(
         onSessionRejected = identityRepository::rejectSession,
         onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+
+    private val templatePublisher = RemoteChecklistTemplatePublisher(httpClient, config, checklistRepository,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun checklistTemplateEditorViewModel() = ChecklistTemplateEditorViewModel(PublishChecklistTemplate(templatePublisher)) { Uuid.random().toString() }
 
     fun checklistCatalogViewModel() = ChecklistCatalogViewModel(LoadChecklistCatalog(checklistRepository), LoadChecklistTemplate(checklistRepository))
 
