@@ -23,7 +23,7 @@ import pe.bpm.features.identity.domain.hasPendingRegistration
 @Composable
 fun IdentityScreen(
     state: IdentityUiState, onLogin: (String, String) -> Unit, onLogout: () -> Unit,
-    onVerify: () -> Unit, onConnection: () -> Unit, googleSupported: Boolean, onGoogle: () -> Unit,
+    onVerify: () -> Unit, googleSupported: Boolean, onGoogle: () -> Unit,
     onMode: (AuthMode) -> Unit, onRegister: (String, String, String, String, String) -> Unit,
     onRecover: (String) -> Unit, onResend: () -> Unit, onConfirmEmail: () -> Unit,
 ) {
@@ -179,12 +179,10 @@ fun IdentityScreen(
             if (profile == null && googleSupported && state.mode in listOf(AuthMode.Login, AuthMode.Register)) {
                 Text("O continúa con", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterHorizontally))
-                OutlinedButton(onClick = { password = ""; confirmation = ""; onGoogle() }, enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(15.dp)) { Text("Continuar con Google", fontWeight = FontWeight.SemiBold) }
+                GoogleSignInButton(onClick = { password = ""; confirmation = ""; onGoogle() }, enabled = !state.busy)
             }
-            Text("Tu administrador te dará acceso a la empresa después de crear tu cuenta.",
+            if (state.mode == AuthMode.Register) Text("Tu administrador te dará acceso a la empresa después de crear tu cuenta.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onConnection, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Comprobar conexión") }
         }
         }
         }

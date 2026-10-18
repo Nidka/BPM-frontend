@@ -61,6 +61,30 @@ selector Entrar/Crear cuenta, campos claros y acciones de mínimo 52 dp.
 Usa ilustraciones originales empaquetadas con Compose, sin CDN visuales.
 Al confirmar sesión se abre el nuevo workspace (WORKSPACE.md).
 
+El acceso habitual no ofrece «Comprobar conexión» ni añade un botón «Reintentar».
+Ante un fallo de conexión se muestra un mensaje dentro del formulario y se libera
+la acción existente para volver a iniciar sesión. No se reenvían credenciales
+automáticamente ni se repite un alta de cuenta. Contraseña incorrecta y falta de
+permisos conservan sus mensajes específicos. Las listas mantienen sus acciones
+de recuperación propias; este ajuste no cambia sus contratos.
+La ruta técnica `conexion` queda disponible para soporte por enlace directo;
+su ViewModel solo se crea al abrirla y no consulta salud al mostrar el login.
+El aviso sobre asignación de empresa aparece durante el registro. Las cuentas
+sin membresía reciben su explicación contextual dentro del workspace.
+
+`GoogleSignInButton` pertenece a presentación de identidad. Usa superficie blanca,
+texto oscuro, borde visible y el logotipo multicolor oficial sin tintado, con
+descripción accesible en la etiqueta de la acción. Se empaquetan el subconjunto
+oficial TrueType de Google Sans Medium para «Continuar con Google» (5 KiB) y su
+licencia OFL. Si cambia esa etiqueta, debe regenerarse su subconjunto desde
+`https://fonts.googleapis.com/css?family=Google+Sans:500&text=Continuar%20con%20Google`.
+No se instalan fuentes en el sistema ni se solicitan logotipos o fuentes a
+servicios externos al mostrar el botón. El bloqueo mientras existe
+una solicitud pendiente conserva el contrato del ViewModel.
+Fuentes: [guía de marca de Google](https://developers.google.com/identity/branding-guidelines),
+[Google Sans](https://github.com/google/fonts/tree/main/ofl/googlesans) y
+[manejo de errores de red](https://developer.android.com/topic/architecture/data-layer/offline-first#network-data-source).
+
 La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas
 no usan rememberSaveable y se vacían al enviar o cambiar de modo.

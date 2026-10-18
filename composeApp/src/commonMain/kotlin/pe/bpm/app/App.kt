@@ -45,14 +45,12 @@ fun App(
 ) {
     val owner = viewModel { GraphOwner(sessionStore) }
     val identity = viewModel<IdentityViewModel> { owner.graph.identityViewModel() }
-    val connection = viewModel<ConnectionViewModel> { owner.graph.connectionViewModel() }
     val workspace = viewModel<WorkspaceViewModel> { owner.graph.workspaceViewModel() }
     val checklists = viewModel<ChecklistCatalogViewModel> { owner.graph.checklistCatalogViewModel() }
     val templateEditor = viewModel<ChecklistTemplateEditorViewModel> { owner.graph.checklistTemplateEditorViewModel() }
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
     val identityState by identity.state.collectAsStateWithLifecycle()
     val sessionStatus by identity.sessionStatus.collectAsStateWithLifecycle()
-    val connectionState by connection.state.collectAsStateWithLifecycle()
     val workspaceState by workspace.state.collectAsStateWithLifecycle()
     val checklistState by checklists.state.collectAsStateWithLifecycle()
     val profile = identityState.profile
@@ -119,7 +117,6 @@ fun App(
                         if (identityState.canRetryRestore) TextButton(onClick = identity::restore) { Text("Reintentar sesión guardada") }
                         Box(Modifier.weight(1f)) { IdentityScreen(identityState, identity::login, identity::logout,
                         identity::verifySession,
-                        onConnection = { connection.retry(); nav.navigate(CONNECTION) { launchSingleTop = true } },
                         googleSupported = identity.googleSupported, onGoogle = identity::loginWithGoogle,
                         onMode = identity::changeMode, onRegister = identity::register,
                         onRecover = identity::recover, onResend = identity::resend,
@@ -128,6 +125,8 @@ fun App(
                 } else LaunchedEffect(profile.id) { resetTo(pendingRoute) }
             }
             composable(CONNECTION) {
+                val connection = viewModel<ConnectionViewModel> { owner.graph.connectionViewModel() }
+                val connectionState by connection.state.collectAsStateWithLifecycle()
                 Column {
                     TextButton(onClick = { navigateBack(if (profile == null) LOGIN else WorkspaceDestination.Home.route) }) {
                         Text("Volver")

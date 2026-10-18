@@ -15,6 +15,50 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdentityViewModelTest {
+    @Test fun failedLoginWaitsForAnotherExplicitSignInAndDoesNotStartAutomaticRetries() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val store = ViewModelStore()
+        val release = CompletableDeferred<Unit>()
+        var attempts = 0
+        val profile = Profile("uid", "person@example.com", "Persona Pruebas", emptyList())
+        val repository = object : FakeIdentityRepository() {
+            override suspend fun signIn(email: String, password: String): IdentityResult<Profile> {
+                attempts++
+                if (attempts == 1) {
+                    release.await()
+                    return IdentityResult.Failure(listOf(IdentityError("NETWORK_ERROR", "No pudimos conectar. Vuelve a intentarlo.")))
+                }
+                return IdentityResult.Success(profile)
+            }
+            override suspend fun currentProfile() = error("No hay sesión que consultar")
+            override suspend fun signInWithGoogle() = error("No se solicitó Google")
+            override suspend fun register(name: String, email: String, password: String) = error("No se solicitó registro")
+            override suspend fun resetPassword(email: String) = error("No se solicitó recuperación")
+            override suspend fun resendVerification() = error("No se solicitó reenvío")
+            override suspend fun confirmEmailVerification() = error("No se solicitó verificación")
+            override fun signOut() {}
+        }
+        try {
+            val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository),
+                ResendVerification(repository), ConfirmEmailVerification(repository))
+            store.put("identity", model)
+            model.login("person@example.com", "password8"); runCurrent()
+            model.login("person@example.com", "password8"); runCurrent()
+            assertEquals(1, attempts)
+            release.complete(Unit); advanceUntilIdle()
+            assertFalse(model.state.value.busy)
+            assertNull(model.state.value.profile)
+            assertEquals(AuthMode.Login, model.state.value.mode)
+            assertEquals("NETWORK_ERROR", model.state.value.errors.single().code)
+            advanceTimeBy(60_000); runCurrent()
+            assertEquals(1, attempts)
+            model.login("person@example.com", "password8"); runCurrent()
+            assertEquals(2, attempts)
+            assertEquals(profile, model.state.value.profile)
+            assertTrue(model.state.value.errors.isEmpty())
+        } finally { release.complete(Unit); store.clear(); Dispatchers.resetMain() }
+    }
     @Test fun verificationKeepsEmailBlocksRepeatedSendAndOnlyContinuesWithAuthorizedProfile() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()
