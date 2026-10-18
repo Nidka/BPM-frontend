@@ -16,6 +16,10 @@ Rama: main. Root Directory: /. Dockerfile en la raíz.
 
 El contenedor compila la web KMP y sirve los archivos con Node 24 sin privilegios.
 PORT lo inyecta Railway. No usa mounts de caché dependientes del servicio.
+La etapa final incluye los módulos del proxy, incluida `web/pagination.mjs`.
+`scripts/container-runtime.test.mjs` copia los archivos declarados en esa etapa
+y comprueba el arranque, `/healthz` y los scripts de autenticación en un directorio
+temporal. CI ejecuta esta prueba antes de compilar; no necesita Docker ni servicios reales.
 
 En el proyecto Railway bpm, crear un servicio BPM-frontend desde GitHub.
 El backend BPM-service y Postgres siguen siendo servicios independientes.
