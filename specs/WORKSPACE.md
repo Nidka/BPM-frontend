@@ -56,8 +56,10 @@ El alta de miembro no envía correos: la persona debe registrarse primero.
 `features/workspace/{domain,data,presentation}` sigue MVVM y Clean Architecture.
 La raíz app adapta identity a WorkspaceViewer; la presentación no importa identity.
 WorkspaceScreen compone el contenedor, WorkspaceContent las secciones y
-WorkspaceForm los formularios. Los destinos tipados se conservan por usuario y
-organización; formularios y menús se reinician al cambiar de contexto.
+WorkspaceForm los formularios. App contiene el NavHost y comprueba cada destino
+según sesión y rol, incluso al abrir un fragmento web directamente. Mi cuenta
+muestra datos públicos y permite revalidar sesión. Cambiar empresa o cerrar sesión
+limpia la pila; formularios y menús se reinician al cambiar de contexto.
 AppGraph inyecta repositorio/casos de uso/VM. El backend valida usuario, tenant,
 rol y sedes en cada llamada; ocultar botones solo mejora la experiencia.
 
@@ -72,3 +74,8 @@ cambiar tenant/logout, proxy cerrado. Prueba manual administrativa: cuenta
 autorizada → crear empresa → sede → agregar otra cuenta existente → cerrar
 sesión → entrar con la segunda cuenta y comprobar solo sus permisos.
 La contraseña y el consentimiento Google los introduce el titular.
+
+La política de destinos y el historial se describen en el README. WORKER accede a
+Inicio/Aprender/Mi cuenta; CHEF añade Control/Equipo; ADMIN incluye Empresa y su
+aprendizaje; SUPER_ADMIN conserva gestión sin mostrarse como alumno u operador.
+Esto no amplía los endpoints disponibles ni reemplaza autorización del backend.

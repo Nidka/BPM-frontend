@@ -25,7 +25,7 @@ composeApp/src/
 │   │   │   ├── config/                configuración pública y contrato por plataforma
 │   │   │   ├── di/AppGraph.kt         construcción e inyección manual de dependencias
 │   │   │   ├── domain/                resultados y fallos técnicos compartidos
-│   │   │   ├── network/               cliente Ktor y contrato de motores HTTP
+│   │   │   ├── network/               cliente Ktor, motores HTTP y error seguro de sesión
 │   │   │   └── designsystem/          tema, marca, mascota y componentes reutilizables
 │   │   └── features/
 │   │       ├── connection/            salud y disponibilidad reales del backend
@@ -37,7 +37,7 @@ composeApp/src/
 │   │               ├── WorkspaceViewModel.kt   operaciones y estado observable
 │   │               ├── WorkspaceState.kt       estado inmutable de presentación
 │   │               ├── WorkspaceViewer.kt      datos públicos del usuario para esta feature
-│   │               ├── WorkspaceDestination.kt destinos superiores tipados
+│   │               ├── WorkspaceDestination.kt destinos estables y política de navegación por rol
 │   │               ├── WorkspaceScreen.kt      contenedor y navegación adaptable
 │   │               ├── WorkspaceContent.kt     contenido y componentes de secciones
 │   │               └── WorkspaceForm.kt        formularios de organización, sede y miembro
@@ -87,21 +87,38 @@ recomposiciones y cambios de configuración Android y se cierra al liberar al
 propietario. Los ViewModels usan `viewModelScope`; la UI observa con
 `collectAsStateWithLifecycle`.
 
-La raíz distingue acceso y comprobación de conexión; un perfil confirmado abre
-workspace. Los destinos actuales son secciones superiores tipadas: Inicio,
-Aprender, Control, Equipo y Empresa. La selección se conserva con
-`rememberSaveable`, asociada al usuario y organización. Formularios y menús se
-reinician al cambiar de contexto. No se guarda el perfil ni un token en el estado
-restaurable: reiniciar el proceso requiere iniciar sesión nuevamente.
+La raíz usa Navigation Compose Multiplatform 2.9.2, con NavHost y una lista
+cerrada de rutas: `acceso`, `conexion`, `inicio`, `aprender`, `control`, `equipo`,
+`empresa` y `cuenta`. Android integra atrás del sistema; web conecta el mismo
+grafo mediante `bindToBrowserNavigation` para atrás/adelante y URLs como
+`#aprender`. No se incluyen tokens, usuario ni empresa en la URL.
+
+Las rutas protegidas comprueban sesión y capacidades antes de componer contenido.
+Abrir una URL directamente, restaurar historial o volver después de logout no
+permite saltar el acceso. Un enlace protegido conserva su destino durante login;
+si el rol no lo permite, se abre Inicio. Cambiar empresa o cerrar sesión limpia
+la pila interna; cualquier entrada antigua del navegador vuelve a pasar los
+controles. Los enlaces nativos del sistema (Android App Links/iOS Universal Links)
+no están registrados: requieren una integración específica posterior.
+
+| Contexto confirmado por API | Destinos disponibles |
+|---|---|
+| SUPER_ADMIN de plataforma | Inicio, Equipo, Empresa y Mi cuenta |
+| ADMIN de organización | Inicio, Aprender, Control, Equipo, Empresa y Mi cuenta |
+| CHEF | Inicio, Control, Equipo, Aprender y Mi cuenta |
+| WORKER | Inicio, Aprender y Mi cuenta |
+| Sin membresía o rol desconocido | Inicio y Mi cuenta |
+
+El administrador de organización accede a su aprendizaje desde Inicio o Mi cuenta
+para conservar un máximo de cinco destinos de navegación principal. Equipo del
+chef conserva el estado informativo actual; no simula asignaciones ni reportes
+que la API todavía no proporciona. Ocultar destinos es una política de experiencia,
+no una autorización del cliente. Los roles elevados proceden de la API.
 
 El contenedor presenta navegación inferior en ventanas pequeñas y lateral desde
-950 dp. Las pantallas comparten lógica; la distribución responde al ancho de la
-ventana, no a si el dispositivo se llama celular o computadora.
-
-Esta base todavía no implementa historial de detalles, enlaces profundos ni
-sincronización con la URL del navegador. Al incorporar lecciones u otros detalles
-se añadirá navegación multiplataforma con historial, atrás de Android y navegador,
-sin convertir el enum de secciones en un router manual de toda la aplicación.
+950 dp. Las pantallas comparten lógica y responden al ancho de ventana. Formularios
+y menús se reinician al cambiar usuario/organización. Los futuros recorridos de
+detalle se registrarán en el mismo grafo con sus permisos y contratos reales.
 
 Cambiar organización cancela consultas y limpia el contenido anterior. Logout
 cancela operaciones y limpia workspace y sesión. Antes de aplicar respuestas se
@@ -109,6 +126,37 @@ comprueba que la coroutine siga activa para evitar que una respuesta tardía
 restaure datos de otro contexto. Las capacidades visibles proceden del perfil y
 la membresía devueltos por API; el backend valida siempre permisos y aislamiento.
 El selector de rol del prototipo no pertenece al flujo productivo.
+
+## Sesión y almacenamiento seguro
+
+La contraseña se utiliza solo para el acceso a Firebase. El ID token vive en
+memoria. El adaptador conoce vencimiento y refresh token, renueva con un margen
+de 60 segundos y serializa renovaciones mediante Mutex. Las solicitudes de negocio
+obtienen una credencial vigente antes de enviarse; no se reenvían automáticamente
+POST tras errores de autorización. El perfil se revalida cada minuto mientras
+existe sesión y desde Mi cuenta. Cambios de membresía recargan el workspace.
+
+- **Android:** AndroidSessionStore cifra mediante AES-256/GCM; la clave reside en
+  Android Keystore, con alias del paquete BPM. El archivo cifrado se escribe de
+  forma atómica en `noBackupFilesDir`; la app mantiene `allowBackup=false`.
+- **iOS:** KeychainSessionStore usa un ítem del bundle BPM, accesible solo con el
+  dispositivo desbloqueado, exclusivo del dispositivo y sin sincronizar a iCloud.
+- **Web/JVM:** EphemeralSessionStore no escribe nada. ID token y refresh token
+  permanecen en memoria; recargar la web exige entrar nuevamente.
+
+El registro persistido móvil contiene origen API, UID y refresh token; nunca la
+contraseña, el perfil como autorización o un ID token persistente. Cambiar de
+origen rechaza la credencial antes de enviarla. Restaurar exige renovar y validar
+el UID tanto en Firebase como en `/me`; no registra perfiles automáticamente.
+La renovación rota el refresh token almacenado. Una indisponibilidad temporal
+permite reintentar; una revocación definitiva limpia sesión y almacenamiento.
+
+Logout borra credenciales y workspace. La generación de sesión evita que una
+respuesta anterior los restaure. Un 401 de la API invalida la sesión si corresponde
+al token actual; rechazos de peticiones antiguas no expulsan una sesión nueva.
+Liberar AppGraph cierra recursos y memoria, conservando únicamente la credencial
+protegida móvil para el próximo arranque. La restauración requiere red y no
+constituye autenticación offline.
 
 ## Web y aplicaciones móviles
 
@@ -169,8 +217,8 @@ Command Line Tools, ejecutar ese comando con
 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`; no es necesario cambiar
 la selección global. CI comprueba límites arquitectónicos,
 pruebas web, código compartido, builds Android/web, imagen Docker y framework iOS.
-Las pruebas con dobles no sustituyen probar login real, emulador, dispositivo,
-accesibilidad y recorridos en navegador. Las pruebas automatizadas no crean
+Las pruebas con dobles no sustituyen probar login real, almacenamiento nativo
+en dispositivos/emuladores, accesibilidad y recorridos en navegador. Las pruebas automatizadas no crean
 cuentas ni escriben en el backend de producción.
 
 ## Buenas prácticas para continuar
@@ -198,14 +246,14 @@ cuentas ni escriben en el backend de producción.
 
 ## Alcance real y extensiones
 
-Disponibles: comprobación de conexión, login/registro/verificación/recuperación,
+Disponibles: navegación con historial y permisos, cuenta, renovación/restauración
+de sesión, comprobación de conexión, login/registro/verificación/recuperación,
 Google web, perfil confirmado por API, organizaciones autorizadas, altas de
 organización/sede/miembro y catálogos del workspace.
 
 Pendientes: ejecutar cursos/evaluaciones/checklists, acciones correctivas,
-evidencias privadas, investigación CAP, reportes completos, navegación por roles
-del prototipo, renovación automática y persistencia segura de sesión. Google
-nativo requiere sus integraciones por plataforma.
+evidencias privadas, investigación CAP, reportes completos y recorridos de contenido
+y administración aún no implementados del prototipo. Google nativo requiere sus integraciones por plataforma.
 
 No hay persistencia offline, cola ni service worker. Cuando un recorrido los
 necesite, su repositorio observará almacenamiento local mediante Flow y

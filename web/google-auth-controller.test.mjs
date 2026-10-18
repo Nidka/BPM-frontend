@@ -5,7 +5,7 @@ import { createGoogleAuthController } from './google-auth-controller.mjs';
 const config = { firebaseApiKey: 'public-test-key', firebaseProjectId: 'test-project',
   firebaseAuthDomain: 'test-project.firebaseapp.com' };
 
-function fixture(popup = async () => ({ user: { uid: 'uid-test', getIdToken: async () => 'firebase-test-token' } })) {
+function fixture(popup = async () => ({ user: { uid: 'uid-test', refreshToken: 'firebase-refresh-token', getIdTokenResult: async () => ({token: 'firebase-test-token', expirationTime: new Date(Date.now() + 3600_000).toISOString()}) } })) {
   const calls = [];
   const memory = {};
   const sdk = {
@@ -24,7 +24,12 @@ test('opens popup synchronously and returns only Firebase credentials, with memo
   await controller.initialization;
   const result = controller.signIn();
   assert.equal(calls.filter(([name]) => name === 'popup').length, 1);
-  assert.deepEqual(JSON.parse(await result), { idToken: 'firebase-test-token', uid: 'uid-test', displayName: 'Usuario BPM' });
+  const credential = JSON.parse(await result);
+  assert.deepEqual(Object.keys(credential).sort(), ['displayName', 'expiresIn', 'idToken', 'refreshToken', 'uid']);
+  assert.equal(credential.idToken, 'firebase-test-token');
+  assert.equal(credential.uid, 'uid-test');
+  assert.equal(credential.refreshToken, 'firebase-refresh-token');
+  assert.ok(Number(credential.expiresIn) >= 3598 && Number(credential.expiresIn) <= 3600);
   assert.deepEqual(calls.find(([name]) => name === 'parameters')[1], { prompt: 'select_account' });
   assert.equal(calls.at(-1)[0], 'signOut');
 });
@@ -44,7 +49,7 @@ test('clear rejects late credentials instead of recreating a logged-out session'
   await controller.initialization;
   const result = controller.signIn();
   controller.clear();
-  complete({ user: { uid: 'uid-test', getIdToken: async () => 'firebase-test-token' } });
+  complete({ user: { uid: 'uid-test', refreshToken: 'firebase-refresh-token', getIdTokenResult: async () => ({token: 'firebase-test-token', expirationTime: new Date(Date.now() + 3600_000).toISOString()}) } });
   await assert.rejects(result, { code: 'auth/cancelled' });
 });
 
@@ -55,7 +60,7 @@ test('does not open concurrent popups', async () => {
   const first = controller.signIn();
   await assert.rejects(controller.signIn(), { code: 'auth/in-progress' });
   assert.equal(calls.filter(([name]) => name === 'popup').length, 1);
-  complete({ user: { uid: 'uid-test', getIdToken: async () => 'firebase-test-token' } });
+  complete({ user: { uid: 'uid-test', refreshToken: 'firebase-refresh-token', getIdTokenResult: async () => ({token: 'firebase-test-token', expirationTime: new Date(Date.now() + 3600_000).toISOString()}) } });
   await first;
 });
 
@@ -96,7 +101,7 @@ test('clearing does not race SDK signOut against an active OAuth exchange', asyn
   const result = controller.signIn();
   controller.clear();
   assert.equal(calls.filter(([name]) => name === 'signOut').length, 0);
-  complete({ user: { uid: 'uid-test', getIdToken: async () => 'firebase-test-token' } });
+  complete({ user: { uid: 'uid-test', refreshToken: 'firebase-refresh-token', getIdTokenResult: async () => ({token: 'firebase-test-token', expirationTime: new Date(Date.now() + 3600_000).toISOString()}) } });
   await assert.rejects(result, { code: 'auth/cancelled' });
   assert.equal(calls.filter(([name]) => name === 'signOut').length, 1);
 });

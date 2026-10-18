@@ -8,6 +8,17 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.request.header
+import io.ktor.client.request.forms.submitForm
+import io.ktor.http.Parameters
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+import kotlin.time.Clock
+import pe.bpm.core.network.SessionAccessException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -23,9 +34,20 @@ class RemoteIdentityRepository(
     private val client: HttpClient,
     private val config: AppConfig,
     private val googleAuth: GoogleAuthProvider = platformGoogleAuthProvider(),
+    private val sessionStore: SessionStore = EphemeralSessionStore(),
+    private val nowSeconds: () -> Long = { Clock.System.now().epochSeconds },
 ) : IdentityRepository {
     // Solo memoria. No usar almacenamiento del navegador ni guardar la contraseña.
     private var idToken: String? = null
+    private var refreshToken: String? = null
+    private var sessionUid: String? = null
+    private var expiresAt: Long = 0
+    private var generation: Long = 0
+    private val refreshMutex = Mutex()
+    private val invalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    override fun sessionInvalidations() = invalidations.asSharedFlow()
+
     private var apiKey: String? = null
     private var verificationToken: String? = null
     private var pendingName: String? = null
@@ -34,8 +56,111 @@ class RemoteIdentityRepository(
     // Solo el composition root entrega este acceso a otros adaptadores de red.
     fun sessionToken(): String? = idToken
 
+    /** Single-flight refresh; used only by adapters wired in AppGraph. */
+    suspend fun validSessionToken(): String? = refreshMutex.withLock {
+        val token = idToken ?: return@withLock null
+        if (nowSeconds() < expiresAt - 60) return@withLock token
+        val refresh = refreshToken ?: run { invalidateSession(); throw SessionAccessException(true) }
+        val attempt = generation
+        val credential = renew(refresh)
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) throw SessionAccessException(true)
+        if (credential.uid != sessionUid) { invalidateSession(); throw SessionAccessException(true) }
+        persist(credential.uid, credential.refreshToken)
+        idToken = credential.idToken
+        refreshToken = credential.refreshToken
+        expiresAt = nowSeconds() + credential.expiresIn.toLong()
+        credential.idToken
+    }
+
+    fun rejectSession(token: String) {
+        if (token == idToken) invalidateSession()
+    }
+
+    fun invalidateSession() {
+        signOut()
+        invalidations.tryEmit(Unit)
+    }
+
+    override suspend fun restoreSession(): IdentityResult<Profile> = safely {
+        val attempt = generation
+        val raw = sessionStore.read() ?: return@safely failure("UNAUTHENTICATED")
+        val stored = try { Json.decodeFromString<StoredSession>(raw) } catch (_: Exception) {
+            sessionStore.clear(); return@safely failure("UNAUTHENTICATED")
+        }
+        if (stored.origin != config.apiBaseUrl || stored.uid.isBlank() || stored.refreshToken.isBlank()) {
+            sessionStore.clear(); return@safely failure("UNAUTHENTICATED")
+        }
+        refreshMutex.withLock {
+            val credential = renew(stored.refreshToken)
+            currentCoroutineContext().ensureActive()
+            if (attempt != generation) return@withLock failure("UNAUTHENTICATED")
+            if (credential.uid != stored.uid) { signOut(); return@withLock failure("INVALID_RESPONSE") }
+            persist(credential.uid, credential.refreshToken)
+            val profile = fetchProfile(credential.idToken)
+            currentCoroutineContext().ensureActive()
+            if (attempt != generation) return@withLock failure("UNAUTHENTICATED")
+            if (profile is IdentityResult.Success && profile.value.id == stored.uid) {
+                idToken = credential.idToken
+                refreshToken = credential.refreshToken
+                sessionUid = credential.uid
+                expiresAt = nowSeconds() + credential.expiresIn.toLong()
+                profile
+            } else {
+                // Preserve credentials on transient failures so the user can retry restoration.
+                if (profile is IdentityResult.Success || (profile is IdentityResult.Failure && profile.errors.any { it.code in sessionDenials })) signOut()
+                if (profile is IdentityResult.Success) failure("INVALID_RESPONSE") else profile
+            }
+        }
+    }
+
+    private fun persist(uid: String, refresh: String) {
+        try {
+            if (refresh.isBlank()) sessionStore.clear()
+            else sessionStore.write(Json.encodeToString(StoredSession(config.apiBaseUrl, uid, refresh)))
+        } catch (_: Exception) {
+            invalidateSession()
+            throw SessionAccessException(true)
+        }
+    }
+
+    private suspend fun renew(refresh: String): RefreshCredential {
+        val attempt = generation
+        val key = firebaseKey()
+        if (key.isBlank()) throw SessionAccessException(false)
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) throw SessionAccessException(true)
+        val response = client.submitForm(
+            url = "https://securetoken.googleapis.com/v1/token?key=$key",
+            formParameters = Parameters.build { append("grant_type", "refresh_token"); append("refresh_token", refresh) },
+        )
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) throw SessionAccessException(true)
+        if (!response.status.isSuccess()) {
+            // Only definitive credential rejection ends a session; network/5xx/429 remain retryable.
+            val code = if (response.status.value == 400) response.body<FirebaseErrorEnvelope>().error.message.substringBefore(" : ") else ""
+            if (code in setOf("TOKEN_EXPIRED", "INVALID_REFRESH_TOKEN", "USER_DISABLED", "USER_NOT_FOUND")) {
+                invalidateSession(); throw SessionAccessException(true)
+            }
+            throw SessionAccessException(false)
+        }
+        val credential = response.body<RefreshCredential>()
+        if (credential.idToken.isBlank() || credential.refreshToken.isBlank() || credential.uid.isBlank() ||
+            (credential.expiresIn.toLongOrNull() ?: 0) !in 61..86400) throw SessionAccessException(false)
+        return credential
+    }
+
+    /** Graph disposal preserves the mobile refresh credential; explicit logout erases it. */
+    fun close() {
+        generation++
+        idToken = null; refreshToken = null; sessionUid = null
+        verificationToken = null; pendingName = null; pendingUid = null
+        googleAuth.clear()
+    }
+
     override suspend fun signIn(email: String, password: String): IdentityResult<Profile> {
         signOut()
+        val attempt = generation
         return safely {
             val key = firebaseKey()
             if (key.isBlank()) return@safely failure("AUTH_NOT_CONFIGURED")
@@ -57,28 +182,35 @@ class RemoteIdentityRepository(
             }
             val credential = response.body<FirebaseCredential>()
             if (credential.idToken.isBlank() || credential.localId.isBlank()) return@safely failure("INVALID_RESPONSE")
-            acceptCredential(credential.idToken, credential.localId, credential.displayName)
+            acceptCredential(credential.idToken, credential.localId, credential.displayName, credential.refreshToken, credential.expiresIn, attempt)
         }
     }
 
     override suspend fun signInWithGoogle(): IdentityResult<Profile> {
         // El puente controla su propia limpieza. No cancelar ni cerrar el SDK
         // justo antes de abrir una nueva ventana OAuth.
-        idToken = null
+        generation++
+        idToken = null; refreshToken = null; sessionUid = null
+        sessionStore.clear()
         verificationToken = null
         pendingName = null
         pendingUid = null
+        val attempt = generation
         return safely {
             when (val result = googleAuth.signIn()) {
                 is GoogleAuthResult.Failure -> failure(result.code)
-                is GoogleAuthResult.Success -> acceptCredential(result.credential.idToken, result.credential.uid, result.credential.displayName)
+                is GoogleAuthResult.Success -> acceptCredential(result.credential.idToken, result.credential.uid, result.credential.displayName, result.credential.refreshToken, result.credential.expiresIn, attempt)
             }
         }
     }
 
-    private suspend fun acceptCredential(token: String, uid: String, displayName: String): IdentityResult<Profile> {
-        if (token.isBlank() || uid.isBlank()) return failure("INVALID_RESPONSE")
+    private suspend fun acceptCredential(token: String, uid: String, displayName: String, refresh: String, expires: String, attempt: Long): IdentityResult<Profile> {
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) return failure("UNAUTHENTICATED")
+        if (token.isBlank() || uid.isBlank() || (expires.toLongOrNull() ?: 0) !in 61..86400) return failure("INVALID_RESPONSE")
         var profile = fetchProfile(token)
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) return failure("UNAUTHENTICATED")
         if (profile is IdentityResult.Failure && profile.errors.any { it.code == "USER_NOT_REGISTERED" }) {
             val response = client.post("${config.apiBaseUrl}/api/v1/auth/register") {
                 bearerAuth(token); contentType(ContentType.Application.Json)
@@ -89,29 +221,34 @@ class RemoteIdentityRepository(
             }
             profile = readProfile(response)
         }
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) return failure("UNAUTHENTICATED")
         if (profile is IdentityResult.Failure && profile.errors.any { it.code == "EMAIL_NOT_VERIFIED" }) verificationToken = token
         if (profile is IdentityResult.Success) {
             if (profile.value.id != uid) return failure("INVALID_RESPONSE")
+            persist(uid, refresh)
             idToken = token
+            refreshToken = refresh.takeIf { it.isNotBlank() }
+            sessionUid = uid
+            expiresAt = nowSeconds() + expires.toLong()
         }
         return profile
     }
 
     override suspend fun currentProfile(): IdentityResult<Profile> = safely {
-        val token = idToken ?: return@safely failure("UNAUTHENTICATED")
+        val attempt = generation
+        val token = validSessionToken() ?: return@safely failure("UNAUTHENTICATED")
         val result = fetchProfile(token)
-        if (result is IdentityResult.Failure && result.errors.any {
-            it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
-        }) signOut()
+        currentCoroutineContext().ensureActive()
+        if (attempt != generation) return@safely failure("UNAUTHENTICATED")
+        if (result is IdentityResult.Success && result.value.id != sessionUid) { invalidateSession(); return@safely failure("INVALID_RESPONSE") }
+        if (result is IdentityResult.Failure && result.errors.any { it.code in sessionDenials }) invalidateSession()
         result
     }
 
     override fun signOut() {
-        idToken = null
-        verificationToken = null
-        pendingName = null
-        pendingUid = null
-        googleAuth.clear()
+        close()
+        sessionStore.clear()
     }
 
     override suspend fun register(name: String, email: String, password: String): IdentityResult<Unit> {
@@ -234,13 +371,16 @@ class RemoteIdentityRepository(
         block()
     } catch (cancelled: CancellationException) {
         throw cancelled
+    } catch (error: SessionAccessException) {
+        failure(if (error.expired) "UNAUTHENTICATED" else "AUTH_UNAVAILABLE")
     } catch (_: HttpRequestTimeoutException) {
         failure("TIMEOUT")
     } catch (_: SerializationException) {
         failure("INVALID_RESPONSE")
     } catch (_: JsonConvertException) {
         failure("INVALID_RESPONSE")
-    } catch (_: Exception) {
+    } catch (_: Throwable) {
+        // Wasm fetch failures may extend Error rather than Exception. Cancellation was handled above.
         failure("NETWORK_ERROR")
     }
 }
@@ -283,7 +423,7 @@ private fun failure(code: String): IdentityResult.Failure {
 }
 
 @Serializable private class SignInRequest(val email: String, val password: String, val returnSecureToken: Boolean)
-@Serializable private class FirebaseCredential(val idToken: String, val localId: String, val displayName: String = "Usuario BPM")
+@Serializable private class FirebaseCredential(val idToken: String, val localId: String, val displayName: String = "Usuario BPM", val refreshToken: String = "", val expiresIn: String = "3600")
 @Serializable private class UpdateNameRequest(val idToken: String, val displayName: String, val returnSecureToken: Boolean)
 @Serializable private class RegisterProfileRequest(val displayName: String)
 @Serializable private class VerificationRequest(val requestType: String, val idToken: String)
@@ -296,3 +436,12 @@ private fun failure(code: String): IdentityResult.Failure {
 @Serializable private data class ProfileEnvelope(val data: ProfileDto)
 @Serializable private data class ProfileDto(val id: String, val email: String, val displayName: String, val organizations: List<OrganizationDto>, val platformRole: String = "USER")
 @Serializable private data class OrganizationDto(val id: String, val legalName: String, val tradeName: String? = null, val role: String)
+
+private val sessionDenials = setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
+@Serializable private class StoredSession(val origin: String, val uid: String, val refreshToken: String)
+@Serializable private class RefreshCredential(
+    @kotlinx.serialization.SerialName("id_token") val idToken: String,
+    @kotlinx.serialization.SerialName("refresh_token") val refreshToken: String,
+    @kotlinx.serialization.SerialName("user_id") val uid: String,
+    @kotlinx.serialization.SerialName("expires_in") val expiresIn: String,
+)

@@ -6,7 +6,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -16,13 +15,15 @@ import pe.bpm.features.workspace.domain.*
 
 @Composable
 fun WorkspaceScreen(
-    viewer: WorkspaceViewer, state: WorkspaceState, onSelect: (String) -> Unit, onRefresh: () -> Unit,
+    viewer: WorkspaceViewer, state: WorkspaceState, section: WorkspaceDestination,
+    onNavigate: (WorkspaceDestination) -> Unit, onBack: () -> Unit, canGoBack: Boolean,
+    onVerifySession: () -> Unit, sessionBusy: Boolean, sessionMessage: String?, onSelect: (String) -> Unit, onRefresh: () -> Unit,
     onOrganization: (Organization) -> Unit, onLocation: (Location) -> Unit,
     onMember: (String, String, List<String>) -> Unit, onClear: () -> Unit, onLogout: () -> Unit,
 ) {
-    var destinationName by rememberSaveable(viewer.id, state.selected) { mutableStateOf(WorkspaceDestination.Home.name) }
-    val section = WorkspaceDestination.valueOf(destinationName)
-    val navigate: (WorkspaceDestination) -> Unit = { destinationName = it.name }
+    val available = workspaceDestinations(state.workspace?.role, viewer.canCreateOrganization)
+    val destinations = workspacePrimaryDestinations(available)
+    val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     var form by remember(viewer.id, state.selected) { mutableStateOf<WorkspaceFormKind?>(null) }
     var picker by remember(viewer.id, state.selected) { mutableStateOf(false) }
     val workspace = state.workspace
@@ -36,7 +37,7 @@ fun WorkspaceScreen(
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Brand()
                     Spacer(Modifier.height(32.dp))
-                    WorkspaceDestination.entries.forEach { item ->
+                    destinations.forEach { item ->
                         NavigationDrawerItem(label = { Text(item.label, fontWeight = FontWeight.Bold) },
                             selected = section == item, onClick = { navigate(item) },
                             icon = { Text(item.mark, style = MaterialTheme.typography.titleLarge) })
@@ -53,6 +54,7 @@ fun WorkspaceScreen(
                 Surface(color = MaterialTheme.colorScheme.surface) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = if (wide) 32.dp else 16.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (canGoBack) TextButton(onClick = onBack, enabled = !state.saving) { Text("Volver") }
                         if (!wide) Brand(compact = true)
                         Box(Modifier.weight(1f)) {
                             TextButton(onClick = { picker = true }, enabled = !state.saving) {
@@ -82,7 +84,17 @@ fun WorkspaceScreen(
                     }
                     if (form == null) Errors(state.errors)
                     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                    if (workspace == null && !state.loading) {
+                    if (section == WorkspaceDestination.Account) {
+                        BpmCard(Modifier.fillMaxWidth()) {
+                            Text(viewer.displayName, style = MaterialTheme.typography.titleLarge)
+                            Text(viewer.email)
+                            Text(if (viewer.canCreateOrganization) "Administrador general" else workspace?.role?.let(::roleLabel) ?: "Sin organización activa")
+                            OutlinedButton(onClick = onVerifySession, enabled = !sessionBusy) { Text(if (sessionBusy) "Verificando…" else "Verificar sesión y permisos") }
+                            sessionMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (WorkspaceDestination.Learn in available) OutlinedButton(onClick = { navigate(WorkspaceDestination.Learn) }) { Text("Mi aprendizaje") }
+                        }
+                    }
+                    if (section != WorkspaceDestination.Account && workspace == null && !state.loading) {
                         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                             Mascot(Modifier.size(160.dp).align(Alignment.CenterHorizontally))
                             Text("Tu próximo gran hábito empieza aquí.", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -97,7 +109,8 @@ fun WorkspaceScreen(
                         }
                     }
                     workspace?.let { current -> when (section) {
-                        WorkspaceDestination.Home -> Home(current, wide, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
+                        WorkspaceDestination.Account -> Unit
+                        WorkspaceDestination.Home -> Home(current, wide, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
                         WorkspaceDestination.Company -> {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
@@ -151,7 +164,7 @@ fun WorkspaceScreen(
                     Text("Los datos se consultan en línea. No se guardan cambios pendientes sin conexión.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (!wide) NavigationBar {
-                    WorkspaceDestination.entries.forEach { item -> NavigationBarItem(selected = section == item,
+                    destinations.forEach { item -> NavigationBarItem(selected = section == item,
                         onClick = { navigate(item) }, icon = { Text(item.mark, style = MaterialTheme.typography.titleLarge) }, label = { Text(item.label) }) }
                 }
             }

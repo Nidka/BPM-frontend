@@ -79,11 +79,14 @@ la vida del grafo; las dependencias concretas se construyen solo en AppGraph.
 
 WorkspaceScreen conserva la distribución adaptable y delega el contenido en
 WorkspaceContent y los formularios en WorkspaceForm. WorkspaceDestination enumera
-las secciones superiores existentes; la selección es restaurable por usuario y
-organización, mientras formularios y menús se reinician al cambiar de contexto.
-No hay todavía router de detalles, deep links ni historial de URL del navegador.
-Se incorporarán al desarrollar recorridos con pantallas anidadas, usando una
-biblioteca de navegación multiplataforma compatible con las versiones fijadas.
+las rutas públicas de las secciones existentes y la política de navegación por
+rol. El grafo se limpia al cambiar de empresa o cerrar sesión; formularios y menús
+se reinician al cambiar de contexto.
+App utiliza Navigation Compose Multiplatform 2.9.2 y NavHost. Los fragmentos web
+se enlazan mediante bindToBrowserNavigation; Android usa atrás del sistema.
+Cada ruta protegida comprueba sesión y destinos permitidos antes de componer UI.
+Las pantallas de detalle futuras se registrarán al implementar su recorrido.
+Los enlaces nativos del sistema operativo aún no se han registrado.
 
 La cancelación se verifica antes de aplicar cada respuesta del workspace,
 incluidos adaptadores que entreguen respuestas después de cancelar. Una prueba
@@ -92,3 +95,17 @@ simula una respuesta tardía tras logout y confirma que no restaura el tenant.
 El bundle web declara ausente el global Node `process` mediante DefinePlugin en
 `composeApp/webpack.config.d/browser-runtime.js`. Esto permite iniciar el logger
 Wasm de Ktor en navegadores sin introducir un polyfill de Node ni sus variables.
+
+## Renovación y restauración
+
+AppGraph inyecta el adaptador SessionStore recibido del punto de entrada nativo.
+Android utiliza un archivo AES/GCM con clave de Android Keystore; iOS un ítem
+Keychain exclusivo del bundle y dispositivo. Web/JVM usan un adaptador que no
+persiste. Las pantallas y el dominio nunca conocen tokens ni APIs de almacenamiento.
+
+RemoteIdentityRepository serializa renovaciones, conserva origen/UID/refresh token
+y comprueba /me antes de restaurar un perfil. Workspace recibe por DI un proveedor
+suspendido de tokens vigentes y una función de rechazo del token actual. Ambos
+adaptadores comparten únicamente el error técnico de core/network; no se importan
+entre funcionalidades. ObserveSessionInvalidations permite limpiar la UI desde
+el ViewModel; no hay dependencias de red en presentación.

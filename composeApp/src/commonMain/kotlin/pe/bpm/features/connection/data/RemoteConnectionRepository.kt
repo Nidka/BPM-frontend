@@ -42,7 +42,7 @@ class RemoteConnectionRepository(
         AppResult.Failure(AppFailure.INVALID_RESPONSE)
     } catch (_: JsonConvertException) {
         AppResult.Failure(AppFailure.INVALID_RESPONSE)
-    } catch (_: Exception) {
+    } catch (_: Throwable) {
         AppResult.Failure(AppFailure.NETWORK)
     }
 }

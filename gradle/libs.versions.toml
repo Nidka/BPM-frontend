@@ -8,8 +8,10 @@ coroutines = "1.10.2"
 serialization = "1.9.0"
 lifecycle = "2.10.0"
 activity = "1.12.4"
+navigation = "2.9.2"
 
 [libraries]
+navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation" }
 compose-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
 ktor-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }

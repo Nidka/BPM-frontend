@@ -1,5 +1,8 @@
 package pe.bpm.features.identity.domain
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
 data class Profile(
     val id: String,
     val email: String,
@@ -28,6 +31,8 @@ interface IdentityRepository {
     suspend fun register(name: String, email: String, password: String): IdentityResult<Unit>
     suspend fun resetPassword(email: String): IdentityResult<Unit>
     suspend fun resendVerification(): IdentityResult<Unit>
+    suspend fun restoreSession(): IdentityResult<Profile> = currentProfile()
+    fun sessionInvalidations(): Flow<Unit> = emptyFlow()
     fun signOut()
 }
 
@@ -85,4 +90,12 @@ class SignInWithGoogle(private val repository: IdentityRepository) {
 
 class SignOut(private val repository: IdentityRepository) {
     operator fun invoke() = repository.signOut()
+}
+
+class RestoreSession(private val repository: IdentityRepository) {
+    suspend operator fun invoke() = repository.restoreSession()
+}
+
+class ObserveSessionInvalidations(private val repository: IdentityRepository) {
+    operator fun invoke(): Flow<Unit> = repository.sessionInvalidations()
 }

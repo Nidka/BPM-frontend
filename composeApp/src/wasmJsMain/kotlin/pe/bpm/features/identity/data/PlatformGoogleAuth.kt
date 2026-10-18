@@ -23,7 +23,7 @@ private class BrowserGoogleAuthProvider : GoogleAuthProvider {
             if (continuation.isActive) {
                 val result = try {
                     val credential = Json.decodeFromString<GoogleCredentialDto>(raw)
-                    GoogleAuthResult.Success(GoogleCredential(credential.idToken, credential.uid, credential.displayName))
+                    GoogleAuthResult.Success(GoogleCredential(credential.idToken, credential.uid, credential.displayName, credential.refreshToken, credential.expiresIn))
                 } catch (_: Exception) { GoogleAuthResult.Failure("INVALID_RESPONSE") }
                 continuation.resume(result)
             }
@@ -46,4 +46,4 @@ private class BrowserGoogleAuthProvider : GoogleAuthProvider {
     override fun clear() = clearGoogle()
 }
 
-@Serializable private class GoogleCredentialDto(val idToken: String, val uid: String, val displayName: String = "Usuario BPM")
+@Serializable private class GoogleCredentialDto(val idToken: String, val uid: String, val displayName: String = "Usuario BPM", val refreshToken: String = "", val expiresIn: String = "3600")

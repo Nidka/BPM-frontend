@@ -11,7 +11,8 @@ Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.jso
 
 ## Recorridos
 
-- Entrar: Firebase → ID token → GET /api/v1/me → perfil y sesión en memoria.
+- Entrar: Firebase → ID token → GET /api/v1/me → perfil confirmado y sesión.
+  El refresh token se guarda protegido solo en móvil; web conserva todo en memoria.
 - Crear cuenta: formulario validado → Firebase signUp → guardar nombre →
   enviar VERIFY_EMAIL → pantalla de instrucciones. Todavía no hay sesión BPM.
 - Después de verificar email: iniciar sesión nuevamente → si falta perfil,
@@ -95,8 +96,9 @@ y FIREBASE_PROJECT_ID son públicos. /config.json expone únicamente esos datos 
 el authDomain derivado, con no-store. Una API key explícitamente vacía desactiva
 el acceso. Android/iOS reciben la key pública al compilar.
 
-La web usa SDK Firebase 13.0.0 fijado para Google e inMemoryPersistence. El SDK se
-cierra tras obtener el ID token. La CSP permite gstatic, apis.google.com, Firebase
+La web usa SDK Firebase 13.0.0 fijado para Google e inMemoryPersistence. El puente
+entrega ID token, refresh token, UID y vencimiento al adaptador Kotlin en memoria,
+y limpia la sesión del SDK al terminar. La CSP permite gstatic, apis.google.com, Firebase
 Auth y el iframe del proyecto; no se piden scopes Drive/Gmail ni Analytics.
 
 ## Proxy y seguridad
@@ -131,13 +133,36 @@ equipo ni al chat. Las pruebas automatizadas no crean cuentas Firebase reales.
 
 ## Límites explícitos
 
-No hay persistencia ni autenticación offline, ni renovación automática del
-ID token. Recargar/reiniciar exige entrar de nuevo. Registro y recuperación
-necesitan internet; los enlaces se gestionan con las páginas de acción Firebase.
+La sesión implementa renovación antes del vencimiento con una única operación
+concurrente. El perfil se verifica cada minuto mientras existe sesión y desde
+Mi cuenta. La renovación usa Secure Token API (formulario grant_type/refresh_token)
+directamente desde el cliente; los tokens nunca pasan al proxy de negocio como
+payload. Un 401 de una operación empresarial invalida solo el token actual y
+limpia la UI. No se reenvían automáticamente escrituras tras un rechazo.
+
+Android persiste el refresh token cifrado AES/GCM con Android Keystore en un
+archivo atómico excluido de backups. iOS usa Keychain con
+WhenUnlockedThisDeviceOnly y sincronización iCloud desactivada. La entrada incluye
+origen API y UID; la restauración rechaza otro origen antes de llamar a Firebase.
+Solo renovar y confirmar UID/permisos en /me permite publicar un perfil. Las
+credenciales rotadas se conservan ante fallos temporales; la revocación las borra.
+Cerrar el grafo conserva la entrada móvil; logout la elimina. Generaciones y
+cancelación impiden restaurar una sesión anterior mediante respuestas tardías.
+
+Web no persiste tokens y exige entrar tras recargar. No hay autenticación offline.
+Registro, restauración y recuperación necesitan internet; los enlaces de email
+siguen gestionados por las páginas de acción Firebase. Los enlaces nativos de
+Android/iOS todavía no están registrados en el sistema operativo.
+
 Si una creación Firebase parcial falla, no se borra la cuenta: iniciar sesión,
 reenviar verificación o recuperar acceso. Una actualización de perfil posterior
 y la edición/desactivación de membresías son recorridos futuros. El alta de
 miembros y selección de organización ya están en features/workspace.
+
+Pruebas adicionales: renovación simultánea, rotación, restauración y UID, otro
+origen, revocación, indisponibilidad temporal, logout durante renovación e
+invalidación visible ante rechazo de API. Los adaptadores nativos compilan en
+Android/iOS; verificar además Keychain/Keystore en dispositivo antes del piloto.
 
 Fuentes: [Firebase REST](https://firebase.google.com/docs/reference/rest/auth),
 [Google web](https://firebase.google.com/docs/auth/web/google-signin),

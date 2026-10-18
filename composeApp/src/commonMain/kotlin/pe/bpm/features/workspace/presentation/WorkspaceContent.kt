@@ -12,14 +12,14 @@ import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
 
-@Composable internal fun Home(workspace: Workspace, wide: Boolean, onLearn: () -> Unit, onCompany: () -> Unit) {
+@Composable internal fun Home(workspace: Workspace, wide: Boolean, learningAllowed: Boolean, onLearn: () -> Unit, onCompany: () -> Unit) {
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Eyebrow("PEQUEÑOS HÁBITOS. GRANDES CUIDADOS.")
                 Text("Hagamos de cada día\nun día más seguro.", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
                 Text("Aprende, acompaña a tu equipo y cuida lo que más importa.")
-                RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp))
+                if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp))
             }
             if (wide) Mascot(Modifier.size(240.dp))
         }

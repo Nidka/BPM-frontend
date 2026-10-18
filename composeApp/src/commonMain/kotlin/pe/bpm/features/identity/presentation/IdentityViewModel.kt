@@ -2,6 +2,9 @@ package pe.bpm.features.identity.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +15,8 @@ enum class AuthMode { Login, Register, Recovery, Verification }
 
 data class IdentityUiState(
     val busy: Boolean = false,
+    val restoring: Boolean = false,
+    val canRetryRestore: Boolean = false,
     val profile: Profile? = null,
     val errors: List<IdentityError> = emptyList(),
     val mode: AuthMode = AuthMode.Login,
@@ -28,10 +33,45 @@ class IdentityViewModel(
     private val registerAccount: Register,
     private val resetPassword: ResetPassword,
     private val resendVerification: ResendVerification,
+    private val restoreSession: RestoreSession? = null,
+    private val observeInvalidations: ObserveSessionInvalidations? = null,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(IdentityUiState())
     val state = mutableState.asStateFlow()
     private var requestJob: Job? = null
+
+    init {
+        observeInvalidations?.let { observe -> viewModelScope.launch {
+            observe().collect {
+                requestJob?.cancel()
+                mutableState.value = IdentityUiState(errors = listOf(IdentityError("UNAUTHENTICATED", "Tu sesión terminó. Inicia sesión nuevamente.")))
+            }
+        } }
+        restore()
+        // Refreshes both token and backend profile while a session is open.
+        if (observeInvalidations != null) viewModelScope.launch {
+            while (true) {
+                delay(60_000)
+                if (mutableState.value.profile != null) verifySession()
+            }
+        }
+    }
+
+    fun restore() {
+        val restore = restoreSession ?: return
+        if (mutableState.value.busy || mutableState.value.profile != null) return
+        mutableState.value = IdentityUiState(busy = true, restoring = true)
+        requestJob = viewModelScope.launch {
+            val result = restore()
+            currentCoroutineContext().ensureActive()
+            if (result is IdentityResult.Failure && result.errors.all { it.code == "UNAUTHENTICATED" }) {
+                mutableState.value = IdentityUiState()
+            } else {
+                applyResult(result)
+                if (result is IdentityResult.Failure) mutableState.value = mutableState.value.copy(canRetryRestore = result.errors.none { it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED", "INVALID_RESPONSE") })
+            }
+        }
+    }
 
     fun login(email: String, password: String) {
         if (mutableState.value.busy) return
@@ -83,7 +123,9 @@ class IdentityViewModel(
         if (mutableState.value.busy) return
         mutableState.value = mutableState.value.copy(busy = true, errors = emptyList(), notice = null)
         requestJob = viewModelScope.launch {
-            mutableState.value = when (val result = action()) {
+            val result = action()
+            currentCoroutineContext().ensureActive()
+            mutableState.value = when (result) {
                 is IdentityResult.Success -> IdentityUiState(mode = successMode, notice = notice,
                     canResendVerification = successMode == AuthMode.Verification)
                 is IdentityResult.Failure -> {
@@ -96,7 +138,8 @@ class IdentityViewModel(
         }
     }
 
-    private fun applyResult(result: IdentityResult<Profile>, keepProfileOnTransientFailure: Boolean = false) {
+    private suspend fun applyResult(result: IdentityResult<Profile>, keepProfileOnTransientFailure: Boolean = false) {
+        currentCoroutineContext().ensureActive()
         mutableState.value = when (result) {
             is IdentityResult.Success -> IdentityUiState(profile = result.value)
             is IdentityResult.Failure -> {

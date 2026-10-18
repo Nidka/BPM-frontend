@@ -8,33 +8,41 @@ import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import pe.bpm.core.config.AppConfig
+import pe.bpm.core.network.SessionAccessException
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
 
-class RemoteWorkspaceRepository(private val client: HttpClient, private val config: AppConfig, private val token: () -> String?) : WorkspaceRepository {
-    override suspend fun organizations(): Result<List<Organization>> = request {
-        val response = client.get("${config.apiBaseUrl}/api/v1/organizations") { bearerAuth(requireNotNull(token())) }
-        if (response.status.isSuccess()) Result.Success(response.body<Envelope<List<OrgDto>>>().data.map { it.domain() }) else failure(response)
+class RemoteWorkspaceRepository(private val client: HttpClient, private val config: AppConfig, private val onSessionRejected: (String) -> Unit = {}, private val token: suspend () -> String?) : WorkspaceRepository {
+    override suspend fun organizations(): Result<List<Organization>> = request { accessToken ->
+        val response = client.get("${config.apiBaseUrl}/api/v1/organizations") { bearerAuth(accessToken) }
+        if (response.status.isSuccess()) Result.Success(response.body<Envelope<List<OrgDto>>>().data.map { it.domain() }) else failure(response, accessToken)
     }
-    override suspend fun workspace(id: String): Result<Workspace> = request {
+    override suspend fun workspace(id: String): Result<Workspace> = request { accessToken ->
         require(id.matches(Regex("[A-Za-z0-9_-]{1,64}")))
-        val response = client.get("${config.apiBaseUrl}/api/v1/organizations/$id/workspace") { bearerAuth(requireNotNull(token())) }
-        if (response.status.isSuccess()) Result.Success(response.body<Envelope<WorkspaceDto>>().data.domain()) else failure(response)
+        val response = client.get("${config.apiBaseUrl}/api/v1/organizations/$id/workspace") { bearerAuth(accessToken) }
+        if (response.status.isSuccess()) Result.Success(response.body<Envelope<WorkspaceDto>>().data.domain()) else failure(response, accessToken)
     }
     override suspend fun createOrganization(input: Organization) = post("organizations", OrgDto(input.id,input.legalName,input.tradeName,input.businessType,input.taxId,input.contactName,input.contactPhone,input.contactEmail))
     override suspend fun createLocation(organizationId: String,input: Location) = post("organizations/$organizationId/locations", LocationDto(input.id,input.name,input.address,input.district,input.contactPhone))
     override suspend fun addMember(organizationId: String,email: String,role: String,locations: List<String>) = post("organizations/$organizationId/members", MemberRequest(email,role,locations))
-    private suspend inline fun <reified T> post(path: String, payload: T): Result<Unit> = request {
-        val response = client.post("${config.apiBaseUrl}/api/v1/$path") { bearerAuth(requireNotNull(token())); contentType(ContentType.Application.Json); setBody(payload) }
-        if (response.status.isSuccess()) Result.Success(Unit) else failure(response)
+    private suspend inline fun <reified T> post(path: String, payload: T): Result<Unit> = request { accessToken ->
+        val response = client.post("${config.apiBaseUrl}/api/v1/$path") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(payload) }
+        if (response.status.isSuccess()) Result.Success(Unit) else failure(response, accessToken)
     }
-    private suspend fun <T> request(block: suspend () -> Result<T>): Result<T> {
-        if (token().isNullOrBlank()) return Result.Failure(listOf(WorkspaceError("UNAUTHENTICATED","Tu sesión terminó. Vuelve a iniciar sesión.")))
-        return try { block() } catch(e: CancellationException) { throw e } catch (_: Exception) {
+    private suspend fun <T> request(block: suspend (String) -> Result<T>): Result<T> {
+        return try {
+            val accessToken = token()?.takeIf { it.isNotBlank() }
+                ?: return Result.Failure(listOf(WorkspaceError("UNAUTHENTICATED", "Tu sesión terminó. Vuelve a iniciar sesión.")))
+            block(accessToken)
+        } catch(e: CancellationException) { throw e } catch (e: SessionAccessException) {
+            Result.Failure(listOf(WorkspaceError(if (e.expired) "UNAUTHENTICATED" else "SERVICE_UNAVAILABLE",
+                if (e.expired) "Tu sesión terminó. Vuelve a iniciar sesión." else "No pudimos renovar la sesión. Revisa tu conexión y vuelve a intentar.")))
+        } catch (_: Throwable) {
             Result.Failure(listOf(WorkspaceError("CONNECTION_ERROR","No pudimos conectar. Revisa tu conexión y vuelve a intentar.")))
         }
     }
-    private suspend fun failure(response: HttpResponse): Result.Failure {
+    private suspend fun failure(response: HttpResponse, accessToken: String): Result.Failure {
+        if (response.status.value == 401) onSessionRejected(accessToken)
         val dto = try { response.body<ErrorEnvelope>() } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
         val code = when(response.status.value) {401->"UNAUTHENTICATED";403->"ACCESS_DENIED";404->"MEMBER_NOT_AVAILABLE";409->"RESOURCE_CONFLICT";422->"VALIDATION_ERROR";429->"RATE_LIMITED";else->"SERVICE_UNAVAILABLE"}
         val message = when(code) {

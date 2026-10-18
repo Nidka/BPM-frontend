@@ -7,7 +7,7 @@ interface GoogleAuthProvider {
     fun clear()
 }
 
-class GoogleCredential(val idToken: String, val uid: String, val displayName: String = "Usuario BPM")
+class GoogleCredential(val idToken: String, val uid: String, val displayName: String = "Usuario BPM", val refreshToken: String = "", val expiresIn: String = "3600")
 
 sealed interface GoogleAuthResult {
     class Success(val credential: GoogleCredential) : GoogleAuthResult

@@ -72,6 +72,7 @@ kotlin {
             implementation(libs.compose.resources)
                 implementation(libs.lifecycle.viewmodel)
                 implementation(libs.lifecycle.runtime)
+                implementation(libs.navigation.compose)
                 implementation(libs.coroutines.core)
                 implementation(libs.serialization.json)
                 implementation(libs.ktor.core)
