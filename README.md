@@ -80,6 +80,21 @@ se extrae código a core si existe reutilización comprobada. Los modelos del
 resumen de workspace son proyecciones de su endpoint, no el modelo definitivo de
 cursos, evaluaciones o ejecuciones de checklist.
 
+## Anotaciones de Kotlin y contratos de plataforma
+
+| Elemento aplicado | Responsabilidad | Ubicación |
+|---|---|---|
+| `@Composable` | Declarar UI Compose compartida. | `app/` y `presentation/`. |
+| `@Serializable` | Generar serializadores de DTO y credenciales privadas del adaptador. | `data/`; no en dominio. |
+| `@SerialName` | Mapear nombres externos como `refresh_token` sin alterar el contrato de la API. | DTO Firebase de `RemoteIdentityRepository`. |
+| `@OptIn` / `@file:OptIn` | Declarar explícitamente APIs experimentales: UUID, historial web e interoperabilidad nativa. | Archivos que usan esas APIs. |
+| `@JsFun` | Implementar puentes JavaScript del navegador. | `wasmJsMain`, fuera de dominio. |
+| `expect` / `actual` | Declarar contratos comunes e implementaciones específicas de configuración, HTTP y Google. Son palabras clave, no anotaciones. | `commonMain` y source sets de plataforma. |
+
+Estas anotaciones ya están aplicadas en código. La composición por constructor y
+las dependencias entre capas permanecen explícitas; las anotaciones no sustituyen
+la autorización del servidor ni la validación de seguridad del despliegue.
+
 ## Ciclo de vida, navegación y contexto empresarial
 
 `GraphOwner` es un ViewModel propietario de `AppGraph`: el cliente HTTP sobrevive
