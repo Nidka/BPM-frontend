@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pe.bpm.core.designsystem.trackUserActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -56,7 +57,9 @@ fun App(
     LaunchedEffect(nav) { onNavHostReady(nav) }
 
     BpmTheme {
-        NavHost(navController = nav, startDestination = LOGIN) {
+        Column(Modifier.fillMaxSize().trackUserActivity(identity::userActivity)) {
+        if (profile != null && identityState.notice != null) Text(identityState.notice!!, Modifier.padding(12.dp))
+        NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.weight(1f)) {
             composable(LOGIN) {
                 if (profile == null) {
                     if (identityState.restoring) RestoringSession()
@@ -120,6 +123,7 @@ fun App(
                                 onOrganization = workspace::organization,
                                 onLocation = workspace::location,
                                 onMember = workspace::member,
+                                onUserActivity = identity::userActivity,
                                 onClear = workspace::clearErrors,
                                 onLogout = {
                                     pendingRoute = WorkspaceDestination.Home.route
@@ -132,6 +136,7 @@ fun App(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -12,14 +12,16 @@ import pe.bpm.core.network.SessionAccessException
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
 
-class RemoteWorkspaceRepository(private val client: HttpClient, private val config: AppConfig, private val onSessionRejected: (String) -> Unit = {}, private val token: suspend () -> String?) : WorkspaceRepository {
+class RemoteWorkspaceRepository(private val client: HttpClient, private val config: AppConfig, private val onSessionRejected: (String) -> Unit = {}, private val onSessionResponse: (HttpResponse) -> Unit = {}, private val token: suspend () -> String?) : WorkspaceRepository {
     override suspend fun organizations(): Result<List<Organization>> = request { accessToken ->
         val response = client.get("${config.apiBaseUrl}/api/v1/organizations") { bearerAuth(accessToken) }
+        onSessionResponse(response)
         if (response.status.isSuccess()) Result.Success(response.body<Envelope<List<OrgDto>>>().data.map { it.domain() }) else failure(response, accessToken)
     }
     override suspend fun workspace(id: String): Result<Workspace> = request { accessToken ->
         require(id.matches(Regex("[A-Za-z0-9_-]{1,64}")))
         val response = client.get("${config.apiBaseUrl}/api/v1/organizations/$id/workspace") { bearerAuth(accessToken) }
+        onSessionResponse(response)
         if (response.status.isSuccess()) Result.Success(response.body<Envelope<WorkspaceDto>>().data.domain()) else failure(response, accessToken)
     }
     override suspend fun createOrganization(input: Organization) = post("organizations", OrgDto(input.id,input.legalName,input.tradeName,input.businessType,input.taxId,input.contactName,input.contactPhone,input.contactEmail))
@@ -27,6 +29,7 @@ class RemoteWorkspaceRepository(private val client: HttpClient, private val conf
     override suspend fun addMember(organizationId: String,email: String,role: String,locations: List<String>) = post("organizations/$organizationId/members", MemberRequest(email,role,locations))
     private suspend inline fun <reified T> post(path: String, payload: T): Result<Unit> = request { accessToken ->
         val response = client.post("${config.apiBaseUrl}/api/v1/$path") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(payload) }
+        onSessionResponse(response)
         if (response.status.isSuccess()) Result.Success(Unit) else failure(response, accessToken)
     }
     private suspend fun <T> request(block: suspend (String) -> Result<T>): Result<T> {

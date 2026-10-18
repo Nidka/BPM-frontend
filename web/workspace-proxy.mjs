@@ -1,4 +1,5 @@
 // Proxy cerrado: el backend conserva la autoridad sobre tenant, identidad y roles.
+import { forwardSessionHeaders } from './session-headers.mjs';
 const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members))?$/;
 export const workspaceRoute = path => routes.test(path);
 const orgFields = ['id', 'legalName', 'tradeName', 'businessType', 'taxId', 'contactName', 'contactPhone', 'contactEmail'];
@@ -40,7 +41,7 @@ function publicData(data, action, method) {
       list(data[key], x => strings(x, ['id', 'title', 'detail', 'status']))])),
   };
 }
-export async function proxyWorkspace(request, url, upstream, send) {
+export async function proxyWorkspace(request, url, upstream, send, response) {
   const match = url.pathname.match(routes);
   const action = match?.[2];
   const allowed = action === 'workspace' ? ['GET'] : action ? ['POST'] : ['GET', 'POST'];
@@ -72,6 +73,7 @@ export async function proxyWorkspace(request, url, upstream, send) {
     const result = await fetch(new URL(url.pathname.slice('/backend'.length), upstream), {
       method: request.method, body, headers, redirect: 'error', signal: AbortSignal.timeout(10000),
     });
+    if (response) forwardSessionHeaders(result, response);
     const payload = await jsonBody(result.body, 1048576);
     if (result.ok) return send(200, JSON.stringify({ data: publicData(payload.data, action, request.method) }));
     const codes = {

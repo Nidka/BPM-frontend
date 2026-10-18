@@ -21,7 +21,7 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
 @OptIn(ExperimentalUuidApi::class)
 @Composable internal fun WorkspaceForm(kind: WorkspaceFormKind, state: WorkspaceState, onClose: () -> Unit,
     onOrganization: (Organization) -> Unit, onLocation: (Location) -> Unit,
-    onMember: (String, String, List<String>) -> Unit) {
+    onMember: (String, String, List<String>) -> Unit, onUserActivity: () -> Unit = {}) {
     val id = remember(kind) { Uuid.random().toString() }
     var name by remember { mutableStateOf("") }
     var trade by remember { mutableStateOf("") }
@@ -36,13 +36,13 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
     var locations by remember { mutableStateOf(emptyList<String>()) }
     val fields = state.errors.flatMap { it.fields.entries }.associate { it.key to it.value }
     Dialog(onDismissRequest = onClose) {
-        BpmCard(Modifier.widthIn(max = 520.dp).fillMaxWidth().heightIn(max = 720.dp)) {
+        BpmCard(Modifier.widthIn(max = 520.dp).fillMaxWidth().heightIn(max = 720.dp).trackUserActivity(onUserActivity)) {
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Eyebrow("CRECER EN EQUIPO")
                 Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 if (kind == WorkspaceFormKind.Member) {
                     Text("La persona debe registrarse y verificar su correo en BPM primero. No se envían invitaciones por correo.", style = MaterialTheme.typography.bodySmall)
-                    FormField(email, { email = it }, "Correo de la cuenta BPM", fields["email"], !state.saving)
+                    FormField(email, { email = it }, "Correo de la cuenta BPM", fields["email"], !state.saving, onUserActivity)
                     listOf("ADMIN", "CHEF", "WORKER").forEach { choice -> FilterChip(selected = role == choice, onClick = { role = choice }, enabled = !state.saving, label = { Text(roleLabel(choice)) }) }
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
@@ -56,20 +56,20 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
                         fields["locationIds"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 } else {
-                    FormField(name, { name = it }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !state.saving)
+                    FormField(name, { name = it }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !state.saving, onUserActivity)
                     if (kind == WorkspaceFormKind.Organization) {
-                        FormField(trade, { trade = it }, "Nombre comercial", fields["tradeName"], !state.saving)
-                        FormField(tax, { tax = it }, "RUC / identificación fiscal", fields["taxId"], !state.saving)
-                        FormField(contactName, { contactName = it }, "Persona de contacto", fields["contactName"], !state.saving)
+                        FormField(trade, { trade = it }, "Nombre comercial", fields["tradeName"], !state.saving, onUserActivity)
+                        FormField(tax, { tax = it }, "RUC / identificación fiscal", fields["taxId"], !state.saving, onUserActivity)
+                        FormField(contactName, { contactName = it }, "Persona de contacto", fields["contactName"], !state.saving, onUserActivity)
                         listOf("RESTAURANT" to "Restaurante", "CAFETERIA" to "Cafetería", "CATERING" to "Catering", "RELATED_SERVICE" to "Servicio afín").forEach { (value, label) ->
                             FilterChip(selected = business == value, onClick = { business = value }, enabled = !state.saving, label = { Text(label) })
                         }
-                        FormField(email, { email = it }, "Correo de contacto", fields["contactEmail"], !state.saving)
+                        FormField(email, { email = it }, "Correo de contacto", fields["contactEmail"], !state.saving, onUserActivity)
                     } else {
-                        FormField(address, { address = it }, "Dirección *", fields["address"], !state.saving)
-                        FormField(district, { district = it }, "Distrito", fields["district"], !state.saving)
+                        FormField(address, { address = it }, "Dirección *", fields["address"], !state.saving, onUserActivity)
+                        FormField(district, { district = it }, "Distrito", fields["district"], !state.saving, onUserActivity)
                     }
-                    FormField(phone, { phone = it }, "Teléfono de contacto", fields["contactPhone"], !state.saving)
+                    FormField(phone, { phone = it }, "Teléfono de contacto", fields["contactPhone"], !state.saving, onUserActivity)
                 }
                 Errors(state.errors)
             }
@@ -85,7 +85,7 @@ internal enum class WorkspaceFormKind { Organization, Location, Member }
         }
     }
 }
-@Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean) {
-    OutlinedTextField(value, onValue, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(label) },
+@Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean, onUserActivity: () -> Unit) {
+    OutlinedTextField(value, { onUserActivity(); onValue(it) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(label) },
         enabled = enabled, shape = RoundedCornerShape(14.dp), isError = error != null, supportingText = error?.let { { Text(it) } })
 }

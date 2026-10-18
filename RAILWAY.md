@@ -1,5 +1,16 @@
 # Railway y dominio
 
+Actualización del 18/10/2026: `https://appbpm.com/healthz` y el dominio `www`
+respondieron 200 con certificados válidos. Los diagnósticos del 13/10 incluidos
+abajo son históricos; no deben usarse para reemplazar registros actuales sin
+volver a consultar la consola. No se modificaron DNS en esta entrega.
+
+La entrega de sesiones permite publicar el frontend antes del backend: las rutas
+nuevas se usan solo cuando el servidor anuncia la política. El backend requiere
+su migración V2 antes de publicarse. El contenedor frontend activa HSTS en
+producción/Railway para el host actual, sin includeSubDomains ni preload; no lo
+activa por defecto en HTTP local. Verificar la cabecera tras desplegar.
+
 Repositorio independiente: https://github.com/Nidka/BPM-frontend
 Rama: main. Root Directory: /. Dockerfile en la raíz.
 

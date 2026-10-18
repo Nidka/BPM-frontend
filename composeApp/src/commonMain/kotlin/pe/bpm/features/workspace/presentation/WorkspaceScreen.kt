@@ -20,6 +20,7 @@ fun WorkspaceScreen(
     onVerifySession: () -> Unit, sessionBusy: Boolean, sessionMessage: String?, onSelect: (String) -> Unit, onRefresh: () -> Unit,
     onOrganization: (Organization) -> Unit, onLocation: (Location) -> Unit,
     onMember: (String, String, List<String>) -> Unit, onClear: () -> Unit, onLogout: () -> Unit,
+    onUserActivity: () -> Unit = {},
 ) {
     val available = workspaceDestinations(state.workspace?.role, viewer.canCreateOrganization)
     val destinations = workspacePrimaryDestinations(available)
@@ -171,5 +172,5 @@ fun WorkspaceScreen(
         }
     }
     form?.let { kind -> WorkspaceForm(kind, state, onClose = { if (!state.saving) { form = null; onClear() } },
-        onOrganization, onLocation, onMember) }
+        onOrganization, onLocation, onMember, onUserActivity) }
 }

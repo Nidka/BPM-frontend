@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workspaceRoute, proxyWorkspace } from './workspace-proxy.mjs';
+import { forwardSessionHeaders } from './session-headers.mjs';
 
 // Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
 const firebasePublic = JSON.parse(readFileSync(new URL('../config/firebase.public.json', import.meta.url), 'utf8'));
@@ -44,6 +45,7 @@ export function createAppServer({
   firebaseApiKey = process.env.FIREBASE_API_KEY ?? firebasePublic.apiKey,
   firebaseProjectId = process.env.FIREBASE_PROJECT_ID ?? firebasePublic.projectId,
   allowInsecureForTests = false,
+  hstsEnabled = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT_NAME),
 } = {}) {
   const upstream = new URL(apiBaseUrl);
   if ((!allowInsecureForTests && upstream.protocol !== 'https:') ||
@@ -64,19 +66,21 @@ export function createAppServer({
     response.setHeader('Content-Security-Policy',
       "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com/firebasejs/13.0.0/ https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://" + firebaseAuthDomain + "; frame-src https://" + firebaseAuthDomain + "; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     response.setHeader('Cache-Control', 'no-store');
+    if (hstsEnabled) response.setHeader('Strict-Transport-Security', 'max-age=31536000');
     const send = (status, body, contentType = 'application/json; charset=utf-8') => {
       response.writeHead(status, { 'Content-Type': contentType });
       response.end(request.method === 'HEAD' ? undefined : body);
     };
     const isRegistration = request.method === 'POST' && request.url === '/backend/api/v1/auth/register';
+    const isSession = request.method === 'POST' && ['/backend/api/v1/auth/activity', '/backend/api/v1/auth/logout'].includes(request.url);
     const isWorkspace = workspaceRoute(request.url?.split('?')[0] || '');
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isWorkspace) {
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
     try {
       const url = new URL(request.url, 'http://localhost');
-      if (isWorkspace) return await proxyWorkspace(request, url, upstream, send);
+      if (isWorkspace) return await proxyWorkspace(request, url, upstream, send, response);
       if (url.pathname === '/config.json' && !url.search) {
         // Lista explícita de configuración pública: nunca serializar process.env.
         return send(200, JSON.stringify({ firebaseApiKey, firebaseProjectId, firebaseAuthDomain }));
@@ -95,11 +99,12 @@ export function createAppServer({
       if (url.pathname.startsWith('/backend/')) {
         // Lista cerrada inicial. No aceptar destinos, tokens ni URLs desde el navegador.
         const path = url.pathname.slice('/backend'.length);
-        if (!['/health', '/ready', '/api/v1/me', '/api/v1/auth/register'].includes(path) || url.search) {
+        if (!['/health', '/ready', '/api/v1/me', '/api/v1/auth/register', '/api/v1/auth/activity', '/api/v1/auth/logout'].includes(path) || url.search) {
           return send(404, errorBody('NOT_FOUND', 'Recurso no disponible.'));
         }
         const headers = { Accept: 'application/json' };
-        const isProfile = path === '/api/v1/me' || path === '/api/v1/auth/register';
+        const isProfile = path === '/api/v1/me' || path === '/api/v1/auth/register' || isSession;
+        if (['/api/v1/auth/activity', '/api/v1/auth/logout'].includes(path) && !isSession) return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
         if (path === '/api/v1/auth/register' && !isRegistration) return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
         if (isProfile) {
           const authorization = request.headers.authorization;
@@ -110,7 +115,7 @@ export function createAppServer({
           headers.Authorization = authorization;
         }
         let payload;
-        if (isRegistration) {
+        if (isRegistration || isSession) {
           if (request.headers.origin) {
             let origin;
             try { origin = new URL(request.headers.origin); } catch {}
@@ -118,24 +123,26 @@ export function createAppServer({
                 origin.username || origin.password || origin.host !== request.headers.host)
               return send(403, errorBody('ORIGIN_NOT_ALLOWED', 'Origen no permitido.'));
           }
-          if (!/^application\/json(?:;|$)/i.test(request.headers['content-type'] || ''))
+          if (isRegistration && !/^application\/json(?:;|$)/i.test(request.headers['content-type'] || ''))
             return send(415, errorBody('UNSUPPORTED_MEDIA_TYPE', 'Envía una solicitud JSON.'));
-          try { payload = await registrationBody(request); }
+          try { if (isRegistration) payload = await registrationBody(request); }
           catch { return send(400, errorBody('INVALID_REQUEST', 'La solicitud no es válida o excede el límite.')); }
           headers['Content-Type'] = 'application/json';
         }
         try {
           const result = await fetch(new URL(path, upstream), {
-            method: isRegistration ? 'POST' : 'GET', redirect: 'error', body: payload,
+            method: isRegistration || isSession ? 'POST' : 'GET', redirect: 'error', body: payload,
             headers,
             signal: AbortSignal.timeout(10_000),
           });
+          forwardSessionHeaders(result, response);
           if (!result.ok) {
             if (isProfile) {
               const data = await result.json().catch(() => ({}));
               const code = data.errors?.[0]?.code;
               const errors = {
                 UNAUTHENTICATED: [401, 'Debes iniciar sesión nuevamente.'],
+                SESSION_EXPIRED: [401, 'Tu sesión venció por tiempo o inactividad. Inicia sesión nuevamente.'],
                 USER_NOT_REGISTERED: [403, 'Tu cuenta no está habilitada en BPM.'],
                 USER_INACTIVE: [403, 'Tu cuenta se encuentra inactiva.'],
                 AUTHENTICATION_UNAVAILABLE: [503, 'El servicio de autenticación no está configurado.'],
@@ -160,6 +167,11 @@ export function createAppServer({
           }
           // Reenviar únicamente los campos públicos esperados.
           const data = JSON.parse(body);
+          if (isSession) {
+            const status = path.endsWith('/logout') ? 'SIGNED_OUT' : 'ACTIVE';
+            if (data.data?.status !== status) return send(502, errorBody('INVALID_RESPONSE', 'Respuesta no válida del backend.'));
+            return send(200, JSON.stringify({ data: { status } }));
+          }
           if (isProfile) {
             const profile = data.data;
             if (!profile || typeof profile.id !== 'string' || typeof profile.email !== 'string' ||

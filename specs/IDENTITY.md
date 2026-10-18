@@ -133,6 +133,33 @@ equipo ni al chat. Las pruebas automatizadas no crean cuentas Firebase reales.
 
 ## Límites explícitos
 
+La política de sesión coordinada con backend añade máximo absoluto de 8 horas
+desde la autenticación Firebase y 15 minutos sin actividad. El servidor decide
+con `auth_time` verificado y estado persistente; los tokens renovados no extienden
+ese máximo. `GET /me` comprueba la sesión sin prolongarla. La UI notifica entradas
+reales (incluidos diálogos, desplazamiento y teclado virtual), con un POST
+`/auth/activity` como máximo por minuto; no genera actividad desde temporizadores.
+Los endpoints empresariales también actualizan actividad en servidor.
+
+Las cabeceras `X-BPM-Session-Expires-At` y `X-BPM-Session-Idle-Expires-At` permiten
+avisar durante el último minuto y retirar acceso local al vencer. El reloj del
+cliente solo mejora la experiencia; el backend impide operaciones fuera de plazo.
+Un 401 `SESSION_EXPIRED` borra también credenciales móviles y exige autenticación
+nueva. No se reintentan escrituras. Las respuestas tardías no restauran sesión.
+
+Logout limpia las credenciales locales inmediatamente y solicita
+`POST /auth/logout` para revocar el contexto de autenticación. Si no se confirma
+el cierre remoto, informa del fallo. No equivale a revocar todos los dispositivos.
+La revocación se comparte entre clientes que usan el mismo UID/auth_time.
+
+El aviso no guarda borradores: los formularios actuales son temporales. La
+persistencia offline necesita su implementación independiente y debe respetar
+usuario/empresa y autenticación antes de sincronizar.
+
+El frontend puede publicarse antes del backend nuevo: si no recibe cabeceras de
+sesión no usa las rutas nuevas. El backend requiere la migración V2 previamente
+aplicada; ver `Backend/BPM-service/specs/SESSIONS.md` en el workspace.
+
 La sesión implementa renovación antes del vencimiento con una única operación
 concurrente. El perfil se verifica cada minuto mientras existe sesión y desde
 Mi cuenta. La renovación usa Secure Token API (formulario grant_type/refresh_token)

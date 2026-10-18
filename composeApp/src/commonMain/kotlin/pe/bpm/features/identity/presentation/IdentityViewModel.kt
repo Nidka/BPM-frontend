@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 import pe.bpm.features.identity.domain.*
 
 enum class AuthMode { Login, Register, Recovery, Verification }
@@ -35,10 +36,16 @@ class IdentityViewModel(
     private val resendVerification: ResendVerification,
     private val restoreSession: RestoreSession? = null,
     private val observeInvalidations: ObserveSessionInvalidations? = null,
+    private val observeWindow: ObserveSessionWindow? = null,
+    private val recordActivity: RecordSessionActivity? = null,
+    private val endSession: EndSession? = null,
+    private val nowSeconds: () -> Long = { Clock.System.now().epochSeconds },
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(IdentityUiState())
     val state = mutableState.asStateFlow()
     private var requestJob: Job? = null
+    private var activityJob: Job? = null
+    private var sessionWindow: SessionWindow? = null
 
     init {
         observeInvalidations?.let { observe -> viewModelScope.launch {
@@ -48,6 +55,22 @@ class IdentityViewModel(
             }
         } }
         restore()
+        observeWindow?.let { observe -> viewModelScope.launch { observe().collect { sessionWindow = it } } }
+        if (observeWindow != null) viewModelScope.launch {
+            while (true) {
+                delay(5_000)
+                if (mutableState.value.profile != null) sessionWindow?.let { window ->
+                    val remaining = window.expiresAt - nowSeconds()
+                    if (remaining <= 0 && (window.absoluteExpiresAt <= nowSeconds() || activityJob?.isActive != true)) {
+                        requestJob?.cancel(); activityJob?.cancel()
+                        signOut()
+                        mutableState.value = IdentityUiState(errors = listOf(IdentityError("SESSION_EXPIRED", "Tu sesión venció por tiempo o inactividad. Inicia sesión nuevamente.")))
+                    } else mutableState.value = mutableState.value.copy(notice =
+                        if (remaining <= 60) "Tu sesión está por vencer. Guarda los cambios pendientes."
+                        else null)
+                }
+            }
+        }
         // Refreshes both token and backend profile while a session is open.
         if (observeInvalidations != null) viewModelScope.launch {
             while (true) {
@@ -68,7 +91,7 @@ class IdentityViewModel(
                 mutableState.value = IdentityUiState()
             } else {
                 applyResult(result)
-                if (result is IdentityResult.Failure) mutableState.value = mutableState.value.copy(canRetryRestore = result.errors.none { it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED", "INVALID_RESPONSE") })
+                if (result is IdentityResult.Failure) mutableState.value = mutableState.value.copy(canRetryRestore = result.errors.none { it.code in setOf("UNAUTHENTICATED", "SESSION_EXPIRED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED", "INVALID_RESPONSE") })
             }
         }
     }
@@ -100,8 +123,22 @@ class IdentityViewModel(
 
     fun logout() {
         requestJob?.cancel()
-        signOut()
+        activityJob?.cancel()
         mutableState.value = IdentityUiState()
+        val end = endSession
+        if (end == null) signOut()
+        else requestJob = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            val result = end()
+            currentCoroutineContext().ensureActive()
+            if (result is IdentityResult.Failure) mutableState.value = IdentityUiState(notice =
+                "Saliste en este dispositivo. No pudimos confirmar el cierre en el servidor; evita compartirlo hasta recuperar la conexión.")
+        }
+    }
+
+    fun userActivity() {
+        val activity = recordActivity ?: return
+        if (mutableState.value.profile == null || activityJob?.isActive == true) return
+        activityJob = viewModelScope.launch { activity() }
     }
 
     fun changeMode(mode: AuthMode) {
@@ -144,7 +181,7 @@ class IdentityViewModel(
             is IdentityResult.Success -> IdentityUiState(profile = result.value)
             is IdentityResult.Failure -> {
                 val sessionDenied = result.errors.any {
-                    it.code in setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
+                    it.code in setOf("UNAUTHENTICATED", "SESSION_EXPIRED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
                 }
                 IdentityUiState(profile = mutableState.value.profile.takeIf { keepProfileOnTransientFailure && !sessionDenied },
                     errors = result.errors, canResendVerification = result.errors.any { it.code == "EMAIL_NOT_VERIFIED" })

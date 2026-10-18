@@ -2,6 +2,7 @@ package pe.bpm.features.identity.domain
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 
 data class Profile(
     val id: String,
@@ -12,6 +13,10 @@ data class Profile(
 )
 
 data class Organization(val id: String, val name: String, val role: String)
+
+data class SessionWindow(val absoluteExpiresAt: Long, val idleExpiresAt: Long) {
+    val expiresAt: Long get() = minOf(absoluteExpiresAt, idleExpiresAt)
+}
 
 data class IdentityError(
     val code: String,
@@ -33,6 +38,9 @@ interface IdentityRepository {
     suspend fun resendVerification(): IdentityResult<Unit>
     suspend fun restoreSession(): IdentityResult<Profile> = currentProfile()
     fun sessionInvalidations(): Flow<Unit> = emptyFlow()
+    fun sessionWindow(): Flow<SessionWindow?> = flowOf(null)
+    suspend fun recordActivity(): IdentityResult<Unit> = IdentityResult.Success(Unit)
+    suspend fun endSession(): IdentityResult<Unit> { signOut(); return IdentityResult.Success(Unit) }
     fun signOut()
 }
 
@@ -98,4 +106,14 @@ class RestoreSession(private val repository: IdentityRepository) {
 
 class ObserveSessionInvalidations(private val repository: IdentityRepository) {
     operator fun invoke(): Flow<Unit> = repository.sessionInvalidations()
+}
+
+class ObserveSessionWindow(private val repository: IdentityRepository) {
+    operator fun invoke() = repository.sessionWindow()
+}
+class RecordSessionActivity(private val repository: IdentityRepository) {
+    suspend operator fun invoke() = repository.recordActivity()
+}
+class EndSession(private val repository: IdentityRepository) {
+    suspend operator fun invoke() = repository.endSession()
 }

@@ -97,6 +97,11 @@ la autorización del servidor ni la validación de seguridad del despliegue.
 
 ## Ciclo de vida, navegación y contexto empresarial
 
+Las sesiones preparadas para el backend V2 aplican 8 horas máximas y 15 minutos
+de inactividad, con aviso y cierre local. La renovación no reinicia el plazo;
+el servidor lo valida con Firebase y PostgreSQL. El contrato, compatibilidad y
+límites de borradores están en [specs/IDENTITY.md](specs/IDENTITY.md).
+
 `GraphOwner` es un ViewModel propietario de `AppGraph`: el cliente HTTP sobrevive
 recomposiciones y cambios de configuración Android y se cierra al liberar al
 propietario. Los ViewModels usan `viewModelScope`; la UI observa con

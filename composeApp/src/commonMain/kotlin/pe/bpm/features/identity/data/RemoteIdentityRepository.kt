@@ -13,6 +13,8 @@ import io.ktor.http.Parameters
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -45,8 +47,66 @@ class RemoteIdentityRepository(
     private var generation: Long = 0
     private val refreshMutex = Mutex()
     private val invalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val window = MutableStateFlow<SessionWindow?>(null)
+    private val activityMutex = Mutex()
+    private var lastActivitySent: Long? = null
 
     override fun sessionInvalidations() = invalidations.asSharedFlow()
+    override fun sessionWindow() = window.asStateFlow()
+
+    // Headers describe server policy, never locally decoded/unverified JWT claims.
+    fun observeSessionResponse(response: HttpResponse) {
+        val token = idToken ?: return
+        if (response.call.request.headers["Authorization"] != "Bearer $token") return
+        updateSessionWindow(response)
+    }
+
+    private fun updateSessionWindow(response: HttpResponse) {
+        val absolute = response.headers["X-BPM-Session-Expires-At"]?.toLongOrNull() ?: return
+        val idle = response.headers["X-BPM-Session-Idle-Expires-At"]?.toLongOrNull() ?: return
+        if (absolute > 0 && idle > 0) {
+            val previous = window.value
+            // A late /me must not undo a more recent successful activity response.
+            window.value = SessionWindow(absolute,
+                if (previous?.absoluteExpiresAt == absolute) maxOf(previous.idleExpiresAt, idle) else idle)
+        }
+    }
+
+    override suspend fun recordActivity(): IdentityResult<Unit> = safely {
+        activityMutex.withLock {
+            // Older backends do not advertise the new policy. No speculative keep-alives.
+            if (window.value == null) return@withLock IdentityResult.Success(Unit)
+            val now = nowSeconds()
+            if (lastActivitySent?.let { now >= it && now - it < 60 } == true) return@withLock IdentityResult.Success(Unit)
+            val attempt = generation
+            val token = validSessionToken() ?: return@withLock failure("UNAUTHENTICATED")
+            lastActivitySent = now
+            val response = client.post("${config.apiBaseUrl}/api/v1/auth/activity") { bearerAuth(token) }
+            currentCoroutineContext().ensureActive()
+            if (attempt != generation) return@withLock failure("UNAUTHENTICATED")
+            if (response.status.value == 401) { rejectSession(token); return@withLock failure("SESSION_EXPIRED") }
+            if (!response.status.isSuccess()) return@withLock failure("AUTH_UNAVAILABLE")
+            observeSessionResponse(response)
+            IdentityResult.Success(Unit)
+        }
+    }
+
+    override suspend fun endSession(): IdentityResult<Unit> {
+        val token = idToken
+        val serverSessions = window.value != null
+        // Clear locally before suspending; late replies never restore credentials.
+        signOut()
+        if (token == null || !serverSessions) return IdentityResult.Success(Unit)
+        return safely {
+            val response = client.post("${config.apiBaseUrl}/api/v1/auth/logout") { bearerAuth(token) }
+            when {
+                response.status.isSuccess() -> IdentityResult.Success(Unit)
+                response.status.value == 401 && response.body<ApiErrorEnvelope>().errors.any { it.code == "SESSION_EXPIRED" } -> IdentityResult.Success(Unit)
+                // An expired ID token alone does not prove its Firebase context was revoked.
+                else -> failure("AUTH_UNAVAILABLE")
+            }
+        }
+    }
 
     private var apiKey: String? = null
     private var verificationToken: String? = null
@@ -154,6 +214,7 @@ class RemoteIdentityRepository(
     fun close() {
         generation++
         idToken = null; refreshToken = null; sessionUid = null
+        window.value = null; lastActivitySent = null
         verificationToken = null; pendingName = null; pendingUid = null
         googleAuth.clear()
     }
@@ -191,6 +252,7 @@ class RemoteIdentityRepository(
         // justo antes de abrir una nueva ventana OAuth.
         generation++
         idToken = null; refreshToken = null; sessionUid = null
+        window.value = null; lastActivitySent = null
         sessionStore.clear()
         verificationToken = null
         pendingName = null
@@ -219,7 +281,7 @@ class RemoteIdentityRepository(
                 val safeName = displayName.trim().takeIf { it.length in 2..100 && it.none { char -> char.code < 32 || char.code in 127..159 } }
                 setBody(RegisterProfileRequest(safeName ?: "Usuario BPM"))
             }
-            profile = readProfile(response)
+            profile = readProfile(response, attempt)
         }
         currentCoroutineContext().ensureActive()
         if (attempt != generation) return failure("UNAUTHENTICATED")
@@ -341,15 +403,16 @@ class RemoteIdentityRepository(
     }
 
     private suspend fun fetchProfile(token: String): IdentityResult<Profile> {
+        val attempt = generation
         val response = client.get("${config.apiBaseUrl}/api/v1/me") { bearerAuth(token) }
-        return readProfile(response)
+        return readProfile(response, attempt)
     }
 
-    private suspend fun readProfile(response: HttpResponse): IdentityResult<Profile> {
+    private suspend fun readProfile(response: HttpResponse, attempt: Long): IdentityResult<Profile> {
         if (!response.status.isSuccess()) {
             val code = response.body<ApiErrorEnvelope>().errors.firstOrNull()?.code
             return when (response.status.value) {
-                401 -> failure("UNAUTHENTICATED")
+                401 -> failure(if (code == "SESSION_EXPIRED") code else "UNAUTHENTICATED")
                 403 -> failure(when (code) {
                     "USER_INACTIVE", "EMAIL_NOT_VERIFIED", "USER_NOT_REGISTERED" -> code
                     else -> "ACCESS_DENIED"
@@ -363,6 +426,7 @@ class RemoteIdentityRepository(
         }
         val profile = response.body<ProfileEnvelope>().data
         if (profile.id.isBlank() || profile.email.isBlank() || profile.displayName.isBlank()) return failure("INVALID_RESPONSE")
+        if (attempt == generation) updateSessionWindow(response)
         return IdentityResult.Success(Profile(profile.id, profile.email, profile.displayName,
             profile.organizations.map { Organization(it.id, it.tradeName?.takeIf(String::isNotBlank) ?: it.legalName, it.role) }, profile.platformRole))
     }
@@ -400,6 +464,7 @@ private fun failure(code: String): IdentityResult.Failure {
         "USER_INACTIVE" -> "Tu cuenta se encuentra inactiva. Contacta al administrador."
         "ACCESS_DENIED" -> "No tienes permiso para acceder. Contacta al administrador."
         "UNAUTHENTICATED" -> "Tu sesión terminó. Inicia sesión nuevamente."
+        "SESSION_EXPIRED" -> "Tu sesión venció por tiempo o inactividad. Inicia sesión nuevamente."
         "RATE_LIMITED" -> "Demasiados intentos. Espera un momento antes de volver a intentar."
         "TIMEOUT" -> "La conexión tardó demasiado. Inténtalo nuevamente."
         "NETWORK_ERROR" -> "No pudimos conectar. Revisa tu conexión a internet."
@@ -437,7 +502,7 @@ private fun failure(code: String): IdentityResult.Failure {
 @Serializable private data class ProfileDto(val id: String, val email: String, val displayName: String, val organizations: List<OrganizationDto>, val platformRole: String = "USER")
 @Serializable private data class OrganizationDto(val id: String, val legalName: String, val tradeName: String? = null, val role: String)
 
-private val sessionDenials = setOf("UNAUTHENTICATED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
+private val sessionDenials = setOf("UNAUTHENTICATED", "SESSION_EXPIRED", "USER_INACTIVE", "USER_NOT_REGISTERED", "ACCESS_DENIED", "EMAIL_NOT_VERIFIED")
 @Serializable private class StoredSession(val origin: String, val uid: String, val refreshToken: String)
 @Serializable private class RefreshCredential(
     @kotlinx.serialization.SerialName("id_token") val idToken: String,

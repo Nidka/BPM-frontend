@@ -11,6 +11,9 @@ import pe.bpm.features.identity.data.SessionStore
 import pe.bpm.features.identity.data.EphemeralSessionStore
 import pe.bpm.features.identity.domain.RestoreSession
 import pe.bpm.features.identity.domain.ObserveSessionInvalidations
+import pe.bpm.features.identity.domain.ObserveSessionWindow
+import pe.bpm.features.identity.domain.RecordSessionActivity
+import pe.bpm.features.identity.domain.EndSession
 import pe.bpm.features.identity.domain.GetCurrentProfile
 import pe.bpm.features.identity.domain.SignIn
 import pe.bpm.features.identity.domain.SignOut
@@ -33,7 +36,7 @@ class AppGraph(
     private val checkConnection = CheckConnection(RemoteConnectionRepository(httpClient, config))
     private val googleAuth = platformGoogleAuthProvider()
     private val identityRepository = RemoteIdentityRepository(httpClient, config, googleAuth, sessionStore)
-    private val workspaceRepository = RemoteWorkspaceRepository(httpClient, config, onSessionRejected = identityRepository::rejectSession, token = identityRepository::validSessionToken)
+    private val workspaceRepository = RemoteWorkspaceRepository(httpClient, config, onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse, token = identityRepository::validSessionToken)
 
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
@@ -44,7 +47,8 @@ class AppGraph(
         SignIn(identityRepository), GetCurrentProfile(identityRepository), SignOut(identityRepository),
         SignInWithGoogle(identityRepository), googleAuth.supported,
         Register(identityRepository), ResetPassword(identityRepository), ResendVerification(identityRepository),
-        RestoreSession(identityRepository), ObserveSessionInvalidations(identityRepository))
+        RestoreSession(identityRepository), ObserveSessionInvalidations(identityRepository),
+        ObserveSessionWindow(identityRepository), RecordSessionActivity(identityRepository), EndSession(identityRepository))
     override fun close() {
         identityRepository.close()
         httpClient.close()
