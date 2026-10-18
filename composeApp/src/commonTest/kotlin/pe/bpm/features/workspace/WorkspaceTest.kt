@@ -5,6 +5,9 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.*
 import io.ktor.http.content.TextContent
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -88,4 +91,40 @@ class WorkspaceTest {
             assertFalse(model.state.value.loading)
         } finally { store.clear(); Dispatchers.resetMain() }
     }
+
+    @Test fun aLateResponseCannotRestoreWorkspaceAfterLogout() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val store = ViewModelStore()
+        val response = CompletableDeferred<Unit>()
+        val organization = Organization("first", "Primera")
+        val repository = object : WorkspaceRepository {
+            override suspend fun organizations() = Result.Success(listOf(organization))
+            override suspend fun workspace(id: String): Result<Workspace> {
+                // Simulate an external adapter that finishes even after cancellation.
+                withContext(NonCancellable) { response.await() }
+                return Result.Success(Workspace(organization, "ADMIN", emptyList(), emptyList(), emptyList(), emptyList(), emptyList()))
+            }
+            override suspend fun createOrganization(input: Organization) = Result.Success(Unit)
+            override suspend fun createLocation(organizationId: String, input: Location) = Result.Success(Unit)
+            override suspend fun addMember(organizationId: String, email: String, role: String, locations: List<String>) = Result.Success(Unit)
+        }
+        try {
+            val model = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository))
+            store.put("workspace", model)
+            model.load()
+            runCurrent()
+            assertTrue(model.state.value.loading)
+            model.reset()
+            response.complete(Unit)
+            advanceUntilIdle()
+            assertNull(model.state.value.workspace)
+            assertNull(model.state.value.selected)
+            assertTrue(model.state.value.organizations.isEmpty())
+        } finally {
+            response.complete(Unit)
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
 }

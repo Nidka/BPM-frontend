@@ -2,23 +2,14 @@ package pe.bpm.features.workspace.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
-
-data class WorkspaceState(
-    val loading: Boolean = false,
-    val saving: Boolean = false,
-    val organizations: List<Organization> = emptyList(),
-    val selected: String? = null,
-    val workspace: Workspace? = null,
-    val errors: List<WorkspaceError> = emptyList(),
-    val notice: String? = null,
-    val revision: Int = 0,
-)
 
 class WorkspaceViewModel(
     private val loadOrganizations: LoadOrganizations,
@@ -44,7 +35,10 @@ class WorkspaceViewModel(
 
     private suspend fun reload() {
         mutable.value = mutable.value.copy(loading = true, errors = emptyList(), workspace = null)
-        when (val result = loadOrganizations()) {
+        val result = loadOrganizations()
+        // A cancelled request cannot repopulate a previous session or tenant.
+        currentCoroutineContext().ensureActive()
+        when (result) {
             is Result.Failure -> mutable.value = mutable.value.copy(loading = false, errors = result.errors)
             is Result.Success -> {
                 val selected = mutable.value.selected?.takeIf { id -> result.value.any { it.id == id } }
@@ -63,7 +57,10 @@ class WorkspaceViewModel(
     }
 
     private suspend fun read(id: String) {
-        when (val result = loadWorkspace(id)) {
+        val result = loadWorkspace(id)
+        // A cancelled request cannot repopulate a previous session or tenant.
+        currentCoroutineContext().ensureActive()
+        when (result) {
             is Result.Success -> mutable.value = mutable.value.copy(workspace = result.value, loading = false)
             is Result.Failure -> mutable.value = mutable.value.copy(workspace = null, loading = false, errors = result.errors)
         }
@@ -87,7 +84,10 @@ class WorkspaceViewModel(
         job?.cancel()
         mutable.value = mutable.value.copy(saving = true, errors = emptyList(), notice = null)
         job = viewModelScope.launch {
-            when (val result = action()) {
+            val result = action()
+            // A cancelled request cannot repopulate a previous session or tenant.
+            currentCoroutineContext().ensureActive()
+            when (result) {
                 is Result.Failure -> mutable.value = mutable.value.copy(saving = false, errors = result.errors)
                 is Result.Success -> {
                     mutable.value = mutable.value.copy(saving = false, notice = notice, selected = selection, revision = mutable.value.revision + 1)

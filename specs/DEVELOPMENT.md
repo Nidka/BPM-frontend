@@ -27,7 +27,8 @@ Android:
 ./gradlew :composeApp:installDebug
 ```
 
-Abrir Software/Frontend en Android Studio. Si no detecta el SDK, configurar
+Abrir la raíz de BPM-frontend (donde está settings.gradle.kts) en Android Studio.
+Si no detecta el SDK, configurar
 local.properties (ignorado), por ejemplo sdk.dir=/ruta/al/Android/sdk.
 
 El origen API nativo se fija al compilar:
@@ -50,12 +51,19 @@ El host SwiftUI y el proyecto declarativo project.yml están incluidos. Xcode
 invoca embedAndSignAppleFrameworkForXcode antes del build. Para dispositivo real,
 configurar el equipo de firma. El framework Kotlin puede compilarse sin firma.
 
+Si `xcode-select -p` apunta solo a CommandLineTools, seleccionar Xcode para esa
+compilación sin cambiar la configuración global:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+```
+
 Los builds web requieren un navegador con WasmGC. Esta entrega usa wasmJs; aún
 no incluye fallback Kotlin/JS para navegadores antiguos.
 
 Verificar antes del push:
 ```bash
-node --test web/*.test.mjs
+node --test scripts/*.test.mjs web/*.test.mjs
 ./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug
 git diff --check
 ```

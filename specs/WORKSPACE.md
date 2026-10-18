@@ -54,6 +54,10 @@ El alta de miembro no envía correos: la persona debe registrarse primero.
 ## Contratos, seguridad y pruebas
 
 `features/workspace/{domain,data,presentation}` sigue MVVM y Clean Architecture.
+La raíz app adapta identity a WorkspaceViewer; la presentación no importa identity.
+WorkspaceScreen compone el contenedor, WorkspaceContent las secciones y
+WorkspaceForm los formularios. Los destinos tipados se conservan por usuario y
+organización; formularios y menús se reinician al cambiar de contexto.
 AppGraph inyecta repositorio/casos de uso/VM. El backend valida usuario, tenant,
 rol y sedes en cada llamada; ocultar botones solo mejora la experiencia.
 

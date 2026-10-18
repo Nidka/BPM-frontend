@@ -10,7 +10,7 @@ trabajo entre equipos, conservando las mismas dependencias.
 
 ```text
 composeApp/src/commonMain/kotlin/pe/bpm/
-  app/                       entrada Compose y ciclo de vida
+  app/                       entrada Compose, GraphOwner y coordinación entre features
   core/
     config/                  configuración pública tipada
     di/                      composición manual AppGraph
@@ -28,7 +28,7 @@ composeApp/src/commonMain/kotlin/pe/bpm/
   features/workspace/
     domain/                  organizaciones, sedes, equipo y casos de uso
     data/                    DTO y adaptador Ktor autenticado
-    presentation/            navegación, formularios y WorkspaceViewModel
+    presentation/            contenedor adaptable, contenido, formularios, estado y ViewModel
 ```
 
 Flujo: pantalla → ViewModel → caso de uso → interfaz del repositorio →
@@ -63,3 +63,32 @@ y recuperación. Al autenticarse abre workspace con tenant autorizado, altas de
 empresa/sede/equipo y catálogos de Aprender/Control. Ver IDENTITY.md y WORKSPACE.md.
 No hay persistencia ni sincronización offline; registro solo crea USER sin acceso
 a organizaciones. AppGraph comparte sesión y red entre features sin singletons.
+
+## Fronteras comprobadas
+
+El README de la raíz describe el árbol implementado, responsabilidades y comandos.
+`node --test scripts/*.test.mjs` comprueba imports de producción en todos los
+source sets: dominio independiente, presentación sin acceso a data/HTTP, data sin
+UI, features sin dependencias entre sí y core sin features salvo la raíz DI.
+La comprobación es estática sobre imports; no sustituye pruebas de comportamiento
+ni detecta referencias escritas con nombres completamente cualificados.
+
+App adapta el perfil de identidad a WorkspaceViewer (datos públicos de
+presentación, sin token). Workspace no importa identity. GraphOwner administra
+la vida del grafo; las dependencias concretas se construyen solo en AppGraph.
+
+WorkspaceScreen conserva la distribución adaptable y delega el contenido en
+WorkspaceContent y los formularios en WorkspaceForm. WorkspaceDestination enumera
+las secciones superiores existentes; la selección es restaurable por usuario y
+organización, mientras formularios y menús se reinician al cambiar de contexto.
+No hay todavía router de detalles, deep links ni historial de URL del navegador.
+Se incorporarán al desarrollar recorridos con pantallas anidadas, usando una
+biblioteca de navegación multiplataforma compatible con las versiones fijadas.
+
+La cancelación se verifica antes de aplicar cada respuesta del workspace,
+incluidos adaptadores que entreguen respuestas después de cancelar. Una prueba
+simula una respuesta tardía tras logout y confirma que no restaura el tenant.
+
+El bundle web declara ausente el global Node `process` mediante DefinePlugin en
+`composeApp/webpack.config.d/browser-runtime.js`. Esto permite iniciar el logger
+Wasm de Ktor en navegadores sin introducir un polyfill de Node ni sus variables.
