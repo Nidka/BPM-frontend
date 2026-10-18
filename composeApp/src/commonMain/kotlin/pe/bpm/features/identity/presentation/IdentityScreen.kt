@@ -48,17 +48,9 @@ fun IdentityScreen(
         else -> "Bienvenido de nuevo"
     }
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
-        val wide = maxWidth >= 900.dp
+        val wide = maxWidth >= 900.dp && maxHeight >= 600.dp
         Row(Modifier.fillMaxSize()) {
-            if (wide) Surface(Modifier.weight(1f).fillMaxHeight(), color = MaterialTheme.colorScheme.primaryContainer) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(48.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
-                    Brand()
-                    Spacer(Modifier.height(24.dp))
-                    Text("Buenas prácticas de manipulación", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-                    Text("Capacitación y gestión para los equipos de restaurantes y servicios afines.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Mascot(Modifier.size(260.dp).align(Alignment.CenterHorizontally), learning = true)
-                }
-            }
+            if (wide) IdentityWelcomePane(Modifier.weight(1f).fillMaxHeight())
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
         Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {

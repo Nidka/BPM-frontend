@@ -61,6 +61,15 @@ selector Entrar/Crear cuenta, campos claros y acciones de mínimo 52 dp.
 Usa ilustraciones originales empaquetadas con Compose, sin CDN visuales.
 Al confirmar sesión se abre el nuevo workspace (WORKSPACE.md).
 
+La pantalla usa dos paneles cuando dispone de al menos 900 dp de ancho y 600 dp
+de alto. `IdentityWelcomePane` agrupa marca, presentación y mascota con ancho
+de lectura limitado a 480 dp y centrado vertical. La ilustración se ajusta al
+alto disponible entre 200 y 340 dp, respetando el ancho del panel; el contenido
+puede desplazarse si aumenta el tamaño del texto. Ventanas estrechas o bajas
+utilizan una columna. Es una composición de presentación sin red, estado de
+negocio ni dependencias nuevas. No se añaden tarjetas ni promesas funcionales
+para rellenar espacio. Referencia: [adaptación al espacio disponible en Compose](https://developer.android.com/develop/ui/compose/layouts/adaptive/support-different-display-sizes).
+
 El acceso habitual no ofrece «Comprobar conexión» ni añade un botón «Reintentar».
 Ante un fallo de conexión se muestra un mensaje dentro del formulario y se libera
 la acción existente para volver a iniciar sesión. No se reenvían credenciales
