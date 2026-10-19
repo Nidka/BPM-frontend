@@ -11,7 +11,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import pe.bpm.core.designsystem.trackUserActivity
+import pe.bpm.core.storage.DraftStorage
+import pe.bpm.core.storage.UnavailableDraftStorage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
@@ -20,7 +21,6 @@ import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.compose.*
-import pe.bpm.core.designsystem.BpmTheme
 import pe.bpm.core.designsystem.RaisedButton
 import pe.bpm.core.designsystem.BpmCard
 import pe.bpm.core.designsystem.BpmIcon
@@ -40,8 +40,9 @@ import pe.bpm.features.identity.data.SessionStore
 import pe.bpm.features.identity.data.GoogleAuthProvider
 import pe.bpm.features.identity.presentation.IdentityScreen
 import pe.bpm.features.identity.presentation.IdentityViewModel
-import pe.bpm.features.identity.presentation.SessionExpirationNotice
 import pe.bpm.features.workspace.presentation.*
+import pe.bpm.features.workspace.domain.Organization
+import pe.bpm.features.workspace.domain.Location
 
 @Composable
 fun App(
@@ -49,12 +50,15 @@ fun App(
     onNavHostReady: suspend (NavController) -> Unit = {},
     onBackNavigation: (() -> Unit)? = null,
     googleAuthProvider: GoogleAuthProvider? = null,
+    draftStorage: DraftStorage = remember { UnavailableDraftStorage() },
 ) {
-    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider) }
+    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage) }
     val identity = viewModel<IdentityViewModel> { owner.graph.identityViewModel() }
     val workspace = viewModel<WorkspaceViewModel> { owner.graph.workspaceViewModel() }
     val checklists = viewModel<ChecklistCatalogViewModel> { owner.graph.checklistCatalogViewModel() }
     val templateEditor = viewModel<ChecklistTemplateEditorViewModel> { owner.graph.checklistTemplateEditorViewModel() }
+    val formDrafts = viewModel<WorkspaceFormViewModel> { owner.graph.workspaceFormViewModel() }
+    val formDraftState by formDrafts.state.collectAsStateWithLifecycle()
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
@@ -87,6 +91,7 @@ fun App(
             checklists.reset()
             templateEditor.reset()
             runs.reset()
+            formDrafts.reset()
             workspace.reset()
         }
         loadedIdentityId = profile?.id
@@ -133,8 +138,12 @@ fun App(
             checklistState.failure in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) templateEditor.reset()
     }
 
-    BpmTheme {
-        Box(Modifier.fillMaxSize().safeDrawingPadding().trackUserActivity(identity::userActivity)) {
+    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role) {
+        if (profile != null && currentWorkspace != null && WorkspaceDestination.Operations in workspaceDestinations(currentWorkspace.role, profile.platformRole == "SUPER_ADMIN"))
+            runs.open(profile.id, currentWorkspace.organization.id)
+    }
+
+    SessionContent(sessionStatus, identity::userActivity, identity::continueSession, identity::logout) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize()) {
             composable(LOGIN) {
                 if (profile == null) {
@@ -188,7 +197,7 @@ fun App(
                         else leaveRun { navigateBack(if (managingTemplates) TEMPLATE_MANAGEMENT else destination.route) }
                     }
                     LaunchedEffect(workspaceState.revision) {
-                        if (formKind != null && workspaceState.revision > formRevision && entry?.id == routeEntry.id) closeForm()
+                        if (formKind != null && workspaceState.revision > formRevision && entry?.id == routeEntry.id) formDrafts.complete { closeForm() }
                     }
                     val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
@@ -221,6 +230,9 @@ fun App(
                                 }
                             }
                         } else key(profile.id, workspaceState.selected) {
+                            LaunchedEffect(formKind, profile.id, workspaceState.selected) {
+                                if (formKind != null) formDrafts.open(profile.id, workspaceState.selected.orEmpty(), formKind)
+                            }
                             LaunchedEffect(editingTemplate, profile.id, workspaceState.workspace?.organization?.id) {
                                 if (editingTemplate && workspaceState.workspace?.canManage == true)
                                     templateEditor.open(profile.id, workspaceState.workspace!!.organization.id)
@@ -232,11 +244,10 @@ fun App(
                                             templateEditor::question, templateEditor::type, templateEditor::addQuestion, templateEditor::removeQuestion,
                                             templateEditor::move, templateEditor::undoRemove, templateEditor::clearUndo, templateEditor::review, templateEditor::confirmPublication, templateEditor::backToEdit,
                                             templateEditor::requestDiscard, templateEditor::keepEditing,
-                                            onConfirmDiscard = { templateEditor.reset(); navigateBack(TEMPLATE_MANAGEMENT) },
+                                            onConfirmDiscard = { templateEditor.discard { navigateBack(TEMPLATE_MANAGEMENT) } },
                                             onPublished = { id -> workspace.load(); nav.navigate("empresa/plantillas/detalle/$id") { popUpTo(TEMPLATE_CREATE) { inclusive = true } } },
                                             onClose = { if (templateEditorState.published != null) workspace.load(); nav.navigate(TEMPLATE_MANAGEMENT) { popUpTo(TEMPLATE_MANAGEMENT) { inclusive = true }; launchSingleTop = true } },
-                                            noticeVisible = sessionStatus.warning != null,
-                                            notice = { SessionExpirationNotice(sessionStatus, identity::continueSession, identity::logout) })
+                                            onProtectDraft = templateEditor::protectDraft, onSuggestion = templateEditor::useSuggestion)
                                     } else {
                                         val scopedManagement = checklistState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected } ?: ChecklistCatalogState(loading = true)
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
@@ -261,9 +272,9 @@ fun App(
                                 secondaryContent = if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
-                                        Text(if (runState.pending || runState.busy) "Resuelve el reintento antes de salir para conservar la operación original."
-                                            else "Salir descartará las respuestas que todavía no guardaste en el servidor.")
-                                        if (!runState.pending && !runState.busy) BpmSecondaryButton(onClick = { val exit = runExit; runExit = null; runs.reset(); exit?.invoke() }) { Text("Descartar cambios y salir") }
+                                        Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
+                                        BpmSecondaryButton(onClick = { val exit = runExit; runs.leave { runExit = null; exit?.invoke() } }) { Text("Conservar borrador y salir") }
+                                        if (!runState.pending && !runState.busy) BpmSecondaryButton(onClick = { val exit = runExit; runExit = null; runs.discard { exit?.invoke() } }) { Text("Descartar cambios y salir") }
                                         BpmTextButton(onClick = { runExit = null }) { Text("Continuar con el control") }
                                     }
                                     ChecklistRunContent(profile.id, workspaceState, checklistState, runState,
@@ -274,6 +285,14 @@ fun App(
                                 secondaryTitle = if (running) "Control de tu sede" else if (managingTemplates) "Plantillas de control" else null,
                                 secondaryBusy = templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
+                                formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
+                                    when (formKind) {
+                                        WorkspaceFormKind.Organization -> workspace.organization(Organization(draft.id, draft.name, draft.trade, draft.business, draft.tax, draft.contactName, draft.phone, draft.email))
+                                        WorkspaceFormKind.Location -> workspace.location(Location(draft.id, draft.name, draft.address, draft.district, draft.phone))
+                                        WorkspaceFormKind.Member -> workspace.member(draft.email, draft.role, if (draft.role == "ADMIN") emptyList() else draft.locations.toList())
+                                        null -> Unit
+                                    }
+                                } }, onFormEdit = formDrafts::edit, onFormRetry = formDrafts::retry, onFormDiscard = { formDrafts.discard { closeForm() } },
                                 form = formKind,
                                 choosingOrganization = route == ORGANIZATION_PICKER,
                                 onOrganizationSearch = workspace::organizationSearch, onOrganizationNext = workspace::organizationNext,
@@ -301,14 +320,15 @@ fun App(
                                     workspace.load()
                                     if (destination == WorkspaceDestination.Operations) checklists.refresh()
                                 },
-                                onOrganization = workspace::organization,
-                                onLocation = workspace::location,
-                                onMember = workspace::member,
                                 onUserActivity = identity::userActivity,
-                                sessionNotice = { SessionExpirationNotice(sessionStatus, identity::continueSession, identity::logout) },
-                                noticeVisible = sessionStatus.warning != null || accessNotice != null,
+                                noticeVisible = accessNotice != null,
                                 screenNotice = {
-                                    SessionExpirationNotice(sessionStatus, identity::continueSession, identity::logout)
+                                    if (destination in listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations) && !running && runState.resumeId != null && runState.userId == profile.id && runState.organizationId == workspaceState.selected) {
+                                        BpmCard(Modifier.fillMaxWidth()) {
+                                            Text("Tienes un control pendiente en este dispositivo")
+                                            BpmSecondaryButton(onClick = { nav.navigate("control/ejecucion/${runState.resumeId}") { launchSingleTop = true } }) { Text("Retomar control") }
+                                        }
+                                    }
                                     accessNotice?.let { message -> BpmCard(Modifier.fillMaxWidth()) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             BpmIcon(BpmSymbol.Alert)
@@ -343,6 +363,7 @@ fun App(
                                     checklists.reset()
                                     templateEditor.reset()
                                     runs.reset()
+                                    formDrafts.reset()
                                     workspace.reset()
                                     identity.logout()
                                     resetTo(LOGIN)
@@ -352,7 +373,6 @@ fun App(
                     }
                 }
             }
-        }
         }
     }
 }

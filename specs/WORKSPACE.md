@@ -41,7 +41,8 @@ de marca. Inicio muestra la mascota también en móvil; los indicadores fluyen a
 varias filas según ancho y escala de texto, sin fijar tres columnas estrechas.
 
 Los avisos se insertan al inicio del contenido, debajo de la cabecera. Al aparecer
-una advertencia de sesión o de acceso, el contenido se desplaza hasta el aviso.
+una advertencia de acceso, el contenido se desplaza hasta el aviso. El aviso
+modal de sesión conserva el desplazamiento del formulario al continuar.
 La cabecera permanece en su posición. En formularios, el mismo aviso se inserta
 después del título y vuelve al inicio del desplazamiento cuando aparece.
 
@@ -96,8 +97,11 @@ Cada página carga 25 registros, con un máximo de 100 por solicitud. Inicio usa
 o registrar controles. R2, operación diaria, investigación y alertas quedan en
 sus specs, no están terminados por tener navegación.
 
-Este recorrido necesita internet. No persiste cambios pendientes ni ofrece
-éxito offline. La cola/versionado/sincronización sigue el futuro contrato OFFLINE.
+Las consultas y altas necesitan internet. WorkspaceFormViewModel conserva la edición
+por usuario/empresa/tipo de formulario mediante casos de uso y repositorio local.
+Guardar confirma la API; volver conserva la copia, y descartar pide confirmación.
+No se envían altas automáticamente al recuperar acceso. Ver OFFLINE.md para
+almacenamiento y límites de sincronización.
 El alta de miembro no envía correos: la persona debe registrarse primero.
 
 ## Contratos, seguridad y pruebas
@@ -138,8 +142,8 @@ señalada y regreso mediante la navegación existente. No agrega una columna de
 botones al contenido empresarial. La acción para crear una organización está
 separada y solo aparece con permiso de plataforma. En pantallas grandes el
 selector limita su ancho; en ventanas bajas reduce contenido secundario para
-conservar espacio de búsqueda y selección. Los avisos de sesión permanecen en
-la lista desplazable y vuelven al inicio cuando aparecen.
+conservar espacio de búsqueda y selección. El aviso modal de sesión se compone una
+sola vez desde app y permanece visible con independencia del desplazamiento.
 La altura se ajusta al contenido hasta su máximo, para no reservar un panel
 vacío cuando hay pocas organizaciones o coincidencias.
 No usa una capa Popup: en la versión fijada de Compose web, el menú anterior
@@ -241,5 +245,6 @@ Empresa ofrece «Gestionar plantillas» a ADMIN y SUPER_ADMIN. El editor y su ca
 se componen desde `app` mediante slots; workspace no importa la feature checklists.
 La autoría tiene su propio scroll y oculta la navegación inferior en ventanas
 compactas para dar espacio al formulario. Cambiar de organización o cerrar sesión
-limpia el borrador. Rutas, recuperación de publicación y límites se describen en
+limpia el estado de pantalla y conserva la copia local aislada del propietario.
+Rutas, recuperación de publicación y límites se describen en
 [`CHECKLISTS.md`](CHECKLISTS.md); esta entrada no habilita permisos en el cliente.

@@ -76,11 +76,11 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
 @Serializable private data class StartRunDto(val id: String, val locationId: String, val templateVersionId: String, val clientOperationId: String, val clientCreatedAt: String)
 @Serializable private data class SaveRunDto(val rowVersion: Int, val answers: List<AnswerDto>)
 @Serializable private data class SubmitRunDto(val rowVersion: Int)
-@Serializable private data class AnswerDto(val itemId: String, val complianceResult: String = "", val textValue: String = "", val numericValue: Double? = null, val observation: String = "") {
+@Serializable internal data class AnswerDto(val itemId: String, val complianceResult: String = "", val textValue: String = "", val numericValue: Double? = null, val observation: String = "") {
     fun domain() = ChecklistAnswer(itemId, complianceResult, textValue, numericValue, observation)
 }
 @Serializable private data class RunEnvelopeDto(val data: RunDto)
-@Serializable private data class RunDto(val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
+@Serializable internal data class RunDto(val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
     val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null) {
     fun domain(): ChecklistRun {
         require(listOf(id, organizationId, locationId, templateVersionId, performedBy).all { it.isNotBlank() })
@@ -94,3 +94,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent)
     }
 }
+
+internal fun ChecklistAnswer.dto() = AnswerDto(itemId, complianceResult, textValue, numericValue, observation)
+internal fun ChecklistRun.dto() = RunDto(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion,
+    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent)

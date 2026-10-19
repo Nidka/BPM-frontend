@@ -22,8 +22,8 @@ internal fun WorkspaceScreen(
     onNavigate: (WorkspaceDestination) -> Unit,
     onVerifySession: () -> Unit, sessionBusy: Boolean, sessionMessage: String?, sessionConfirmation: String?,
     onSelect: (String) -> Unit, onRefresh: () -> Unit,
-    onOrganization: (Organization) -> Unit, onLocation: (Location) -> Unit,
-    onMember: (String, String, List<String>) -> Unit, onClear: () -> Unit, onLogout: () -> Unit,
+    onClear: () -> Unit, onLogout: () -> Unit,
+    formDraft: WorkspaceFormState, onSubmitForm: () -> Unit, onFormEdit: ((WorkspaceFormDraft) -> WorkspaceFormDraft) -> Unit, onFormRetry: () -> Unit, onFormDiscard: () -> Unit,
     form: WorkspaceFormKind?, onOpenForm: (WorkspaceFormKind) -> Unit, onCloseForm: () -> Unit,
     choosingOrganization: Boolean, onChooseOrganization: () -> Unit,
     checklistContent: @Composable () -> Unit,
@@ -35,7 +35,6 @@ internal fun WorkspaceScreen(
     secondaryScrollKey: String? = null,
     screenNotice: @Composable () -> Unit = {},
     noticeVisible: Boolean = false,
-    sessionNotice: @Composable () -> Unit = {},
     onUserActivity: () -> Unit = {},
     onOrganizationSearch: (String) -> Unit, onOrganizationNext: () -> Unit, onOrganizationPrevious: () -> Unit, onOrganizationRetry: () -> Unit,
     onPageSearch: (WorkspaceResource, String) -> Unit, onPageNext: (WorkspaceResource) -> Unit,
@@ -84,7 +83,7 @@ internal fun WorkspaceScreen(
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
-                        onOrganization, onLocation, onMember, onUserActivity, sessionNotice, noticeVisible, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
+                        onSubmitForm, formDraft, onFormEdit, onFormDiscard, onFormRetry, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
                 } else if (choosingOrganization) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
                     OrganizationPickerScreen(state.organizations, state.selected, state.loading, errors = state.errors,
@@ -201,7 +200,7 @@ internal fun WorkspaceScreen(
                             }
                         }
                     } }
-                    Text("Los datos se consultan en línea. No se guardan cambios pendientes sin conexión.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Las consultas necesitan conexión. Los borradores locales se enviarán solo cuando lo confirmes.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (!wide && form == null && !secondaryEditor && !choosingOrganization) NavigationBar {
                     destinations.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {

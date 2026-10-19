@@ -13,8 +13,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 internal enum class WorkspaceFormKind(val route: String, val destination: WorkspaceDestination) {
     Organization("empresa/nueva-organizacion", WorkspaceDestination.Company),
@@ -25,27 +23,17 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
         if (this == Organization) platformAdmin else canManage
 }
 
-@OptIn(ExperimentalUuidApi::class)
 @Composable internal fun WorkspaceForm(kind: WorkspaceFormKind, state: WorkspaceState, onClose: () -> Unit,
-    onOrganization: (Organization) -> Unit, onLocation: (Location) -> Unit,
-    onMember: (String, String, List<String>) -> Unit, onUserActivity: () -> Unit = {},
-    sessionNotice: @Composable () -> Unit = {}, noticeVisible: Boolean = false,
+    onSubmit: () -> Unit, formState: WorkspaceFormState,
+    onEdit: ((WorkspaceFormDraft) -> WorkspaceFormDraft) -> Unit, onDiscardDraft: () -> Unit, onRetryDraft: () -> Unit, onUserActivity: () -> Unit = {},
     onPageSearch: (WorkspaceResource, String) -> Unit, onPageNext: (WorkspaceResource) -> Unit,
     onPagePrevious: (WorkspaceResource) -> Unit, onPageRetry: (WorkspaceResource) -> Unit) {
-    val id = remember(kind) { Uuid.random().toString() }
-    var name by remember { mutableStateOf("") }
-    var trade by remember { mutableStateOf("") }
-    var tax by remember { mutableStateOf("") }
-    var contactName by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var district by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("WORKER") }
-    var business by remember { mutableStateOf("RESTAURANT") }
-    var locations by remember { mutableStateOf(emptySet<String>()) }
+    if (formState.loading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
+    val draft = formState.draft
+    if (draft == null) { DraftSaveNotice(formState.localStatus, onRetryDraft); return }
+    val saving = state.saving || formState.busy || formState.savedRemote
+    var discarding by remember { mutableStateOf(false) }
     val formScroll = rememberScrollState()
-    LaunchedEffect(noticeVisible) { if (noticeVisible) formScroll.scrollTo(0) }
     val fields = state.errors.flatMap { it.fields.entries }.associate { it.key to it.value }
     BoxWithConstraints(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
         val shortWindow = maxHeight < 500.dp
@@ -56,19 +44,21 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Eyebrow("CRECER EN EQUIPO")
                 Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                sessionNotice()
+                if (formState.recovered) Text("Recuperamos tu borrador. Revisa los datos antes de guardar.")
+                DraftSaveNotice(formState.localStatus, onRetryDraft)
+                if (discarding) DiscardDraftConfirmation({ discarding = false }, onDiscardDraft, enabled = !saving)
                 if (kind == WorkspaceFormKind.Member) {
                     Text("La persona debe registrarse y verificar su correo en BPM primero. No se envían invitaciones por correo.", style = MaterialTheme.typography.bodySmall)
-                    FormField(email, { email = it }, "Correo de la cuenta BPM", fields["email"], !state.saving, onUserActivity, KeyboardType.Email)
-                    listOf("ADMIN", "CHEF", "WORKER").forEach { choice -> FilterChip(selected = role == choice, onClick = { role = choice }, enabled = !state.saving, label = { Text(roleLabel(choice)) }) }
+                    FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de la cuenta BPM", fields["email"], !saving, onUserActivity, KeyboardType.Email)
+                    listOf("ADMIN", "CHEF", "WORKER").forEach { choice -> FilterChip(selected = draft.role == choice, onClick = { onEdit { it.copy(role = choice) } }, enabled = !saving, label = { Text(roleLabel(choice)) }) }
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    if (role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
+                    if (draft.role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
                     else {
-                        Text("Sedes permitidas · ${locations.size} seleccionadas", fontWeight = FontWeight.Bold)
+                        Text("Sedes permitidas · ${draft.locations.size} seleccionadas", fontWeight = FontWeight.Bold)
                         WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                         state.workspace?.locations.orEmpty().forEach { location ->
-                            BpmCheckboxRow(location.name, location.id in locations, !state.saving) { checked ->
-                                locations = if (checked) locations + location.id else locations - location.id
+                            BpmCheckboxRow(location.name, location.id in draft.locations, !saving) { checked ->
+                                onEdit { it.copy(locations = if (checked) it.locations + location.id else it.locations - location.id) }
                             }
                         }
                         if (state.workspace?.locations.isNullOrEmpty()) Text("No hay sedes para esta búsqueda. Busca otro nombre o crea una sede si aún no existe.")
@@ -76,32 +66,28 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                         fields["locationIds"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 } else {
-                    FormField(name, { name = it }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !state.saving, onUserActivity)
+                    FormField(draft.name, { value -> onEdit { it.copy(name = value) } }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !saving, onUserActivity)
                     if (kind == WorkspaceFormKind.Organization) {
-                        FormField(trade, { trade = it }, "Nombre comercial", fields["tradeName"], !state.saving, onUserActivity)
-                        FormField(tax, { tax = it }, "RUC / identificación fiscal", fields["taxId"], !state.saving, onUserActivity)
-                        FormField(contactName, { contactName = it }, "Persona de contacto", fields["contactName"], !state.saving, onUserActivity)
+                        FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, onUserActivity)
+                        FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, onUserActivity)
+                        FormField(draft.contactName, { value -> onEdit { it.copy(contactName = value) } }, "Persona de contacto", fields["contactName"], !saving, onUserActivity)
                         listOf("RESTAURANT" to "Restaurante", "CAFETERIA" to "Cafetería", "CATERING" to "Catering", "RELATED_SERVICE" to "Servicio afín").forEach { (value, label) ->
-                            FilterChip(selected = business == value, onClick = { business = value }, enabled = !state.saving, label = { Text(label) })
+                            FilterChip(selected = draft.business == value, onClick = { onEdit { it.copy(business = value) } }, enabled = !saving, label = { Text(label) })
                         }
-                        FormField(email, { email = it }, "Correo de contacto", fields["contactEmail"], !state.saving, onUserActivity, KeyboardType.Email)
+                        FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, onUserActivity, KeyboardType.Email)
                     } else {
-                        FormField(address, { address = it }, "Dirección *", fields["address"], !state.saving, onUserActivity)
-                        FormField(district, { district = it }, "Distrito", fields["district"], !state.saving, onUserActivity)
+                        FormField(draft.address, { value -> onEdit { it.copy(address = value) } }, "Dirección *", fields["address"], !saving, onUserActivity)
+                        FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, onUserActivity)
                     }
-                    FormField(phone, { phone = it }, "Teléfono de contacto", fields["contactPhone"], !state.saving, onUserActivity, KeyboardType.Phone)
+                    FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, onUserActivity, KeyboardType.Phone)
                 }
                 Errors(state.errors)
             }
-            if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-            RaisedButton(if (state.saving) "Guardando…" else "Guardar", enabled = !state.saving && !state.loading, onClick = {
-                when (kind) {
-                    WorkspaceFormKind.Organization -> onOrganization(Organization(id, name, trade, business, tax, contactName, phone, email))
-                    WorkspaceFormKind.Location -> onLocation(Location(id, name, address, district, phone))
-                    WorkspaceFormKind.Member -> onMember(email, role, if (role == "ADMIN") emptyList() else locations.toList())
-                }
-            })
-            BpmTextButton(onClick = onClose, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+            if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (formState.savedRemote) Text("El registro ya se guardó en el servidor. Estamos cerrando el borrador local.")
+            RaisedButton(if (saving) "Guardando…" else "Guardar", enabled = !saving && !state.loading, onClick = onSubmit)
+            if (!formState.savedRemote) BpmTextButton(onClick = { discarding = true }, enabled = !saving) { Text("Descartar borrador") }
+            BpmTextButton(onClick = onClose, enabled = !state.saving && !formState.busy, modifier = Modifier.fillMaxWidth()) { Text("Volver y conservar borrador") }
         }
     }
 }

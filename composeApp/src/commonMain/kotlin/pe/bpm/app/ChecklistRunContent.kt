@@ -14,7 +14,7 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
     val org = workspace.workspace?.organization?.id ?: return
     LaunchedEffect(userId, org, runId) { runs.open(userId, org, runId) }
     LaunchedEffect(starting, templateId, org) { if (starting) catalogActions.showTemplate(templateId) }
-    LaunchedEffect(starting, run.run?.id) { if (starting) run.run?.id?.let(onStarted) }
+    LaunchedEffect(starting, run.run?.id) { if (starting || run.run?.id != runId) run.run?.id?.let(onStarted) }
     val scoped = run.takeIf { it.userId == userId && it.organizationId == org && (runId == null || it.run == null || it.run.id == runId) } ?: ChecklistRunState(busy = true)
     val page = workspace.pages[WorkspaceResource.Locations]
     ChecklistRunScreen(scoped, catalog.detail.takeIf { catalog.organizationId == org }, catalog.detailLoading,
@@ -27,6 +27,7 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
         onLocationNext = { workspaceActions.pageNext(WorkspaceResource.Locations) },
         onLocationRetry = { workspaceActions.pageRetry(WorkspaceResource.Locations) },
         onBegin = runs::begin, onEdit = runs::edit, onSave = runs::save, onReview = runs::review,
+        onProtectDraft = { if (scoped.pending) runs.retry() else if (scoped.run == null) runs.reload() else runs.protectDraft() },
         onSubmit = runs::confirmSubmit, onBackToEdit = runs::backToEdit, onRetry = runs::retry,
         onReload = { runs.reload() }, onBack = onBack)
 }

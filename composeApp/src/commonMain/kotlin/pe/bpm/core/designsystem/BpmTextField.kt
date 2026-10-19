@@ -29,9 +29,10 @@ fun BpmTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
+    val onActivity = LocalUserActivity.current
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = { next -> if (next != value) onActivity(); onValueChange(next) },
         label = { Text(label) },
         modifier = modifier.fillMaxWidth().semantics { contentDescription = label },
         enabled = enabled,

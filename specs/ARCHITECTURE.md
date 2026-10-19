@@ -15,7 +15,9 @@ composeApp/src/commonMain/kotlin/pe/bpm/
     config/                  configuración pública tipada
     di/                      composición manual AppGraph
     network/                 HttpClient y motores expect/actual
-    domain/                  resultado y fallos técnicos compartidos
+    domain/                  resultado, propietario de borrador y fallos técnicos compartidos
+    storage/                 documentos locales atómicos y adaptadores de plataforma
+    presentation/            coordinación de escrituras locales y vigencia de consultas
     designsystem/            tema, tarjetas, marca, mascota y botones compartidos
   features/connection/
     domain/                  modelo, puerto de repositorio y caso de uso
@@ -65,7 +67,7 @@ La base visual BPM usa petróleo/coral, mascota propia, botones con relieve,
 tarjetas y navegación adaptable. Identidad conserva login/registro, verificación
 y recuperación. Al autenticarse abre workspace con tenant autorizado, altas de
 empresa/sede/equipo y catálogos de Aprender/Control. Ver IDENTITY.md y WORKSPACE.md.
-No hay persistencia ni sincronización offline; registro solo crea USER sin acceso
+Hay recuperación local de borradores según OFFLINE.md; el sincronizador completo sigue pendiente. Registro solo crea USER sin acceso
 a organizaciones. AppGraph comparte sesión y red entre features sin singletons.
 
 ## Fronteras comprobadas
@@ -103,7 +105,7 @@ inyección. La ejecución disponible es en línea; no sustituye la cola offline.
 Las altas de organización/sede/miembro también tienen rutas propias en ese
 NavHost. App comprueba las capacidades antes de mostrarlas y observa la revisión
 de guardado para regresar solo después del éxito confirmado. WorkspaceForm
-contiene la UI y los datos temporales, sin capa Dialog ni dependencia de app.
+observa WorkspaceFormViewModel; el estado y los casos de uso de borradores ya no viven en remember de la pantalla. No depende de app ni accede al disco.
 Ver WORKSPACE.md para rutas, permisos y accesibilidad.
 Los enlaces nativos del sistema operativo aún no se han registrado.
 
@@ -174,8 +176,13 @@ capacidad. IdentityErrorPolicy concentra la clasificación de errores y
 SessionMonitor concentra reloj/actividad, sin HTTP ni SDK en presentación.
 AppGraph construye estas dependencias y la UI observa sus StateFlow.
 
-El aviso de sesión se compone desde app mediante slots en el contenido de workspace
-debajo de su cabecera y en los formularios después de su título.
-No agrega dependencias entre features ni cambia las reglas del
-backend. La prueba estática de imports confirma fronteras; no certifica por sí
+El aviso de sesión se compone una sola vez en la raíz de app como capa modal del
+árbol principal, con fondo inaccesible mientras está abierto y foco acotado a sus
+acciones. Esta composición evita crear otra ventana Popup y conserva navegación
+accesible web al cerrar. La entrada del teclado virtual se notifica desde
+BpmTextField mediante LocalUserActivity, proporcionado por app: el componente no
+importa identidad ni decide plazos. No se notifica actividad por guardado automático,
+recomposición o temporizador. La recuperación pertenece a casos de uso específicos
+de workspace/checklists y a adaptadores locales inyectados; ver OFFLINE.md.
+La prueba estática de imports confirma fronteras; no certifica por sí
 sola el cumplimiento completo de SOLID ni sustituye la revisión de comportamiento.

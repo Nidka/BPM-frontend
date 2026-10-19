@@ -136,8 +136,8 @@ semántica de la capa cerrada. No se actualizaron dependencias ni se añadieron
 parches JavaScript al DOM para resolver ese recorrido.
 
 Esta entrega requiere internet. Los borradores se guardan en el servidor mediante
-la acción explícita del usuario. No hay caché/cola persistente local, sincronización,
-carga de archivos ni edición de versiones publicadas. Esos límites se mantienen
+la acción explícita del usuario. Hay recuperación local de edición e intentos
+pendientes; no hay sincronizador, carga de archivos ni edición de versiones publicadas. Esos límites se mantienen
 según `OFFLINE.md`; el recorrido no se declara apto para el piloto sin esa etapa.
 
 Referencias oficiales: [ViewModel compartido](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html),
@@ -195,12 +195,18 @@ Responsabilidades:
   SDK, permisos de base de datos ni generación de identificadores.
 - `AppGraph` compone puertos, casos de uso y VM; app coordina rutas y slots de sesión.
 
-El borrador existe en memoria durante la sesión del mismo usuario y organización.
-Volver por navegación y abrir el editor conserva ese estado; descartar pide
-confirmación en el contenido. Cambiar usuario/organización, perder permisos o
-cerrar sesión lo limpia y cancela solicitudes. Cerrar el proceso o recargar la web
-pierde el borrador. No es persistencia, cola ni sincronización offline; esa parte
-sigue el contrato OFFLINE.md y no queda completada por este editor.
+El borrador se conserva localmente por cuenta/empresa con esquema versionado.
+Recargar y volver a entrar recupera campos, IDs, preguntas y orden después de
+validar el contexto autorizado. Los intentos de publicación quedan congelados
+antes de enviar; recuperar ofrece comprobarlos sin otro POST automático. Descartar
+pide confirmación. Cambiar cuenta/empresa o cerrar sesión cancela solicitudes y
+limpia la UI, conservando la copia del propietario. Ver OFFLINE.md.
+
+El editor ofrece ejemplos de apertura y limpieza editables, sin umbrales sanitarios
+inventados ni publicación automática. Solo se aplican al empezar, sin sobrescribir
+ediciones existentes. La pregunta aparece antes del grupo, con placeholders que
+no sustituyen las etiquetas. El selector explica cómo responderá el equipo, el
+contador muestra la cantidad real y las acciones de orden solo aparecen si aplican.
 
 El transporte usa GET `/checklists/{id}` para comprobar si ya existe y POST
 `/checklists` (201) para publicar. Los IDs de plantilla, versión y preguntas se
@@ -216,7 +222,7 @@ el editor permite corregir el nombre sin confundirlo con una publicación propia
 Si no puede confirmarse el resultado, se conserva la propuesta enviada sin dejar
 editar ese contenido hasta resolver la publicación. Se ofrece comprobar y
 reintentar; un nuevo límite de tasa no convierte un resultado incierto en conocido.
-401/403 limpian el borrador y muestran un estado explícito. El cuerpo y los
+401/403 limpian la pantalla y muestran un estado explícito; no revelan la copia local sin reautorizar. El cuerpo y los
 mensajes internos del proveedor nunca se muestran; solo campos de error conocidos.
 Una respuesta tardía cancelada no puede restaurar el borrador de otro contexto.
 
@@ -275,15 +281,16 @@ Una respuesta perdida conserva la operación, su cuerpo, versión y clave. No se
 permite editarla mientras su resultado es incierto; Reintentar envía exactamente
 la misma solicitud. Un conflicto no sobrescribe automáticamente: cargar la
 versión guardada exige confirmar el descarte de cambios locales. Las acciones de
-salida de la app piden confirmar cuando hay cambios y exigen resolver primero una
-operación incierta. Cambiar usuario/empresa o perder permisos cancela y limpia
+salida permiten conservar la copia local antes de salir; una operación incierta
+se recupera con su misma propuesta y no se descarta mientras sigue sin confirmar. Cambiar usuario/empresa o perder permisos cancela y limpia
 el estado; el backend autoriza cada llamada nuevamente.
 
-Los cambios sin guardar y los intentos pendientes viven en memoria: recargar la
-web, cerrar el proceso o usar navegación externa puede perderlos. Se advierte en
-pantalla. Esto no sustituye la cola duradera del contrato offline ni garantiza
-recuperación de un alta incierta tras reinicio. La próxima etapa debe incorporar
-persistencia e idempotencia duraderas antes de habilitar trabajo sin conexión.
+Las respuestas sin enviar y las operaciones pendientes se guardan localmente con
+cuerpo, clave y versión estables antes de HTTP. Tras reiniciar se reautoriza el
+registro y se recupera la edición o se ofrece comprobar la operación original.
+Un cambio de versión bloquea el envío sin sobrescribir respuestas; una lectura
+fallida no elimina la copia. Esto no sustituye la cola múltiple ni el sincronizador
+del piloto; alcance, privacidad y pruebas en OFFLINE.md.
 Las plantillas que exijan evidencia fallida no pueden finalizarse sin el módulo
 multimedia; no se omite la condición ni se ofrece una carga ficticia.
 

@@ -5,6 +5,12 @@ import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
 import pe.bpm.features.checklists.data.RemoteChecklistTemplatePublisher
+import pe.bpm.features.checklists.data.LocalChecklistRunDraftRepository
+import pe.bpm.features.checklists.data.LocalChecklistTemplateDraftRepository
+import pe.bpm.features.workspace.data.LocalWorkspaceFormDraftRepository
+import pe.bpm.features.workspace.presentation.WorkspaceFormViewModel
+import pe.bpm.core.storage.DraftStorage
+import pe.bpm.core.storage.UnavailableDraftStorage
 import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
 import pe.bpm.features.checklists.domain.*
 import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
@@ -51,7 +57,13 @@ class AppGraph(
     private val httpClient: HttpClient = createHttpClient(),
     sessionStore: SessionStore = EphemeralSessionStore(),
     googleAuthProvider: GoogleAuthProvider? = null,
+    draftStorage: DraftStorage = UnavailableDraftStorage(),
 ) : AutoCloseable {
+    private val runDrafts = ManageRunDraft(LocalChecklistRunDraftRepository(draftStorage, config.apiBaseUrl))
+    private val templateDrafts = ManageTemplateDraft(LocalChecklistTemplateDraftRepository(draftStorage, config.apiBaseUrl))
+    private val workspaceDrafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(draftStorage, config.apiBaseUrl))
+    @OptIn(ExperimentalUuidApi::class)
+    internal fun workspaceFormViewModel() = WorkspaceFormViewModel(workspaceDrafts) { Uuid.random().toString() }
     private val checkConnection = CheckConnection(RemoteConnectionRepository(httpClient, config))
     private val googleAuth = googleAuthProvider ?: platformGoogleAuthProvider()
     private val identityRepository = RemoteIdentityRepository(
@@ -67,7 +79,7 @@ class AppGraph(
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
     @OptIn(ExperimentalUuidApi::class)
-    fun checklistTemplateEditorViewModel() = ChecklistTemplateEditorViewModel(PublishChecklistTemplate(templatePublisher)) { Uuid.random().toString() }
+    fun checklistTemplateEditorViewModel() = ChecklistTemplateEditorViewModel(PublishChecklistTemplate(templatePublisher), templateDrafts) { Uuid.random().toString() }
 
     fun checklistCatalogViewModel() = ChecklistCatalogViewModel(LoadChecklistCatalog(checklistRepository), LoadChecklistTemplate(checklistRepository))
 
@@ -76,7 +88,7 @@ class AppGraph(
         token = identityRepository::validSessionToken)
     @OptIn(ExperimentalUuidApi::class)
     fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
-        SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
+        SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, runDrafts)
 
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),

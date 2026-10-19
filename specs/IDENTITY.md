@@ -376,14 +376,16 @@ de actividad exitosa. El temporizador nunca llama a actividad.
 El límite absoluto muestra otra explicación y solo ofrece volver al login;
 no puede prolongarse con el botón ni con entradas del usuario.
 
-El aviso forma parte del árbol de UI, debajo de la cabecera y dentro del contenido
-desplazable, con título anunciado y contador sin anuncios continuos. Su aparición
-lleva el desplazamiento al inicio, sin mover la cabecera. Los botones se distribuyen
-en varias líneas si falta espacio. Se compone también después del título de los
-formularios abiertos mediante un slot, sin importar identity desde workspace.
-No usa una nueva capa Popup. Tras vencer, la explicación en español se muestra
-en el acceso, después de su título y antes del formulario; nunca se imprimen los
-códigos `SESSION_EXPIRED` o `TOKEN_EXPIRED` en la UI.
+El aviso es una capa modal única del árbol principal, con título accesible,
+contenido desplazable y acciones adaptables. El contenido de fondo sale temporalmente
+del árbol accesible; el foco comienza en la acción principal y Tab/Shift+Tab permanece
+en las acciones del aviso. No se anuncia el contador cada segundo. Al confirmar,
+la navegación y los campos siguen accesibles: se comprobó en navegador. No usa
+otra ventana Dialog/Popup, que en la versión fijada conservaba semántica de la capa
+cerrada. No requiere parches DOM ni dependencias entre funcionalidades.
+La escritura del teclado virtual notifica actividad desde el campo compartido;
+las escrituras locales, la recomposición y los temporizadores no la prolongan.
+Tras vencer, la explicación en español se muestra en el acceso, sin códigos internos.
 Al vencer, se limpian credenciales y acceso local incluso si hay una solicitud
 de actividad pendiente. No hay período de gracia que reabra una sesión vencida.
 
@@ -392,9 +394,11 @@ Logout limpia las credenciales locales inmediatamente y solicita
 el cierre remoto, informa del fallo. No equivale a revocar todos los dispositivos.
 La revocación se comparte entre clientes que usan el mismo UID/auth_time.
 
-El aviso no guarda borradores: los formularios actuales son temporales. La
-persistencia offline necesita su implementación independiente y debe respetar
-usuario/empresa y autenticación antes de sincronizar.
+El aviso no guarda datos por sí mismo. Workspace/checklists conservan copias locales
+mediante sus casos de uso. Al vencer se limpia la UI, no la copia ya confirmada;
+se recupera solo después de autenticar la misma cuenta y volver a autorizar el
+contexto. Las operaciones pendientes necesitan confirmación explícita para
+reintentarse; no se vuelven a enviar desde el login. Límites en OFFLINE.md.
 
 El frontend puede publicarse antes del backend nuevo: si no recibe cabeceras de
 sesión no usa las rutas nuevas. El backend requiere la migración V2 previamente

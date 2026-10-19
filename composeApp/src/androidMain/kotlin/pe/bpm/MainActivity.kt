@@ -5,6 +5,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import pe.bpm.app.App
+import pe.bpm.core.storage.AndroidDraftStorage
 import androidx.compose.runtime.remember
 import pe.bpm.features.identity.data.AndroidSessionStore
 import androidx.activity.viewModels
@@ -22,7 +23,8 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val sessionStore = remember { AndroidSessionStore(applicationContext) }
-            App(sessionStore = sessionStore, googleAuthProvider = identityOwner.googleAuth)
+            val drafts = remember { AndroidDraftStorage(applicationContext) }
+            App(draftStorage = drafts, sessionStore = sessionStore, googleAuthProvider = identityOwner.googleAuth)
         }
     }
     override fun onDestroy() {

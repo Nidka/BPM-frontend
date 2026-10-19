@@ -26,6 +26,8 @@ composeApp/src/
 │   │   │   ├── di/AppGraph.kt         construcción e inyección manual de dependencias
 │   │   │   ├── domain/                resultados y fallos técnicos compartidos
 │   │   │   ├── network/               cliente Ktor, motores HTTP y error seguro de sesión
+│   │   │   ├── storage/               documentos locales atómicos y adaptadores por plataforma
+│   │   │   ├── presentation/          coordinación de borradores y vigencia de consultas
 │   │   │   └── designsystem/          tema, marca, mascota y componentes reutilizables
 │   │   └── features/
 │   │       ├── connection/            salud y disponibilidad reales del backend
@@ -182,8 +184,8 @@ permite reintentar; una revocación definitiva limpia sesión y almacenamiento.
 Logout borra credenciales y workspace. La generación de sesión evita que una
 respuesta anterior los restaure. Un 401 de la API invalida la sesión si corresponde
 al token actual; rechazos de peticiones antiguas no expulsan una sesión nueva.
-Liberar AppGraph cierra recursos y memoria, conservando únicamente la credencial
-protegida móvil para el próximo arranque. La restauración requiere red y no
+Liberar AppGraph cierra recursos y memoria. La credencial protegida móvil y las
+copias locales de borradores ya confirmadas permanecen para el próximo arranque. La restauración requiere red y no
 constituye autenticación offline.
 
 ## Web y aplicaciones móviles
@@ -291,12 +293,11 @@ una prueba real con Google. Ver `specs/IDENTITY.md`. Todas las funcionalidades u
 `BpmTextField`; la decisión de mantener URL con `#` está documentada en
 `specs/ARCHITECTURE.md` según la integración oficial de navegación web.
 
-No hay persistencia offline, cola ni service worker. Cuando un recorrido los
-necesite, su repositorio observará almacenamiento local mediante Flow y
-coordinará sincronización persistente por usuario/organización/sede, con UUID,
-idempotencia y resolución de conflictos conforme al contrato de la API. La
-propuesta de SQLDelight móvil e IndexedDB web requiere validación de compatibilidad
-antes de elegir dependencias. No se muestra éxito de sincronización sin confirmación.
+Hay recuperación local de formularios, autoría y respuestas pendientes mediante
+adaptadores nativos e IndexedDB web. No hay cola múltiple, sincronizador automático
+ni service worker. Las operaciones se conservan antes de enviarlas, con la misma
+clave y versión durante reintentos. Recuperar requiere autenticación y permisos;
+una copia local nunca se anuncia como éxito remoto. Ver [OFFLINE.md](specs/OFFLINE.md).
 
 El prototipo BPM Aula guía el diseño y los recorridos. Sus datos simulados,
 calificaciones, permisos ilustrativos y respuestas normativas no se trasladan
@@ -325,8 +326,8 @@ absoluto exige autenticación nueva. Ver [IDENTITY.md](specs/IDENTITY.md).
 
 La cabecera usa Material 3 y los íconos Lucide locales del prototipo, con etiquetas
 accesibles. La marca temporal «BPM» sustituye el nombre provisional «BPM Aula»
-y su eslogan; «Cerrar sesión» vive en Mi cuenta y los avisos aparecen debajo de
-la cabecera. Los estados distinguen
+y su eslogan; «Cerrar sesión» vive en Mi cuenta. Los avisos de acceso aparecen
+bajo la cabecera; el vencimiento de sesión utiliza una capa modal única. Los estados distinguen
 acceso denegado, datos vacíos y fallos de carga, conservando el contrato del
 backend y la base visual del prototipo. Ver [WORKSPACE.md](specs/WORKSPACE.md).
 
@@ -350,6 +351,15 @@ frontend; no hay migraciones ni variables nuevas. Ver [WORKSPACE.md](specs/WORKS
 La primera versión de plantillas ya se puede preparar desde **Empresa → Gestionar
 plantillas → Crear plantilla** con ADMIN o SUPER_ADMIN. El editor permite preguntas,
 criterios, revisión y publicación confirmada, con recuperación de respuestas perdidas
-sin generar nuevos IDs. El borrador de autoría vive solo en memoria; aún no hay
-persistencia offline ni ejecución de controles. Contrato y límites en
+sin generar nuevos IDs, incluso tras recuperar la copia local. El editor ofrece
+ejemplos editables de apertura y limpieza y explica cada forma de respuesta.
+También se pueden ejecutar controles en línea, guardarlos y confirmar su cierre. Contrato y límites en
 [CHECKLISTS.md](specs/CHECKLISTS.md).
+
+
+La entrega de recuperación añade aviso modal de sesión, actividad del teclado
+virtual y borradores locales de empresa/equipo, plantillas y controles. Los estados
+«guardando»/«guardado»/«no se pudo conservar» y la confirmación de descarte son UI
+compartida. Las reglas y DTO pertenecen a cada feature; core solo aporta coordinación
+de escrituras y almacenamiento atómico. [OFFLINE.md](specs/OFFLINE.md) contiene el
+recorrido de prueba y los límites pendientes, sin declarar completa la sincronización.

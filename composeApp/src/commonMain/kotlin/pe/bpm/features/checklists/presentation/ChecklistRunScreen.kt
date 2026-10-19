@@ -23,12 +23,15 @@ data class ChecklistRunLocation(val id: String, val name: String)
     onLocationSearch: (String) -> Unit, onLocationPrevious: () -> Unit, onLocationNext: () -> Unit, onLocationRetry: () -> Unit,
     onBegin: (String, String) -> Unit, onEdit: (String, RunAnswerInput) -> Unit,
     onSave: () -> Unit, onReview: () -> Unit, onSubmit: () -> Unit, onBackToEdit: () -> Unit,
-    onRetry: () -> Unit, onReload: () -> Unit, onBack: () -> Unit) {
+    onRetry: () -> Unit, onProtectDraft: () -> Unit, onReload: () -> Unit, onBack: () -> Unit) {
     var location by remember(state.organizationId, template?.id) { mutableStateOf<String?>(null) }
     var locationName by remember(state.organizationId, template?.id) { mutableStateOf("") }
     var confirmReload by remember(state.run?.id, state.failure) { mutableStateOf(false) }
     Column(Modifier.widthIn(max = 860.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+        if (state.dirty || state.pending || state.localStatus == pe.bpm.core.presentation.DraftSaveStatus.FAILED)
+            DraftSaveNotice(state.localStatus, onProtectDraft)
+        if (state.pending && state.failure == null) BpmSecondaryButton(onClick = onRetry, enabled = !state.busy) { Text("Comprobar operación pendiente") }
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure -> BpmCard(Modifier.fillMaxWidth()) {
             Text(runFailureMessage(failure), color = MaterialTheme.colorScheme.error)
@@ -69,11 +72,11 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 }
                 Text("Necesitas conexión para iniciar y guardar este control. Guarda tus respuestas antes de salir.", style = MaterialTheme.typography.bodySmall)
                 RaisedButton("Iniciar control", { location?.let { onBegin(it, template.versionId) } },
-                    enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed)
+                    enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }
             return@Column
         }
-        if (run.status == "SUBMITTED") {
+        if (run.status == "SUBMITTED" && !state.dirty) {
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Mascot(Modifier.size(96.dp))
                 Text("Control finalizado", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -85,7 +88,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
             Text(if (state.reviewing) "Revisa antes de finalizar" else "Responde el control", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("${run.answers.size} respuestas guardadas")
             if (run.performedBy != state.userId) Text("Solo la persona que inició este control puede editarlo.")
-            if (state.dirty) Text("Hay cambios sin guardar. Guárdalos antes de salir; recargar o cerrar la app los pierde.")
+            if (state.dirty) Text("Tienes respuestas pendientes de guardar en el servidor.")
         }
         run.items.forEachIndexed { index, item ->
             val input = state.inputs[item.id] ?: RunAnswerInput()

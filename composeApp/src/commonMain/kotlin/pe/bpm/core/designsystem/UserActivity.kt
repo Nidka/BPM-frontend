@@ -1,10 +1,15 @@
 package pe.bpm.core.designsystem
 
+import androidx.compose.runtime.staticCompositionLocalOf
+
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+
+/** La raíz aporta la acción; los componentes desconocen identidad y políticas de sesión. */
+val LocalUserActivity = staticCompositionLocalOf<() -> Unit> { {} }
 
 // Observa entradas sin consumirlas, tanto en la aplicación como en los diálogos independientes.
 fun Modifier.trackUserActivity(onActivity: () -> Unit): Modifier =
