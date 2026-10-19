@@ -34,6 +34,7 @@ import pe.bpm.features.identity.domain.ResetPassword
 import pe.bpm.features.identity.domain.ResendVerification
 import pe.bpm.features.identity.domain.ConfirmEmailVerification
 import pe.bpm.features.identity.data.platformGoogleAuthProvider
+import pe.bpm.features.identity.data.GoogleAuthProvider
 import pe.bpm.features.identity.presentation.IdentityViewModel
 import pe.bpm.features.identity.presentation.SessionMonitor
 import pe.bpm.features.workspace.data.RemoteWorkspaceRepository
@@ -45,9 +46,10 @@ class AppGraph(
     config: AppConfig,
     private val httpClient: HttpClient = createHttpClient(),
     sessionStore: SessionStore = EphemeralSessionStore(),
+    googleAuthProvider: GoogleAuthProvider? = null,
 ) : AutoCloseable {
     private val checkConnection = CheckConnection(RemoteConnectionRepository(httpClient, config))
-    private val googleAuth = platformGoogleAuthProvider()
+    private val googleAuth = googleAuthProvider ?: platformGoogleAuthProvider()
     private val identityRepository = RemoteIdentityRepository(
         FirebaseIdentityDataSource(httpClient, config), BpmIdentityDataSource(httpClient, config),
         config.apiBaseUrl, googleAuth, sessionStore)

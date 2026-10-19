@@ -9,6 +9,8 @@ serialization = "1.9.0"
 lifecycle = "2.10.0"
 activity = "1.12.4"
 navigation = "2.9.2"
+credentials = "1.6.0"
+googleid = "1.2.1"
 
 [libraries]
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation" }
@@ -27,6 +29,9 @@ lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-vie
 lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+credentials-play-services = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

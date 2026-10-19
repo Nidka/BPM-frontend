@@ -3,8 +3,9 @@
 ## Alcance
 
 Correo/contraseña, registro, verificación de email, reenvío y recuperación
-implementados para web, Android e iOS. Google implementado en web; sus adaptadores
-nativos siguen pendientes de registrar apps/clientes OAuth en Firebase.
+implementados para web, Android e iOS. Google implementado en web y con adaptador
+Credential Manager para Android; su prueba real depende de registrar la firma
+y verificar OAuth en Firebase. El adaptador Google de iOS sigue pendiente.
 
 Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.json
 (o overrides públicos). La cuenta Admin pertenece exclusivamente al backend.
@@ -78,7 +79,7 @@ permisos conservan sus mensajes específicos. Las listas mantienen sus acciones
 de recuperación propias; este ajuste no cambia sus contratos.
 La ruta técnica `conexion` queda disponible para soporte por enlace directo;
 su ViewModel solo se crea al abrirla y no consulta salud al mostrar el login.
-El aviso sobre asignación de empresa aparece durante el registro. Las cuentas
+Login y registro no muestran el aviso sobre asignación de empresa. Las cuentas
 sin membresía reciben su explicación contextual dentro del workspace.
 
 `GoogleSignInButton` pertenece a presentación de identidad. Usa superficie blanca,
@@ -93,6 +94,65 @@ una solicitud pendiente conserva el contrato del ViewModel.
 Fuentes: [guía de marca de Google](https://developers.google.com/identity/branding-guidelines),
 [Google Sans](https://github.com/google/fonts/tree/main/ofl/googlesans) y
 [manejo de errores de red](https://developer.android.com/topic/architecture/data-layer/offline-first#network-data-source).
+
+### Google en Android
+
+`MainActivity` compone `AndroidIdentityOwner` y adjunta la Activity visible a
+`AndroidGoogleAuthProvider`. El propietario sobrevive a recreaciones; el proveedor
+usa `MutableContextWrapper`, cancela el selector al destruir la Activity y retira
+su referencia. No hay Activity estática ni service locator. `App`/`GraphOwner`/
+`AppGraph` reciben el puerto existente; web conserva su adaptador de popup.
+
+El botón compartido también aparece en Android. Se abre solo al pulsarlo mediante
+`GetSignInWithGoogleOption`, con nonce aleatorio por intento; no se abre un popup
+web, no se selecciona cuenta automáticamente y no se solicita acceso a Drive.
+El adaptador nativo entrega una credencial federada efímera al repositorio.
+`FirebaseIdentityDataSource` la canjea con `accounts:signInWithIdp`; únicamente el
+ID token de Firebase se envía a `/me`. Un token Google no crea por sí solo una
+sesión BPM. El servidor conserva verificación y permisos; un conflicto de cuenta
+no vincula identidades automáticamente. Logout cancela resultados tardíos y
+limpia el estado de Credential Manager antes del siguiente acceso.
+
+Configuración pública requerida (sin contraseñas ni secretos OAuth):
+
+El applicationId Android es `bpm.app`, alineado con el registro existente
+suministrado de Firebase. `namespace` y paquetes Kotlin conservan `pe.bpm`;
+el identificador iOS no cambia. El ID Web de tipo 3 suministrado ya está en
+`config/firebase.public.json`. Los APK anteriores con `pe.bpm.app` constituyen
+otra instalación: no se migran sus datos privados ni la sesión de Keystore.
+El usuario inicia sesión en la app nueva con su cuenta existente; los datos
+remotos y permisos no cambian. No desinstalar la app anterior automáticamente.
+
+1. Usar la app Android **`bpm.app`** ya registrada en el proyecto Firebase;
+   corresponde al applicationId. `pe.bpm` es el namespace del código.
+2. Registrar las huellas SHA-1 y SHA-256 de las firmas debug/release que realmente
+   se distribuyan. `./gradlew :composeApp:signingReport` muestra las de debug.
+3. Habilitar Google en Authentication y usar el ID OAuth **de tipo Web** del mismo
+   proyecto en `-PgoogleWebClientId=...apps.googleusercontent.com`, la variable de
+   compilación `GOOGLE_WEB_CLIENT_ID`, o `googleWebClientId` en
+   `config/firebase.public.json`. No confundirlo con el ID de cliente Android.
+4. Recompilar e instalar el APK. Railway no configura ni distribuye el binario
+   instalado en el emulador. El emulador requiere imagen Google Play y el proveedor
+   actualizado; el selector permite añadir una cuenta si aún no hay ninguna.
+
+Sin ID Web se ofrece un mensaje claro y correo/contraseña sigue disponible; no se
+oculta el botón como ocurría con el adaptador anterior. Un build sin ese ID no
+certifica Google operativo. No se añade Firebase Admin ni un segundo SDK de sesión.
+El canje usa el cliente HTTP compartido; las credenciales no llegan al UiState ni
+a logs. La configuración nativa no amplía `/config.json` ni las variables Railway.
+
+El asistente de Firebase muestra la integración mediante SDK Android: su plugin
+Google Services convierte `google-services.json` en recursos para esos SDKs y la
+BoM alinea sus versiones. Esta aplicación mantiene el canje REST documentado de
+Firebase para compartir sesión con KMP; Credential Manager solo obtiene la
+credencial Google en Android. Por ello no necesita ese plugin, Firebase Auth SDK
+ni Analytics para este recorrido. Si se incorpora un SDK de Firebase después,
+configurarlo con el archivo del paquete correcto y revisar la BoM entonces.
+
+Referencias: [Credential Manager](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation),
+[Firebase Android](https://firebase.google.com/docs/auth/android/google-signin),
+[configuración Android](https://firebase.google.com/docs/android/setup),
+[canje REST de proveedor](https://firebase.google.com/docs/reference/rest/auth#section-sign-in-with-oauth-credential).
 
 La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas

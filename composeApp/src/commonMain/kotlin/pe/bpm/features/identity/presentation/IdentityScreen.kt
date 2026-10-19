@@ -173,8 +173,6 @@ fun IdentityScreen(
                     modifier = Modifier.align(Alignment.CenterHorizontally))
                 GoogleSignInButton(onClick = { password = ""; confirmation = ""; onGoogle() }, enabled = !state.busy)
             }
-            if (state.mode == AuthMode.Register) Text("Tu administrador te dará acceso a la empresa después de crear tu cuenta.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         }
         }

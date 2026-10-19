@@ -37,6 +37,15 @@ Nunca incluye contraseñas ni credenciales de infraestructura.
 El login usa config/firebase.public.json por defecto. Para otro entorno nativo,
 agregar `-PfirebaseApiKey=<Web-API-Key-pública>` al build.
 El proveedor y la cuenta se preparan según IDENTITY.md.
+Google Android usa Credential Manager y el ID público OAuth Web del mismo proyecto,
+ya incluido en `config/firebase.public.json`; el build habitual lo incorpora.
+Para otro entorno se admite `-PgoogleWebClientId=<ID-OAuth-Web>` o
+`GOOGLE_WEB_CLIENT_ID` durante compilación.
+En la app Firebase `bpm.app`, registrar las huellas de `:composeApp:signingReport`.
+El applicationId Android coincide con ese registro. Los APK anteriores
+`pe.bpm.app` se mantienen como una instalación distinta; usar la nueva app e
+iniciar sesión con la cuenta existente. Sin la firma registrada y una prueba
+completa no se certifica Google operativo; no introducir secretos OAuth.
 
 iOS:
 ```bash

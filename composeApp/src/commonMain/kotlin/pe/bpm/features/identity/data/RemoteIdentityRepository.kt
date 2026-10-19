@@ -211,6 +211,12 @@ class RemoteIdentityRepository internal constructor(
             when (val result = googleAuth.signIn()) {
                 is GoogleAuthResult.Failure -> identityFailure(result.code)
                 is GoogleAuthResult.Success -> acceptCredential(result.credential.idToken, result.credential.uid, result.credential.displayName, result.credential.refreshToken, result.credential.expiresIn, attempt)
+                is GoogleAuthResult.Federated -> {
+                    currentCoroutineContext().ensureActive()
+                    if (attempt != generation) return@identityOperation identityFailure("UNAUTHENTICATED")
+                    val credential = firebase.signInWithGoogle(result.idToken, result.nonce)
+                    acceptCredential(credential.idToken, credential.localId, credential.displayName, credential.refreshToken, credential.expiresIn, attempt)
+                }
             }
         }
     }

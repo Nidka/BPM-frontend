@@ -12,6 +12,7 @@ import pe.bpm.features.identity.domain.*
 
 /** Adaptador de Firebase: configuración pública, credenciales y acciones de correo. No administra sesiones BPM. */
 internal interface FirebaseIdentityGateway {
+    suspend fun signInWithGoogle(idToken: String, nonce: String): FirebaseCredential
     suspend fun signIn(email: String, password: String): FirebaseCredential
     suspend fun signUp(email: String, password: String): FirebaseCredential
     suspend fun updateName(token: String, name: String): UpdatedProfileCredential
@@ -22,6 +23,23 @@ internal interface FirebaseIdentityGateway {
 
 internal class FirebaseIdentityDataSource(private val client: HttpClient, private val config: AppConfig) : FirebaseIdentityGateway {
     private var apiKey: String? = null
+    override suspend fun signInWithGoogle(idToken: String, nonce: String): FirebaseCredential = identityDataRequest(IdentityStage.SIGN_IN) {
+        if (idToken.length !in 20..16384 || !idToken.matches(Regex("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")) ||
+            !nonce.matches(Regex("[A-Za-z0-9_-]{32,128}")))
+            throw IdentityDataException(identityFailure("INVALID_RESPONSE"))
+        val postBody = Parameters.build {
+            append("id_token", idToken); append("providerId", "google.com"); append("nonce", nonce)
+        }.formUrlEncode()
+        val response = jsonPost("signInWithIdp", FederatedRequest(postBody))
+        if (!response.status.isSuccess()) reject(response, IdentityStage.SIGN_IN)
+        val credential = response.body<FederatedResponse>()
+        if (credential.needConfirmation || credential.pendingToken.isNotEmpty() || credential.errorMessage.isNotEmpty())
+            throw IdentityDataException(identityFailure("ACCOUNT_CONFLICT"))
+        if (credential.refreshToken.isBlank() || (credential.expiresIn.toLongOrNull() ?: 0) !in 61..86400)
+            throw IdentityDataException(identityFailure("INVALID_RESPONSE"))
+        FirebaseCredential(credential.idToken, credential.localId, credential.displayName, credential.refreshToken, credential.expiresIn)
+            .also { validate(it, IdentityStage.SIGN_IN) }
+    }
 
     override suspend fun signIn(email: String, password: String): FirebaseCredential = identityDataRequest(IdentityStage.SIGN_IN) {
         val response = jsonPost("signInWithPassword", SignInRequest(email, password, true))
@@ -108,7 +126,9 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
                 "TOO_MANY_ATTEMPTS_TRY_LATER", "TOO_MANY_ATTEMPTS", "RESET_PASSWORD_EXCEED_LIMIT" -> "RATE_LIMITED"
                 "WEAK_PASSWORD", "PASSWORD_DOES_NOT_MEET_REQUIREMENTS" -> "PASSWORD_POLICY"
                 "INVALID_ID_TOKEN", "TOKEN_EXPIRED" -> "UNAUTHENTICATED"
-                "EMAIL_EXISTS" -> "REGISTRATION_REJECTED"
+                "EMAIL_EXISTS" -> if (stage == IdentityStage.REGISTRATION) "REGISTRATION_REJECTED" else "ACCOUNT_CONFLICT"
+                "FEDERATED_USER_ID_ALREADY_LINKED", "ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL" -> "ACCOUNT_CONFLICT"
+                "INVALID_IDP_RESPONSE", "INVALID_NONCE" -> "GOOGLE_UNAVAILABLE"
                 "INVALID_EMAIL" -> "INVALID_EMAIL"
                 "QUOTA_EXCEEDED" -> "EMAIL_DELIVERY_UNAVAILABLE"
                 else -> if (stage == IdentityStage.REGISTRATION) "REGISTRATION_UNAVAILABLE" else "AUTH_UNAVAILABLE"
@@ -119,6 +139,12 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
 }
 
 @Serializable private class SignInRequest(val email: String, val password: String, val returnSecureToken: Boolean)
+@Serializable private class FederatedRequest(val postBody: String, val requestUri: String = "http://localhost", val returnSecureToken: Boolean = true)
+@Serializable private class FederatedResponse(
+    val idToken: String = "", val localId: String = "", val displayName: String = "Usuario BPM",
+    val refreshToken: String = "", val expiresIn: String = "3600", val needConfirmation: Boolean = false,
+    val pendingToken: String = "", val errorMessage: String = "",
+)
 @Serializable internal class FirebaseCredential(val idToken: String, val localId: String, val displayName: String = "Usuario BPM", val refreshToken: String = "", val expiresIn: String = "3600")
 @Serializable private class UpdateNameRequest(val idToken: String, val displayName: String, val returnSecureToken: Boolean)
 @Serializable internal class UpdatedProfileCredential(val localId: String, val idToken: String? = null, val refreshToken: String? = null)

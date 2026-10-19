@@ -278,7 +278,10 @@ organización/sede/miembro y catálogos del workspace.
 
 Pendientes: ejecutar cursos/evaluaciones/checklists, acciones correctivas,
 evidencias privadas, investigación CAP, reportes completos y recorridos de contenido
-y administración aún no implementados del prototipo. Google nativo requiere sus integraciones por plataforma.
+y administración aún no implementados del prototipo. Google Android tiene adaptador
+Credential Manager, applicationId `bpm.app` e ID OAuth Web público configurados;
+falta registrar la firma en Firebase y probar el acceso real. Google iOS sigue
+pendiente. Ver `specs/IDENTITY.md`.
 
 No hay persistencia offline, cola ni service worker. Cuando un recorrido los
 necesite, su repositorio observará almacenamiento local mediante Flow y

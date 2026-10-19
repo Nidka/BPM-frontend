@@ -23,9 +23,13 @@ val firebasePublic = JsonSlurper().parse(firebasePublicFile) as Map<*, *>
 val firebaseApiKey = providers.gradleProperty("firebaseApiKey")
     .orElse(providers.environmentVariable("FIREBASE_API_KEY"))
     .orElse(firebasePublic["apiKey"] as String)
+val googleWebClientId = providers.gradleProperty("googleWebClientId")
+    .orElse(providers.environmentVariable("GOOGLE_WEB_CLIENT_ID"))
+    .orElse(firebasePublic["googleWebClientId"] as? String ?: "")
 val generateAppConfig by tasks.registering {
     inputs.property("apiBaseUrl", apiBaseUrl)
     inputs.property("firebaseApiKey", firebaseApiKey)
+    inputs.property("googleWebClientId", googleWebClientId)
     outputs.dir(generatedConfig)
     doLast {
         val url = apiBaseUrl.get().trimEnd('/')
@@ -40,8 +44,13 @@ val generateAppConfig by tasks.registering {
             "FIREBASE_API_KEY debe ser la clave pública de Firebase, no un JSON ni un secreto Admin."
         }
         file.parentFile.mkdirs()
+        val googleClient = googleWebClientId.get().trim()
+        require(googleClient.isEmpty() || googleClient.matches(Regex("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com"))) {
+            "GOOGLE_WEB_CLIENT_ID debe ser un ID OAuth público de tipo Web, no un secreto ni una API key."
+        }
         file.writeText("package pe.bpm.core.config\n\ninternal const val NATIVE_API_BASE_URL = \"" + url + "\"\n" +
-            "internal const val FIREBASE_API_KEY = \"" + key + "\"\n")
+            "internal const val FIREBASE_API_KEY = \"" + key + "\"\n" +
+            "internal const val GOOGLE_WEB_CLIENT_ID = \"" + googleClient + "\"\n")
     }
 }
 
@@ -83,6 +92,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.activity.compose)
             implementation(libs.ktor.okhttp)
+            implementation(libs.credentials)
+            implementation(libs.credentials.play.services)
+            implementation(libs.googleid)
         }
         iosMain.dependencies { implementation(libs.ktor.darwin) }
         wasmJsMain.dependencies { implementation(libs.ktor.js) }
@@ -104,7 +116,7 @@ android {
     namespace = "pe.bpm"
     compileSdk = 36
     defaultConfig {
-        applicationId = "pe.bpm.app"
+        applicationId = "bpm.app"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

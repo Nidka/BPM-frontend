@@ -65,6 +65,8 @@ internal fun identityFailure(code: String, diagnostic: IdentityDiagnostic? = nul
         "GOOGLE_POPUP_BLOCKED" -> "Permite la ventana emergente para iniciar sesión con Google."
         "GOOGLE_NOT_READY" -> "Google se está preparando. Vuelve a intentarlo en un momento."
         "GOOGLE_NOT_SUPPORTED" -> "El acceso con Google todavía no está habilitado en esta plataforma."
+        "GOOGLE_NOT_CONFIGURED" -> "Google aún no está habilitado para esta app. Puedes ingresar con tu correo y contraseña."
+        "GOOGLE_NO_CREDENTIAL" -> "No pudimos abrir una cuenta de Google. Comprueba que el dispositivo tenga Google Play actualizado."
         "ACCOUNT_CONFLICT" -> "Ingresa con el método original de tu cuenta. Su vinculación con Google requiere verificación."
         else -> "El servicio de autenticación no está disponible. Inténtalo nuevamente."
     }

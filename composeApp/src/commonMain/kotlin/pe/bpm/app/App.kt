@@ -32,6 +32,7 @@ import pe.bpm.features.connection.presentation.ConnectionScreen
 import pe.bpm.features.connection.presentation.ConnectionViewModel
 import pe.bpm.features.identity.data.EphemeralSessionStore
 import pe.bpm.features.identity.data.SessionStore
+import pe.bpm.features.identity.data.GoogleAuthProvider
 import pe.bpm.features.identity.presentation.IdentityScreen
 import pe.bpm.features.identity.presentation.IdentityViewModel
 import pe.bpm.features.identity.presentation.SessionExpirationNotice
@@ -42,8 +43,9 @@ fun App(
     sessionStore: SessionStore = remember { EphemeralSessionStore() },
     onNavHostReady: suspend (NavController) -> Unit = {},
     onBackNavigation: (() -> Unit)? = null,
+    googleAuthProvider: GoogleAuthProvider? = null,
 ) {
-    val owner = viewModel { GraphOwner(sessionStore) }
+    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider) }
     val identity = viewModel<IdentityViewModel> { owner.graph.identityViewModel() }
     val workspace = viewModel<WorkspaceViewModel> { owner.graph.workspaceViewModel() }
     val checklists = viewModel<ChecklistCatalogViewModel> { owner.graph.checklistCatalogViewModel() }

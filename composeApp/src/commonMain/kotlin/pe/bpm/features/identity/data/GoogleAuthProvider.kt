@@ -11,6 +11,8 @@ class GoogleCredential(val idToken: String, val uid: String, val displayName: St
 
 sealed interface GoogleAuthResult {
     class Success(val credential: GoogleCredential) : GoogleAuthResult
+    /** Credencial nativa del proveedor que debe canjearse en Firebase antes de consultar BPM. */
+    class Federated(val idToken: String, val nonce: String) : GoogleAuthResult
     data class Failure(val code: String) : GoogleAuthResult
 }
 

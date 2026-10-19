@@ -1,4 +1,4 @@
 package pe.bpm.features.identity.data
 
-// Requiere registrar la app Android, SHA y Credential Manager antes de habilitarlo.
+// MainActivity inyecta el proveedor con Activity visible; las composiciones sin host no abren OAuth.
 actual fun platformGoogleAuthProvider(): GoogleAuthProvider = UnsupportedGoogleAuthProvider()
