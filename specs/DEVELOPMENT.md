@@ -59,9 +59,9 @@ El host SwiftUI y el proyecto declarativo project.yml están incluidos. Xcode
 invoca embedAndSignAppleFrameworkForXcode antes del build. Para dispositivo real,
 configurar el equipo de firma. El framework Kotlin puede compilarse sin firma.
 
-El host incluye GoogleSignIn 10.0.0 mediante Swift Package Manager; para activar
-Google, registrar `pe.bpm.app` en Firebase y añadir el ID público OAuth iOS como
-`googleIosClientId` al JSON público. El build genera el esquema de retorno en
+El host incluye GoogleSignIn 10.0.0 mediante Swift Package Manager; el registro
+Firebase `pe.bpm.app` y su ID público OAuth iOS ya están configurados mediante
+`googleIosClientId` en el JSON público. El build genera el esquema de retorno en
 `composeApp/build/generated/config/ios/GoogleSignIn-Info.plist`. No editarlo a mano.
 La prueba real iOS requiere el registro y consentimiento del titular; ver IDENTITY.md.
 La configuración actual compila para iPhone arm64 y simuladores Apple Silicon.

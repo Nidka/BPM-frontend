@@ -5,8 +5,8 @@
 Correo/contraseña, registro, verificación de email, reenvío y recuperación
 implementados para web, Android e iOS. Google web y Android están implementados;
 el usuario confirmó el acceso real desde su celular tras registrar la firma.
-iOS incorpora el SDK oficial y su adaptador; su activación y prueba real requieren
-el ID OAuth iOS del registro Firebase `pe.bpm.app`.
+iOS incorpora el SDK oficial, su adaptador y el ID OAuth iOS del registro Firebase
+`pe.bpm.app`; queda completar el consentimiento y la prueba real en iOS.
 
 Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.json
 (o overrides públicos). La cuenta Admin pertenece exclusivamente al backend.
@@ -187,9 +187,11 @@ del cliente Web. Sin configuración iOS el acceso Google no se ofrece como
 operativo; correo/contraseña sigue disponible.
 
 La compilación del framework Kotlin y la del host Swift se verifican por separado.
-La prueba real iOS sigue pendiente hasta recibir la configuración pública y
-completar el consentimiento Google en un simulador/dispositivo. No equivale a la
-prueba Android confirmada por el usuario.
+El archivo descargado de Firebase para `app-bpm-af59c` / `pe.bpm.app` proporcionó
+el ID iOS público, ya incorporado al JSON compartido. El esquema generado se
+comprueba contra su `REVERSED_CLIENT_ID`. La prueba real iOS requiere completar
+el consentimiento Google en un simulador/dispositivo; no equivale a la prueba
+Android confirmada por el usuario.
 
 Referencias: [Google Sign-In iOS](https://developers.google.com/identity/sign-in/ios/start-integrating),
 [Firebase iOS](https://firebase.google.com/docs/auth/ios/google-signin).

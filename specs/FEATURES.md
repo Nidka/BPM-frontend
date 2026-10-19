@@ -7,7 +7,7 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 | Área | Punto de entrada | Próximo trabajo |
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
-| Identidad | features/identity | Login/registro/recuperación y Google web/Android listos; usuario confirmó Google en celular. iOS con SDK/adaptador: pendiente ID OAuth iOS y prueba real; validación adicional de almacenamiento seguro en dispositivos |
+| Identidad | features/identity | Login/registro/recuperación y Google web/Android listos; usuario confirmó Google en celular. iOS con SDK/adaptador y configuración pública: pendiente prueba real y validación adicional de almacenamiento seguro en dispositivos |
 | Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición y bajas |
 | Checklists | features/checklists | Catálogo paginado, búsqueda, detalle y publicación de primera versión listos; siguiente: ejecuciones, borradores, idempotencia y sincronización |
 | Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |

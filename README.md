@@ -285,8 +285,8 @@ Pendientes: ejecutar cursos/evaluaciones/checklists, acciones correctivas,
 evidencias privadas, investigación CAP, reportes completos y recorridos de contenido
 y administración aún no implementados del prototipo. Google Android tiene adaptador
 Credential Manager y acceso real confirmado por el usuario en su celular.
-Google iOS incorpora SDK/adaptador y requiere el ID público del registro iOS y
-una prueba real. Ver `specs/IDENTITY.md`. Todas las funcionalidades usan
+Google iOS incorpora SDK/adaptador y configuración pública; requiere completar
+una prueba real con Google. Ver `specs/IDENTITY.md`. Todas las funcionalidades usan
 `BpmTextField`; la decisión de mantener URL con `#` está documentada en
 `specs/ARCHITECTURE.md` según la integración oficial de navegación web.
 
