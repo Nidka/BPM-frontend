@@ -46,6 +46,11 @@ fun IdentityScreen(
         }
     }
     fun changeMode(mode: AuthMode) { autofill?.cancel(); password = ""; confirmation = ""; onMode(mode) }
+    val navigation = rememberBpmFormNavigation(when (state.mode) {
+        AuthMode.Register -> listOf("firstName", "lastName", "email", "password", "confirmation")
+        AuthMode.Login -> listOf("email", "password")
+        else -> listOf("email")
+    })
     val fields = state.errors.flatMap { it.fields.entries }.associate { it.key to it.value }
     val profile = state.profile
     val needsVerificationEmail = state.verificationDeliveryFailed && !state.verificationEmailSent
@@ -114,19 +119,19 @@ fun IdentityScreen(
                         }
                     } else {
                         if (state.mode == AuthMode.Register) {
-                            AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, capitalization = KeyboardCapitalization.Words)
-                            AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, capitalization = KeyboardCapitalization.Words)
+                            AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, capitalization = KeyboardCapitalization.Words, navigation = navigation["firstName"])
+                            AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, capitalization = KeyboardCapitalization.Words, navigation = navigation["lastName"])
                         }
                         AuthField(email, { email = it }, "Correo electrónico", fields["email"], !state.busy, KeyboardType.Email,
-                            autofillType = (if (state.mode == AuthMode.Register) ContentType.NewUsername else ContentType.Username) + ContentType.EmailAddress)
+                            autofillType = (if (state.mode == AuthMode.Register) ContentType.NewUsername else ContentType.Username) + ContentType.EmailAddress, navigation = navigation["email"])
                         if (state.mode != AuthMode.Recovery) {
                             AuthField(password, { password = it }, "Contraseña", fields["password"], !state.busy, KeyboardType.Password, !visible,
-                                autofillType = if (state.mode == AuthMode.Register) ContentType.NewPassword else ContentType.Password)
+                                autofillType = if (state.mode == AuthMode.Register) ContentType.NewPassword else ContentType.Password, navigation = navigation["password"])
                             if (state.mode == AuthMode.Register) {
                                 Text("Usa entre 8 y 128 caracteres. Combina letras, números y símbolos.", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 AuthField(confirmation, { confirmation = it }, "Confirmar contraseña", fields["confirmPassword"], !state.busy, KeyboardType.Password, !visible,
-                                    autofillType = ContentType.NewPassword)
+                                    autofillType = ContentType.NewPassword, navigation = navigation["confirmation"])
                             }
                             BpmTextButton(onClick = { visible = !visible }, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
                                 Text(if (visible) "Ocultar contraseña" else "Mostrar contraseña")
@@ -195,8 +200,8 @@ fun IdentityScreen(
 @Composable
 private fun AuthField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
     keyboard: KeyboardType = KeyboardType.Text, hidden: Boolean = false,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None, autofillType: ContentType? = null) {
-    BpmTextField(value, onValue, label, enabled = enabled, error = error,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None, autofillType: ContentType? = null, navigation: BpmFieldNavigation) {
+    BpmTextField(value, onValue, label, enabled = enabled, error = error, navigation = navigation,
         modifier = if (autofillType != null) Modifier.semantics { contentType = autofillType } else Modifier,
         visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = capitalization, autoCorrectEnabled = false))

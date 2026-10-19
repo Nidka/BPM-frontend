@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
@@ -31,6 +32,11 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     if (formState.loading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
     val draft = formState.draft
     if (draft == null) { DraftSaveNotice(formState.localStatus, onRetryDraft); return }
+    val navigation = rememberBpmFormNavigation(when (kind) {
+        WorkspaceFormKind.Member -> listOf("email")
+        WorkspaceFormKind.Organization -> listOf("name", "trade", "tax", "contactName", "email", "phone")
+        WorkspaceFormKind.Location -> listOf("name", "address", "district", "phone")
+    })
     val saving = state.saving || formState.busy || formState.savedRemote
     var discarding by remember { mutableStateOf(false) }
     val formScroll = rememberScrollState()
@@ -48,38 +54,50 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                 DraftSaveNotice(formState.localStatus, onRetryDraft)
                 if (discarding) DiscardDraftConfirmation({ discarding = false }, onDiscardDraft, enabled = !saving)
                 if (kind == WorkspaceFormKind.Member) {
-                    Text("La persona debe registrarse y verificar su correo en BPM primero. No se envían invitaciones por correo.", style = MaterialTheme.typography.bodySmall)
-                    FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de la cuenta BPM", fields["email"], !saving, onUserActivity, KeyboardType.Email)
-                    listOf("ADMIN", "CHEF", "WORKER").forEach { choice -> FilterChip(selected = draft.role == choice, onClick = { onEdit { it.copy(role = choice) } }, enabled = !saving, label = { Text(roleLabel(choice)) }) }
+                    Text("Agrega a una persona que ya tenga una cuenta BPM con el correo confirmado.", style = MaterialTheme.typography.bodySmall)
+                    FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de la cuenta BPM", fields["email"], !saving, KeyboardType.Email, navigation = navigation["email"])
+                    Text("¿Qué podrá hacer?", fontWeight = FontWeight.Bold)
+                    Column(Modifier.selectableGroup()) {
+                        listOf("ADMIN", "CHEF", "WORKER").forEach { choice ->
+                            BpmChoiceRow(roleLabel(choice), draft.role == choice, !saving,
+                                supportingText = when (choice) {
+                                    "ADMIN" -> "Gestiona sedes, equipo y plantillas; también puede realizar controles."
+                                    "CHEF" -> "Realiza controles en las sedes asignadas y accede a capacitaciones."
+                                    else -> "Accede a capacitaciones y a su avance de aprendizaje."
+                                }) { onEdit { it.copy(role = choice) } }
+                        }
+                    }
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (draft.role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
                     else {
-                        Text("Sedes permitidas · ${draft.locations.size} seleccionadas", fontWeight = FontWeight.Bold)
+                        Text("¿En qué sedes trabajará?", fontWeight = FontWeight.Bold)
+                        Text("Sedes de ${state.workspace?.organization?.name.orEmpty()}. Marca las que le corresponden.", style = MaterialTheme.typography.bodySmall)
+                        Text(if (draft.locations.isEmpty()) "Selecciona al menos una sede." else if (draft.locations.size == 1) "1 sede seleccionada" else "${draft.locations.size} sedes seleccionadas", style = MaterialTheme.typography.bodySmall)
                         WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                         state.workspace?.locations.orEmpty().forEach { location ->
                             BpmCheckboxRow(location.name, location.id in draft.locations, !saving) { checked ->
                                 onEdit { it.copy(locations = if (checked) it.locations + location.id else it.locations - location.id) }
                             }
                         }
-                        if (state.workspace?.locations.isNullOrEmpty()) Text("No hay sedes para esta búsqueda. Busca otro nombre o crea una sede si aún no existe.")
+                        if (state.workspace?.locations.isNullOrEmpty()) Text(if (state.pages[WorkspaceResource.Locations]?.request?.query.isNullOrBlank()) "Esta organización aún no tiene sedes. Agrega una desde Empresa antes de asignar a esta persona." else "No encontramos sedes con ese nombre. Prueba otra búsqueda.")
                         }
                         fields["locationIds"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 } else {
-                    FormField(draft.name, { value -> onEdit { it.copy(name = value) } }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !saving, onUserActivity)
+                    FormField(draft.name, { value -> onEdit { it.copy(name = value) } }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !saving, navigation = navigation["name"])
                     if (kind == WorkspaceFormKind.Organization) {
-                        FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, onUserActivity)
-                        FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, onUserActivity)
-                        FormField(draft.contactName, { value -> onEdit { it.copy(contactName = value) } }, "Persona de contacto", fields["contactName"], !saving, onUserActivity)
+                        FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, navigation = navigation["trade"])
+                        FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, navigation = navigation["tax"])
+                        FormField(draft.contactName, { value -> onEdit { it.copy(contactName = value) } }, "Persona de contacto", fields["contactName"], !saving, navigation = navigation["contactName"])
                         listOf("RESTAURANT" to "Restaurante", "CAFETERIA" to "Cafetería", "CATERING" to "Catering", "RELATED_SERVICE" to "Servicio afín").forEach { (value, label) ->
                             FilterChip(selected = draft.business == value, onClick = { onEdit { it.copy(business = value) } }, enabled = !saving, label = { Text(label) })
                         }
-                        FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, onUserActivity, KeyboardType.Email)
+                        FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, KeyboardType.Email, navigation = navigation["email"])
                     } else {
-                        FormField(draft.address, { value -> onEdit { it.copy(address = value) } }, "Dirección *", fields["address"], !saving, onUserActivity)
-                        FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, onUserActivity)
+                        FormField(draft.address, { value -> onEdit { it.copy(address = value) } }, "Dirección *", fields["address"], !saving, navigation = navigation["address"])
+                        FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, navigation = navigation["district"])
                     }
-                    FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, onUserActivity, KeyboardType.Phone)
+                    FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, KeyboardType.Phone, navigation = navigation["phone"])
                 }
                 Errors(state.errors)
             }
@@ -92,7 +110,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     }
 }
 @Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
-    onUserActivity: () -> Unit, keyboard: KeyboardType = KeyboardType.Text) {
-    BpmTextField(value, { onUserActivity(); onValue(it) }, label, enabled = enabled, error = error,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = keyboard == KeyboardType.Text))
+    keyboard: KeyboardType = KeyboardType.Text, navigation: BpmFieldNavigation) {
+    BpmTextField(value, onValue, label, enabled = enabled, error = error,
+        navigation = navigation, keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = keyboard == KeyboardType.Text))
 }

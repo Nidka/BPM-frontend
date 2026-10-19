@@ -24,7 +24,7 @@ criterios sanitarios ni registros de demostración del prototipo.
 5. «Ver preguntas» abre el detalle de la versión publicada en su propia ruta. Presenta
    preguntas ordenadas, obligatoriedad, tipo de respuesta, unidad, rango y
    requisito de evidencia cuando exista. No permite registrar respuestas.
-6. «Volver al catálogo» o Atrás regresan a la lista. La ruta es
+6. La flecha de la cabecera o Atrás del sistema regresan a la lista. La ruta es
    `#control/plantilla/{templateId}`: permite historial y enlaces directos. El ID
    identifica una plantilla, sin incluir usuario, empresa ni credenciales. Abrir
    un enlace directo exige sesión, rol y consulta autorizada del detalle en la empresa
@@ -32,15 +32,15 @@ criterios sanitarios ni registros de demostración del prototipo.
    La solicitud del detalle no depende de la página cargada del catálogo.
 
 Se distinguen carga, catálogo vacío, búsqueda sin coincidencias y fallo. El fallo
-permite reintentar; «Actualizar» del workspace vuelve a consultar el contexto y
-su catálogo. Una recarga retira datos anteriores hasta confirmar la nueva lectura.
+permite reintentar la consulta afectada; la entrada a Control también revalida
+los datos cuando han perdido vigencia. Una recarga retira datos anteriores hasta confirmar la nueva lectura.
 La búsqueda se conserva al reintentar o volver del detalle en el mismo contexto
 y se limpia al cambiar usuario/empresa o cerrar sesión.
 
 El contenedor conserva navegación lateral desde 950 dp e inferior por debajo.
 Las tarjetas usan dos columnas desde 720 dp de contenido y una en tamaños menores;
 el detalle ocupa el ancho del contenido y comparte el desplazamiento del
-workspace, con regreso al catálogo al principio y al final.
+workspace, con una única acción de regreso en la cabecera. Los enlaces directos usan el catálogo como destino de respaldo.
 Campos y acciones mantienen etiquetas textuales; los títulos de preguntas tienen
 semántica de encabezado. Ambas pantallas usan el registro de actividad real
 existente en la raíz de la aplicación.

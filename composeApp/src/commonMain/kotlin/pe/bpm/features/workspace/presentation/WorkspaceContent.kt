@@ -13,19 +13,13 @@ import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
 
-@Composable internal fun Home(workspace: Workspace, wide: Boolean, learningAllowed: Boolean, onLearn: () -> Unit, onCompany: () -> Unit) {
-    BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-        if (!wide) Mascot(Modifier.size(88.dp).align(Alignment.End))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(if (learningAllowed) "Capacitación y buenas prácticas" else "Gestión de organizaciones",
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
-                    else "Consulta las empresas, sus sedes y los permisos del equipo.")
-                if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp))
-            }
-            if (wide) Mascot(Modifier.size(140.dp))
-        }
+@Composable internal fun Home(workspace: Workspace, learningAllowed: Boolean, onLearn: () -> Unit, onCompany: () -> Unit) {
+    BpmIntroCard(
+        title = if (learningAllowed) "Capacitación y buenas prácticas" else "Gestión de organizaciones",
+        description = if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
+            else "Consulta las empresas, sus sedes y los permisos del equipo.",
+    ) {
+        if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp).fillMaxWidth())
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val fontScale = LocalDensity.current.fontScale

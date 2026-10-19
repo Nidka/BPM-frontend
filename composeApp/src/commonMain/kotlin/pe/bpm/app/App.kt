@@ -1,5 +1,8 @@
 package pe.bpm.app
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
 import androidx.compose.foundation.layout.*
@@ -144,7 +147,9 @@ fun App(
     }
 
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, identity::logout) {
-        NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize()) {
+        NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize(),
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None }) {
             composable(LOGIN) {
                 if (profile == null) {
                     if (identityState.restoring) RestoringSession()
@@ -252,14 +257,18 @@ fun App(
                                         val scopedManagement = checklistState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected } ?: ChecklistCatalogState(loading = true)
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
                                             Text("Crea una primera versión y revisa las preguntas antes de publicarla.")
-                                            RaisedButton("Crear plantilla", { if (templateEditorState.published != null) templateEditor.reset(); nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true } }, Modifier.widthIn(max = 320.dp))
+                                            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                                                RaisedButton("Crear plantilla", {
+                                                    if (templateEditorState.published != null) templateEditor.reset()
+                                                    nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true }
+                                                }, Modifier.widthIn(max = if (maxWidth >= 600.dp) 320.dp else maxWidth).fillMaxWidth())
+                                            }
                                         }
                                         LaunchedEffect(templateId, checklistState.userId, checklistState.organizationId) {
                                             if (checklistState.organizationId == workspaceState.selected) checklists.showTemplate(templateId)
                                         }
                                         ChecklistCatalogScreen(scopedManagement, templateId, checklists::refresh, checklists::search,
-                                            onSelect = { id -> nav.navigate("empresa/plantillas/detalle/$id") { launchSingleTop = true } },
-                                            onCloseDetail = { navigateBack(TEMPLATE_MANAGEMENT) }, onUserActivity = identity::userActivity,
+                                            onSelect = { id -> nav.navigate("empresa/plantillas/detalle/$id") { launchSingleTop = true } }, onUserActivity = identity::userActivity,
                                             onNext = checklists::next, onPrevious = checklists::previous, management = true)
                                     }
                                 }
@@ -282,7 +291,7 @@ fun App(
                                     onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
                                     onBack = { nav.navigate(WorkspaceDestination.Operations.route) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = true }; launchSingleTop = true } }) }) else managementContent,
                                 secondaryEditor = editingTemplate,
-                                secondaryTitle = if (running) "Control de tu sede" else if (managingTemplates) "Plantillas de control" else null,
+                                secondaryTitle = if (running) "Control de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -350,11 +359,7 @@ fun App(
                                     }
                                     ChecklistCatalogScreen(scoped, templateId, checklists::refresh, checklists::search,
                                         onSelect = { id -> nav.navigate("control/plantilla/$id") { launchSingleTop = true } },
-                                        onCloseDetail = {
-                                            if (nav.previousBackStackEntry?.destination?.route == WorkspaceDestination.Operations.route)
-                                                navigateBack(WorkspaceDestination.Operations.route)
-                                            else resetTo(WorkspaceDestination.Operations.route)
-                                        }, onUserActivity = identity::userActivity, onNext = checklists::next, onPrevious = checklists::previous,
+                                        onUserActivity = identity::userActivity, onNext = checklists::next, onPrevious = checklists::previous,
                                         onStart = { id -> runs.reset(); nav.navigate("control/plantilla/$id/iniciar") { launchSingleTop = true } })
                                 },
                                 onClear = workspace::clearErrors,

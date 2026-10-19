@@ -101,3 +101,40 @@ git diff --check
 GitHub Actions repite estos controles, construye Docker y compila el framework
 Kotlin y el host Swift con el SDK Google en macOS. Railway puede esperar a que
 ambos jobs aprueben.
+
+## Entrada y teclado en formularios
+
+`core/designsystem/BpmTextField` centraliza estilo y acciones IME.
+`rememberBpmFormNavigation` recibe las claves de los campos visibles en orden;
+«Siguiente» solicita foco al próximo campo, omitiendo botones y selectores.
+El último ofrece «Listo»: oculta el teclado y libera el foco sin guardar,
+publicar ni enviar. Los campos de varias líneas del formulario también declaran
+esa acción; su tamaño visual no obliga al usuario a pulsar otro campo.
+La navegación Tab/Shift+Tab del teclado físico mantiene el comportamiento Compose.
+No se interceptan combinaciones de caracteres ni se eliminan tildes, ñ o signos.
+
+Correo, contraseña, teléfono y decimal declaran KeyboardType según el dato.
+Son indicaciones al teclado, no validaciones: pegar texto o usar teclado físico
+puede introducir otros caracteres. Las reglas de los casos de uso y del API
+siguen vigentes, incluidos límites numéricos y pertenencia de sedes. RUC /
+identificación fiscal mantiene texto porque el contrato admite identificadores
+alfanuméricos. Los decimales aceptan coma o punto mediante la conversión existente.
+
+Referencias: [entrada de texto Compose](https://developer.android.com/develop/ui/compose/text/user-input),
+[foco entre campos](https://developer.android.com/develop/ui/compose/touch-input/focus/focus-in-text-fields)
+y [emulador Android](https://developer.android.com/studio/run/emulator).
+
+Para revisar problemas de tildes con la laptop, comparar el mismo texto
+«¿La superficie está limpia? Sí, revisión de mañana» en BPM y en un campo nativo
+como la búsqueda de Ajustes del emulador. Si falla en ambos, revisar dentro de
+ese dispositivo Ajustes → Sistema → Teclado → Teclado físico y su distribución;
+para el teclado en pantalla, revisar el idioma de Gboard. Los nombres varían
+según imagen Android. Una prueba con inserción Unicode confirma que la app
+conserva el texto, pero no comprueba las teclas muertas del teclado de la Mac.
+No cambiar ajustes globales de macOS ni reinstalar una app con trabajo en curso.
+
+Comprobación de UI: correo → Siguiente → contraseña → Listo sin envío; registro
+con nombres y apellidos; alta de sede con teléfono; editor con límites decimales;
+respuestas y observaciones; detalle con un único regreso, también por enlace
+directo; anchos 320, 390, 844 y 1440. Confirmar Unicode, foco y ausencia de
+acciones duplicadas, además de los builds de cada plataforma.

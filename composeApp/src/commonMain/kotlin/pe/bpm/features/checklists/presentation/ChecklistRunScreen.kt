@@ -24,6 +24,9 @@ data class ChecklistRunLocation(val id: String, val name: String)
     onBegin: (String, String) -> Unit, onEdit: (String, RunAnswerInput) -> Unit,
     onSave: () -> Unit, onReview: () -> Unit, onSubmit: () -> Unit, onBackToEdit: () -> Unit,
     onRetry: () -> Unit, onProtectDraft: () -> Unit, onReload: () -> Unit, onBack: () -> Unit) {
+    val navigation = rememberBpmFormNavigation(state.run?.items.orEmpty().flatMap { item ->
+        (if (item.responseType == ChecklistResponseType.COMPLIANCE) emptyList() else listOf("${item.id}.value")) + "${item.id}.observation"
+    })
     var location by remember(state.organizationId, template?.id) { mutableStateOf<String?>(null) }
     var locationName by remember(state.organizationId, template?.id) { mutableStateOf("") }
     var confirmReload by remember(state.run?.id, state.failure) { mutableStateOf(false) }
@@ -70,7 +73,6 @@ data class ChecklistRunLocation(val id: String, val name: String)
                     if (location != null) Text("Sede elegida: $locationName", style = MaterialTheme.typography.bodySmall)
                     PageNavigation(locationPage, previousLocations, nextLocations, locationsLoading || state.pending, onLocationPrevious, onLocationNext)
                 }
-                Text("Necesitas conexión para iniciar y guardar este control. Guarda tus respuestas antes de salir.", style = MaterialTheme.typography.bodySmall)
                 RaisedButton("Iniciar control", { location?.let { onBegin(it, template.versionId) } },
                     enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }
@@ -102,8 +104,8 @@ data class ChecklistRunLocation(val id: String, val name: String)
                     if (item.responseType == ChecklistResponseType.COMPLIANCE) Column(Modifier.selectableGroup()) {
                         complianceLabels.forEach { (value, label) -> BpmChoiceRow(label, input.value == value, state.editable) { onEdit(item.id, input.copy(value = value)) } }
                     } else BpmTextField(input.value, { onEdit(item.id, input.copy(value = it)) }, if (item.responseType == ChecklistResponseType.TEXT) "Respuesta" else "Valor ${item.unit}",
-                        enabled = state.editable, keyboardOptions = KeyboardOptions(keyboardType = if (item.responseType == ChecklistResponseType.TEXT) KeyboardType.Text else KeyboardType.Decimal))
-                    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, "Observación (opcional)", enabled = state.editable)
+                        enabled = state.editable, navigation = navigation["${item.id}.value"], keyboardOptions = KeyboardOptions(keyboardType = if (item.responseType == ChecklistResponseType.TEXT) KeyboardType.Text else KeyboardType.Decimal))
+                    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, "Observación (opcional)", enabled = state.editable, navigation = navigation["${item.id}.observation"])
                 } else {
                     Text(complianceLabels[input.value] ?: input.value.ifBlank { "Sin respuesta" })
                     if (input.observation.isNotBlank()) Text(input.observation)

@@ -25,6 +25,11 @@ import pe.bpm.features.checklists.domain.*
     onDiscard: () -> Unit, onKeep: () -> Unit, onConfirmDiscard: () -> Unit, onPublished: (String) -> Unit,
     onClose: () -> Unit, onProtectDraft: () -> Unit, onSuggestion: (String) -> Unit,
 ) {
+    val navigation = rememberBpmFormNavigation(listOf("name", "area", "description") + state.questions.flatMap { input ->
+        listOf("${input.id}.label", "${input.id}.section") +
+            if (input.type in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE))
+                listOf("${input.id}.minimum", "${input.id}.maximum", "${input.id}.unit") else emptyList()
+    })
     val scroll = rememberScrollState()
     val snackbars = remember { SnackbarHostState() }
     LaunchedEffect(state.removed?.input?.id) {
@@ -83,14 +88,14 @@ import pe.bpm.features.checklists.domain.*
                     }
                     BpmCard(Modifier.fillMaxWidth()) {
                         Text("Datos del control", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        EditorField(state.name, onName, "Nombre del control *", state.fields["name"], placeholder = "Ej.: Control de apertura")
-                        EditorField(state.area, onArea, "Área que se revisará *", state.fields["area"], placeholder = "Ej.: Cocina")
-                        EditorField(state.description, onDescription, "Descripción (opcional)", state.fields["description"], singleLine = false, placeholder = "Ej.: Revisión antes de comenzar el turno")
+                        EditorField(state.name, onName, "Nombre del control *", state.fields["name"], placeholder = "Ej.: Control de apertura", navigation = navigation["name"])
+                        EditorField(state.area, onArea, "Área que se revisará *", state.fields["area"], placeholder = "Ej.: Cocina", navigation = navigation["area"])
+                        EditorField(state.description, onDescription, "Descripción (opcional)", state.fields["description"], singleLine = false, placeholder = "Ej.: Revisión antes de comenzar el turno", navigation = navigation["description"])
                         Text("Tu equipo verá este control después de que lo revises y publiques.", style = MaterialTheme.typography.bodySmall)
                     }
                     Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     state.questions.forEachIndexed { index, input -> key(input.id) {
-                        QuestionEditor(input, index, state.questions.size, state.fields,
+                        QuestionEditor(input, index, state.questions.size, state.fields, navigation,
                             onChange = { change -> onQuestion(input.id, change) }, onType = { onType(input.id, it) },
                             onMove = { onMove(input.id, it) }, onRemove = { onRemove(input.id) })
                     } }
@@ -125,16 +130,16 @@ import pe.bpm.features.checklists.domain.*
     }
 }
 
-@Composable private fun QuestionEditor(input: TemplateQuestionInput, index: Int, count: Int, fields: Map<String, String>,
+@Composable private fun QuestionEditor(input: TemplateQuestionInput, index: Int, count: Int, fields: Map<String, String>, navigation: BpmFormNavigation,
     onChange: ((TemplateQuestionInput) -> TemplateQuestionInput) -> Unit,
     onType: (ChecklistResponseType) -> Unit, onMove: (Int) -> Unit, onRemove: () -> Unit) {
     val prefix = "items.${input.id}"
     BpmCard(Modifier.fillMaxWidth()) {
         Text("Pregunta ${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() })
-        EditorField(input.label, { value -> onChange { it.copy(label = value) } }, "¿Qué quieres preguntar? *", fields["$prefix.label"],
+        EditorField(input.label, { value -> onChange { it.copy(label = value) } }, "¿Qué quieres preguntar? *", fields["$prefix.label"], navigation = navigation["${input.id}.label"],
             singleLine = false, placeholder = "Ej.: ¿La superficie de trabajo está limpia?")
-        EditorField(input.section, { value -> onChange { it.copy(section = value) } }, "Grupo de preguntas *", fields["$prefix.sectionName"],
+        EditorField(input.section, { value -> onChange { it.copy(section = value) } }, "Grupo de preguntas *", fields["$prefix.sectionName"], navigation = navigation["${input.id}.section"],
             placeholder = "Ej.: Limpieza de superficies")
         Text("Agrupa preguntas relacionadas: higiene del personal, limpieza o almacenamiento.", style = MaterialTheme.typography.bodySmall)
         QuestionResponsePicker(input.type, onType)
@@ -144,15 +149,15 @@ import pe.bpm.features.checklists.domain.*
             Text("Indica el mínimo y el máximo de tu procedimiento. Al responder, se comparará la medición con estos límites.", style = MaterialTheme.typography.bodySmall)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 if (maxWidth < 420.dp) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, keyboard = KeyboardType.Decimal)
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, keyboard = KeyboardType.Decimal)
+                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.minimum"])
+                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.maximum"])
                 } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal)
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal)
+                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.minimum"])
+                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.maximum"])
                 }
             }
             fields["$prefix.range"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida *", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades")
+            EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida *", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades", navigation = navigation["${input.id}.unit"])
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (index > 0) BpmTextButton(onClick = { onMove(-1) }, modifier = Modifier.semantics { contentDescription = "Mover pregunta ${index + 1} antes de la anterior" }) { Text("Mover antes") }
@@ -162,8 +167,8 @@ import pe.bpm.features.checklists.domain.*
     }
 }
 @Composable private fun EditorField(value: String, onValue: (String) -> Unit, label: String, error: String?, singleLine: Boolean = true,
-    modifier: Modifier = Modifier, keyboard: KeyboardType = KeyboardType.Text, placeholder: String? = null) {
-    BpmTextField(value, onValue, label, modifier, singleLine = singleLine,
+    modifier: Modifier = Modifier, keyboard: KeyboardType = KeyboardType.Text, placeholder: String? = null, navigation: BpmFieldNavigation) {
+    BpmTextField(value, onValue, label, modifier, singleLine = singleLine, navigation = navigation,
         minLines = if (singleLine) 1 else 2, error = error, placeholder = placeholder, keyboardOptions = KeyboardOptions(keyboardType = keyboard))
 }
 internal fun ChecklistResponseType.label() = when (this) {

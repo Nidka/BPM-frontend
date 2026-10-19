@@ -73,10 +73,10 @@ internal fun WorkspaceScreen(
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 WorkspaceTopBar(workspace?.organization?.name, wide,
-                    canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && (state.canChooseOrganization || superAdmin),
+                    canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin),
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
-                    onBack = if (form == null && secondaryContent == null && !choosingOrganization) null else onCloseForm)
+                    onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) { secondaryContent() }
@@ -109,7 +109,10 @@ internal fun WorkspaceScreen(
                                 state.errors.isNotEmpty() -> workspacePlaceholder(state, false).title
                                 else -> "Sin organización activa"
                             })
-                            BpmSecondaryButton(onClick = onVerifySession, enabled = !sessionBusy) { Text(if (sessionBusy) "Verificando…" else "Verificar sesión y permisos") }
+                            if (workspace == null && !viewer.canCreateOrganization && !state.loading) {
+                                Text("Si tu administrador acaba de agregarte a una organización, puedes consultar tu acceso de nuevo.", style = MaterialTheme.typography.bodySmall)
+                                BpmSecondaryButton(onClick = onVerifySession, enabled = !sessionBusy) { Text(if (sessionBusy) "Consultando…" else "Consultar mi acceso") }
+                            }
                             if (sessionBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
                             sessionConfirmation?.let { Text(it, color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
@@ -136,7 +139,7 @@ internal fun WorkspaceScreen(
                     if (secondaryContent != null) secondaryContent()
                     else workspace?.let { current -> when (section) {
                         WorkspaceDestination.Account -> Unit
-                        WorkspaceDestination.Home -> Home(current, wide, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
+                        WorkspaceDestination.Home -> Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
                         WorkspaceDestination.Company -> {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
@@ -177,30 +180,21 @@ internal fun WorkspaceScreen(
                             }
                         }
                         WorkspaceDestination.Learn -> {
-                            BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.secondaryContainer) {
-                                if (!wide) Mascot(Modifier.size(88.dp).align(Alignment.End), learning = true)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Eyebrow("APRENDER PARA CUIDAR")
-                                        Text("Un hábito a la vez.", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                                        Text("Consulta las capacitaciones publicadas por tu organización.")
-                                    }
-                                    if (wide) Mascot(Modifier.size(180.dp), learning = true)
-                                }
-                            }
+                            BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                             Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.")
                             }
                         }
                         WorkspaceDestination.Operations -> {
                             checklistContent()
+                            if (secondaryTitle == null && (current.incidents.isNotEmpty() || (current.totals["incidents"] ?: 0) > 0)) {
                             Eyebrow("INCIDENCIAS DE TUS SEDES")
                             WorkspacePagedList(WorkspaceResource.Incidents, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
-                            Entries(current.incidents, "Sin incidencias para mostrar", "No hay incidencias disponibles para tus permisos actuales.")
+                            Entries(current.incidents, "No encontramos incidencias", "Prueba con otra búsqueda.")
+                            }
                             }
                         }
                     } }
-                    Text("Las consultas necesitan conexión. Los borradores locales se enviarán solo cuando lo confirmes.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (!wide && form == null && !secondaryEditor && !choosingOrganization) NavigationBar {
                     destinations.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {

@@ -5,7 +5,6 @@ import pe.bpm.core.designsystem.BpmTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -14,11 +13,11 @@ import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.PageNavigation
 import pe.bpm.core.designsystem.BpmCard
 import pe.bpm.core.designsystem.EmptyState
-import pe.bpm.core.designsystem.Mascot
 import pe.bpm.core.designsystem.RaisedButton
-import pe.bpm.core.designsystem.BpmIcon
-import pe.bpm.core.designsystem.BpmSymbol
 import pe.bpm.core.designsystem.BpmTextField
+import pe.bpm.core.designsystem.BpmIntroCard
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import pe.bpm.features.checklists.domain.*
 
 /** Contenido sin scroll propio: el contenedor de workspace gestiona el catálogo. */
@@ -29,38 +28,25 @@ fun ChecklistCatalogScreen(
     onRefresh: () -> Unit,
     onSearch: (String) -> Unit,
     onSelect: (String) -> Unit,
-    onCloseDetail: () -> Unit,
     onUserActivity: () -> Unit,
     onNext: () -> Unit, onPrevious: () -> Unit,
     management: Boolean = false,
     onStart: ((String) -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        if (templateId == null && !management) BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val showMascot = maxWidth >= 600.dp
-            BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-                if (!showMascot) Mascot(Modifier.size(88.dp).align(Alignment.End))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("UN CONTROL A LA VEZ", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                        Text("Cada criterio cuenta.", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                        Text("Consulta los controles publicados de tu organización y conoce qué revisar antes de comenzar.")
-                    }
-                    if (showMascot) Mascot(Modifier.size(140.dp))
-                }
-            }
-        }
+        if (templateId == null && !management) BpmIntroCard("Cada criterio cuenta.",
+            "Elige un control publicado, revisa sus preguntas y complétalo para una sede de tu organización.")
         if (templateId != null) {
             when {
                 state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
                 state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
-                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, onCloseDetail, if (management) null else onStart)
+                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart)
                 else -> Text("Cargando plantilla…")
             }
             return@Column
         }
         BpmTextField(state.query, { onUserActivity(); onSearch(it) }, "Buscar controles",
-            placeholder = "Nombre, área o descripción")
+            placeholder = "Nombre, área o descripción", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search))
         when {
             state.loading -> {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -110,24 +96,18 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSele
 
 /** Consulta de una versión publicada; la raíz coordina su ruta y el regreso al catálogo. */
 @Composable
-private fun ChecklistDetail(template: ChecklistTemplate, onClose: () -> Unit, onStart: ((String) -> Unit)?) {
+private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> Unit)?) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (onStart != null) RaisedButton("Realizar este control", { onStart(template.id) })
-        BpmSecondaryButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) {
-            BpmIcon(BpmSymbol.Back)
-            Spacer(Modifier.width(8.dp))
-            Text("Volver al catálogo")
-        }
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
             Text("DETALLE DEL CONTROL", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(template.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() })
             Text("${template.area} · Versión ${template.versionNumber}")
             if (template.description.isNotBlank()) Text(template.description)
-            Text("Consulta de plantilla publicada. Esta vista no registra respuestas.", style = MaterialTheme.typography.bodyMedium)
+            Text(if (onStart != null) "Para responder estas preguntas, pulsa Realizar este control y elige la sede." else "Tu equipo utilizará estas preguntas al realizar el control desde su sección Control.", style = MaterialTheme.typography.bodyMedium)
         }
         template.items.forEach { item -> Question(item) }
-        BpmSecondaryButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver al catálogo") }
     }
 }
 
@@ -156,7 +136,7 @@ private fun decimal(value: Double) = value.toString().removeSuffix(".0")
 
 internal fun failureMessage(failure: ChecklistFailure): String = when (failure) {
     ChecklistFailure.SESSION_REQUIRED -> "Tu sesión terminó. Vuelve a iniciar sesión."
-    ChecklistFailure.ACCESS_DENIED -> "Ya no tienes permiso para consultar estos controles. Verifica tus permisos desde Mi cuenta."
+    ChecklistFailure.ACCESS_DENIED -> "Ya no tienes permiso para consultar estos controles. Solicita acceso al administrador de tu organización."
     ChecklistFailure.NOT_FOUND -> "La organización o el catálogo solicitado no está disponible."
     ChecklistFailure.RATE_LIMITED -> "Espera un momento antes de volver a intentar."
     ChecklistFailure.CONNECTION -> "Revisa tu conexión y vuelve a intentar."

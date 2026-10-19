@@ -111,7 +111,7 @@ La raíz app adapta identity a WorkspaceViewer; la presentación no importa iden
 WorkspaceScreen compone el contenedor, WorkspaceContent las secciones y
 WorkspaceForm los formularios. App contiene el NavHost y comprueba cada destino
 según sesión y rol, incluso al abrir un fragmento web directamente. Mi cuenta
-muestra datos públicos y permite revalidar sesión. Cambiar empresa o cerrar sesión
+muestra datos públicos. La sesión se valida automáticamente; «Consultar mi acceso» solo aparece cuando falta una organización, para comprobar una asignación reciente. Cambiar empresa o cerrar sesión
 limpia la pila; formularios y menús se reinician al cambiar de contexto.
 AppGraph inyecta repositorio/casos de uso/VM. El backend valida usuario, tenant,
 rol y sedes en cada llamada; ocultar botones solo mejora la experiencia.
@@ -248,3 +248,30 @@ compactas para dar espacio al formulario. Cambiar de organización o cerrar sesi
 limpia el estado de pantalla y conserva la copia local aislada del propietario.
 Rutas, recuperación de publicación y límites se describen en
 [`CHECKLISTS.md`](CHECKLISTS.md); esta entrada no habilita permisos en el cliente.
+
+## Ajustes de formularios y lectura móvil
+
+`BpmIntroCard` comparte título, mascota y descripción. En móvil la mascota de
+64 dp acompaña al título; el texto y la acción conservan todo el ancho. No se
+reserva una fila superior solo para la ilustración. La creación de plantillas
+ocupa todo el ancho en móvil y se limita a 320 dp en vistas amplias. Las pantallas cambian sin el fundido de
+todo el NavHost; los indicadores lineales siguen representando solicitudes reales.
+
+Se retiró el pie técnico permanente sobre conexión y envío de borradores. El
+estado de guardado y los fallos se muestran junto a la operación correspondiente.
+Las incidencias no ocupan un catálogo vacío adicional en Control cuando no hay
+registros autorizados; si existen, conservan su consulta paginada y sus errores.
+
+El alta de miembro explica las capacidades de cada rol con selección única.
+«¿En qué sedes trabajará?» identifica la organización activa y cuenta únicamente
+las casillas marcadas, incluso entre páginas. Las opciones vienen del workspace
+remoto y de GET organizations/{id}/locations; no se generan sedes ficticias.
+CHEF y WORKER necesitan al menos una según el contrato del backend; ADMIN accede
+a todas las sedes. La validación definitiva de pertenencia sigue en el servidor.
+
+ADMIN de organización puede publicar plantillas y realizar controles. La política
+actual del backend no separa al autor de la plantilla de quien responde; registra
+performedBy y solo el iniciador puede modificar su ejecución. No equivale al
+SUPER_ADMIN de plataforma, que no recibe operación diaria por tener ese rol.
+Referencia del alcance: Requerimientos/PlanImplementacion.md, fases 2 y 3; la
+separación corrector/validador de fase 6 pertenece a incidencias.
