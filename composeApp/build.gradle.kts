@@ -26,11 +26,17 @@ val firebaseApiKey = providers.gradleProperty("firebaseApiKey")
 val googleWebClientId = providers.gradleProperty("googleWebClientId")
     .orElse(providers.environmentVariable("GOOGLE_WEB_CLIENT_ID"))
     .orElse(firebasePublic["googleWebClientId"] as? String ?: "")
+val googleIosClientId = providers.gradleProperty("googleIosClientId")
+    .orElse(providers.environmentVariable("GOOGLE_IOS_CLIENT_ID"))
+    .orElse(firebasePublic["googleIosClientId"] as? String ?: "")
+val generatedAppleInfo = layout.buildDirectory.file("generated/config/ios/GoogleSignIn-Info.plist")
 val generateAppConfig by tasks.registering {
     inputs.property("apiBaseUrl", apiBaseUrl)
     inputs.property("firebaseApiKey", firebaseApiKey)
     inputs.property("googleWebClientId", googleWebClientId)
+    inputs.property("googleIosClientId", googleIosClientId)
     outputs.dir(generatedConfig)
+    outputs.file(generatedAppleInfo)
     doLast {
         val url = apiBaseUrl.get().trimEnd('/')
         val parsed = URI(url)
@@ -48,6 +54,24 @@ val generateAppConfig by tasks.registering {
         require(googleClient.isEmpty() || googleClient.matches(Regex("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com"))) {
             "GOOGLE_WEB_CLIENT_ID debe ser un ID OAuth público de tipo Web, no un secreto ni una API key."
         }
+        val iosClient = googleIosClientId.get().trim()
+        require(iosClient.isEmpty() || iosClient.matches(Regex("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com")) &&
+            iosClient != googleClient && iosClient.substringBefore('-') == googleClient.substringBefore('-')) {
+            "GOOGLE_IOS_CLIENT_ID debe ser el ID OAuth iOS del mismo proyecto que el cliente Web."
+        }
+        val appleInfo = generatedAppleInfo.get().asFile
+        appleInfo.parentFile.mkdirs()
+        val googleProperties = if (iosClient.isEmpty()) "" else """
+            <key>GIDClientID</key><string>$iosClient</string>
+            <key>GIDServerClientID</key><string>$googleClient</string>
+            <key>CFBundleURLTypes</key><array><dict>
+              <key>CFBundleURLSchemes</key><array><string>${iosClient.split('.').reversed().joinToString(".")}</string></array>
+            </dict></array>
+        """.trimIndent()
+        appleInfo.writeText("""<?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0"><dict>$googleProperties</dict></plist>
+        """.trimIndent())
         file.writeText("package pe.bpm.core.config\n\ninternal const val NATIVE_API_BASE_URL = \"" + url + "\"\n" +
             "internal const val FIREBASE_API_KEY = \"" + key + "\"\n" +
             "internal const val GOOGLE_WEB_CLIENT_ID = \"" + googleClient + "\"\n")

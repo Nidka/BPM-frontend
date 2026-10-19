@@ -56,7 +56,8 @@ scripts/architecture.test.mjs           comprobación de dependencias por capa y
 specs/                                 contratos, alcance y documentación detallada
 ```
 
-`iosApp/` contiene el host SwiftUI. `jvmMain` no constituye un producto de
+`iosApp/` contiene el host SwiftUI y el puente al SDK oficial Google Sign-In.
+`iosTest/` comprueba cancelación y callbacks del proveedor iOS. `jvmMain` no constituye un producto de
 escritorio. No se crean carpetas vacías para funcionalidades aún no implementadas.
 
 ## Responsabilidades y dependencias
@@ -75,8 +76,9 @@ Pantalla Compose ──acción──> ViewModel ──> Caso de uso ──> Cont
   de uso por constructor. No ejecuta HTTP ni construye repositorios.
 - **app:** coordina funcionalidades. Convierte el perfil de identidad a
   `WorkspaceViewer`; workspace no importa tipos de identity ni recibe tokens.
-- **core/di:** única raíz de construcción. `AppGraph` comparte cliente y sesión,
-  sin service locator ni singletons mutables. El resto de core no importa features.
+- **core/di:** compone el grafo de funcionalidades. Los hosts nativos inyectan
+  los adaptadores ligados al sistema operativo. `AppGraph` comparte cliente y
+  sesión, sin service locator ni singletons propios. El resto de core no importa features.
 
 Las funcionalidades no importan otras funcionalidades. Cuando un recorrido
 necesite colaboración, se compone en app/DI mediante contratos explícitos; solo
@@ -88,7 +90,7 @@ cursos, evaluaciones o ejecuciones de checklist.
 
 | Elemento aplicado | Responsabilidad | Ubicación |
 |---|---|---|
-| `@Composable` | Declarar UI Compose compartida. | `app/` y `presentation/`. |
+| `@Composable` | Declarar UI Compose compartida. | `app/`, `core/designsystem/` y `presentation/`. |
 | `@Serializable` | Generar serializadores de DTO y credenciales privadas del adaptador. | `data/`; no en dominio. |
 | `@SerialName` | Mapear nombres externos como `refresh_token` sin alterar el contrato de la API. | DTO Firebase de `RemoteIdentityRepository`. |
 | `@OptIn` / `@file:OptIn` | Declarar explícitamente APIs experimentales: UUID, historial web e interoperabilidad nativa. | Archivos que usan esas APIs. |
@@ -233,7 +235,8 @@ Verificación antes de integrar una rama:
 ```bash
 node --test scripts/*.test.mjs web/*.test.mjs
 ./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug
-./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+./gradlew :composeApp:iosSimulatorArm64Test :composeApp:linkDebugFrameworkIosSimulatorArm64
+bash scripts/build-ios.sh
 git diff --check
 ```
 
@@ -241,7 +244,9 @@ La compilación iOS requiere macOS/Xcode. Si la Mac tiene seleccionadas solo las
 Command Line Tools, ejecutar ese comando con
 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`; no es necesario cambiar
 la selección global. CI comprueba límites arquitectónicos,
-pruebas web, código compartido, builds Android/web, imagen Docker y framework iOS.
+pruebas web, código compartido, builds Android/web, imagen Docker, pruebas iOS y
+compilación del framework y del host Swift con el SDK Google. El host requiere
+XcodeGen; ver `specs/DEVELOPMENT.md` para usarlo sin cambiar ajustes globales.
 Las pruebas con dobles no sustituyen probar login real, almacenamiento nativo
 en dispositivos/emuladores, accesibilidad y recorridos en navegador. Las pruebas automatizadas no crean
 cuentas ni escriben en el backend de producción.
@@ -279,9 +284,11 @@ organización/sede/miembro y catálogos del workspace.
 Pendientes: ejecutar cursos/evaluaciones/checklists, acciones correctivas,
 evidencias privadas, investigación CAP, reportes completos y recorridos de contenido
 y administración aún no implementados del prototipo. Google Android tiene adaptador
-Credential Manager, applicationId `bpm.app` e ID OAuth Web público configurados;
-falta registrar la firma en Firebase y probar el acceso real. Google iOS sigue
-pendiente. Ver `specs/IDENTITY.md`.
+Credential Manager y acceso real confirmado por el usuario en su celular.
+Google iOS incorpora SDK/adaptador y requiere el ID público del registro iOS y
+una prueba real. Ver `specs/IDENTITY.md`. Todas las funcionalidades usan
+`BpmTextField`; la decisión de mantener URL con `#` está documentada en
+`specs/ARCHITECTURE.md` según la integración oficial de navegación web.
 
 No hay persistencia offline, cola ni service worker. Cuando un recorrido los
 necesite, su repositorio observará almacenamiento local mediante Flow y

@@ -47,4 +47,13 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v6
       - name: Compile iOS framework for simulator
-        run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+        run: ./gradlew :composeApp:iosSimulatorArm64Test :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+      - name: Prepare XcodeGen
+        run: |
+          curl --fail --location --silent --show-error --retry 3 https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip -o "$RUNNER_TEMP/bpm-xcodegen.zip"
+          unzip -q "$RUNNER_TEMP/bpm-xcodegen.zip" -d "$RUNNER_TEMP/bpm-xcodegen"
+          chmod +x "$RUNNER_TEMP/bpm-xcodegen/xcodegen/bin/xcodegen"
+      - name: Compile native iOS host and Google SDK
+        env:
+          XCODEGEN_BIN: ${{ runner.temp }}/bpm-xcodegen/xcodegen/bin/xcodegen
+        run: bash scripts/build-ios.sh

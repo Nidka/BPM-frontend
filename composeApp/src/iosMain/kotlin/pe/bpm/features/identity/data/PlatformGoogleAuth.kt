@@ -1,4 +1,4 @@
 package pe.bpm.features.identity.data
 
-// Requiere Client ID iOS y esquema de retorno; no simular un proveedor nativo.
+// El host Swift inyecta IosGoogleAuthProvider con el SDK y el controlador visible.
 actual fun platformGoogleAuthProvider(): GoogleAuthProvider = UnsupportedGoogleAuthProvider()

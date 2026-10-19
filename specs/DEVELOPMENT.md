@@ -42,10 +42,9 @@ ya incluido en `config/firebase.public.json`; el build habitual lo incorpora.
 Para otro entorno se admite `-PgoogleWebClientId=<ID-OAuth-Web>` o
 `GOOGLE_WEB_CLIENT_ID` durante compilación.
 En la app Firebase `bpm.app`, registrar las huellas de `:composeApp:signingReport`.
-El applicationId Android coincide con ese registro. Los APK anteriores
-`pe.bpm.app` se mantienen como una instalación distinta; usar la nueva app e
-iniciar sesión con la cuenta existente. Sin la firma registrada y una prueba
-completa no se certifica Google operativo; no introducir secretos OAuth.
+El applicationId Android coincide con ese registro. Se retiró la instalación
+anterior del emulador y el usuario confirmó Google en su celular. Los próximos
+APK con otra firma requieren registrar su huella; no introducir secretos OAuth.
 
 iOS:
 ```bash
@@ -59,6 +58,17 @@ open BPMApp.xcodeproj
 El host SwiftUI y el proyecto declarativo project.yml están incluidos. Xcode
 invoca embedAndSignAppleFrameworkForXcode antes del build. Para dispositivo real,
 configurar el equipo de firma. El framework Kotlin puede compilarse sin firma.
+
+El host incluye GoogleSignIn 10.0.0 mediante Swift Package Manager; para activar
+Google, registrar `pe.bpm.app` en Firebase y añadir el ID público OAuth iOS como
+`googleIosClientId` al JSON público. El build genera el esquema de retorno en
+`composeApp/build/generated/config/ios/GoogleSignIn-Info.plist`. No editarlo a mano.
+La prueba real iOS requiere el registro y consentimiento del titular; ver IDENTITY.md.
+La configuración actual compila para iPhone arm64 y simuladores Apple Silicon.
+Para verificar también el host Swift, ejecutar `bash scripts/build-ios.sh` con
+XcodeGen disponible; `XCODEGEN_BIN` admite su ejecutable en una carpeta temporal.
+El script respeta `DEVELOPER_DIR`, no cambia xcode-select y usa las versiones de
+`iosApp/Package.resolved`. `BPM_IOS_DERIVED_DATA` permite aislar el build.
 
 Si `xcode-select -p` apunta solo a CommandLineTools, seleccionar Xcode para esa
 compilación sin cambiar la configuración global:
@@ -78,4 +88,5 @@ git diff --check
 ```
 
 GitHub Actions repite estos controles, construye Docker y compila el framework
-iOS en macOS. Railway puede esperar a que ambos jobs aprueben.
+Kotlin y el host Swift con el SDK Google en macOS. Railway puede esperar a que
+ambos jobs aprueben.

@@ -2,15 +2,14 @@ package pe.bpm.features.workspace.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
@@ -60,7 +59,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                 sessionNotice()
                 if (kind == WorkspaceFormKind.Member) {
                     Text("La persona debe registrarse y verificar su correo en BPM primero. No se envían invitaciones por correo.", style = MaterialTheme.typography.bodySmall)
-                    FormField(email, { email = it }, "Correo de la cuenta BPM", fields["email"], !state.saving, onUserActivity)
+                    FormField(email, { email = it }, "Correo de la cuenta BPM", fields["email"], !state.saving, onUserActivity, KeyboardType.Email)
                     listOf("ADMIN", "CHEF", "WORKER").forEach { choice -> FilterChip(selected = role == choice, onClick = { role = choice }, enabled = !state.saving, label = { Text(roleLabel(choice)) }) }
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
@@ -85,12 +84,12 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                         listOf("RESTAURANT" to "Restaurante", "CAFETERIA" to "Cafetería", "CATERING" to "Catering", "RELATED_SERVICE" to "Servicio afín").forEach { (value, label) ->
                             FilterChip(selected = business == value, onClick = { business = value }, enabled = !state.saving, label = { Text(label) })
                         }
-                        FormField(email, { email = it }, "Correo de contacto", fields["contactEmail"], !state.saving, onUserActivity)
+                        FormField(email, { email = it }, "Correo de contacto", fields["contactEmail"], !state.saving, onUserActivity, KeyboardType.Email)
                     } else {
                         FormField(address, { address = it }, "Dirección *", fields["address"], !state.saving, onUserActivity)
                         FormField(district, { district = it }, "Distrito", fields["district"], !state.saving, onUserActivity)
                     }
-                    FormField(phone, { phone = it }, "Teléfono de contacto", fields["contactPhone"], !state.saving, onUserActivity)
+                    FormField(phone, { phone = it }, "Teléfono de contacto", fields["contactPhone"], !state.saving, onUserActivity, KeyboardType.Phone)
                 }
                 Errors(state.errors)
             }
@@ -106,7 +105,8 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
         }
     }
 }
-@Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean, onUserActivity: () -> Unit) {
-    OutlinedTextField(value, { onUserActivity(); onValue(it) }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }, singleLine = true, label = { Text(label) },
-        enabled = enabled, shape = RoundedCornerShape(14.dp), isError = error != null, supportingText = error?.let { { Text(it) } })
+@Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
+    onUserActivity: () -> Unit, keyboard: KeyboardType = KeyboardType.Text) {
+    BpmTextField(value, { onUserActivity(); onValue(it) }, label, enabled = enabled, error = error,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = keyboard == KeyboardType.Text))
 }

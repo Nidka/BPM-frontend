@@ -3,9 +3,10 @@
 ## Alcance
 
 Correo/contraseña, registro, verificación de email, reenvío y recuperación
-implementados para web, Android e iOS. Google implementado en web y con adaptador
-Credential Manager para Android; su prueba real depende de registrar la firma
-y verificar OAuth en Firebase. El adaptador Google de iOS sigue pendiente.
+implementados para web, Android e iOS. Google web y Android están implementados;
+el usuario confirmó el acceso real desde su celular tras registrar la firma.
+iOS incorpora el SDK oficial y su adaptador; su activación y prueba real requieren
+el ID OAuth iOS del registro Firebase `pe.bpm.app`.
 
 Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.json
 (o overrides públicos). La cuenta Admin pertenece exclusivamente al backend.
@@ -121,7 +122,13 @@ el identificador iOS no cambia. El ID Web de tipo 3 suministrado ya está en
 `config/firebase.public.json`. Los APK anteriores con `pe.bpm.app` constituyen
 otra instalación: no se migran sus datos privados ni la sesión de Keystore.
 El usuario inicia sesión en la app nueva con su cuenta existente; los datos
-remotos y permisos no cambian. No desinstalar la app anterior automáticamente.
+remotos y permisos no cambian. La instalación anterior se retiró del emulador
+por autorización del usuario; no se modificaron cuentas ni datos remotos.
+
+Validación del 18/10/2026: la captura de Firebase confirmó la SHA-1 de debug
+registrada y el usuario confirmó que Google funciona en su celular. La firma de
+publicación se registrará al distribuir ese binario; cada desarrollador o CI
+que compile con otra firma debe registrar la correspondiente a su APK.
 
 1. Usar la app Android **`bpm.app`** ya registrada en el proyecto Firebase;
    corresponde al applicationId. `pe.bpm` es el namespace del código.
@@ -153,6 +160,39 @@ Referencias: [Credential Manager](https://developer.android.com/identity/sign-in
 [Firebase Android](https://firebase.google.com/docs/auth/android/google-signin),
 [configuración Android](https://firebase.google.com/docs/android/setup),
 [canje REST de proveedor](https://firebase.google.com/docs/reference/rest/auth#section-sign-in-with-oauth-credential).
+
+### Google en iOS
+
+El host Swift usa GoogleSignIn 10.0.0, fijado con Swift Package Manager.
+`GoogleSignInDriver` obtiene una credencial mediante el SDK oficial y conserva
+solo una referencia débil al UIViewController. El puerto `IosGoogleSignInDriver`
+y `IosGoogleAuthProvider` viven en iosMain y adaptan callback/cancelación al
+contrato compartido. MainViewController inyecta el proveedor al mismo AppGraph.
+El repositorio usa el canje Firebase y la comprobación `/me` existentes, igual
+que Android. La UI y el dominio no importan el SDK Swift.
+
+Se genera un nonce seguro por intento y se rechazan resultados tardíos después
+de cancelar o cerrar sesión. No se restaura una sesión Google automáticamente.
+Al terminar el selector se limpia la sesión adicional del SDK; la sesión BPM
+usa el refresh token Firebase y Keychain existentes. No se solicitan scopes de Drive.
+La devolución del navegador la procesa el SDK mediante `onOpenURL`.
+
+Registrar la app iOS `pe.bpm.app` en el mismo proyecto Firebase y obtener su
+`CLIENT_ID` de `GoogleService-Info.plist`. Guardar ese ID público como
+`googleIosClientId` en `config/firebase.public.json`, o usar `-PgoogleIosClientId`
+/ `GOOGLE_IOS_CLIENT_ID` al compilar. El cliente Web debe pertenecer al mismo
+proyecto. El build genera `GIDClientID`, `GIDServerClientID` y el esquema invertido
+en Info.plist; no se edita el archivo generado ni se inventa un ID iOS a partir
+del cliente Web. Sin configuración iOS el acceso Google no se ofrece como
+operativo; correo/contraseña sigue disponible.
+
+La compilación del framework Kotlin y la del host Swift se verifican por separado.
+La prueba real iOS sigue pendiente hasta recibir la configuración pública y
+completar el consentimiento Google en un simulador/dispositivo. No equivale a la
+prueba Android confirmada por el usuario.
+
+Referencias: [Google Sign-In iOS](https://developers.google.com/identity/sign-in/ios/start-integrating),
+[Firebase iOS](https://firebase.google.com/docs/auth/ios/google-signin).
 
 La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas

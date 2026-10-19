@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -17,6 +16,7 @@ import pe.bpm.core.designsystem.Mascot
 import pe.bpm.core.designsystem.RaisedButton
 import pe.bpm.core.designsystem.BpmIcon
 import pe.bpm.core.designsystem.BpmSymbol
+import pe.bpm.core.designsystem.BpmTextField
 import pe.bpm.features.checklists.domain.*
 
 /** Contenido sin scroll propio: el contenedor de workspace gestiona el catálogo. */
@@ -55,9 +55,8 @@ fun ChecklistCatalogScreen(
             }
             return@Column
         }
-        OutlinedTextField(state.query, onValueChange = { onUserActivity(); onSearch(it) },
-            label = { Text("Buscar controles") }, placeholder = { Text("Nombre, área o descripción") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Buscar controles" })
+        BpmTextField(state.query, { onUserActivity(); onSearch(it) }, "Buscar controles",
+            placeholder = "Nombre, área o descripción")
         when {
             state.loading -> {
                 LinearProgressIndicator(Modifier.fillMaxWidth())

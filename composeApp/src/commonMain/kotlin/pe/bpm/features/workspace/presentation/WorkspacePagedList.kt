@@ -4,10 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.PageNavigation
+import pe.bpm.core.designsystem.BpmTextField
 import pe.bpm.features.workspace.domain.WorkspaceResource
 
 @Composable internal fun WorkspacePagedList(
@@ -24,8 +23,7 @@ import pe.bpm.features.workspace.domain.WorkspaceResource
         WorkspaceResource.Incidents -> "Buscar incidencias"
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        OutlinedTextField(page.request.query, { onSearch(resource, it) }, label = { Text(label) }, singleLine = true, enabled = !state.loading && !state.saving,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label })
+        BpmTextField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving)
         when {
             page.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando resultados…") }
             page.errors.isNotEmpty() -> { Errors(page.errors); OutlinedButton(onClick = { onRetry(resource) }) { Text("Reintentar") } }

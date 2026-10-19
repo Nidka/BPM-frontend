@@ -79,7 +79,9 @@ ni detecta referencias escritas con nombres completamente cualificados.
 
 App adapta el perfil de identidad a WorkspaceViewer (datos públicos de
 presentación, sin token). Workspace no importa identity. GraphOwner administra
-la vida del grafo; las dependencias concretas se construyen solo en AppGraph.
+la vida del grafo; AppGraph compone las dependencias de las funcionalidades.
+Los hosts nativos inyectan adaptadores que requieren Activity, UIViewController
+o un SDK Swift; las pantallas y los casos de uso desconocen esas dependencias.
 
 WorkspaceScreen conserva la distribución adaptable y delega el contenido en
 WorkspaceContent y los formularios en WorkspaceForm. WorkspaceDestination enumera
@@ -99,6 +101,36 @@ de guardado para regresar solo después del éxito confirmado. WorkspaceForm
 contiene la UI y los datos temporales, sin capa Dialog ni dependencia de app.
 Ver WORKSPACE.md para rutas, permisos y accesibilidad.
 Los enlaces nativos del sistema operativo aún no se han registrado.
+
+### Decisión de URL web
+
+Se conserva el enlace oficial `bindToBrowserNavigation()` de Navigation 2.9.2.
+Representa destinos mediante fragmentos: `https://appbpm.com/#acceso`, `#inicio`,
+`#cuenta`, `#empresa` y `#empresa/plantillas/nueva`. Las rutas son públicas y
+legibles; no incluyen nombres de clases, correos ni credenciales. El navegador
+gestiona Atrás/Adelante y los enlaces directos. El fragmento no se envía a Node.
+Cada destino protegido comprueba sesión y capacidades también mediante URL.
+
+Esta forma está documentada por JetBrains. Se mantiene para compartir el mismo
+NavHost con Android/iOS y evitar otra implementación de historial. Una futura
+adopción de `/acceso` necesitará adaptar el enlace entre rutas e historial y
+comprobar recargas, enlaces guardados y autorización; el fallback HTML del
+servidor por sí solo no cambia el router. La presentación de la URL no modifica
+permisos ni el contrato del backend.
+
+Referencia: [navegación y URL en Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-navigation-routing.html#support-for-browser-navigation-in-web-apps).
+
+### Campos compartidos
+
+`core/designsystem/BpmTextField` define contorno de 14 dp, ancho disponible,
+etiqueta accesible, ayuda/error y estados Material de foco/deshabilitado.
+Identidad, empresa, equipo, búsquedas y editor de plantillas lo utilizan. Admite
+contraseña oculta/visible, teclado específico y texto multilínea; la altura se
+adapta al contenido y a la tipografía. No guarda valores ni valida reglas de negocio.
+Los adaptadores de cada pantalla conservan sus acciones de usuario, validaciones
+y opciones de teclado; no crean estilos paralelos.
+
+Referencia: [campos de texto en Compose](https://developer.android.com/develop/ui/compose/text/user-input).
 
 La cancelación se verifica antes de aplicar cada respuesta del workspace,
 incluidos adaptadores que entreguen respuestas después de cancelar. Una prueba

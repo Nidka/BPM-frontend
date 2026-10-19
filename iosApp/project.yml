@@ -3,15 +3,24 @@ options:
   bundleIdPrefix: pe.bpm
   deploymentTarget:
     iOS: "15.0"
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    exactVersion: 10.0.0
 targets:
   BPMApp:
     type: application
     platform: iOS
     sources: [Sources]
+    dependencies:
+      - package: GoogleSignIn
+        product: GoogleSignIn
     settings:
       base:
+        ARCHS: arm64
         PRODUCT_BUNDLE_IDENTIFIER: pe.bpm.app
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: "$(SRCROOT)/../composeApp/build/generated/config/ios/GoogleSignIn-Info.plist"
         INFOPLIST_KEY_CFBundleDisplayName: BPM
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -24,3 +33,5 @@ targets:
           cd "$SRCROOT/.."
           ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
         basedOnDependencyAnalysis: false
+        outputFiles:
+          - "$(SRCROOT)/../composeApp/build/generated/config/ios/GoogleSignIn-Info.plist"

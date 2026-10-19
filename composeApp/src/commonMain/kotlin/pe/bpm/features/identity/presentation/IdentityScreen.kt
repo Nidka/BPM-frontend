@@ -14,7 +14,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
@@ -183,9 +182,7 @@ fun IdentityScreen(
 private fun AuthField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
     keyboard: KeyboardType = KeyboardType.Text, hidden: Boolean = false,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None) {
-    OutlinedTextField(value, onValue, modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }, label = { Text(label) },
-        singleLine = true, enabled = enabled, shape = RoundedCornerShape(14.dp), isError = error != null,
-        supportingText = error?.let { { Text(it) } },
+    BpmTextField(value, onValue, label, enabled = enabled, error = error,
         visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = capitalization, autoCorrectEnabled = false))
 }

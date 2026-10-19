@@ -2,6 +2,7 @@ package pe.bpm.features.checklists.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.checklists.domain.*
@@ -133,11 +135,11 @@ import pe.bpm.features.checklists.domain.*
             Text("Usa el criterio aprobado para este control. La aplicación no establece un rango universal.", style = MaterialTheme.typography.bodySmall)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 if (maxWidth < 420.dp) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Mínimo · pregunta ${index + 1}", null)
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Máximo · pregunta ${index + 1}", null)
+                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Mínimo · pregunta ${index + 1}", null, keyboard = KeyboardType.Decimal)
+                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Máximo · pregunta ${index + 1}", null, keyboard = KeyboardType.Decimal)
                 } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Mínimo · pregunta ${index + 1}", null, modifier = Modifier.weight(1f))
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Máximo · pregunta ${index + 1}", null, modifier = Modifier.weight(1f))
+                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Mínimo · pregunta ${index + 1}", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal)
+                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Máximo · pregunta ${index + 1}", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal)
                 }
             }
             fields["$prefix.range"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -150,10 +152,10 @@ import pe.bpm.features.checklists.domain.*
         }
     }
 }
-@Composable private fun EditorField(value: String, onValue: (String) -> Unit, label: String, error: String?, singleLine: Boolean = true, modifier: Modifier = Modifier) {
-    OutlinedTextField(value, onValueChange = onValue, label = { Text(label) }, singleLine = singleLine, minLines = if (singleLine) 1 else 2,
-        isError = error != null, supportingText = error?.let { { Text(it) } },
-        modifier = modifier.fillMaxWidth().semantics { contentDescription = label })
+@Composable private fun EditorField(value: String, onValue: (String) -> Unit, label: String, error: String?, singleLine: Boolean = true,
+    modifier: Modifier = Modifier, keyboard: KeyboardType = KeyboardType.Text) {
+    BpmTextField(value, onValue, label, modifier, singleLine = singleLine,
+        minLines = if (singleLine) 1 else 2, error = error, keyboardOptions = KeyboardOptions(keyboardType = keyboard))
 }
 internal fun ChecklistResponseType.label() = when (this) {
     ChecklistResponseType.COMPLIANCE -> "Cumplimiento"
