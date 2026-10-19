@@ -16,7 +16,7 @@ struct ComposeView: UIViewControllerRepresentable {
 struct BPMApp: App {
     var body: some Scene {
         WindowGroup {
-            ComposeView().ignoresSafeArea(.keyboard)
+            ComposeView().ignoresSafeArea()
                 .onOpenURL { url in _ = GIDSignIn.sharedInstance.handle(url) }
         }
     }

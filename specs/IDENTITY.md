@@ -186,6 +186,15 @@ en Info.plist; no se edita el archivo generado ni se inventa un ID iOS a partir
 del cliente Web. Sin configuración iOS el acceso Google no se ofrece como
 operativo; correo/contraseña sigue disponible.
 
+La base generada `App-Info.plist` también declara la propiedad de duración de
+fotogramas exigida por Compose. Se valida en el bundle final para evitar un
+cierre al iniciar aunque la compilación haya terminado correctamente.
+SwiftUI deja las áreas seguras a la raíz Compose para evitar aplicarlas dos veces.
+El simulador usa firma local ad hoc, independiente de la firma de distribución.
+La prueba XCUITest de arranque comprueba la pantalla de acceso, ausencia de error
+de almacenamiento y disponibilidad del botón Google; no autentica cuentas.
+Referencia: [requisito de Compose iOS](https://kotlinlang.org/docs/multiplatform/whats-new-compose-170.html#disabling-minimum-frame-duration-on-ios-is-mandatory).
+
 La compilación del framework Kotlin y la del host Swift se verifican por separado.
 El archivo descargado de Firebase para `app-bpm-af59c` / `pe.bpm.app` proporcionó
 el ID iOS público, ya incorporado al JSON compartido. El esquema generado se

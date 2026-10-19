@@ -62,13 +62,24 @@ configurar el equipo de firma. El framework Kotlin puede compilarse sin firma.
 El host incluye GoogleSignIn 10.0.0 mediante Swift Package Manager; el registro
 Firebase `pe.bpm.app` y su ID público OAuth iOS ya están configurados mediante
 `googleIosClientId` en el JSON público. El build genera el esquema de retorno en
-`composeApp/build/generated/config/ios/GoogleSignIn-Info.plist`. No editarlo a mano.
+`composeApp/build/generated/config/ios/App-Info.plist`. No editarlo a mano.
 La prueba real iOS requiere el registro y consentimiento del titular; ver IDENTITY.md.
 La configuración actual compila para iPhone arm64 y simuladores Apple Silicon.
 Para verificar también el host Swift, ejecutar `bash scripts/build-ios.sh` con
 XcodeGen disponible; `XCODEGEN_BIN` admite su ejecutable en una carpeta temporal.
 El script respeta `DEVELOPER_DIR`, no cambia xcode-select y usa las versiones de
 `iosApp/Package.resolved`. `BPM_IOS_DERIVED_DATA` permite aislar el build.
+El Info.plist generado incluye `CADisableMinimumFrameDurationOnPhone=true`,
+requisito de arranque de Compose iOS. El script comprueba la propiedad en el
+binario construido; no deshabilita la comprobación de Compose.
+El host del simulador se firma ad hoc con «Sign to Run Locally», sin certificados
+Apple ni equipo personal. Esa firma permite comprobar Keychain; un bundle sin
+firma no representa correctamente el comportamiento del almacenamiento seguro.
+`iosApp/UITests/IdentityStartupTests.swift` verifica el arranque real, la ausencia
+de error de Keychain y el botón Google habilitado, sin autenticar usuarios.
+Se ejecuta en un simulador exclusivo de BPM con `xcodebuild test` y destino por
+UUID; no usar un simulador con sesiones de otro proyecto. CI usa su VM aislada
+y ejecuta esta prueba después de construir el host nativo.
 
 Si `xcode-select -p` apunta solo a CommandLineTools, seleccionar Xcode para esa
 compilación sin cambiar la configuración global:

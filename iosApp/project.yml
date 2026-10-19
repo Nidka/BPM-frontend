@@ -20,7 +20,7 @@ targets:
         ARCHS: arm64
         PRODUCT_BUNDLE_IDENTIFIER: pe.bpm.app
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_FILE: "$(SRCROOT)/../composeApp/build/generated/config/ios/GoogleSignIn-Info.plist"
+        INFOPLIST_FILE: "$(SRCROOT)/../composeApp/build/generated/config/ios/App-Info.plist"
         INFOPLIST_KEY_CFBundleDisplayName: BPM
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -34,4 +34,23 @@ targets:
           ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
         basedOnDependencyAnalysis: false
         outputFiles:
-          - "$(SRCROOT)/../composeApp/build/generated/config/ios/GoogleSignIn-Info.plist"
+          - "$(SRCROOT)/../composeApp/build/generated/config/ios/App-Info.plist"
+  BPMAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: BPMApp
+    settings:
+      base:
+        ARCHS: arm64
+        PRODUCT_BUNDLE_IDENTIFIER: pe.bpm.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  BPMApp:
+    build:
+      targets:
+        BPMApp: all
+        BPMAppUITests: [test]
+    test:
+      targets: [BPMAppUITests]

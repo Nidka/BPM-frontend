@@ -29,7 +29,7 @@ val googleWebClientId = providers.gradleProperty("googleWebClientId")
 val googleIosClientId = providers.gradleProperty("googleIosClientId")
     .orElse(providers.environmentVariable("GOOGLE_IOS_CLIENT_ID"))
     .orElse(firebasePublic["googleIosClientId"] as? String ?: "")
-val generatedAppleInfo = layout.buildDirectory.file("generated/config/ios/GoogleSignIn-Info.plist")
+val generatedAppleInfo = layout.buildDirectory.file("generated/config/ios/App-Info.plist")
 val generateAppConfig by tasks.registering {
     inputs.property("apiBaseUrl", apiBaseUrl)
     inputs.property("firebaseApiKey", firebaseApiKey)
@@ -70,7 +70,10 @@ val generateAppConfig by tasks.registering {
         """.trimIndent()
         appleInfo.writeText("""<?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0"><dict>$googleProperties</dict></plist>
+            <plist version="1.0"><dict>
+            <key>CADisableMinimumFrameDurationOnPhone</key><true/>
+            $googleProperties
+            </dict></plist>
         """.trimIndent())
         file.writeText("package pe.bpm.core.config\n\ninternal const val NATIVE_API_BASE_URL = \"" + url + "\"\n" +
             "internal const val FIREBASE_API_KEY = \"" + key + "\"\n" +
