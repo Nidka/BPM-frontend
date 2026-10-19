@@ -1,5 +1,7 @@
 package pe.bpm.app
 
+import pe.bpm.core.designsystem.BpmSecondaryButton
+import pe.bpm.core.designsystem.BpmTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,6 +13,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import pe.bpm.core.designsystem.trackUserActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -27,6 +31,7 @@ import pe.bpm.features.checklists.presentation.TemplateEditorStep
 import pe.bpm.features.checklists.presentation.ChecklistCatalogScreen
 import pe.bpm.features.checklists.presentation.ChecklistCatalogState
 import pe.bpm.features.checklists.presentation.ChecklistCatalogViewModel
+import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
 import pe.bpm.features.checklists.domain.ChecklistFailure
 import pe.bpm.features.connection.presentation.ConnectionScreen
 import pe.bpm.features.connection.presentation.ConnectionViewModel
@@ -50,6 +55,8 @@ fun App(
     val workspace = viewModel<WorkspaceViewModel> { owner.graph.workspaceViewModel() }
     val checklists = viewModel<ChecklistCatalogViewModel> { owner.graph.checklistCatalogViewModel() }
     val templateEditor = viewModel<ChecklistTemplateEditorViewModel> { owner.graph.checklistTemplateEditorViewModel() }
+    val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
+    val runState by runs.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
     val identityState by identity.state.collectAsStateWithLifecycle()
     val sessionStatus by identity.sessionStatus.collectAsStateWithLifecycle()
@@ -79,6 +86,7 @@ fun App(
         if (loadedIdentityId != profile?.id || profile == null) {
             checklists.reset()
             templateEditor.reset()
+            runs.reset()
             workspace.reset()
         }
         loadedIdentityId = profile?.id
@@ -88,7 +96,23 @@ fun App(
         }
     }
     LaunchedEffect(nav) { onNavHostReady(nav) }
+    // Solo las vistas de consulta se revalidan al entrar o volver al primer plano.
+    // No hay temporizador de consultas ni recarga de formularios o borradores.
+    val primaryRoute = WorkspaceDestination.entries.any { it.route == entry?.destination?.route }
+    fun refreshVisibleData() {
+        if (profile != null && primaryRoute && sessionStatus.warning == null) {
+            workspace.refreshIfStale()
+            if (entry?.destination?.route == WorkspaceDestination.Operations.route) checklists.refreshIfStale()
+        }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshVisibleData() }
+    LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
+    LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
+        if (runState.userId != null && (runState.userId != profile?.id || runState.organizationId != workspaceState.selected ||
+                WorkspaceDestination.Operations !in workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN") ||
+                workspaceState.errors.any { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") })) runs.reset()
+    }
     LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, profile?.platformRole) {
         val canRead = currentWorkspace?.canManage == true || WorkspaceDestination.Operations in workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN")
         if (profile != null && currentWorkspace != null && canRead)
@@ -116,7 +140,7 @@ fun App(
                 if (profile == null) {
                     if (identityState.restoring) RestoringSession()
                     else Column {
-                        if (identityState.canRetryRestore) TextButton(onClick = identity::restore) { Text("Reintentar sesión guardada") }
+                        if (identityState.canRetryRestore) BpmTextButton(onClick = identity::restore) { Text("Reintentar sesión guardada") }
                         Box(Modifier.weight(1f)) { IdentityScreen(identityState, identity::login, identity::logout,
                         identity::verifySession,
                         googleSupported = identity.googleSupported, onGoogle = identity::loginWithGoogle,
@@ -130,7 +154,7 @@ fun App(
                 val connection = viewModel<ConnectionViewModel> { owner.graph.connectionViewModel() }
                 val connectionState by connection.state.collectAsStateWithLifecycle()
                 Column {
-                    TextButton(onClick = { navigateBack(if (profile == null) LOGIN else WorkspaceDestination.Home.route) }) {
+                    BpmTextButton(onClick = { navigateBack(if (profile == null) LOGIN else WorkspaceDestination.Home.route) }) {
                         Text("Volver")
                     }
                     Box(Modifier.weight(1f)) { ConnectionScreen(connectionState, connection::retry) }
@@ -138,7 +162,7 @@ fun App(
             }
             WorkspaceDestination.entries.flatMap { destination ->
                 val routes = when (destination) {
-                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_DETAIL)
+                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER)
                     WorkspaceDestination.Company -> listOf(destination.route, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     else -> listOf(destination.route)
@@ -146,23 +170,32 @@ fun App(
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
                     .map { destination to it }
             }.forEach { (destination, route) ->
-                composable(route, arguments = if (route == CHECKLIST_DETAIL || route == TEMPLATE_MANAGEMENT_DETAIL)
-                    listOf(navArgument("templateId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
+                composable(route, arguments = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
+                    listOf(navArgument("templateId") { type = NavType.StringType }) else if (route == CHECKLIST_RUN)
+                    listOf(navArgument("runId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
                     val formRevision = remember(routeEntry.id) { workspaceState.revision }
                     val managingTemplates = route in listOf(TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     val editingTemplate = route == TEMPLATE_CREATE
+                    val running = route == CHECKLIST_START || route == CHECKLIST_RUN
+                    var runExit by remember(routeEntry.id) { mutableStateOf<(() -> Unit)?>(null) }
+                    fun leaveRun(action: () -> Unit) {
+                        if (running && (runState.dirty || runState.pending || runState.busy)) runExit = action
+                        else action()
+                    }
                     fun closeForm() {
                         if (editingTemplate && templateEditorState.step == TemplateEditorStep.Review && templateEditorState.editable) templateEditor.backToEdit()
-                        else navigateBack(if (managingTemplates) TEMPLATE_MANAGEMENT else destination.route)
+                        else leaveRun { navigateBack(if (managingTemplates) TEMPLATE_MANAGEMENT else destination.route) }
                     }
                     LaunchedEffect(workspaceState.revision) {
                         if (formKind != null && workspaceState.revision > formRevision && entry?.id == routeEntry.id) closeForm()
                     }
-                    val templateId = if (route == CHECKLIST_DETAIL || route == TEMPLATE_MANAGEMENT_DETAIL)
+                    val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
+                    val runId = if (route == CHECKLIST_RUN) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
                     val requestedRoute = templateId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
-                        ?.let { if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" } ?: route
+                        ?.let { if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
+                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { "control/ejecucion/$it" } ?: route
                     if (profile == null) {
                         // Las URL directas y el historial deben comprobar la autenticación, incluso después de cerrar sesión.
                         if (identityState.restoring) RestoringSession()
@@ -225,9 +258,22 @@ fun App(
                                 state = workspaceState,
                                 section = destination,
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
-                                secondaryContent = managementContent, secondaryEditor = editingTemplate,
-                                secondaryTitle = if (managingTemplates) "Plantillas de control" else null,
-                                secondaryBusy = templateEditorState.publishing,
+                                secondaryContent = if (running) ({
+                                    if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
+                                        Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
+                                        Text(if (runState.pending || runState.busy) "Resuelve el reintento antes de salir para conservar la operación original."
+                                            else "Salir descartará las respuestas que todavía no guardaste en el servidor.")
+                                        if (!runState.pending && !runState.busy) BpmSecondaryButton(onClick = { val exit = runExit; runExit = null; runs.reset(); exit?.invoke() }) { Text("Descartar cambios y salir") }
+                                        BpmTextButton(onClick = { runExit = null }) { Text("Continuar con el control") }
+                                    }
+                                    ChecklistRunContent(profile.id, workspaceState, checklistState, runState,
+                                    runs, workspace, checklists, route == CHECKLIST_START, templateId, runId,
+                                    onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
+                                    onBack = { nav.navigate(WorkspaceDestination.Operations.route) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = true }; launchSingleTop = true } }) }) else managementContent,
+                                secondaryEditor = editingTemplate,
+                                secondaryTitle = if (running) "Control de tu sede" else if (managingTemplates) "Plantillas de control" else null,
+                                secondaryBusy = templateEditorState.publishing || running && (runState.busy || runState.pending),
+                                secondaryScrollKey = if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 form = formKind,
                                 choosingOrganization = route == ORGANIZATION_PICKER,
                                 onOrganizationSearch = workspace::organizationSearch, onOrganizationNext = workspace::organizationNext,
@@ -237,7 +283,7 @@ fun App(
                                 onChooseOrganization = { nav.navigate(ORGANIZATION_PICKER) { launchSingleTop = true } },
                                 onOpenForm = { kind -> nav.navigate(kind.route) { launchSingleTop = true } },
                                 onCloseForm = ::closeForm,
-                                onNavigate = { next -> nav.navigate(next.route) { launchSingleTop = true } },
+                                onNavigate = { next -> leaveRun { nav.navigate(next.route) { launchSingleTop = true } } },
                                 onVerifySession = identity::verifySession,
                                 sessionBusy = identityState.busy,
                                 sessionMessage = identityState.errors.firstOrNull()?.message,
@@ -246,6 +292,7 @@ fun App(
                                     if (!workspaceState.saving) {
                                         checklists.reset()
                                         templateEditor.reset()
+                                        runs.reset()
                                         workspace.select(id)
                                         resetTo(WorkspaceDestination.Home.route)
                                     }
@@ -268,7 +315,7 @@ fun App(
                                             Text("Acceso restringido", style = MaterialTheme.typography.titleMedium)
                                         }
                                         Text(message, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                                        TextButton(onClick = { accessNotice = null }) { Text("Entendido") }
+                                        BpmTextButton(onClick = { accessNotice = null }) { Text("Entendido") }
                                     } }
                                     identityState.notice?.let { Text(it,
                                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
@@ -287,13 +334,15 @@ fun App(
                                             if (nav.previousBackStackEntry?.destination?.route == WorkspaceDestination.Operations.route)
                                                 navigateBack(WorkspaceDestination.Operations.route)
                                             else resetTo(WorkspaceDestination.Operations.route)
-                                        }, onUserActivity = identity::userActivity, onNext = checklists::next, onPrevious = checklists::previous)
+                                        }, onUserActivity = identity::userActivity, onNext = checklists::next, onPrevious = checklists::previous,
+                                        onStart = { id -> runs.reset(); nav.navigate("control/plantilla/$id/iniciar") { launchSingleTop = true } })
                                 },
                                 onClear = workspace::clearErrors,
                                 onLogout = {
                                     pendingRoute = WorkspaceDestination.Home.route
                                     checklists.reset()
                                     templateEditor.reset()
+                                    runs.reset()
                                     workspace.reset()
                                     identity.logout()
                                     resetTo(LOGIN)
@@ -319,6 +368,8 @@ private fun RestoringSession() {
 private const val LOGIN = "acceso"
 private const val CONNECTION = "conexion"
 private const val CHECKLIST_DETAIL = "control/plantilla/{templateId}"
+private const val CHECKLIST_START = "control/plantilla/{templateId}/iniciar"
+private const val CHECKLIST_RUN = "control/ejecucion/{runId}"
 private const val ORGANIZATION_PICKER = "organizaciones"
 
 private const val TEMPLATE_MANAGEMENT = "empresa/plantillas"

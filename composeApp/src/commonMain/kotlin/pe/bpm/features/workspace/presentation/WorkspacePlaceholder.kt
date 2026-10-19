@@ -10,11 +10,11 @@ fun workspacePlaceholder(state: WorkspaceState, platformAdmin: Boolean): Workspa
         state.errors.any { it.code == "UNAUTHENTICATED" } -> WorkspacePlaceholder("Tu sesión terminó",
             "Inicia sesión nuevamente para consultar tu espacio de trabajo.", false, false)
         state.errors.isNotEmpty() -> WorkspacePlaceholder("No pudimos cargar tu espacio",
-            "No se han podido consultar los datos. Pulsa Actualizar para volver a intentarlo.", true, false)
+            "No pudimos consultar los datos. Comprueba tu conexión y vuelve a intentarlo.", true, false)
         state.organizations.isEmpty() -> WorkspacePlaceholder("Tu cuenta está lista",
             if (platformAdmin) "Crea una organización para comenzar a configurar sus sedes y equipo."
             else "Tu cuenta aún no está asociada a una organización. Pide a tu administrador que te agregue usando tu correo.", false, platformAdmin)
         else -> WorkspacePlaceholder("No pudimos abrir tu organización",
-            "Pulsa Actualizar o selecciona otra organización disponible.", true, false)
+            "Vuelve a intentarlo o selecciona otra organización disponible.", true, false)
     }
 }

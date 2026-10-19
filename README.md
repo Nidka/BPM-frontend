@@ -30,10 +30,10 @@ composeApp/src/
 │   │   └── features/
 │   │       ├── connection/            salud y disponibilidad reales del backend
 │   │       ├── identity/              acceso, registro, verificación y recuperación
-│   │       ├── checklists/            catálogo publicado, búsqueda y detalle de preguntas
+│   │       ├── checklists/            catálogo, autoría y ejecución en línea de controles
 │   │       │   ├── domain/            plantillas, preguntas, puerto y caso de uso
 │   │       │   ├── data/              consulta autenticada y DTO privados
-│   │       │   └── presentation/      StateFlow, ViewModel, catálogo y detalle navegable
+│   │       │   └── presentation/      StateFlow, ViewModels, catálogo, editor y ejecución
 │   │       └── workspace/             organización activa, sedes, miembros y resúmenes
 │   │           ├── domain/            modelos, repositorio y casos de uso
 │   │           ├── data/              adaptador remoto, DTO privados y traducción de errores
@@ -144,7 +144,8 @@ no una autorización del cliente. Los roles elevados proceden de la API.
 El contenedor presenta navegación inferior en ventanas pequeñas y lateral desde
 950 dp. Las pantallas comparten lógica y responden al ancho de ventana. Formularios
 y menús se reinician al cambiar usuario/organización. Control consulta el catálogo
-publicado y muestra sus preguntas en una ruta de detalle propia. El contrato, decisiones y
+publicado y permite iniciar, guardar y finalizar un control de sede en línea,
+con revisión y confirmación antes de cerrar las respuestas. El contrato, decisiones y
 límites de este primer incremento están en [specs/CHECKLISTS.md](specs/CHECKLISTS.md).
 
 Cambiar organización cancela consultas y limpia el contenido anterior. Logout
@@ -279,9 +280,9 @@ cuentas ni escriben en el backend de producción.
 Disponibles: navegación con historial y permisos, cuenta, renovación/restauración
 de sesión, comprobación de conexión, login/registro/verificación/recuperación,
 Google web, perfil confirmado por API, organizaciones autorizadas, altas de
-organización/sede/miembro y catálogos del workspace.
+organización/sede/miembro, catálogos y ejecución en línea de controles.
 
-Pendientes: ejecutar cursos/evaluaciones/checklists, acciones correctivas,
+Pendientes: ejecutar cursos/evaluaciones, sincronizar controles offline, acciones correctivas,
 evidencias privadas, investigación CAP, reportes completos y recorridos de contenido
 y administración aún no implementados del prototipo. Google Android tiene adaptador
 Credential Manager y acceso real confirmado por el usuario en su celular.
@@ -328,6 +329,14 @@ y su eslogan; «Cerrar sesión» vive en Mi cuenta y los avisos aparecen debajo 
 la cabecera. Los estados distinguen
 acceso denegado, datos vacíos y fallos de carga, conservando el contrato del
 backend y la base visual del prototipo. Ver [WORKSPACE.md](specs/WORKSPACE.md).
+
+La cabecera no tiene una recarga permanente. Las consultas se revalidan al entrar
+o volver a primer plano si llevan dos minutos sin actualizarse; los fallos ofrecen
+Reintentar. No se recargan formularios ni se mantiene la sesión mediante sondeo.
+`RaisedButton`, `BpmSecondaryButton` y `BpmTextButton` unifican las acciones, mientras
+Google conserva su botón de marca. Inicio muestra su mascota en móvil y distribuye
+los indicadores según ancho y escala de texto. El acceso declara Autofill para
+Android; el proveedor del dispositivo controla la oferta de guardar contraseñas.
 
 La elección de organización usa una pantalla con búsqueda y filas de selección,
 separada del contenido empresarial. La respuesta a pulsación se configura por

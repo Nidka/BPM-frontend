@@ -36,13 +36,13 @@ import pe.bpm.features.workspace.domain.WorkspaceError
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Cambiar organización", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f).semantics { heading() })
-            if (canCreate && shortWindow) TextButton(onClick = onCreate, enabled = !loading,
+            if (canCreate && shortWindow) BpmTextButton(onClick = onCreate, enabled = !loading,
                 modifier = Modifier.semantics { contentDescription = "Crear organización" }) { Text("Crear") }
         }
         if (!shortWindow) Text("Elige el espacio de trabajo al que quieres entrar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         BpmTextField(query, { onUserActivity(); onSearch(it.take(160)) }, "Buscar organización", enabled = !loading)
         Errors(errors + page.errors)
-        if (page.errors.isNotEmpty()) TextButton(onClick = onRetry) { Text("Reintentar") }
+        if (page.errors.isNotEmpty()) BpmTextButton(onClick = onRetry) { Text("Reintentar") }
         if (loading || page.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         LazyColumn(Modifier.weight(1f, fill = false).fillMaxWidth(), state = scroll, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             item(key = "notice") { notice() }
@@ -57,7 +57,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
         PageNavigation(page.number, page.previous.isNotEmpty(), page.nextToken.isNotEmpty(), loading || page.loading || page.errors.isNotEmpty(), onPrevious, onNext)
         if (canCreate && !shortWindow) {
             HorizontalDivider()
-            OutlinedButton(onClick = onCreate, enabled = !loading, modifier = Modifier.heightIn(min = 48.dp)) { Text("Crear organización") }
+            BpmSecondaryButton(onClick = onCreate, enabled = !loading, modifier = Modifier.heightIn(min = 48.dp)) { Text("Crear organización") }
         }
     }
     }

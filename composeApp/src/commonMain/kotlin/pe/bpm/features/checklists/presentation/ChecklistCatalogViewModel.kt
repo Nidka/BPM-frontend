@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.bpm.core.domain.PageRequest
 import pe.bpm.features.checklists.domain.*
+import pe.bpm.core.presentation.DataFreshness
 
 data class ChecklistCatalogState(
     val userId: String? = null,
@@ -29,7 +30,8 @@ data class ChecklistCatalogState(
     val visibleTemplates: List<ChecklistTemplate> get() = templates
 }
 
-class ChecklistCatalogViewModel(private val loadCatalog: LoadChecklistCatalog, private val loadTemplate: LoadChecklistTemplate) : ViewModel() {
+class ChecklistCatalogViewModel(private val loadCatalog: LoadChecklistCatalog, private val loadTemplate: LoadChecklistTemplate,
+    private val freshness: DataFreshness = DataFreshness()) : ViewModel() {
     private val mutable = MutableStateFlow(ChecklistCatalogState())
     val state = mutable.asStateFlow()
     private var job: Job? = null
@@ -43,12 +45,17 @@ class ChecklistCatalogViewModel(private val loadCatalog: LoadChecklistCatalog, p
         refresh()
     }
     fun reset() {
+        freshness.reset()
         job?.cancel(); detailJob?.cancel(); detailId = null
         mutable.value = ChecklistCatalogState()
     }
     fun refresh() {
         fetch(mutable.value.copy(token = "", previous = emptyList()))
         detailId?.let(::showTemplate)
+    }
+    fun refreshIfStale() {
+        val current = mutable.value
+        if (freshness.stale && !current.loading && !current.detailLoading && current.failure == null) refresh()
     }
     fun search(query: String) = fetch(mutable.value.copy(query = query.take(160), token = "", previous = emptyList()), debounce = true)
     fun next() {
@@ -68,6 +75,7 @@ class ChecklistCatalogViewModel(private val loadCatalog: LoadChecklistCatalog, p
             if (debounce) delay(300)
             val result = loadCatalog(organizationId, PageRequest(page.token, page.query))
             currentCoroutineContext().ensureActive()
+            if (result is ChecklistCatalogResult.Success) freshness.loaded()
             mutable.value = when (result) {
                 is ChecklistCatalogResult.Success -> mutable.value.copy(loading = false, templates = result.templates, nextToken = result.nextToken)
                 is ChecklistCatalogResult.Failure -> mutable.value.copy(loading = false, failure = result.reason)

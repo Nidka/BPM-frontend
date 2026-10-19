@@ -5,6 +5,10 @@ import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
 import pe.bpm.features.checklists.data.RemoteChecklistTemplatePublisher
+import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
+import pe.bpm.features.checklists.domain.*
+import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
+import kotlin.time.Clock
 import pe.bpm.features.checklists.domain.PublishChecklistTemplate
 import pe.bpm.features.checklists.presentation.ChecklistTemplateEditorViewModel
 import kotlin.uuid.Uuid
@@ -66,6 +70,13 @@ class AppGraph(
     fun checklistTemplateEditorViewModel() = ChecklistTemplateEditorViewModel(PublishChecklistTemplate(templatePublisher)) { Uuid.random().toString() }
 
     fun checklistCatalogViewModel() = ChecklistCatalogViewModel(LoadChecklistCatalog(checklistRepository), LoadChecklistTemplate(checklistRepository))
+
+    private val runRepository = RemoteChecklistRunRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
+        SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
 
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),

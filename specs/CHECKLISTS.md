@@ -4,10 +4,10 @@
 
 Primer incremento del recorrido de checklist previsto en el plan del proyecto,
 relacionado con RF-12 a RF-17. Implementa consulta de plantillas publicadas,
-búsqueda por nombre/área/descripción y detalle de preguntas. No completa todavía
-esos requerimientos: iniciar ejecuciones, responder, enviar, evidencias e historial
-pertenecen a incrementos posteriores. La autoría y publicación de la primera
-versión ya están disponibles para administradores, según la sección final.
+búsqueda por nombre/área/descripción y detalle de preguntas. Incluye autoría y
+publicación de primera versión, e inicio, respuestas y finalización en línea.
+Evidencias, historial paginado y sincronización offline siguen pendientes; RF-12
+a RF-17 aún no se consideran completos para el piloto.
 
 El diseño sigue el prototipo BPM Aula de Requerimientos: petróleo/coral,
 superficies redondeadas y jerarquía de área, plantilla y criterio. Se reutilizan
@@ -135,10 +135,10 @@ La revisión en navegador detectó que las capas emergentes anteriores conservab
 semántica de la capa cerrada. No se actualizaron dependencias ni se añadieron
 parches JavaScript al DOM para resolver ese recorrido.
 
-Esta entrega requiere internet. No hay caché persistente, borradores de ejecución,
-envío de respuestas, sincronización, carga de archivos ni edición de versiones publicadas.
-Se mantienen como trabajo posterior según `OFFLINE.md`; no se declaran terminadas
-por existir una pantalla de consulta.
+Esta entrega requiere internet. Los borradores se guardan en el servidor mediante
+la acción explícita del usuario. No hay caché/cola persistente local, sincronización,
+carga de archivos ni edición de versiones publicadas. Esos límites se mantienen
+según `OFFLINE.md`; el recorrido no se declara apto para el piloto sin esa etapa.
 
 Referencias oficiales: [ViewModel compartido](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html),
 [ciclo de vida Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-lifecycle.html)
@@ -241,3 +241,59 @@ migraciones y no crea contenido de prueba en producción.
 
 Referencias: [ViewModel KMP](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html),
 [accesibilidad de controles Compose](https://developer.android.com/develop/ui/compose/accessibility/api-defaults).
+
+## Ejecución en línea de controles
+
+ADMIN y CHEF acceden desde Control → Ver preguntas → Realizar este control.
+La sede se elige con búsqueda y páginas reales del workspace, adaptadas en la
+raíz de composición; checklists no importa workspace. La API conserva la decisión
+sobre membresía y sede. SUPER_ADMIN mantiene gestión y WORKER su recorrido de
+aprendizaje; abrir la URL no amplía sus destinos.
+
+`control/plantilla/{templateId}/iniciar` consulta la versión publicada antes de
+crear una ejecución. `control/ejecucion/{runId}` permite recuperar su borrador
+remoto con autorización nueva. El alta conserva UUID, operación y fecha UTC
+mientras se reintenta el mismo intento. La URL de la ejecución se establece
+solo tras confirmar el alta. No hay un listado de ejecuciones en la API actual.
+
+`ChecklistRunViewModel` coordina los casos de uso Start/Load/Save/Submit; el puerto
+de lectura está separado del de escritura. `RemoteChecklistRunRepository`
+reutiliza ItemDto y recibe la sesión por inyección. Valida ID, tenant, sede,
+versión, tipos de preguntas y respuestas; no acepta un guardado distinto del
+cuerpo propuesto ni una finalización sin estado SUBMITTED y resultado válido.
+
+Se responden Cumple/No cumple/No aplica, texto y valores numéricos, con observación
+opcional. Los números aceptan coma decimal, hasta dos decimales y los límites
+estructurales de la API. Los criterios sanitarios proceden de la plantilla.
+«Guardar borrador» envía el conjunto completo con rowVersion e Idempotency-Key;
+«Revisar y finalizar» solo aparece operativo después de guardar. Los cambios de fase, carga y error llevan el desplazamiento al inicio para que
+el resultado no quede fuera de vista; editar una respuesta no mueve el scroll.
+La confirmación final advierte que el envío es inmutable. El porcentaje siempre viene del servidor;
+TEXT y No aplica no se presentan como preguntas evaluables.
+
+Una respuesta perdida conserva la operación, su cuerpo, versión y clave. No se
+permite editarla mientras su resultado es incierto; Reintentar envía exactamente
+la misma solicitud. Un conflicto no sobrescribe automáticamente: cargar la
+versión guardada exige confirmar el descarte de cambios locales. Las acciones de
+salida de la app piden confirmar cuando hay cambios y exigen resolver primero una
+operación incierta. Cambiar usuario/empresa o perder permisos cancela y limpia
+el estado; el backend autoriza cada llamada nuevamente.
+
+Los cambios sin guardar y los intentos pendientes viven en memoria: recargar la
+web, cerrar el proceso o usar navegación externa puede perderlos. Se advierte en
+pantalla. Esto no sustituye la cola duradera del contrato offline ni garantiza
+recuperación de un alta incierta tras reinicio. La próxima etapa debe incorporar
+persistencia e idempotencia duraderas antes de habilitar trabajo sin conexión.
+Las plantillas que exijan evidencia fallida no pueden finalizarse sin el módulo
+multimedia; no se omite la condición ni se ofrece una carga ficticia.
+
+El proxy de ejecuciones admite solo POST de alta, GET por ID, PUT answers y POST
+submit, sin query ni destinos dinámicos. Comprueba Bearer, origen cuando existe,
+JSON acotado, campos permitidos y claves de idempotencia. No reenvía cookies,
+actores, roles ni cabeceras de tenant; filtra la respuesta y los errores. El
+Dockerfile incluye el adaptador y su prueba de arranque valida ese paquete.
+
+Pruebas: obligatoriedad, no aplicable, decimales, evidencia, sesión, tenant ajeno,
+reintento inmutable, revisión obligatoria, bloqueo del control enviado, cancelación
+por contexto, proxy cerrado y sanitización. Las pruebas de UI con API local de
+prueba no crean registros ni usuarios en producción.

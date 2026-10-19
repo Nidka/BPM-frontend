@@ -32,6 +32,7 @@ internal fun WorkspaceScreen(
     secondaryEditor: Boolean = false,
     secondaryTitle: String? = null,
     secondaryBusy: Boolean = false,
+    secondaryScrollKey: String? = null,
     screenNotice: @Composable () -> Unit = {},
     noticeVisible: Boolean = false,
     sessionNotice: @Composable () -> Unit = {},
@@ -49,6 +50,7 @@ internal fun WorkspaceScreen(
     val open: (WorkspaceFormKind) -> Unit = { onClear(); onOpenForm(it) }
     LaunchedEffect(section, state.pages.mapValues { it.value.request }) { contentScroll.scrollTo(0) }
     LaunchedEffect(noticeVisible) { if (noticeVisible) contentScroll.scrollTo(0) }
+    LaunchedEffect(secondaryScrollKey) { if (secondaryScrollKey != null) contentScroll.scrollTo(0) }
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
         val wide = maxWidth >= 950.dp
         Row(Modifier.fillMaxSize()) {
@@ -73,8 +75,8 @@ internal fun WorkspaceScreen(
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 WorkspaceTopBar(workspace?.organization?.name, wide,
                     canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && (state.canChooseOrganization || superAdmin),
-                    enabled = !state.saving && !secondaryBusy, refreshing = state.loading,
-                    onToggleOrganization = onChooseOrganization, onRefresh = onRefresh,
+                    enabled = !state.saving && !secondaryBusy,
+                    onToggleOrganization = onChooseOrganization,
                     onBack = if (form == null && secondaryContent == null && !choosingOrganization) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
@@ -108,14 +110,14 @@ internal fun WorkspaceScreen(
                                 state.errors.isNotEmpty() -> workspacePlaceholder(state, false).title
                                 else -> "Sin organización activa"
                             })
-                            OutlinedButton(onClick = onVerifySession, enabled = !sessionBusy) { Text(if (sessionBusy) "Verificando…" else "Verificar sesión y permisos") }
+                            BpmSecondaryButton(onClick = onVerifySession, enabled = !sessionBusy) { Text(if (sessionBusy) "Verificando…" else "Verificar sesión y permisos") }
                             if (sessionBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
                             sessionConfirmation?.let { Text(it, color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                             sessionMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                            if (WorkspaceDestination.Learn in available) OutlinedButton(onClick = { navigate(WorkspaceDestination.Learn) }) { Text("Mi aprendizaje") }
+                            if (WorkspaceDestination.Learn in available) BpmSecondaryButton(onClick = { navigate(WorkspaceDestination.Learn) }) { Text("Mi aprendizaje") }
                             HorizontalDivider()
-                            TextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
+                            BpmTextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
                                 BpmIcon(BpmSymbol.Logout)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Cerrar sesión")
@@ -128,7 +130,7 @@ internal fun WorkspaceScreen(
                             Text(placeholder.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                             Text(placeholder.message)
                             if (placeholder.canCreate) RaisedButton("Crear organización", { open(WorkspaceFormKind.Organization) })
-                            if (placeholder.canRetry) OutlinedButton(onClick = onRefresh) { Text("Volver a intentar") }
+                            if (placeholder.canRetry) BpmSecondaryButton(onClick = onRefresh) { Text("Volver a intentar") }
 
                         }
                     }
@@ -147,7 +149,7 @@ internal fun WorkspaceScreen(
                             if (current.canManage) BpmCard(Modifier.fillMaxWidth()) {
                                 Text("Plantillas de control", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("Prepara preguntas y publica los criterios que utilizará tu equipo.")
-                                OutlinedButton(onClick = onManageTemplates) { Text("Gestionar plantillas") }
+                                BpmSecondaryButton(onClick = onManageTemplates) { Text("Gestionar plantillas") }
                             }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -177,13 +179,14 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Learn -> {
                             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.secondaryContainer) {
+                                if (!wide) Mascot(Modifier.size(88.dp).align(Alignment.End), learning = true)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Eyebrow("APRENDER PARA CUIDAR")
                                         Text("Un hábito a la vez.", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
                                         Text("Consulta las capacitaciones publicadas por tu organización.")
                                     }
-                                    Mascot(Modifier.size(if (wide) 180.dp else 100.dp), learning = true)
+                                    if (wide) Mascot(Modifier.size(180.dp), learning = true)
                                 }
                             }
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {

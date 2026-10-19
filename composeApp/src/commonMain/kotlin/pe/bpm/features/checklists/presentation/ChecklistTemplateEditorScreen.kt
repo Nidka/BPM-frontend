@@ -48,19 +48,19 @@ import pe.bpm.features.checklists.domain.*
         when {
             state.failure in setOf(PublicationFailure.ACCESS_DENIED, PublicationFailure.SESSION_REQUIRED) -> {
                 BpmCard(Modifier.fillMaxWidth()) { Text(publicationMessage(state.failure!!), color = MaterialTheme.colorScheme.error) }
-                OutlinedButton(onClick = onClose) { Text("Volver a la organización") }
+                BpmSecondaryButton(onClick = onClose) { Text("Volver a la organización") }
             }
             state.step == TemplateEditorStep.Discard -> BpmCard(Modifier.fillMaxWidth()) {
                 Text("Se eliminarán los cambios de esta plantilla que aún no publicaste.")
                 RaisedButton("Conservar borrador", onKeep)
-                TextButton(onClick = onConfirmDiscard) { Text("Descartar cambios") }
+                BpmTextButton(onClick = onConfirmDiscard) { Text("Descartar cambios") }
             }
             state.step == TemplateEditorStep.Published -> BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Text("${state.published?.name.orEmpty()} ya está disponible en el catálogo de esta organización.",
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 Text("La versión 1 quedó publicada. No puede modificarse desde este editor.")
                 RaisedButton("Ver plantilla publicada", { state.published?.id?.let(onPublished) })
-                OutlinedButton(onClick = onClose) { Text("Volver a plantillas") }
+                BpmSecondaryButton(onClick = onClose) { Text("Volver a plantillas") }
             }
             else -> {
                 state.failure?.let { failure -> BpmCard(Modifier.fillMaxWidth()) {
@@ -84,9 +84,9 @@ import pe.bpm.features.checklists.domain.*
                             onChange = { change -> onQuestion(input.id, change) }, onType = { onType(input.id, it) },
                             onMove = { onMove(input.id, it) }, onRemove = { onRemove(input.id) })
                     } }
-                    OutlinedButton(onClick = onAdd, enabled = state.questions.size < 100) { Text("Agregar pregunta") }
+                    BpmSecondaryButton(onClick = onAdd, enabled = state.questions.size < 100) { Text("Agregar pregunta") }
                     RaisedButton("Revisar plantilla", onReview)
-                    TextButton(onClick = onDiscard) { Text("Descartar borrador") }
+                    BpmTextButton(onClick = onDiscard) { Text("Descartar borrador") }
                 } else {
                     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                         Text(state.name.trim(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -103,9 +103,9 @@ import pe.bpm.features.checklists.domain.*
                     if (state.publishing) LinearProgressIndicator(Modifier.fillMaxWidth())
                     RaisedButton(if (state.publishing) "Comprobando publicación…" else if (state.uncertain) "Comprobar y reintentar" else "Publicar plantilla",
                         onPublish, enabled = !state.publishing && state.failure != PublicationFailure.CONFLICT)
-                    OutlinedButton(onClick = onEdit, enabled = state.editable) { Text("Volver a editar") }
-                    if (state.uncertain) TextButton(onClick = onClose, enabled = !state.publishing) { Text("Volver sin descartar") }
-                    else TextButton(onClick = onDiscard, enabled = !state.publishing) { Text("Descartar borrador") }
+                    BpmSecondaryButton(onClick = onEdit, enabled = state.editable) { Text("Volver a editar") }
+                    if (state.uncertain) BpmTextButton(onClick = onClose, enabled = !state.publishing) { Text("Volver sin descartar") }
+                    else BpmTextButton(onClick = onDiscard, enabled = !state.publishing) { Text("Descartar borrador") }
                 }
             }
         }
@@ -146,9 +146,9 @@ import pe.bpm.features.checklists.domain.*
             EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad · pregunta ${index + 1}", fields["$prefix.unit"])
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { onMove(-1) }, enabled = index > 0, modifier = Modifier.semantics { contentDescription = "Subir pregunta ${index + 1}" }) { Text("Subir") }
-            TextButton(onClick = { onMove(1) }, enabled = index < count - 1, modifier = Modifier.semantics { contentDescription = "Bajar pregunta ${index + 1}" }) { Text("Bajar") }
-            TextButton(onClick = onRemove, modifier = Modifier.semantics { contentDescription = "Eliminar pregunta ${index + 1}" }) { Text("Eliminar") }
+            BpmTextButton(onClick = { onMove(-1) }, enabled = index > 0, modifier = Modifier.semantics { contentDescription = "Subir pregunta ${index + 1}" }) { Text("Subir") }
+            BpmTextButton(onClick = { onMove(1) }, enabled = index < count - 1, modifier = Modifier.semantics { contentDescription = "Bajar pregunta ${index + 1}" }) { Text("Bajar") }
+            BpmTextButton(onClick = onRemove, modifier = Modifier.semantics { contentDescription = "Eliminar pregunta ${index + 1}" }) { Text("Eliminar") }
         }
     }
 }

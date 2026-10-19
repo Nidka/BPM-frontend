@@ -21,7 +21,7 @@ import pe.bpm.core.designsystem.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun WorkspaceTopBar(
     organizationName: String?, wide: Boolean, canChangeOrganization: Boolean,
-    enabled: Boolean, refreshing: Boolean, onToggleOrganization: () -> Unit, onRefresh: () -> Unit,
+    enabled: Boolean, onToggleOrganization: () -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
     val organizationInteractions = remember { MutableInteractionSource() }
@@ -52,13 +52,6 @@ import pe.bpm.core.designsystem.*
                     WorkspaceContext(organizationName, wide, canChangeOrganization = true, modifier = Modifier.padding(horizontal = 8.dp))
                 }
                 } else WorkspaceContext(organizationName, wide, canChangeOrganization = false, modifier = Modifier.weight(1f))
-            }
-        },
-        actions = {
-            if (onBack == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
-            IconButton(onClick = onRefresh, enabled = enabled && !refreshing) {
-                BpmIcon(BpmSymbol.Refresh, contentDescription = "Actualizar datos")
-            }
             }
         },
     )

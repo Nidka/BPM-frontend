@@ -11,11 +11,11 @@ import androidx.compose.ui.unit.dp
 @Composable fun PageNavigation(number: Int, canPrevious: Boolean, canNext: Boolean, loading: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
     if (canPrevious || canNext || number > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         BpmFeedback(MaterialTheme.colorScheme.primary) {
-        OutlinedButton(onClick = onPrevious, enabled = canPrevious && !loading) { Text("Anterior") }
+        BpmSecondaryButton(onClick = onPrevious, enabled = canPrevious && !loading) { Text("Anterior") }
         }
         Text("Página $number", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
         BpmFeedback(MaterialTheme.colorScheme.primary) {
-        OutlinedButton(onClick = onNext, enabled = canNext && !loading) { Text("Siguiente") }
+        BpmSecondaryButton(onClick = onNext, enabled = canNext && !loading) { Text("Siguiente") }
         }
     }
 }

@@ -9,7 +9,7 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
 | Identidad | features/identity | Login/registro/recuperación y Google web/Android listos; usuario confirmó Google en celular. iOS con SDK/adaptador y configuración pública: pendiente prueba real y validación adicional de almacenamiento seguro en dispositivos |
 | Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición y bajas |
-| Checklists | features/checklists | Catálogo paginado, búsqueda, detalle y publicación de primera versión listos; siguiente: ejecuciones, borradores, idempotencia y sincronización |
+| Checklists | features/checklists | Catálogo, autoría y ejecución en línea con revisión, versión e idempotencia; siguiente: persistencia local, cola y sincronización offline |
 | Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |
 | Academia | nueva features/training | Catálogo, progreso local y evaluaciones |
 | Incidencias | nueva features/incidents | Registro, estados y acciones correctivas |

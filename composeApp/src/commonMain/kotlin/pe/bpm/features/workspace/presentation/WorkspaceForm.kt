@@ -101,7 +101,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                     WorkspaceFormKind.Member -> onMember(email, role, if (role == "ADMIN") emptyList() else locations.toList())
                 }
             })
-            TextButton(onClick = onClose, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+            BpmTextButton(onClick = onClose, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
         }
     }
 }

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
+import pe.bpm.core.presentation.DataFreshness
 
 class WorkspaceViewModel(
     private val loadOrganizations: LoadOrganizations,
@@ -20,6 +21,7 @@ class WorkspaceViewModel(
     private val createLocation: CreateLocation,
     private val addMember: AddMember,
     private val loadPage: LoadWorkspacePage,
+    private val freshness: DataFreshness = DataFreshness(),
 ) : ViewModel() {
     private val mutable = MutableStateFlow(WorkspaceState())
     val state = mutable.asStateFlow()
@@ -34,6 +36,7 @@ class WorkspaceViewModel(
     }
 
     fun reset() {
+        freshness.reset()
         job?.cancel()
         cancelPages()
         mutable.value = WorkspaceState()
@@ -46,6 +49,12 @@ class WorkspaceViewModel(
         job = viewModelScope.launch { reload() }
     }
 
+    fun refreshIfStale() {
+        val current = mutable.value
+        if (freshness.stale && !current.loading && !current.saving &&
+            current.errors.isEmpty() && current.pages.values.none { it.loading }) load()
+    }
+
     private suspend fun reload() {
         mutable.value = mutable.value.copy(loading = true, errors = emptyList(), workspace = null, organizations = emptyList(), pages = emptyMap())
         val result = loadOrganizations()
@@ -54,6 +63,7 @@ class WorkspaceViewModel(
         when (result) {
             is Result.Failure -> mutable.value = mutable.value.copy(loading = false, errors = result.errors)
             is Result.Success -> {
+                freshness.loaded()
                 val selected = mutable.value.selected ?: result.value.items.firstOrNull()?.id
                 mutable.value = mutable.value.copy(organizations = result.value.items, canChooseOrganization = result.value.items.size > 1 || result.value.nextToken.isNotEmpty(), organizationPage = WorkspacePageState(nextToken = result.value.nextToken), selected = selected, loading = selected != null)
                 if (selected != null) read(selected)
@@ -74,7 +84,10 @@ class WorkspaceViewModel(
         // Una solicitud cancelada no puede restaurar una sesión o empresa anterior.
         currentCoroutineContext().ensureActive()
         when (result) {
-            is Result.Success -> mutable.value = mutable.value.copy(workspace = result.value, loading = false, pages = WorkspaceResource.entries.associateWith { WorkspacePageState(nextToken = result.value.nextPageTokens[it.path].orEmpty()) })
+            is Result.Success -> {
+                freshness.loaded()
+                mutable.value = mutable.value.copy(workspace = result.value, loading = false, pages = WorkspaceResource.entries.associateWith { WorkspacePageState(nextToken = result.value.nextPageTokens[it.path].orEmpty()) })
+            }
             is Result.Failure -> mutable.value = mutable.value.copy(workspace = null, loading = false, errors = result.errors)
         }
     }

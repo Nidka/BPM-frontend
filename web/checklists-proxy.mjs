@@ -12,7 +12,7 @@ function text(value, key, maximum, allowEmpty = false) {
   return result;
 }
 
-function publicItem(value) {
+export function publicItem(value) {
   const responseType = text(value, 'responseType', 20);
   if (!['COMPLIANCE', 'TEMPERATURE', 'TEXT', 'NUMBER'].includes(responseType) ||
       !Number.isInteger(value.displayOrder) || value.displayOrder < 1 || typeof value.required !== 'boolean' ||
@@ -50,7 +50,7 @@ function publicCatalog(data) {
   return templates;
 }
 
-async function readPayload(body, maximum = 4 * 1024 * 1024) {
+export async function readPayload(body, maximum = 4 * 1024 * 1024) {
   const chunks = [];
   let size = 0;
   for await (const chunk of body) {

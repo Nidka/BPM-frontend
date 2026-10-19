@@ -207,7 +207,21 @@ Referencias: [Google Sign-In iOS](https://developers.google.com/identity/sign-in
 
 La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas
-no usan rememberSaveable y se vacían al enviar o cambiar de modo.
+no usan rememberSaveable. Permanecen en el formulario durante la validación;
+se vacían tras un fallo, al cambiar de modo o al retirarse la pantalla.
+Los campos declaran `ContentType.Username`/`EmailAddress`, `Password` y
+`NewUsername`/`NewPassword` para el servicio Autofill de Android. No se borra la
+entrada antes del resultado: al completar la navegación Compose puede ofrecer
+guardarla en el proveedor elegido por el usuario. Un fallo o cambio de modo
+cancela el contexto Autofill. BPM no guarda la contraseña en su almacenamiento.
+
+En Android se debe habilitar un proveedor en Ajustes → Contraseñas y autocompletar
+(el nombre varía según el dispositivo). El aviso puede estar desactivado para
+la app si se rechazó repetidamente. No es una opción de Firebase. Las etiquetas
+se comparten, pero la versión fijada de Compose no garantiza gestores de
+contraseñas en web Canvas o iOS: no se declara ese soporte validado ni se añaden
+campos HTML ocultos. Una integración DOM/nativa requiere su recorrido específico.
+Referencia: [Autofill en Compose](https://developer.android.com/develop/ui/compose/text/autofill).
 
 Nombres y apellidos son obligatorios, admiten caracteres Unicode y nombres
 compuestos. Se normalizan los espacios y se componen como `displayName` (hasta

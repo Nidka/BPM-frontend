@@ -28,10 +28,9 @@ fun SessionExpirationNotice(status: SessionStatus, onContinue: () -> Unit, onLog
         if (status.continuing) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (warning.reason == SessionExpiryReason.INACTIVITY)
-                Button(onClick = onContinue, enabled = !status.continuing, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text(if (status.continuing) "Comprobando sesión…" else "Seguir conectado")
-                }
-            TextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
+                RaisedButton(if (status.continuing) "Comprobando sesión…" else "Seguir conectado", onContinue,
+                    enabled = !status.continuing, modifier = Modifier.widthIn(max = 340.dp))
+            BpmTextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text(if (warning.reason == SessionExpiryReason.INACTIVITY) "Cerrar sesión" else "Volver a iniciar sesión")
             }
         }

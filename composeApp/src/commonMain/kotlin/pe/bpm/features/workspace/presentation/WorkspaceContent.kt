@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
@@ -14,7 +15,8 @@ import pe.bpm.features.workspace.domain.*
 
 @Composable internal fun Home(workspace: Workspace, wide: Boolean, learningAllowed: Boolean, onLearn: () -> Unit, onCompany: () -> Unit) {
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!wide) Mascot(Modifier.size(88.dp).align(Alignment.End))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(if (learningAllowed) "Capacitación y buenas prácticas" else "Gestión de organizaciones",
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -25,10 +27,13 @@ import pe.bpm.features.workspace.domain.*
             if (wide) Mascot(Modifier.size(140.dp))
         }
     }
-    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
-    Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val fontScale = LocalDensity.current.fontScale
+    val columns = (maxWidth.value / (112 * fontScale)).toInt().coerceIn(1, 3)
+    FlowRow(Modifier.fillMaxWidth(), maxItemsInEachRow = columns,
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         listOf("Sedes" to (workspace.totals["locations"] ?: workspace.locations.size), "Cursos" to (workspace.totals["courses"] ?: workspace.courses.size), "Controles" to (workspace.totals["checklists"] ?: workspace.checklists.size)).forEach { (label, count) ->
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            BpmCard(Modifier.weight(1f)) {
                 Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
                 Text(label, style = MaterialTheme.typography.labelMedium)
             }
@@ -40,7 +45,7 @@ import pe.bpm.features.workspace.domain.*
         SetupStatus("Cuenta verificada", complete = true)
         SetupStatus("Organización disponible", complete = true)
         SetupStatus(if ((workspace.totals["locations"] ?: workspace.locations.size) == 0) "Configura la primera sede" else "Sedes disponibles", (workspace.totals["locations"] ?: workspace.locations.size) > 0)
-        if (workspace.canManage) OutlinedButton(onClick = onCompany) { Text("Ver mi organización") }
+        if (workspace.canManage) BpmSecondaryButton(onClick = onCompany) { Text("Ver mi organización") }
     }
 }
 
@@ -54,7 +59,7 @@ import pe.bpm.features.workspace.domain.*
 @Composable internal fun SectionHeading(title: String, action: String?, onAction: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        if (action != null) OutlinedButton(onClick = onAction) { Text("+ $action") }
+        if (action != null) BpmSecondaryButton(onClick = onAction) { Text("+ $action") }
     }
 }
 @Composable internal fun Entries(entries: List<Entry>, title: String, empty: String) {

@@ -1,5 +1,7 @@
 package pe.bpm.features.connection.presentation
 
+import pe.bpm.core.designsystem.RaisedButton
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -51,9 +53,8 @@ fun ConnectionScreen(state: ConnectionUiState, onRetry: () -> Unit) {
                         }
                         is ConnectionUiState.Unavailable -> Text(state.message)
                     }
-                    Button(onClick = onRetry, enabled = state !is ConnectionUiState.Checking) {
-                        Text(if (connected) "Volver a comprobar" else "Reintentar conexión")
-                    }
+                    RaisedButton(if (connected) "Volver a comprobar" else "Reintentar conexión", onRetry,
+                        enabled = state !is ConnectionUiState.Checking)
                 }
             }
             Spacer(Modifier.height(24.dp))

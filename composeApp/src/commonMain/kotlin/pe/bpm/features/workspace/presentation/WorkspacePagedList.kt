@@ -1,5 +1,7 @@
 package pe.bpm.features.workspace.presentation
 
+import pe.bpm.core.designsystem.BpmSecondaryButton
+import pe.bpm.core.designsystem.BpmTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,7 +28,7 @@ import pe.bpm.features.workspace.domain.WorkspaceResource
         BpmTextField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving)
         when {
             page.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando resultados…") }
-            page.errors.isNotEmpty() -> { Errors(page.errors); OutlinedButton(onClick = { onRetry(resource) }) { Text("Reintentar") } }
+            page.errors.isNotEmpty() -> { Errors(page.errors); BpmSecondaryButton(onClick = { onRetry(resource) }) { Text("Reintentar") } }
             else -> content()
         }
         PageNavigation(page.number, page.previous.isNotEmpty(), page.nextToken.isNotEmpty(), page.loading || page.errors.isNotEmpty(),

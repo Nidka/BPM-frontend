@@ -20,12 +20,25 @@ temporalmente «BPM», sin eslogan, hasta que el equipo defina el nombre definit
 misma denominación. El brote de la biblioteca sustituye la letra `b.` inventada.
 Es el símbolo del prototipo, no una marca definitiva aprobada.
 
-`WorkspaceTopBar` usa `TopAppBar` de Material 3: marca, organización en una segunda
-línea acotada y una acción «Actualizar datos» con descripción accesible. El selector
+`WorkspaceTopBar` usa `TopAppBar` de Material 3: marca y organización en una segunda
+línea acotada. No muestra un botón permanente de recarga en ningún tamaño. El selector
 solo está habilitado si hay varias organizaciones o permiso para crearlas. Las
 secciones principales no acumulan botones de historial; el detalle conserva su
 regreso al catálogo. «Cerrar sesión» pertenece a Mi cuenta. La navegación lateral
 o inferior mantiene los destinos autorizados; no se añaden funciones simuladas.
+
+Las vistas de consulta se revalidan al entrar o volver al primer plano si llevan
+dos minutos sin una lectura confirmada. `DataFreshness` usa tiempo monotónico;
+los ViewModels evitan cargas simultáneas y no recargan formularios ni ejecuciones.
+No hay sondeo ni solicitudes periódicas que prolonguen la sesión. Los errores
+ofrecen «Reintentar» en el contenido. Guardar o cambiar empresa mantiene su recarga
+explícita. Esto es revalidación de datos, no recargar la página del navegador.
+
+`RaisedButton`, `BpmSecondaryButton` y `BpmTextButton` centralizan acciones
+principales, secundarias y de texto, con área táctil mínima, foco y feedback.
+Los controles de selección y el botón Google conservan su semántica y requisitos
+de marca. Inicio muestra la mascota también en móvil; los indicadores fluyen a
+varias filas según ancho y escala de texto, sin fijar tres columnas estrechas.
 
 Los avisos se insertan al inicio del contenido, debajo de la cabecera. Al aparecer
 una advertencia de sesión o de acceso, el contenido se desplaza hasta el aviso.
@@ -76,7 +89,7 @@ administrativas reales como parte del despliegue.
 | Empresa | Datos, sedes y altas autorizadas | Edición/desactivación |
 | Equipo | Miembros y alta por correo de cuenta existente | Invitaciones, cambios de rol y bajas |
 | Aprender | Catálogo publicado y estado de progreso existente | Lecciones, evaluaciones, XP y constancias |
-| Control | Catálogo, búsqueda y preguntas de plantillas publicadas; incidencias visibles | Ejecutar/responder controles y gestionar incidencias |
+| Control | Catálogo, preguntas, inicio, guardado y finalización en línea; incidencias visibles | Persistencia/sincronización offline e incidencias |
 
 Cada página carga 25 registros, con un máximo de 100 por solicitud. Inicio usa
 `totals` autorizados del backend para sedes, cursos y controles publicados. No se presentan botones que simulen completar cursos
@@ -209,13 +222,15 @@ explícito en Equipo y no obtiene acciones administrativas.
 
 Verificar una sesión vuelve a cargar el espacio si cambiaron las membresías o
 el rol de plataforma, incluso si antes no había organización seleccionada.
-Actualizar Control solicita tanto el workspace como el catálogo de preguntas;
+Reintentar la carga de Control solicita tanto el workspace como el catálogo de preguntas;
 no depende de que Compose observe un estado intermedio de carga.
 
 Referencias: [barras de aplicación Material 3](https://developer.android.com/develop/ui/compose/components/app-bars),
 [recursos Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-multiplatform-resources-usage.html)
 y [Lucide](https://lucide.dev/guide/). Estas decisiones adaptan el prototipo a los
 recorridos disponibles; no declaran implementados todos sus módulos.
+La revalidación al volver usa el [ciclo de vida de Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-lifecycle.html);
+la ventana de dos minutos es una decisión del proyecto, no una obligación del framework.
 
 La elección de sedes agrupa etiqueta y casilla en una fila toggleable de al menos
 48 dp; Checkbox delega la acción al padre. La selección usa un conjunto de IDs,

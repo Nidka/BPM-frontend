@@ -95,6 +95,11 @@ El detalle de preguntas usa `control/plantilla/{templateId}` en el mismo NavHost
 con las comprobaciones de sesión y capacidades de Control. Consulta por ID una
 plantilla publicada de la empresa activa, independientemente de la página cargada; admite historial y
 enlace directo. Ver CHECKLISTS.md.
+El inicio `control/plantilla/{templateId}/iniciar` y el registro
+`control/ejecucion/{runId}` comparten esas comprobaciones. `app/ChecklistRunContent`
+adapta las sedes del workspace al módulo de controles; no hay dependencias entre
+features. El ViewModel usa casos de uso y el repositorio recibe la sesión por
+inyección. La ejecución disponible es en línea; no sustituye la cola offline.
 Las altas de organización/sede/miembro también tienen rutas propias en ese
 NavHost. App comprueba las capacidades antes de mostrarlas y observa la revisión
 de guardado para regresar solo después del éxito confirmado. WorkspaceForm

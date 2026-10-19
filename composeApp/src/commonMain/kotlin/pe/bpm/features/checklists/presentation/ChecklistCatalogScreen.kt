@@ -1,5 +1,7 @@
 package pe.bpm.features.checklists.presentation
 
+import pe.bpm.core.designsystem.BpmSecondaryButton
+import pe.bpm.core.designsystem.BpmTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -31,11 +33,13 @@ fun ChecklistCatalogScreen(
     onUserActivity: () -> Unit,
     onNext: () -> Unit, onPrevious: () -> Unit,
     management: Boolean = false,
+    onStart: ((String) -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (templateId == null && !management) BoxWithConstraints(Modifier.fillMaxWidth()) {
             val showMascot = maxWidth >= 600.dp
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
+                if (!showMascot) Mascot(Modifier.size(88.dp).align(Alignment.End))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("UN CONTROL A LA VEZ", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
@@ -49,8 +53,8 @@ fun ChecklistCatalogScreen(
         if (templateId != null) {
             when {
                 state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); OutlinedButton(onClick = onRefresh) { Text("Reintentar") } }
-                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, onCloseDetail)
+                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
+                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, onCloseDetail, if (management) null else onStart)
                 else -> Text("Cargando plantilla…")
             }
             return@Column
@@ -65,7 +69,7 @@ fun ChecklistCatalogScreen(
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text("No pudimos cargar los controles", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(failureMessage(state.failure), color = MaterialTheme.colorScheme.error)
-                OutlinedButton(onClick = onRefresh) { Text("Reintentar") }
+                BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") }
             }
             state.templates.isEmpty() && state.query.isEmpty() -> EmptyState("Todavía no hay controles publicados",
                 "Cuando tu organización publique una plantilla, podrás consultar aquí sus preguntas y criterios.")
@@ -73,7 +77,7 @@ fun ChecklistCatalogScreen(
                 Text("${state.templates.size} plantillas en esta página", style = MaterialTheme.typography.bodyMedium)
                 if (state.visibleTemplates.isEmpty()) {
                     EmptyState("No encontramos coincidencias", "Prueba con otro nombre o área.")
-                    TextButton(onClick = { onSearch("") }) { Text("Limpiar búsqueda") }
+                    BpmTextButton(onClick = { onSearch("") }) { Text("Limpiar búsqueda") }
                 } else BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val columns = if (maxWidth >= 720.dp) 2 else 1
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -106,9 +110,10 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSele
 
 /** Consulta de una versión publicada; la raíz coordina su ruta y el regreso al catálogo. */
 @Composable
-private fun ChecklistDetail(template: ChecklistTemplate, onClose: () -> Unit) {
+private fun ChecklistDetail(template: ChecklistTemplate, onClose: () -> Unit, onStart: ((String) -> Unit)?) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        OutlinedButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) {
+        if (onStart != null) RaisedButton("Realizar este control", { onStart(template.id) })
+        BpmSecondaryButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) {
             BpmIcon(BpmSymbol.Back)
             Spacer(Modifier.width(8.dp))
             Text("Volver al catálogo")
@@ -122,7 +127,7 @@ private fun ChecklistDetail(template: ChecklistTemplate, onClose: () -> Unit) {
             Text("Consulta de plantilla publicada. Esta vista no registra respuestas.", style = MaterialTheme.typography.bodyMedium)
         }
         template.items.forEach { item -> Question(item) }
-        OutlinedButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver al catálogo") }
+        BpmSecondaryButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver al catálogo") }
     }
 }
 
