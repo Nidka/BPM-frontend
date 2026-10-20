@@ -18,7 +18,10 @@ class WorkspaceDraftRecoveryTest {
             val storage = TestDraftStorage()
             val drafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(storage, "https://api.example.com"))
             var ids = 0
-            val first = WorkspaceFormViewModel(drafts) { "id-${++ids}" }; models.put("first", first)
+            val check = CheckMember(object : MemberEligibilityReader {
+                override suspend fun checkMember(organizationId: String, email: String): Result<MemberEligibility> = Result.Success(MemberEligibility.READY)
+            })
+            val first = WorkspaceFormViewModel(drafts, check) { "id-${++ids}" }; models.put("first", first)
             first.open("user", "org", WorkspaceFormKind.Location); advanceUntilIdle()
             val id = first.state.value.draft!!.id
             first.edit { it.copy(name = "Sede sin terminar", address = "Dirección en proceso") }
@@ -39,9 +42,13 @@ class WorkspaceDraftRecoveryTest {
         try {
             val storage = TestDraftStorage()
             val drafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(storage, "https://api.example.com"))
-            val vm = WorkspaceFormViewModel(drafts) { "id" }; models.put("vm", vm)
+            val check = CheckMember(object : MemberEligibilityReader {
+                override suspend fun checkMember(organizationId: String, email: String): Result<MemberEligibility> = Result.Success(MemberEligibility.READY)
+            })
+            val vm = WorkspaceFormViewModel(drafts, check) { "id" }; models.put("vm", vm)
             vm.open("user", "org", WorkspaceFormKind.Member); advanceUntilIdle()
             vm.edit { it.copy(email = "test@example.com", role = "CHEF", locations = setOf("site")) }; advanceUntilIdle()
+            vm.checkAccount(); advanceUntilIdle()
             storage.failWrites = true
             var sends = 0; vm.submit { sends++ }; advanceUntilIdle()
             assertEquals(0, sends)

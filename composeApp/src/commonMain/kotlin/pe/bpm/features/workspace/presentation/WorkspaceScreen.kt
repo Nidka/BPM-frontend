@@ -23,7 +23,7 @@ internal fun WorkspaceScreen(
     onVerifySession: () -> Unit, sessionBusy: Boolean, sessionMessage: String?, sessionConfirmation: String?,
     onSelect: (String) -> Unit, onRefresh: () -> Unit,
     onClear: () -> Unit, onLogout: () -> Unit,
-    formDraft: WorkspaceFormState, onSubmitForm: () -> Unit, onFormEdit: ((WorkspaceFormDraft) -> WorkspaceFormDraft) -> Unit, onFormRetry: () -> Unit, onFormDiscard: () -> Unit,
+    formDraft: WorkspaceFormState, onSubmitForm: () -> Unit, onFormCheck: () -> Unit, onFormEdit: ((WorkspaceFormDraft) -> WorkspaceFormDraft) -> Unit, onFormRetry: () -> Unit, onFormDiscard: () -> Unit,
     form: WorkspaceFormKind?, onOpenForm: (WorkspaceFormKind) -> Unit, onCloseForm: () -> Unit,
     choosingOrganization: Boolean, onChooseOrganization: () -> Unit,
     checklistContent: @Composable () -> Unit,
@@ -83,7 +83,7 @@ internal fun WorkspaceScreen(
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
-                        onSubmitForm, formDraft, onFormEdit, onFormDiscard, onFormRetry, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
+                        onSubmitForm, formDraft, onFormCheck, onFormEdit, onFormDiscard, onFormRetry, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
                 } else if (choosingOrganization) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
                     OrganizationPickerScreen(state.organizations, state.selected, state.loading, errors = state.errors,

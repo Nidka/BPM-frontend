@@ -149,6 +149,7 @@ class IdentityViewModel(
     }
 
     fun userActivity() { sessionMonitor?.userActivity() }
+    fun onForeground() { sessionMonitor?.recheck() }
     fun continueSession() { sessionMonitor?.continueSession() }
     val sessionStatus = sessionMonitor?.state ?: MutableStateFlow(SessionStatus()).asStateFlow()
 

@@ -363,7 +363,7 @@ reales (incluidos formularios, desplazamiento y teclado virtual), con un POST
 Los endpoints empresariales también actualizan actividad en servidor.
 
 Las cabeceras `X-BPM-Session-Expires-At` y `X-BPM-Session-Idle-Expires-At` permiten
-avisar durante el último minuto y retirar acceso local al vencer. El reloj del
+avisar durante los últimos cinco minutos y retirar acceso local al vencer. El reloj del
 cliente solo mejora la experiencia; el backend impide operaciones fuera de plazo.
 Un 401 `SESSION_EXPIRED` borra también credenciales móviles y exige autenticación
 nueva. No se reintentan escrituras. Las respuestas tardías no restauran sesión.
@@ -438,3 +438,24 @@ Android/iOS; verificar además Keychain/Keystore en dispositivo antes del piloto
 Fuentes: [Firebase REST](https://firebase.google.com/docs/reference/rest/auth),
 [Google web](https://firebase.google.com/docs/auth/web/google-signin),
 [persistencia Firebase](https://firebase.google.com/docs/auth/web/auth-state-persistence).
+
+### Pestañas ocultas y vuelta al primer plano
+
+`OnAppForeground` escucha `visibilitychange`, `pageshow` y recuperación de foco
+en web; móvil usa el ciclo de vida ON_RESUME. La raíz pide a SessionMonitor
+recalcular el tiempo con los deadlines del servidor antes de revalidar consultas.
+Volver no envía actividad, no concede tiempo adicional ni envía borradores.
+El temporizador mantiene el aviso de cinco minutos en la pestaña visible; el
+adaptador de plataforma no conoce identidad ni credenciales.
+
+Los navegadores suspenden o ralentizan temporizadores de pestañas ocultas. Si el
+usuario vuelve antes del vencimiento dentro de la ventana de aviso, ve «¿Sigues
+ahí?» y puede confirmar presencia. Si vuelve después, debe autenticarse: no se
+ofrece una extensión de una sesión vencida. El aviso de acceso explica la
+recuperación de borradores conservados. Los límites siguen siendo 15 minutos de
+inactividad y 8 horas absolutas; cinco minutos es anticipación de UI, no un nuevo
+plazo del servidor. No se solicitan notificaciones ni se reproduce audio.
+
+Referencias: [sesiones de Blackboard](https://help.anthology.com/blackboard/administrator/en/authentication/session-management.html),
+[Page Visibility](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API) y
+[OWASP sobre vencimiento](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-expiration).

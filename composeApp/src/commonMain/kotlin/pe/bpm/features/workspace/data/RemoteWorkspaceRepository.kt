@@ -20,7 +20,16 @@ import pe.bpm.core.network.SessionAccessException
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
 
-class RemoteWorkspaceRepository(private val client: HttpClient, private val config: AppConfig, private val onSessionRejected: (String) -> Unit = {}, private val onSessionResponse: (HttpResponse) -> Unit = {}, private val token: suspend () -> String?) : WorkspaceRepository {
+class RemoteWorkspaceRepository(private val client: HttpClient, private val config: AppConfig, private val onSessionRejected: (String) -> Unit = {}, private val onSessionResponse: (HttpResponse) -> Unit = {}, private val token: suspend () -> String?) : WorkspaceRepository, MemberEligibilityReader {
+    override suspend fun checkMember(organizationId: String, email: String): Result<MemberEligibility> = request { accessToken ->
+        require(organizationId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+        val response = client.post("${config.apiBaseUrl}/api/v1/organizations/$organizationId/members/check") {
+            bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(MemberCheckRequest(email))
+        }
+        onSessionResponse(response)
+        if (response.status.isSuccess()) Result.Success(MemberEligibility.valueOf(response.body<Envelope<MemberCheckDto>>().data.status))
+        else failure(response, accessToken)
+    }
     override suspend fun organizations(request: PageRequest): Result<Page<Organization>> = request { accessToken ->
         val response = client.get("${config.apiBaseUrl}/api/v1/organizations") { bearerAuth(accessToken); pageParameters(request) }
         onSessionResponse(response)
@@ -77,7 +86,7 @@ class RemoteWorkspaceRepository(private val client: HttpClient, private val conf
             "INVALID_PAGINATION"->"La lista cambió. Actualízala para volver a empezar."
             "UNAUTHENTICATED"->"Tu sesión terminó. Vuelve a iniciar sesión."
             "ACCESS_DENIED"->"No tienes permisos para realizar esta acción."
-            "MEMBER_NOT_AVAILABLE"->"La persona debe crear y verificar primero su cuenta BPM."
+            "MEMBER_NOT_AVAILABLE"->"No encontramos una cuenta BPM activa con ese correo. La persona debe crear su cuenta, confirmar su correo e iniciar sesión en BPM antes de que la agregues al equipo."
             "RESOURCE_CONFLICT"->"El registro ya existe. Actualiza antes de volver a intentar."
             "VALIDATION_ERROR"->"Revisa los campos indicados."
             "RATE_LIMITED"->"Espera un momento antes de volver a intentar."
@@ -104,3 +113,5 @@ class RemoteWorkspaceRepository(private val client: HttpClient, private val conf
     return Workspace(organization.domain(),role,locations.map{it.domain()},members.map{it.domain()},courses.map{it.domain()},checklists.map{it.domain()},incidents.map{it.domain()},nextPageTokens,totals)
  }}
 @Serializable private data class MemberRequest(val email:String,val role:String,val locationIds:List<String>)
+@Serializable private data class MemberCheckRequest(val email: String)
+@Serializable private data class MemberCheckDto(val status: String)

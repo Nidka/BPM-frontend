@@ -45,8 +45,8 @@ fun SessionExpirationNotice(status: SessionStatus, onContinue: () -> Unit, onLog
                 Text("Tu sesión está por vencer", style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.semantics { heading() })
                 Text(if (warning.reason == SessionExpiryReason.INACTIVITY)
-                    "¿Sigues ahí? Tu sesión se cerrará por inactividad en ${warning.secondsRemaining} segundos."
-                else "Tu sesión alcanzará su duración máxima en ${warning.secondsRemaining} segundos. Necesitarás iniciar sesión de nuevo.")
+                    "¿Sigues ahí? Tu sesión se cerrará por inactividad en ${remainingTime(warning.secondsRemaining)}."
+                else "Tu sesión alcanzará su duración máxima en ${remainingTime(warning.secondsRemaining)}. Necesitarás iniciar sesión de nuevo.")
                 Text("Los borradores conservados en este dispositivo estarán disponibles al volver a entrar con tu misma cuenta y permisos.",
                     style = MaterialTheme.typography.bodySmall)
                 status.error?.let { Text(it, color = MaterialTheme.colorScheme.error,
@@ -64,3 +64,5 @@ fun SessionExpirationNotice(status: SessionStatus, onContinue: () -> Unit, onLog
         }
     }
 }
+
+private fun remainingTime(seconds: Long): String = if (seconds < 60) "$seconds segundos" else "${seconds / 60} min ${seconds % 60} s"

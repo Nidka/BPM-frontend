@@ -103,6 +103,11 @@ Guardar confirma la API; volver conserva la copia, y descartar pide confirmació
 No se envían altas automáticamente al recuperar acceso. Ver OFFLINE.md para
 almacenamiento y límites de sincronización.
 El alta de miembro no envía correos: la persona debe registrarse primero.
+Debe confirmar su correo e iniciar sesión en BPM antes de que el administrador
+la agregue al equipo. El error de guardado se muestra junto al botón, fuera del
+área desplazable de campos, y se anuncia mediante una región accesible. En
+ventanas bajas se desplaza hasta la respuesta. Un rechazo conserva los datos y
+las sedes elegidas; solo un éxito confirmado permite cerrar el formulario.
 
 ## Contratos, seguridad y pruebas
 
@@ -275,3 +280,14 @@ performedBy y solo el iniciador puede modificar su ejecución. No equivale al
 SUPER_ADMIN de plataforma, que no recibe operación diaria por tener ese rol.
 Referencia del alcance: Requerimientos/PlanImplementacion.md, fases 2 y 3; la
 separación corrector/validador de fase 6 pertenece a incidencias.
+
+### Alta de equipo en dos pasos
+
+El formulario solicita primero el correo y «Comprobar cuenta». Solo READY permite
+mostrar rol, sedes y «Agregar al equipo». ALREADY_MEMBER dirige a la lista existente;
+UNAVAILABLE explica cómo registrarse y confirmar el correo. Un fallo de red o un
+endpoint no disponible conserva la edición, muestra el error y bloquea el alta,
+sin fingir que la cuenta no existe. La comprobación no crea cuentas ni invitaciones.
+Se descarta al editar el correo o cambiar de contexto y no se guarda en el borrador.
+El backend vuelve a autorizar al confirmar. Requiere publicar el endpoint protegido
+`POST organizations/{id}/members/check` antes de usar el nuevo frontend.

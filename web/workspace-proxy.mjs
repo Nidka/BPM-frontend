@@ -1,7 +1,7 @@
 // Proxy cerrado: el backend conserva la autoridad sobre tenant, identidad y roles.
 import { pageQuery, publicPagination } from './pagination.mjs';
 import { forwardSessionHeaders } from './session-headers.mjs';
-const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members|courses|checklist-summaries|incidents))?$/;
+const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members(?:\/check)?|courses|checklist-summaries|incidents))?$/;
 export const workspaceRoute = path => routes.test(path);
 const orgFields = ['id', 'legalName', 'tradeName', 'businessType', 'taxId', 'contactName', 'contactPhone', 'contactEmail'];
 const locationFields = ['id', 'name', 'address', 'district', 'contactPhone'];
@@ -30,6 +30,11 @@ function list(value, map) {
   return value.map(map);
 }
 function publicData(data, action, method) {
+  if (action === 'members/check') {
+    const result = strings(data, ['status']);
+    if (!['READY', 'ALREADY_MEMBER', 'UNAVAILABLE'].includes(result.status)) throw new Error('Estado inválido');
+    return result;
+  }
   if (action === 'members') return method === 'POST' ? strings(data, ['status']) : list(data, x => ({ ...strings(x, ['id','name','email','role']), locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('ID inválido'); return id; }) }));
   if (action === 'locations') return method === 'POST' ? strings(data, locationFields) : list(data, x => strings(x, locationFields));
   if (['courses','checklist-summaries','incidents'].includes(action)) return list(data, x => strings(x, ['id','title','detail','status']));
@@ -46,7 +51,7 @@ function publicData(data, action, method) {
 export async function proxyWorkspace(request, url, upstream, send, response) {
   const match = url.pathname.match(routes);
   const action = match?.[2];
-  const allowed = ['workspace','courses','checklist-summaries','incidents'].includes(action) ? ['GET'] : ['GET', 'POST'];
+  const allowed = action === 'members/check' ? ['POST'] : ['workspace','courses','checklist-summaries','incidents'].includes(action) ? ['GET'] : ['GET', 'POST'];
   if (!match) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   if (!allowed.includes(request.method)) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   let query;
@@ -68,7 +73,7 @@ export async function proxyWorkspace(request, url, upstream, send, response) {
       return send(415, error('UNSUPPORTED_MEDIA_TYPE', 'Envía una solicitud JSON.'));
     try {
       const value = await jsonBody(request, 16384);
-      const fields = action === 'members' ? ['email', 'role', 'locationIds'] : action === 'locations' ? locationFields : orgFields;
+      const fields = action === 'members/check' ? ['email'] : action === 'members' ? ['email', 'role', 'locationIds'] : action === 'locations' ? locationFields : orgFields;
       if (!value || Array.isArray(value) || Object.keys(value).some(key => !fields.includes(key))) throw new Error('Invalid body');
       body = JSON.stringify(value);
     } catch { return send(400, error('INVALID_REQUEST', 'La solicitud no es válida.')); }

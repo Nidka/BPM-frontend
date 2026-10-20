@@ -87,6 +87,7 @@ fun IdentityScreen(
                 Text("Tu sesión ha terminado", fontWeight = FontWeight.Bold)
                 sessionErrors.forEach { Text(it.message,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+                Text("Al volver a entrar con tu misma cuenta podrás recuperar los borradores conservados en este dispositivo.", style = MaterialTheme.typography.bodySmall)
             }
             if (profile == null && state.mode in listOf(AuthMode.Login, AuthMode.Register)) {
                 Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)).padding(4.dp)) {

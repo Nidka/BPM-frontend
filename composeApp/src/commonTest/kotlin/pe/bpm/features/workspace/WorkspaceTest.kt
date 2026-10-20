@@ -12,10 +12,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.*
+import kotlinx.coroutines.flow.first
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.core.domain.Page
 import pe.bpm.core.domain.PageRequest
+import pe.bpm.core.storage.TestDraftStorage
+import pe.bpm.features.workspace.data.LocalWorkspaceFormDraftRepository
+import pe.bpm.features.workspace.presentation.WorkspaceFormKind
+import pe.bpm.features.workspace.presentation.WorkspaceFormViewModel
 import pe.bpm.features.workspace.data.RemoteWorkspaceRepository
 import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.domain.Result
@@ -62,6 +67,62 @@ class WorkspaceTest {
             assertEquals(setOf("name"), error.fields.keys)
             assertFalse(error.toString().contains("secret"))
         } finally { client.close() }
+    }
+
+    @Test fun missingMemberShowsActionableFailureAndKeepsDraftUntilConfirmedSuccess() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val models = ViewModelStore()
+        var memberExists = false
+        var writes = 0
+        val organization = """{"id":"org","legalName":"Organización de prueba"}"""
+        val client = createHttpClient(MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/members/check") -> respond("""{"data":{"status":"READY"}}""", HttpStatusCode.OK, headers)
+                request.method == HttpMethod.Post -> {
+                    writes++
+                    assertEquals("/api/v1/organizations/org/members", request.url.encodedPath)
+                    assertTrue((request.body as TextContent).text.contains("chef@example.com"))
+                    if (memberExists) respond("""{"data":{"status":"ACTIVE"}}""", HttpStatusCode.OK, headers)
+                    else respond("""{"errors":[{"code":"MEMBER_NOT_AVAILABLE","message":"private detail"}]}""", HttpStatusCode.NotFound, headers)
+                }
+                request.url.encodedPath.endsWith("/workspace") -> respond(
+                    """{"data":{"organization":$organization,"role":"ADMIN","locations":[],"members":[],"courses":[],"checklists":[],"incidents":[]}}""",
+                    HttpStatusCode.OK, headers)
+                else -> respond("""{"data":[$organization]}""", HttpStatusCode.OK, headers)
+            }
+        })
+        try {
+            val repository = RemoteWorkspaceRepository(client, config) { "test.token" }
+            val workspace = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository), LoadWorkspacePage(repository))
+            val form = WorkspaceFormViewModel(ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(TestDraftStorage(), config.apiBaseUrl)), CheckMember(repository)) { "draft" }
+            models.put("workspace", workspace); models.put("form", form)
+            workspace.load(); form.open("user", "org", WorkspaceFormKind.Member)
+            workspace.state.first { !it.loading && it.workspace != null }; advanceUntilIdle()
+            form.edit { it.copy(email = "chef@example.com", role = "CHEF", locations = setOf("site")) }
+            form.checkAccount(); form.state.first { it.memberCheck.status == MemberEligibility.READY }
+            form.submit { workspace.member(it.email, it.role, it.locations.toList()) }
+            workspace.state.first { it.errors.isNotEmpty() }; advanceUntilIdle()
+            assertEquals(1, writes)
+            assertEquals(0, workspace.state.value.revision)
+            val error = workspace.state.value.errors.single()
+            assertEquals("MEMBER_NOT_AVAILABLE", error.code)
+            assertTrue(error.message.contains("confirmar su correo e iniciar sesión"))
+            assertFalse(error.message.contains("private"))
+            assertEquals("chef@example.com", form.state.value.draft?.email)
+            assertEquals(setOf("site"), form.state.value.draft?.locations)
+            assertFalse(workspace.state.value.saving)
+            assertFalse(form.state.value.savedRemote)
+            form.onSaveFailure(workspace.state.value.errors)
+            assertEquals(MemberEligibility.UNAVAILABLE, form.state.value.memberCheck.status)
+            memberExists = true
+            workspace.clearErrors(); form.checkAccount(); form.state.first { it.memberCheck.status == MemberEligibility.READY }
+            form.submit { workspace.member(it.email, it.role, it.locations.toList()) }
+            workspace.state.first { it.revision == 1 && !it.loading }; advanceUntilIdle()
+            assertEquals(2, writes)
+            assertEquals(1, workspace.state.value.revision)
+            assertEquals("Persona agregada al equipo.", workspace.state.value.notice)
+            assertTrue(workspace.state.value.errors.isEmpty())
+        } finally { models.clear(); client.close(); Dispatchers.resetMain() }
     }
 
     @Test fun switchingAndLogoutClearPreviousTenantAndCancelPendingLoads() = runTest {

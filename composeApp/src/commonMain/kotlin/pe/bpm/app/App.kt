@@ -17,8 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.lifecycle.Lifecycle
+import pe.bpm.core.presentation.OnAppForeground
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -108,12 +107,15 @@ fun App(
     // No hay temporizador de consultas ni recarga de formularios o borradores.
     val primaryRoute = WorkspaceDestination.entries.any { it.route == entry?.destination?.route }
     fun refreshVisibleData() {
-        if (profile != null && primaryRoute && sessionStatus.warning == null) {
+        if (identity.state.value.profile != null && primaryRoute && identity.sessionStatus.value.warning == null) {
             workspace.refreshIfStale()
             if (entry?.destination?.route == WorkspaceDestination.Operations.route) checklists.refreshIfStale()
         }
     }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshVisibleData() }
+    OnAppForeground {
+        identity.onForeground()
+        if (identity.state.value.profile != null) refreshVisibleData()
+    }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
     LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
@@ -203,6 +205,9 @@ fun App(
                     }
                     LaunchedEffect(workspaceState.revision) {
                         if (formKind != null && workspaceState.revision > formRevision && entry?.id == routeEntry.id) formDrafts.complete { closeForm() }
+                    }
+                    LaunchedEffect(workspaceState.errors) {
+                        if (formKind != null && entry?.id == routeEntry.id) formDrafts.onSaveFailure(workspaceState.errors)
                     }
                     val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
@@ -301,7 +306,7 @@ fun App(
                                         WorkspaceFormKind.Member -> workspace.member(draft.email, draft.role, if (draft.role == "ADMIN") emptyList() else draft.locations.toList())
                                         null -> Unit
                                     }
-                                } }, onFormEdit = formDrafts::edit, onFormRetry = formDrafts::retry, onFormDiscard = { formDrafts.discard { closeForm() } },
+                                } }, onFormCheck = { workspace.clearErrors(); formDrafts.checkAccount() }, onFormEdit = { change -> workspace.clearErrors(); formDrafts.edit(change) }, onFormRetry = formDrafts::retry, onFormDiscard = { formDrafts.discard { closeForm() } },
                                 form = formKind,
                                 choosingOrganization = route == ORGANIZATION_PICKER,
                                 onOrganizationSearch = workspace::organizationSearch, onOrganizationNext = workspace::organizationNext,

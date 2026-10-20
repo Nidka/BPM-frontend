@@ -63,7 +63,7 @@ class AppGraph(
     private val templateDrafts = ManageTemplateDraft(LocalChecklistTemplateDraftRepository(draftStorage, config.apiBaseUrl))
     private val workspaceDrafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(draftStorage, config.apiBaseUrl))
     @OptIn(ExperimentalUuidApi::class)
-    internal fun workspaceFormViewModel() = WorkspaceFormViewModel(workspaceDrafts) { Uuid.random().toString() }
+    internal fun workspaceFormViewModel() = WorkspaceFormViewModel(workspaceDrafts, CheckMember(workspaceRepository)) { Uuid.random().toString() }
     private val checkConnection = CheckConnection(RemoteConnectionRepository(httpClient, config))
     private val googleAuth = googleAuthProvider ?: platformGoogleAuthProvider()
     private val identityRepository = RemoteIdentityRepository(

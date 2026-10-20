@@ -8,6 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
@@ -65,6 +68,7 @@ import pe.bpm.features.workspace.domain.*
     } }
 }
 @Composable internal fun Errors(errors: List<WorkspaceError>) {
-    errors.forEach { error -> Text(error.message, color = MaterialTheme.colorScheme.error) }
+    errors.forEach { error -> Text(error.message, color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
 }
 internal fun roleLabel(role: String) = when (role) { "ADMIN" -> "Administrador"; "CHEF" -> "Responsable / chef"; else -> "Colaborador" }

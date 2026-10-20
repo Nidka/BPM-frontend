@@ -16,6 +16,8 @@ class SessionMonitor(
     private val recordActivity: RecordSessionActivity,
     private val nowSeconds: () -> Long = { Clock.System.now().epochSeconds },
 ) {
+    // Da tiempo para guardar trabajo y confirmar presencia dentro del plazo del servidor.
+    private val warningSeconds = 5 * 60L
     private val mutable = MutableStateFlow(SessionStatus())
     val state = mutable.asStateFlow()
     private var window: SessionWindow? = null
@@ -38,6 +40,9 @@ class SessionMonitor(
         mutable.value = SessionStatus()
     }
 
+    /** Recalcula al recuperar el primer plano; no registra actividad ni renueva la sesión. */
+    fun recheck() = update()
+
     private fun update() {
         val current = window
         if (!hasSession() || current == null) { mutable.value = SessionStatus(); return }
@@ -47,8 +52,8 @@ class SessionMonitor(
             // Nunca prolongar localmente un plazo vencido mientras una solicitud está pendiente.
             reset()
             onExpired(reason)
-        } else mutable.value = mutable.value.copy(warning = if (remaining <= 60) SessionWarning(reason, remaining) else null,
-            error = mutable.value.error.takeIf { remaining <= 60 })
+        } else mutable.value = mutable.value.copy(warning = if (remaining <= warningSeconds) SessionWarning(reason, remaining) else null,
+            error = mutable.value.error.takeIf { remaining <= warningSeconds })
     }
 
     fun userActivity() {

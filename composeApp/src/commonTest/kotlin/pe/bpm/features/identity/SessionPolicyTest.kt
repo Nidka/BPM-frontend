@@ -25,6 +25,40 @@ class SessionPolicyTest {
     )
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun returningToTheAppRechecksWallClockWithoutSendingBackgroundActivity() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        var now = 1000L
+        var activities = 0
+        val client = createHttpClient(MockEngine(MockEngineConfig().apply {
+            dispatcher = StandardTestDispatcher(testScheduler)
+            addHandler { request ->
+                if (request.url.encodedPath == "/api/v1/auth/activity") activities++
+                respond(if (request.url.host == "identitytoolkit.googleapis.com") credential else profile, HttpStatusCode.OK, headers())
+            }
+        }))
+        val store = ViewModelStore()
+        try {
+            val repository = RemoteIdentityRepository(client, config, nowSeconds = { now })
+            val vm = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository), ResendVerification(repository), ConfirmEmailVerification(repository),
+                sessionMonitor = SessionMonitor(ObserveSessionWindow(repository), RecordSessionActivity(repository), nowSeconds = { now }))
+            store.put("identity", vm)
+            vm.login("p@example.com", "password"); runCurrent()
+            assertNull(vm.sessionStatus.value.warning)
+            // Simula una pestaña suspendida: avanza el reloj real sin ejecutar sus temporizadores.
+            now = 1601; vm.onForeground()
+            assertEquals(299L, vm.sessionStatus.value.warning?.secondsRemaining)
+            assertNotNull(vm.state.value.profile)
+            assertEquals(0, activities)
+            now = 1901; vm.onForeground(); runCurrent()
+            assertNull(vm.state.value.profile)
+            assertNull(repository.sessionToken())
+            assertEquals("SESSION_EXPIRED", vm.state.value.errors.single().code)
+            assertEquals(0, activities)
+        } finally { store.clear(); client.close(); Dispatchers.resetMain() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test fun continuingRequiresRealActivityAndConfirmedServerDeadline() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         var activities = 0
