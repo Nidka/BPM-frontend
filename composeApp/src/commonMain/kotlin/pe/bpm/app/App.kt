@@ -306,7 +306,7 @@ fun App(
                                         WorkspaceFormKind.Member -> workspace.member(draft.email, draft.role, if (draft.role == "ADMIN") emptyList() else draft.locations.toList())
                                         null -> Unit
                                     }
-                                } }, onFormCheck = { workspace.clearErrors(); formDrafts.checkAccount() }, onFormEdit = { change -> workspace.clearErrors(); formDrafts.edit(change) }, onFormRetry = formDrafts::retry, onFormDiscard = { formDrafts.discard { closeForm() } },
+                                } }, onFormRetryAccount = { workspace.clearErrors(); formDrafts.retryAccountSearch() }, onFormSelectAccount = { email -> workspace.clearErrors(); formDrafts.selectAccount(email) }, onFormEdit = { change -> workspace.clearErrors(); formDrafts.edit(change) }, onFormRetry = formDrafts::retry, onFormDiscard = { formDrafts.discard { closeForm() } },
                                 form = formKind,
                                 choosingOrganization = route == ORGANIZATION_PICKER,
                                 onOrganizationSearch = workspace::organizationSearch, onOrganizationNext = workspace::organizationNext,

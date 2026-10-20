@@ -186,3 +186,15 @@ recomposición o temporizador. La recuperación pertenece a casos de uso especí
 de workspace/checklists y a adaptadores locales inyectados; ver OFFLINE.md.
 La prueba estática de imports confirma fronteras; no certifica por sí
 sola el cumplimiento completo de SOLID ni sustituye la revisión de comportamiento.
+
+
+La búsqueda visual compartida está en `core/designsystem/BpmSearchField`: campo,
+progreso y lista opcional de cadenas seleccionables. Tiene consumidores reales
+en incorporación, selector de organización y listas del workspace. No consulta
+repositorios ni decide límites de negocio. SearchMemberAccounts y su puerto son
+de workspace; su VM controla espera, cancelación e invalidación de respuestas.
+
+Las ayudas y errores de BpmTextField se dibujan en nodos de texto propios con
+región accesible. La ranura supportingText de Material se veía en Wasm pero no
+aparecía en su árbol accesible durante la edición. El componente conserva estilo
+y navegación comunes; el mensaje de error también se adjunta a su semántica.

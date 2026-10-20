@@ -25,7 +25,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
 }
 
 @Composable internal fun WorkspaceForm(kind: WorkspaceFormKind, state: WorkspaceState, onClose: () -> Unit,
-    onSubmit: () -> Unit, formState: WorkspaceFormState, onCheckAccount: () -> Unit,
+    onSubmit: () -> Unit, formState: WorkspaceFormState, onRetryAccount: () -> Unit, onSelectAccount: (String) -> Unit,
     onEdit: ((WorkspaceFormDraft) -> WorkspaceFormDraft) -> Unit, onDiscardDraft: () -> Unit, onRetryDraft: () -> Unit, onUserActivity: () -> Unit = {},
     onPageSearch: (WorkspaceResource, String) -> Unit, onPageNext: (WorkspaceResource) -> Unit,
     onPagePrevious: (WorkspaceResource) -> Unit, onPageRetry: (WorkspaceResource) -> Unit) {
@@ -40,12 +40,12 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     val saving = state.saving || formState.busy || formState.savedRemote
     var discarding by remember { mutableStateOf(false) }
     val formScroll = rememberScrollState()
-    val check = formState.memberCheck
+    val check = formState.memberSearch
     val fields = (state.errors + check.errors).flatMap { it.fields.entries }.associate { it.key to it.value }
     BoxWithConstraints(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
         val shortWindow = maxHeight < 500.dp
-        LaunchedEffect(state.errors, check.errors, check.status, shortWindow) {
-            if (shortWindow && (state.errors.isNotEmpty() || check.errors.isNotEmpty() || check.status != null)) formScroll.scrollTo(formScroll.maxValue)
+        LaunchedEffect(state.errors, check.errors, shortWindow) {
+            if (shortWindow && (state.errors.isNotEmpty() || check.errors.isNotEmpty())) formScroll.scrollTo(formScroll.maxValue)
         }
         // En horizontal o con teclado, las acciones no deben comprimir el contenido del formulario.
         BpmCard(Modifier.fillMaxWidth().trackUserActivity(onUserActivity)
@@ -58,18 +58,9 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                 DraftSaveNotice(formState.localStatus, onRetryDraft)
                 if (discarding) DiscardDraftConfirmation({ discarding = false }, onDiscardDraft, enabled = !saving)
                 if (kind == WorkspaceFormKind.Member) {
-                    Text("Primero comprueba el correo de la persona. Después podrás asignarle su rol y sus sedes.", style = MaterialTheme.typography.bodySmall)
-                    FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de la cuenta BPM", fields["email"], !saving, KeyboardType.Email, navigation = navigation["email"])
-                    BpmSecondaryButton(onClick = onCheckAccount, enabled = !saving && !check.loading && draft.email.isNotBlank()) {
-                        Text(if (check.loading) "Comprobando cuenta…" else if (check.status == MemberEligibility.READY) "Comprobar de nuevo" else "Comprobar cuenta")
-                    }
-                    if (check.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    when (check.status) {
-                        MemberEligibility.READY -> Text("Cuenta disponible. Ahora elige su rol y dónde trabajará.", color = MaterialTheme.colorScheme.primary)
-                        MemberEligibility.ALREADY_MEMBER -> Text("Esta cuenta ya pertenece al equipo. Puedes consultarla en la lista de personas.")
-                        MemberEligibility.UNAVAILABLE -> if (state.errors.isEmpty()) Text("Esta persona todavía no tiene una cuenta BPM disponible. Pídele que entre en Crear cuenta, confirme su correo e inicie sesión. Después comprueba este correo de nuevo.")
-                        null -> Unit
-                    }
+                    Text("Busca a la persona por su correo y asígnale acceso al equipo.", style = MaterialTheme.typography.bodySmall)
+                    MemberAccountField(draft.email, { value -> onEdit { it.copy(email = value) } }, check,
+                        !saving, fields["email"], navigation["email"], onSelectAccount, onRetryAccount)
                     if (check.status == MemberEligibility.READY) {
                     Text("¿Qué podrá hacer?", fontWeight = FontWeight.Bold)
                     Column(Modifier.selectableGroup()) {
@@ -118,7 +109,6 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
             }
             // La respuesta permanece junto a Guardar, fuera del área desplazable de campos.
             Errors(state.errors)
-            Errors(check.errors)
             if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (formState.savedRemote) Text("El registro ya se guardó en el servidor. Estamos cerrando el borrador local.")
             if (kind != WorkspaceFormKind.Member || check.status == MemberEligibility.READY)

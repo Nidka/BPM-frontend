@@ -1,11 +1,11 @@
 // Proxy cerrado: el backend conserva la autoridad sobre tenant, identidad y roles.
 import { pageQuery, publicPagination } from './pagination.mjs';
 import { forwardSessionHeaders } from './session-headers.mjs';
-const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members(?:\/check)?|courses|checklist-summaries|incidents))?$/;
+const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members(?:\/(?:check|search))?|courses|checklist-summaries|incidents))?$/;
 export const workspaceRoute = path => routes.test(path);
 const orgFields = ['id', 'legalName', 'tradeName', 'businessType', 'taxId', 'contactName', 'contactPhone', 'contactEmail'];
 const locationFields = ['id', 'name', 'address', 'district', 'contactPhone'];
-const validationFields = new Set([...orgFields, ...locationFields, 'email', 'role', 'locationIds']);
+const validationFields = new Set([...orgFields, ...locationFields, 'email', 'role', 'locationIds', 'query']);
 const error = (code, message, fields = {}) => JSON.stringify({ errors: [{ code, message, fields }] });
 
 async function jsonBody(stream, maxBytes) {
@@ -30,6 +30,16 @@ function list(value, map) {
   return value.map(map);
 }
 function publicData(data, action, method) {
+  if (action === 'members/search') {
+    if (!data || !Array.isArray(data.suggestions) || data.suggestions.length > 5 ||
+        new Set(data.suggestions).size !== data.suggestions.length) throw new Error('Sugerencias inválidas');
+    const suggestions = data.suggestions.map(email => {
+      if (typeof email !== 'string' || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Correo inválido');
+      return email;
+    });
+    if (data.exactStatus !== null && !['READY', 'ALREADY_MEMBER', 'UNAVAILABLE'].includes(data.exactStatus)) throw new Error('Estado inválido');
+    return {suggestions, exactStatus: data.exactStatus};
+  }
   if (action === 'members/check') {
     const result = strings(data, ['status']);
     if (!['READY', 'ALREADY_MEMBER', 'UNAVAILABLE'].includes(result.status)) throw new Error('Estado inválido');
@@ -51,7 +61,7 @@ function publicData(data, action, method) {
 export async function proxyWorkspace(request, url, upstream, send, response) {
   const match = url.pathname.match(routes);
   const action = match?.[2];
-  const allowed = action === 'members/check' ? ['POST'] : ['workspace','courses','checklist-summaries','incidents'].includes(action) ? ['GET'] : ['GET', 'POST'];
+  const allowed = ['members/check','members/search'].includes(action) ? ['POST'] : ['workspace','courses','checklist-summaries','incidents'].includes(action) ? ['GET'] : ['GET', 'POST'];
   if (!match) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   if (!allowed.includes(request.method)) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   let query;
@@ -73,7 +83,7 @@ export async function proxyWorkspace(request, url, upstream, send, response) {
       return send(415, error('UNSUPPORTED_MEDIA_TYPE', 'Envía una solicitud JSON.'));
     try {
       const value = await jsonBody(request, 16384);
-      const fields = action === 'members/check' ? ['email'] : action === 'members' ? ['email', 'role', 'locationIds'] : action === 'locations' ? locationFields : orgFields;
+      const fields = action === 'members/search' ? ['query'] : action === 'members/check' ? ['email'] : action === 'members' ? ['email', 'role', 'locationIds'] : action === 'locations' ? locationFields : orgFields;
       if (!value || Array.isArray(value) || Object.keys(value).some(key => !fields.includes(key))) throw new Error('Invalid body');
       body = JSON.stringify(value);
     } catch { return send(400, error('INVALID_REQUEST', 'La solicitud no es válida.')); }

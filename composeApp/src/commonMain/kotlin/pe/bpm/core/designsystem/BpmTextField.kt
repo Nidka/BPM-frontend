@@ -1,11 +1,14 @@
 package pe.bpm.core.designsystem
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -14,6 +17,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -34,6 +40,8 @@ fun BpmTextField(
     keyboardActions: KeyboardActions? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     navigation: BpmFieldNavigation? = null,
+    supportingText: String? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val onActivity = LocalUserActivity.current
     val focus = LocalFocusManager.current
@@ -49,26 +57,34 @@ fun BpmTextField(
         val target = navigation?.next
         if (target != null) target.requestFocus() else focus.moveFocus(FocusDirection.Next)
     }
-    OutlinedTextField(
-        value = value,
-        onValueChange = { next -> if (next != value) onActivity(); onValueChange(next) },
-        label = { Text(label) },
-        modifier = modifier.fillMaxWidth()
-            .then(navigation?.let { Modifier.focusRequester(it.requester) } ?: Modifier)
-            .semantics { contentDescription = label },
-        enabled = enabled,
-        singleLine = singleLine,
-        minLines = minLines,
-        shape = RoundedCornerShape(14.dp),
-        isError = error != null,
-        supportingText = error?.let { { Text(it) } },
-        placeholder = placeholder?.let { { Text(it) } },
-        keyboardOptions = keyboardOptions.copy(imeAction = action),
-        keyboardActions = keyboardActions ?: KeyboardActions(
-            onNext = { nextInput() },
-            onDone = { finishInput() },
-            onSearch = { finishInput() },
-        ),
-        visualTransformation = visualTransformation,
-    )
+    Column(modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { next -> if (next != value) onActivity(); onValueChange(next) },
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth()
+                .then(navigation?.let { Modifier.focusRequester(it.requester) } ?: Modifier)
+                .semantics { contentDescription = label; if (error != null) error(error) },
+            enabled = enabled,
+            singleLine = singleLine,
+            minLines = minLines,
+            shape = RoundedCornerShape(14.dp),
+            isError = error != null,
+            trailingIcon = trailingIcon,
+            placeholder = placeholder?.let { { Text(it) } },
+            keyboardOptions = keyboardOptions.copy(imeAction = action),
+            keyboardActions = keyboardActions ?: KeyboardActions(
+                onNext = { nextInput() },
+                onDone = { finishInput() },
+                onSearch = { finishInput() },
+            ),
+            visualTransformation = visualTransformation,
+        )
+        // Un nodo propio mantiene la ayuda disponible también en el árbol accesible de Compose web.
+        (error ?: supportingText)?.let { message ->
+            Text(message, style = MaterialTheme.typography.bodySmall,
+                color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
+        }
+    }
 }

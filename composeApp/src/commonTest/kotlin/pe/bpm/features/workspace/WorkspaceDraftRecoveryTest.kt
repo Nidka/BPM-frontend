@@ -18,8 +18,8 @@ class WorkspaceDraftRecoveryTest {
             val storage = TestDraftStorage()
             val drafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(storage, "https://api.example.com"))
             var ids = 0
-            val check = CheckMember(object : MemberEligibilityReader {
-                override suspend fun checkMember(organizationId: String, email: String): Result<MemberEligibility> = Result.Success(MemberEligibility.READY)
+            val check = SearchMemberAccounts(object : MemberAccountFinder {
+                override suspend fun searchMemberAccounts(organizationId: String, query: String): Result<MemberAccountMatches> = Result.Success(MemberAccountMatches(emptyList(), MemberEligibility.READY))
             })
             val first = WorkspaceFormViewModel(drafts, check) { "id-${++ids}" }; models.put("first", first)
             first.open("user", "org", WorkspaceFormKind.Location); advanceUntilIdle()
@@ -42,13 +42,13 @@ class WorkspaceDraftRecoveryTest {
         try {
             val storage = TestDraftStorage()
             val drafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(storage, "https://api.example.com"))
-            val check = CheckMember(object : MemberEligibilityReader {
-                override suspend fun checkMember(organizationId: String, email: String): Result<MemberEligibility> = Result.Success(MemberEligibility.READY)
+            val check = SearchMemberAccounts(object : MemberAccountFinder {
+                override suspend fun searchMemberAccounts(organizationId: String, query: String): Result<MemberAccountMatches> = Result.Success(MemberAccountMatches(emptyList(), MemberEligibility.READY))
             })
             val vm = WorkspaceFormViewModel(drafts, check) { "id" }; models.put("vm", vm)
             vm.open("user", "org", WorkspaceFormKind.Member); advanceUntilIdle()
             vm.edit { it.copy(email = "test@example.com", role = "CHEF", locations = setOf("site")) }; advanceUntilIdle()
-            vm.checkAccount(); advanceUntilIdle()
+            vm.retryAccountSearch(); advanceUntilIdle()
             storage.failWrites = true
             var sends = 0; vm.submit { sends++ }; advanceUntilIdle()
             assertEquals(0, sends)

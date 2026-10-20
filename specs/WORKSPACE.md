@@ -281,13 +281,41 @@ SUPER_ADMIN de plataforma, que no recibe operación diaria por tener ese rol.
 Referencia del alcance: Requerimientos/PlanImplementacion.md, fases 2 y 3; la
 separación corrector/validador de fase 6 pertenece a incidencias.
 
-### Alta de equipo en dos pasos
+### Incorporación con búsqueda automática
 
-El formulario solicita primero el correo y «Comprobar cuenta». Solo READY permite
-mostrar rol, sedes y «Agregar al equipo». ALREADY_MEMBER dirige a la lista existente;
-UNAVAILABLE explica cómo registrarse y confirmar el correo. Un fallo de red o un
-endpoint no disponible conserva la edición, muestra el error y bloquea el alta,
-sin fingir que la cuenta no existe. La comprobación no crea cuentas ni invitaciones.
-Se descarta al editar el correo o cambiar de contexto y no se guarda en el borrador.
-El backend vuelve a autorizar al confirmar. Requiere publicar el endpoint protegido
-`POST organizations/{id}/members/check` antes de usar el nuevo frontend.
+El correo usa `core/designsystem/BpmSearchField`, también aplicado al selector de
+organización y a las listas de sedes/personas/cursos/incidencias. El componente
+reutiliza BpmTextField, tema, foco, acciones IME y errores; presenta sugerencias
+en el árbol principal, sin Popup. Las flechas recorren las sugerencias sin sacar el foco del campo; Enter
+selecciona la destacada y Escape cierra la lista. Flecha abajo vuelve a abrirla.
+Las filas tienen al menos 48 dp; la opción destacada se anuncia junto al campo y
+las filas siguen accesibles mediante su propia acción. Los cambios de estado se anuncian con semántica
+accesible y las sugerencias no se seleccionan automáticamente.
+
+WorkspaceFormViewModel espera 300 ms desde la última edición, cancela la consulta
+anterior y usa SearchMemberAccounts. Desde 3 caracteres busca prefijos de correo
+mediante POST `organizations/{id}/members/search`, sin enviar correos en la URL.
+Hasta 5 sugerencias de cuentas BPM activas, excluyendo las ya incorporadas al
+tenant; se afina escribiendo más. No descarga ni cachea el directorio Firebase.
+Esta búsqueda de incorporación está disponible únicamente para administradores
+autorizados; las búsquedas de personas de un equipo conservan su propio contrato.
+
+Seleccionar una sugerencia completa el campo y valida inmediatamente. Escribir
+un correo completo hace la misma validación sin botón «Comprobar cuenta». READY
+revela rol/sedes/confirmación; ALREADY_MEMBER se explica junto al campo y bloquea
+duplicados. UNAVAILABLE sin sugerencias explica que debe completarse el registro.
+Cero coincidencias con un prefijo solo invita a escribir el correo completo.
+Un fallo de red conserva la edición y ofrece Reintentar búsqueda; nunca se
+presenta como cuenta inexistente. Las sugerencias y la comprobación no se guardan
+en el borrador. Recuperarlo consulta otra vez. Editar correo/cambiar contexto
+invalida la respuesta y una consulta cancelada no restaura acceso antiguo.
+
+El buscador compartido no conoce cuentas, permisos, HTTP, espera ni navegación;
+las reglas y casos de uso permanecen en workspace. La raíz app conecta selección
+y reintento. La confirmación del alta conserva la autorización del backend y sus
+conflictos si la persona fue incorporada por otro administrador entretanto.
+
+Referencias: [búsqueda y sugerencias Compose](https://developer.android.com/develop/ui/compose/components/search-bar)
+y [semántica accesible](https://developer.android.com/develop/ui/compose/accessibility/semantics).
+El patrón se adapta a los componentes fijados del proyecto sin añadir un
+SearchBar experimental ni una segunda ventana que rompa accesibilidad web.

@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.PageNavigation
-import pe.bpm.core.designsystem.BpmTextField
+import pe.bpm.core.designsystem.BpmSearchField
 import pe.bpm.features.workspace.domain.WorkspaceResource
 
 @Composable internal fun WorkspacePagedList(
@@ -25,7 +25,7 @@ import pe.bpm.features.workspace.domain.WorkspaceResource
         WorkspaceResource.Incidents -> "Buscar incidencias"
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        BpmTextField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving)
+        BpmSearchField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving, loading = page.loading)
         when {
             page.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando resultados…") }
             page.errors.isNotEmpty() -> { Errors(page.errors); BpmSecondaryButton(onClick = { onRetry(resource) }) { Text("Reintentar") } }

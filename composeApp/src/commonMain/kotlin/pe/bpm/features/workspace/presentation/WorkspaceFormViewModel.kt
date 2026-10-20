@@ -12,13 +12,14 @@ import pe.bpm.features.workspace.domain.Result
 
 internal data class WorkspaceFormState(val draft: WorkspaceFormDraft? = null, val loading: Boolean = false,
     val busy: Boolean = false, val savedRemote: Boolean = false, val recovered: Boolean = false, val localStatus: DraftSaveStatus = DraftSaveStatus.IDLE,
-    val memberCheck: MemberCheckState = MemberCheckState())
+    val memberSearch: MemberAccountSearchState = MemberAccountSearchState())
 
-internal data class MemberCheckState(val email: String = "", val loading: Boolean = false,
-    val status: MemberEligibility? = null, val errors: List<WorkspaceError> = emptyList())
+internal data class MemberAccountSearchState(val email: String = "", val loading: Boolean = false,
+    val status: MemberEligibility? = null, val errors: List<WorkspaceError> = emptyList(),
+    val suggestions: List<String> = emptyList(), val searched: Boolean = false, val inputError: String? = null)
 
 /** El formulario conserva estado mediante casos de uso; la vista no conoce almacenamiento ni JSON. */
-internal class WorkspaceFormViewModel(private val drafts: ManageWorkspaceFormDraft, private val checkMember: CheckMember, private val newId: () -> String) : ViewModel() {
+internal class WorkspaceFormViewModel(private val drafts: ManageWorkspaceFormDraft, private val searchMembers: SearchMemberAccounts, private val newId: () -> String) : ViewModel() {
     private val mutable = MutableStateFlow(WorkspaceFormState())
     val state = mutable.asStateFlow()
     private var owner: DraftOwner? = null
@@ -45,6 +46,7 @@ internal class WorkspaceFormViewModel(private val drafts: ManageWorkspaceFormDra
                 autosave = writer
                 mutable.value = WorkspaceFormState(draft ?: WorkspaceFormDraft(newId()), recovered = draft != null,
                     localStatus = if (draft != null) DraftSaveStatus.SAVED else DraftSaveStatus.IDLE)
+                scheduleAccountSearch()
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) { mutable.value = WorkspaceFormState(localStatus = DraftSaveStatus.FAILED) }
         }
@@ -57,22 +59,35 @@ internal class WorkspaceFormViewModel(private val drafts: ManageWorkspaceFormDra
             phone = d.phone.take(2000), email = d.email.take(2000), locations = d.locations.take(100).toSet()) }
         val changedEmail = current.email.trim() != next.email.trim()
         if (changedEmail) checkJob?.cancel()
-        mutable.value = mutable.value.copy(draft = next, memberCheck = if (changedEmail) MemberCheckState() else mutable.value.memberCheck)
+        mutable.value = mutable.value.copy(draft = next, memberSearch = if (changedEmail) MemberAccountSearchState() else mutable.value.memberSearch)
         autosave?.schedule(next)
+        if (changedEmail) scheduleAccountSearch()
     }
-    fun checkAccount() {
+    fun retryAccountSearch() = scheduleAccountSearch(immediate = true)
+    fun selectAccount(email: String) {
+        if (email !in mutable.value.memberSearch.suggestions) return
+        edit { it.copy(email = email) }
+        scheduleAccountSearch(immediate = true)
+    }
+    private fun scheduleAccountSearch(immediate: Boolean = false) {
         val context = owner ?: return
-        val email = mutable.value.draft?.email?.trim() ?: return
-        if (kind != WorkspaceFormKind.Member || mutable.value.busy || mutable.value.savedRemote || mutable.value.memberCheck.loading) return
+        val email = mutable.value.draft?.email?.trim()?.lowercase() ?: return
+        if (kind != WorkspaceFormKind.Member || mutable.value.busy || mutable.value.savedRemote) return
         checkJob?.cancel()
-        mutable.value = mutable.value.copy(memberCheck = MemberCheckState(email = email, loading = true))
+        if (!searchMembers.canSearch(email)) {
+            mutable.value = mutable.value.copy(memberSearch = MemberAccountSearchState(email = email, inputError = searchMembers.inputError(email)))
+            return
+        }
+        mutable.value = mutable.value.copy(memberSearch = MemberAccountSearchState(email = email, loading = true))
         checkJob = viewModelScope.launch {
-            val result = checkMember(context.organizationId, email)
+            if (!immediate) delay(300)
+            val result = searchMembers(context.organizationId, email)
             currentCoroutineContext().ensureActive()
-            if (owner != context || mutable.value.draft?.email?.trim() != email) return@launch
-            mutable.value = mutable.value.copy(memberCheck = when (result) {
-                is Result.Success -> MemberCheckState(email = email, status = result.value)
-                is Result.Failure -> MemberCheckState(email = email, errors = result.errors)
+            if (owner != context || mutable.value.draft?.email?.trim()?.lowercase() != email) return@launch
+            mutable.value = mutable.value.copy(memberSearch = when (result) {
+                is Result.Success -> MemberAccountSearchState(email = email, status = result.value.exactStatus,
+                    suggestions = if (result.value.exactStatus == MemberEligibility.READY) emptyList() else result.value.suggestions, searched = true)
+                is Result.Failure -> MemberAccountSearchState(email = email, errors = result.errors)
             })
         }
     }
@@ -84,7 +99,7 @@ internal class WorkspaceFormViewModel(private val drafts: ManageWorkspaceFormDra
             else -> return
         }
         checkJob?.cancel()
-        mutable.value = mutable.value.copy(memberCheck = mutable.value.memberCheck.copy(status = status, loading = false, errors = emptyList()))
+        mutable.value = mutable.value.copy(memberSearch = mutable.value.memberSearch.copy(status = status, loading = false, errors = emptyList(), suggestions = emptyList()))
     }
     fun retry() {
         if (mutable.value.savedRemote) { afterCompletion?.let(::complete); return }
@@ -95,8 +110,8 @@ internal class WorkspaceFormViewModel(private val drafts: ManageWorkspaceFormDra
     fun submit(send: (WorkspaceFormDraft) -> Unit) {
         val draft = mutable.value.draft ?: return
         if (mutable.value.busy || mutable.value.savedRemote) return
-        if (kind == WorkspaceFormKind.Member && (mutable.value.memberCheck.status != MemberEligibility.READY ||
-                mutable.value.memberCheck.email != draft.email.trim() || mutable.value.memberCheck.loading)) return
+        if (kind == WorkspaceFormKind.Member && (mutable.value.memberSearch.status != MemberEligibility.READY ||
+                mutable.value.memberSearch.email != draft.email.trim().lowercase() || mutable.value.memberSearch.loading)) return
         mutable.value = mutable.value.copy(busy = true)
         job = viewModelScope.launch {
             val ready = autosave?.flush(draft) == true

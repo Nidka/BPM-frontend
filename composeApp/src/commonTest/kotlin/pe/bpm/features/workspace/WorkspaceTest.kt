@@ -77,7 +77,7 @@ class WorkspaceTest {
         val organization = """{"id":"org","legalName":"Organización de prueba"}"""
         val client = createHttpClient(MockEngine { request ->
             when {
-                request.url.encodedPath.endsWith("/members/check") -> respond("""{"data":{"status":"READY"}}""", HttpStatusCode.OK, headers)
+                request.url.encodedPath.endsWith("/members/search") -> respond("""{"data":{"suggestions":[],"exactStatus":"READY"}}""", HttpStatusCode.OK, headers)
                 request.method == HttpMethod.Post -> {
                     writes++
                     assertEquals("/api/v1/organizations/org/members", request.url.encodedPath)
@@ -94,12 +94,12 @@ class WorkspaceTest {
         try {
             val repository = RemoteWorkspaceRepository(client, config) { "test.token" }
             val workspace = WorkspaceViewModel(LoadOrganizations(repository), LoadWorkspace(repository), CreateOrganization(repository), CreateLocation(repository), AddMember(repository), LoadWorkspacePage(repository))
-            val form = WorkspaceFormViewModel(ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(TestDraftStorage(), config.apiBaseUrl)), CheckMember(repository)) { "draft" }
+            val form = WorkspaceFormViewModel(ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(TestDraftStorage(), config.apiBaseUrl)), SearchMemberAccounts(repository)) { "draft" }
             models.put("workspace", workspace); models.put("form", form)
             workspace.load(); form.open("user", "org", WorkspaceFormKind.Member)
             workspace.state.first { !it.loading && it.workspace != null }; advanceUntilIdle()
             form.edit { it.copy(email = "chef@example.com", role = "CHEF", locations = setOf("site")) }
-            form.checkAccount(); form.state.first { it.memberCheck.status == MemberEligibility.READY }
+            form.retryAccountSearch(); form.state.first { it.memberSearch.status == MemberEligibility.READY }
             form.submit { workspace.member(it.email, it.role, it.locations.toList()) }
             workspace.state.first { it.errors.isNotEmpty() }; advanceUntilIdle()
             assertEquals(1, writes)
@@ -113,9 +113,9 @@ class WorkspaceTest {
             assertFalse(workspace.state.value.saving)
             assertFalse(form.state.value.savedRemote)
             form.onSaveFailure(workspace.state.value.errors)
-            assertEquals(MemberEligibility.UNAVAILABLE, form.state.value.memberCheck.status)
+            assertEquals(MemberEligibility.UNAVAILABLE, form.state.value.memberSearch.status)
             memberExists = true
-            workspace.clearErrors(); form.checkAccount(); form.state.first { it.memberCheck.status == MemberEligibility.READY }
+            workspace.clearErrors(); form.retryAccountSearch(); form.state.first { it.memberSearch.status == MemberEligibility.READY }
             form.submit { workspace.member(it.email, it.role, it.locations.toList()) }
             workspace.state.first { it.revision == 1 && !it.loading }; advanceUntilIdle()
             assertEquals(2, writes)

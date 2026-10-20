@@ -40,7 +40,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
                 modifier = Modifier.semantics { contentDescription = "Crear organización" }) { Text("Crear") }
         }
         if (!shortWindow) Text("Elige el espacio de trabajo al que quieres entrar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        BpmTextField(query, { onUserActivity(); onSearch(it.take(160)) }, "Buscar organización", enabled = !loading)
+        BpmSearchField(query, { onUserActivity(); onSearch(it.take(160)) }, "Buscar organización", enabled = !loading, loading = page.loading)
         Errors(errors + page.errors)
         if (page.errors.isNotEmpty()) BpmTextButton(onClick = onRetry) { Text("Reintentar") }
         if (loading || page.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
