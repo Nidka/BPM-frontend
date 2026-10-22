@@ -3,7 +3,6 @@ package pe.bpm.features.checklists.presentation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,10 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.checklists.domain.*
+import pe.bpm.core.domain.InputRule
+import pe.bpm.core.domain.DecimalInput
 
 /** El editor emite acciones; el ViewModel conserva el borrador y coordina la publicación. */
 @Composable fun ChecklistTemplateEditorScreen(
@@ -39,7 +39,11 @@ import pe.bpm.features.checklists.domain.*
             if (result == SnackbarResult.ActionPerformed) onUndoRemove() else onClearUndo()
         }
     }
-    LaunchedEffect(state.step, state.validationRevision) { scroll.scrollTo(0) }
+    LaunchedEffect(state.step, state.validationRevision) {
+        if (state.step == TemplateEditorStep.Edit && state.fields.isNotEmpty()) {
+            navigation.focusFirstError(state.fields.keys.map { it.removePrefix("items.").replace(".sectionName", ".section").replace(".range", ".minimum") })
+        } else scroll.scrollTo(0)
+    }
     LaunchedEffect(state.failure) { if (state.failure != null) scroll.scrollTo(0) }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.align(Alignment.TopCenter).widthIn(max = 900.dp).fillMaxWidth().verticalScroll(scroll).padding(bottom = 96.dp),
@@ -88,9 +92,9 @@ import pe.bpm.features.checklists.domain.*
                     }
                     BpmCard(Modifier.fillMaxWidth()) {
                         Text("Datos del control", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        EditorField(state.name, onName, "Nombre del control *", state.fields["name"], placeholder = "Ej.: Control de apertura", navigation = navigation["name"])
-                        EditorField(state.area, onArea, "Área que se revisará *", state.fields["area"], placeholder = "Ej.: Cocina", navigation = navigation["area"])
-                        EditorField(state.description, onDescription, "Descripción (opcional)", state.fields["description"], singleLine = false, placeholder = "Ej.: Revisión antes de comenzar el turno", navigation = navigation["description"])
+                        EditorField(state.name, onName, "Nombre del control *", state.fields["name"], placeholder = "Ej.: Control de apertura", rule = ChecklistInputRules.name, navigation = navigation["name"])
+                        EditorField(state.area, onArea, "Área que se revisará *", state.fields["area"], placeholder = "Ej.: Cocina", rule = ChecklistInputRules.area, navigation = navigation["area"])
+                        EditorField(state.description, onDescription, "Descripción (opcional)", state.fields["description"], singleLine = false, placeholder = "Ej.: Revisión antes de comenzar el turno", rule = ChecklistInputRules.description, navigation = navigation["description"])
                         Text("Tu equipo verá este control después de que lo revises y publiques.", style = MaterialTheme.typography.bodySmall)
                     }
                     Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -137,9 +141,9 @@ import pe.bpm.features.checklists.domain.*
     BpmCard(Modifier.fillMaxWidth()) {
         Text("Pregunta ${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() })
-        EditorField(input.label, { value -> onChange { it.copy(label = value) } }, "¿Qué quieres preguntar? *", fields["$prefix.label"], navigation = navigation["${input.id}.label"],
+        EditorField(input.label, { value -> onChange { it.copy(label = value) } }, "¿Qué quieres preguntar? *", fields["$prefix.label"], rule = ChecklistInputRules.label, navigation = navigation["${input.id}.label"],
             singleLine = false, placeholder = "Ej.: ¿La superficie de trabajo está limpia?")
-        EditorField(input.section, { value -> onChange { it.copy(section = value) } }, "Grupo de preguntas *", fields["$prefix.sectionName"], navigation = navigation["${input.id}.section"],
+        EditorField(input.section, { value -> onChange { it.copy(section = value) } }, "Grupo de preguntas *", fields["$prefix.sectionName"], rule = ChecklistInputRules.section, navigation = navigation["${input.id}.section"],
             placeholder = "Ej.: Limpieza de superficies")
         Text("Agrupa preguntas relacionadas: higiene del personal, limpieza o almacenamiento.", style = MaterialTheme.typography.bodySmall)
         QuestionResponsePicker(input.type, onType)
@@ -149,15 +153,15 @@ import pe.bpm.features.checklists.domain.*
             Text("Indica el mínimo y el máximo de tu procedimiento. Al responder, se comparará la medición con estos límites.", style = MaterialTheme.typography.bodySmall)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 if (maxWidth < 420.dp) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.minimum"])
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.maximum"])
+                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"])
+                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"])
                 } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.minimum"])
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = Modifier.weight(1f), keyboard = KeyboardType.Decimal, navigation = navigation["${input.id}.maximum"])
+                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = Modifier.weight(1f), inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"])
+                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = Modifier.weight(1f), inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"])
                 }
             }
             fields["$prefix.range"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida *", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades", navigation = navigation["${input.id}.unit"])
+            EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida (opcional)", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades", rule = ChecklistInputRules.unit, navigation = navigation["${input.id}.unit"])
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (index > 0) BpmTextButton(onClick = { onMove(-1) }, modifier = Modifier.semantics { contentDescription = "Mover pregunta ${index + 1} antes de la anterior" }) { Text("Mover antes") }
@@ -167,9 +171,9 @@ import pe.bpm.features.checklists.domain.*
     }
 }
 @Composable private fun EditorField(value: String, onValue: (String) -> Unit, label: String, error: String?, singleLine: Boolean = true,
-    modifier: Modifier = Modifier, keyboard: KeyboardType = KeyboardType.Text, placeholder: String? = null, navigation: BpmFieldNavigation) {
+    modifier: Modifier = Modifier, inputKind: BpmInputKind = BpmInputKind.Text, placeholder: String? = null, rule: InputRule, navigation: BpmFieldNavigation) {
     BpmTextField(value, onValue, label, modifier, singleLine = singleLine, navigation = navigation,
-        minLines = if (singleLine) 1 else 2, error = error, placeholder = placeholder, keyboardOptions = KeyboardOptions(keyboardType = keyboard))
+        minLines = if (singleLine) 1 else 2, error = error, placeholder = placeholder, inputKind = inputKind, rule = rule)
 }
 internal fun ChecklistResponseType.label() = when (this) {
     ChecklistResponseType.COMPLIANCE -> "Cumple / No cumple"

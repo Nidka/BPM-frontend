@@ -1,4 +1,5 @@
 import { publicItem, readPayload } from './checklists-proxy.mjs';
+import { pageQuery, publicPagination } from './pagination.mjs';
 import { forwardSessionHeaders } from './session-headers.mjs';
 
 const route = /^\/backend\/api\/v1\/organizations\/([A-Za-z0-9_-]{1,64})\/checklist-runs(?:\/([A-Za-z0-9_-]{1,64})(?:\/(answers|submit))?)?$/;
@@ -15,19 +16,24 @@ function answer(value) {
 }
 function run(value, org, id) {
   if (!value || !identifier(value.id) || value.organizationId !== org || id && value.id !== id || !identifier(value.locationId) || !identifier(value.templateVersionId) ||
-      !text(value.performedBy, 128) || !value.performedBy || !['DRAFT', 'SUBMITTED'].includes(value.status) || !Number.isInteger(value.rowVersion) || value.rowVersion < 1 ||
+      !text(value.performedBy, 128) || !value.performedBy || !text(value.templateName??'',180) || !text(value.locationName??'',200) || !text(value.performedByName??'',200) ||
+      value.createdAt && (!text(value.createdAt,40)||!Number.isFinite(Date.parse(value.createdAt))) || value.submittedAt != null && (!text(value.submittedAt,40)||!Number.isFinite(Date.parse(value.submittedAt))) || !['DRAFT', 'SUBMITTED'].includes(value.status) || !Number.isInteger(value.rowVersion) || value.rowVersion < 1 ||
       !Array.isArray(value.items) || value.items.length < 1 || value.items.length > 100 || !Array.isArray(value.answers) || value.answers.length > 100 ||
       value.compliancePercent != null && (!Number.isFinite(value.compliancePercent) || value.compliancePercent < 0 || value.compliancePercent > 100)) throw new Error('Control inválido');
   return { id: value.id, organizationId: org, locationId: value.locationId, templateVersionId: value.templateVersionId, performedBy: value.performedBy,
+    templateName: value.templateName ?? '', locationName: value.locationName ?? '', createdAt: value.createdAt ?? '', submittedAt: value.submittedAt ?? null, performedByName: value.performedByName ?? '',
     status: value.status, rowVersion: value.rowVersion, items: value.items.map(publicItem), answers: value.answers.map(answer), compliancePercent: value.compliancePercent ?? null };
 }
 
 /** Proxy explícito de ejecuciones: no acepta actores, permisos ni destinos aportados por el cliente. */
 export async function proxyChecklistRun(request, url, upstream, send, response) {
   const match = url.pathname.match(route);
-  if (!match || url.search) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
+  if (!match) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   const [, org, id, action] = match;
-  const method = action === 'answers' ? 'PUT' : action === 'submit' || !id ? 'POST' : 'GET';
+  const collection = !id && request.method === 'GET';
+  let query;
+  try { query = collection ? historyQuery(url) : pageQuery(url, {detail:true}); } catch { return collection ? send(400,error('INVALID_PAGINATION','Revisa los filtros del historial.')) : send(404,error('NOT_FOUND','Recurso no disponible.')); }
+  const method = collection ? 'GET' : action === 'answers' ? 'PUT' : action === 'submit' || !id ? 'POST' : 'GET';
   if (request.method !== method) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || authorization.length > 8192 || !/^Bearer [A-Za-z0-9._-]+$/.test(authorization)) return send(401, error('UNAUTHENTICATED', 'Inicia sesión para continuar.'));
@@ -61,10 +67,16 @@ export async function proxyChecklistRun(request, url, upstream, send, response) 
     } catch { return send(400, error('INVALID_REQUEST', 'Revisa los datos del control.')); }
   }
   try {
-    const result = await fetch(new URL(url.pathname.slice('/backend'.length), upstream), { method, headers, body, redirect: 'error', signal: AbortSignal.timeout(10000) });
+    const result = await fetch(new URL(url.pathname.slice('/backend'.length) + query, upstream), { method, headers, body, redirect: 'error', signal: AbortSignal.timeout(10000) });
     forwardSessionHeaders(result, response);
     if (result.ok) {
       const payload = await readPayload(result.body);
+      if (collection) {
+        if (!Array.isArray(payload.data) || payload.data.length > 100) throw new Error('Historial inválido');
+        const data = payload.data.map(summary);
+        if (new Set(data.map(v=>v.id)).size !== data.length) throw new Error('Revisiones duplicadas');
+        return send(200,JSON.stringify({data,pagination:publicPagination(payload.pagination)}));
+      }
       return send(200, JSON.stringify({ data: run(payload.data, org, id || JSON.parse(body).id) }));
     }
     const failures = { 400: ['INVALID_REQUEST', 'Revisa los datos.'], 401: ['UNAUTHENTICATED', 'Inicia sesión nuevamente.'], 403: ['ACCESS_DENIED', 'No tienes permiso para este control.'],
@@ -73,4 +85,32 @@ export async function proxyChecklistRun(request, url, upstream, send, response) 
     const failure = failures[result.status];
     return failure ? send(result.status, error(...failure)) : send(503, error('BACKEND_UNAVAILABLE', 'No pudimos confirmar la operación.'));
   } catch { return send(503, error('BACKEND_UNAVAILABLE', 'No pudimos confirmar la operación.')); }
+}
+
+function historyQuery(url) {
+  const copy = new URL(url);
+  const filters = new URLSearchParams();
+  for (const [key, allowed] of [['scope',['mine','team']],['status',['DRAFT','SUBMITTED']]]) {
+    if (copy.searchParams.getAll(key).length > 1) throw new Error('Filtro repetido');
+    if (copy.searchParams.has(key)) {
+      const value = copy.searchParams.get(key);
+      if (!allowed.includes(value)) throw new Error('Filtro inválido');
+      filters.set(key,value);copy.searchParams.delete(key);
+    }
+  }
+  const page = pageQuery(copy);
+  return page + (filters.size ? (page ? '&' : '?') + filters : '');
+}
+function summary(value) {
+  if (!value || !identifier(value.id) || !identifier(value.locationId) ||
+      !text(value.templateName,180) || !text(value.locationName,200) || !text(value.performedBy,128) || !text(value.performedByName,200) ||
+      !['DRAFT','SUBMITTED'].includes(value.status) || !Number.isFinite(Date.parse(value.createdAt)) ||
+      !Number.isInteger(value.questionCount) || value.questionCount<1 || value.questionCount>100 ||
+      !Number.isInteger(value.answerCount) || value.answerCount<0 || value.answerCount>value.questionCount ||
+      value.compliancePercent != null && (!Number.isFinite(value.compliancePercent)||value.compliancePercent<0||value.compliancePercent>100) ||
+      value.status==='SUBMITTED' && (!Number.isFinite(value.compliancePercent)||!Number.isFinite(Date.parse(value.submittedAt))))
+    throw new Error('Revisión inválida');
+  return {id:value.id,templateName:value.templateName,locationId:value.locationId,locationName:value.locationName,
+    performedBy:value.performedBy,performedByName:value.performedByName,status:value.status,createdAt:value.createdAt,
+    submittedAt:value.submittedAt??null,compliancePercent:value.compliancePercent??null,answerCount:value.answerCount,questionCount:value.questionCount};
 }

@@ -1,9 +1,12 @@
 package pe.bpm.features.checklists.domain
 
+import pe.bpm.core.domain.DecimalInput
+
 data class ChecklistRun(
     val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
     val performedBy: String, val status: String, val rowVersion: Int, val items: List<ChecklistItem>,
     val answers: List<ChecklistAnswer>, val compliancePercent: Double? = null,
+    val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",
 )
 data class ChecklistAnswer(val itemId: String, val complianceResult: String = "", val textValue: String = "",
     val numericValue: Double? = null, val observation: String = "")
@@ -45,8 +48,7 @@ fun validRunAnswers(items: List<ChecklistItem>, answers: List<ChecklistAnswer>, 
     var scored = 0
     for (answer in answers) {
         val item = items.find { it.id == answer.itemId } ?: return false
-        if (answer.textValue.length > 2000 || answer.observation.length > 2000 ||
-            (answer.textValue + answer.observation).any { it.isISOControl() }) return false
+        if (ChecklistInputRules.answer.error(answer.textValue) != null || ChecklistInputRules.answer.error(answer.observation) != null) return false
         val numeric = answer.numericValue
         when (item.responseType) {
             ChecklistResponseType.COMPLIANCE -> {
@@ -55,8 +57,7 @@ fun validRunAnswers(items: List<ChecklistItem>, answers: List<ChecklistAnswer>, 
             }
             ChecklistResponseType.TEXT -> if (answer.textValue.isBlank() || numeric != null || answer.complianceResult.isNotEmpty()) return false
             else -> {
-                if (numeric == null || item.minimumValue == null || item.maximumValue == null || !numeric.isFinite() || kotlin.math.abs(numeric) >= 100000000 ||
-                    kotlin.math.abs(numeric * 100 - kotlin.math.round(numeric * 100)) >= 0.000001 ||
+                if (!DecimalInput.isValid(numeric) || item.minimumValue == null || item.maximumValue == null ||
                     answer.textValue.isNotEmpty() || answer.complianceResult.isNotEmpty()) return false
                 scored++
             }

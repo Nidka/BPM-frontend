@@ -33,6 +33,10 @@ import pe.bpm.features.checklists.presentation.TemplateEditorStep
 import pe.bpm.features.checklists.presentation.ChecklistCatalogScreen
 import pe.bpm.features.checklists.presentation.ChecklistCatalogState
 import pe.bpm.features.checklists.presentation.ChecklistCatalogViewModel
+import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
+import pe.bpm.features.checklists.presentation.ChecklistHistoryScreen
+import pe.bpm.features.checklists.presentation.ChecklistHistoryDetailScreen
+import pe.bpm.features.checklists.domain.HistoryScope
 import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
 import pe.bpm.features.checklists.domain.ChecklistFailure
 import pe.bpm.features.connection.presentation.ConnectionScreen
@@ -61,6 +65,8 @@ fun App(
     val templateEditor = viewModel<ChecklistTemplateEditorViewModel> { owner.graph.checklistTemplateEditorViewModel() }
     val formDrafts = viewModel<WorkspaceFormViewModel> { owner.graph.workspaceFormViewModel() }
     val formDraftState by formDrafts.state.collectAsStateWithLifecycle()
+    val history = viewModel<ChecklistHistoryViewModel> { owner.graph.checklistHistoryViewModel() }
+    val historyState by history.state.collectAsStateWithLifecycle()
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
@@ -90,7 +96,7 @@ fun App(
     var loadedIdentityId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(profile?.id, profile?.organizations, profile?.platformRole) {
         if (loadedIdentityId != profile?.id || profile == null) {
-            checklists.reset()
+            checklists.reset(); history.reset()
             templateEditor.reset()
             runs.reset()
             formDrafts.reset()
@@ -105,11 +111,12 @@ fun App(
     LaunchedEffect(nav) { onNavHostReady(nav) }
     // Solo las vistas de consulta se revalidan al entrar o volver al primer plano.
     // No hay temporizador de consultas ni recarga de formularios o borradores.
-    val primaryRoute = WorkspaceDestination.entries.any { it.route == entry?.destination?.route }
+    val primaryRoute = WorkspaceDestination.entries.any { it.route == entry?.destination?.route } || entry?.destination?.route == CHECKLIST_HISTORY
     fun refreshVisibleData() {
         if (identity.state.value.profile != null && primaryRoute && identity.sessionStatus.value.warning == null) {
             workspace.refreshIfStale()
             if (entry?.destination?.route == WorkspaceDestination.Operations.route) checklists.refreshIfStale()
+            history.refreshIfStale()
         }
     }
     OnAppForeground {
@@ -118,6 +125,13 @@ fun App(
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
+    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, profile?.platformRole) {
+        val allowed = workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN")
+        if (profile != null && currentWorkspace != null && (WorkspaceDestination.Operations in allowed || WorkspaceDestination.Supervision in allowed))
+            history.open(profile.id, currentWorkspace.organization.id, if (WorkspaceDestination.Supervision in allowed) HistoryScope.Team else HistoryScope.Mine)
+        else history.reset()
+    }
+    LaunchedEffect(runState.run?.id, runState.run?.rowVersion) { if (runState.run != null) history.refresh() }
     LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
         if (runState.userId != null && (runState.userId != profile?.id || runState.organizationId != workspaceState.selected ||
                 WorkspaceDestination.Operations !in workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN") ||
@@ -178,7 +192,8 @@ fun App(
             }
             WorkspaceDestination.entries.flatMap { destination ->
                 val routes = when (destination) {
-                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN)
+                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL)
+                    WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER)
                     WorkspaceDestination.Company -> listOf(destination.route, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     else -> listOf(destination.route)
@@ -187,13 +202,15 @@ fun App(
                     .map { destination to it }
             }.forEach { (destination, route) ->
                 composable(route, arguments = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
-                    listOf(navArgument("templateId") { type = NavType.StringType }) else if (route == CHECKLIST_RUN)
+                    listOf(navArgument("templateId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
                     listOf(navArgument("runId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
                     val formRevision = remember(routeEntry.id) { workspaceState.revision }
                     val managingTemplates = route in listOf(TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     val editingTemplate = route == TEMPLATE_CREATE
                     val running = route == CHECKLIST_START || route == CHECKLIST_RUN
+                    val viewingHistory = route in listOf(CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)
+                    val listingHistory = route == CHECKLIST_HISTORY || destination == WorkspaceDestination.Supervision && !viewingHistory
                     var runExit by remember(routeEntry.id) { mutableStateOf<(() -> Unit)?>(null) }
                     fun leaveRun(action: () -> Unit) {
                         if (running && (runState.dirty || runState.pending || runState.busy)) runExit = action
@@ -211,10 +228,10 @@ fun App(
                     }
                     val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
-                    val runId = if (route == CHECKLIST_RUN) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
+                    val runId = if (route in listOf(CHECKLIST_RUN, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
                     val requestedRoute = templateId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
                         ?.let { if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
-                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { "control/ejecucion/$it" } ?: route
+                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { when (route) { SUPERVISION_DETAIL -> "seguimiento/$it"; CHECKLIST_HISTORY_DETAIL -> "control/revisiones/$it"; else -> "control/ejecucion/$it" } } ?: route
                     if (profile == null) {
                         // Las URL directas y el historial deben comprobar la autenticación, incluso después de cerrar sesión.
                         if (identityState.restoring) RestoringSession()
@@ -247,6 +264,8 @@ fun App(
                                 if (editingTemplate && workspaceState.workspace?.canManage == true)
                                     templateEditor.open(profile.id, workspaceState.workspace!!.organization.id)
                             }
+                            val scopedHistoryState = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
+                                ?: pe.bpm.features.checklists.presentation.ChecklistHistoryState(loading = true, detailLoading = true)
                             val managementContent: (@Composable () -> Unit)? = if (!managingTemplates) null else {
                                 {
                                     if (editingTemplate) {
@@ -278,12 +297,15 @@ fun App(
                                     }
                                 }
                             }
+                            LaunchedEffect(viewingHistory, runId, historyState.userId, historyState.organizationId) {
+                                if (viewingHistory && historyState.userId == profile.id && historyState.organizationId == workspaceState.selected) history.select(runId)
+                            }
                             WorkspaceScreen(
                                 viewer = WorkspaceViewer(profile.id, profile.displayName, profile.email, profile.platformRole == "SUPER_ADMIN"),
                                 state = workspaceState,
                                 section = destination,
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
-                                secondaryContent = if (running) ({
+                                secondaryContent = if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }) }) else if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
@@ -294,9 +316,9 @@ fun App(
                                     ChecklistRunContent(profile.id, workspaceState, checklistState, runState,
                                     runs, workspace, checklists, route == CHECKLIST_START, templateId, runId,
                                     onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
-                                    onBack = { nav.navigate(WorkspaceDestination.Operations.route) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = true }; launchSingleTop = true } }) }) else managementContent,
+                                    onBack = { nav.navigate(CHECKLIST_HISTORY) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } }) }) else managementContent,
                                 secondaryEditor = editingTemplate,
-                                secondaryTitle = if (running) "Control de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryTitle = if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -323,7 +345,7 @@ fun App(
                                 sessionConfirmation = identityState.verificationMessage,
                                 onSelect = { id ->
                                     if (!workspaceState.saving) {
-                                        checklists.reset()
+                                        checklists.reset(); history.reset()
                                         templateEditor.reset()
                                         runs.reset()
                                         workspace.select(id)
@@ -355,6 +377,21 @@ fun App(
                                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                                 },
                                 checklistContent = {
+                                    if (listingHistory) {
+                                        if (destination == WorkspaceDestination.Operations) BpmSecondaryButton(onClick = { nav.navigate(WorkspaceDestination.Operations.route) { launchSingleTop = true } }) { Text("Preparar una nueva revisión") }
+                                        val scopedHistory = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
+                                        if (scopedHistory != null) ChecklistHistoryScreen(scopedHistory, destination == WorkspaceDestination.Operations,
+                                            history::search, history::filter, history::next, history::previous, history::refresh,
+                                            onOpen = { item ->
+                                                val target = when {
+                                                    destination == WorkspaceDestination.Supervision -> "seguimiento/${item.id}"
+                                                    item.status == "DRAFT" && item.performedBy == profile.id -> "control/ejecucion/${item.id}"
+                                                    else -> "control/revisiones/${item.id}"
+                                                }
+                                                nav.navigate(target) { launchSingleTop = true }
+                                            })
+                                    } else {
+                                    BpmTextButton(onClick = { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } }) { Text("Mis revisiones en curso y finalizadas") }
                                     // El estado solo se muestra si coincide con el usuario y la empresa autorizados.
                                     val scoped = checklistState.takeIf {
                                         it.userId == profile.id && it.organizationId == workspaceState.workspace?.organization?.id
@@ -366,11 +403,12 @@ fun App(
                                         onSelect = { id -> nav.navigate("control/plantilla/$id") { launchSingleTop = true } },
                                         onUserActivity = identity::userActivity, onNext = checklists::next, onPrevious = checklists::previous,
                                         onStart = { id -> runs.reset(); nav.navigate("control/plantilla/$id/iniciar") { launchSingleTop = true } })
+                                    }
                                 },
                                 onClear = workspace::clearErrors,
                                 onLogout = {
                                     pendingRoute = WorkspaceDestination.Home.route
-                                    checklists.reset()
+                                    checklists.reset(); history.reset()
                                     templateEditor.reset()
                                     runs.reset()
                                     formDrafts.reset()
@@ -405,3 +443,7 @@ private const val ORGANIZATION_PICKER = "organizaciones"
 private const val TEMPLATE_MANAGEMENT = "empresa/plantillas"
 private const val TEMPLATE_CREATE = "empresa/plantillas/nueva"
 private const val TEMPLATE_MANAGEMENT_DETAIL = "empresa/plantillas/detalle/{templateId}"
+
+private const val CHECKLIST_HISTORY = "control/revisiones"
+private const val CHECKLIST_HISTORY_DETAIL = "control/revisiones/{runId}"
+private const val SUPERVISION_DETAIL = "seguimiento/{runId}"

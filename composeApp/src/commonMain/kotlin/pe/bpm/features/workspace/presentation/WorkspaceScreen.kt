@@ -185,7 +185,7 @@ internal fun WorkspaceScreen(
                             Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.")
                             }
                         }
-                        WorkspaceDestination.Operations -> {
+                        WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
                             checklistContent()
                             if (secondaryTitle == null && (current.incidents.isNotEmpty() || (current.totals["incidents"] ?: 0) > 0)) {
                             Eyebrow("INCIDENCIAS DE TUS SEDES")

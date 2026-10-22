@@ -1,6 +1,7 @@
 package pe.bpm.features.checklists.domain
 
 import pe.bpm.core.domain.DraftOwner
+import pe.bpm.core.domain.DecimalInput
 
 data class RunAnswerInput(val value: String = "", val observation: String = "")
 
@@ -26,7 +27,7 @@ data class TemplateQuestionInput(
     val unit: String = "", val minimum: String = "", val maximum: String = "",
 ) {
     fun domain(index: Int) = ChecklistItem(id, section.trim(), label.trim(), type, index + 1, required, unit.trim(),
-        minimum.trim().replace(',', '.').toDoubleOrNull(), maximum.trim().replace(',', '.').toDoubleOrNull(), false)
+        DecimalInput.parse(minimum), DecimalInput.parse(maximum), false)
 }
 data class TemplateDraft(val id: String, val versionId: String, val name: String, val area: String,
     val description: String, val questions: List<TemplateQuestionInput>, val publicationPending: Boolean = false)

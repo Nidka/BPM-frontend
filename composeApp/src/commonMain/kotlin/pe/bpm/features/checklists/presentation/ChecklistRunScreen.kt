@@ -4,15 +4,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.checklists.domain.*
+import pe.bpm.core.domain.DecimalInput
+import pe.bpm.core.domain.InputRule
 
 data class ChecklistRunLocation(val id: String, val name: String)
 
@@ -59,7 +59,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(template.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("Versión ${template.versionNumber} · ${template.items.size} preguntas")
-                Text("Elige la sede donde realizarás el control.")
+                Text("El chef registra aquí lo que observa en el local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con fecha y responsable.")
                 BpmTextField(locationQuery, onLocationSearch, "Buscar sede", enabled = !state.busy && !state.pending)
                 if (locationsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (locationsFailed) BpmSecondaryButton(onClick = onLocationRetry) { Text("Reintentar sedes") }
@@ -73,10 +73,15 @@ data class ChecklistRunLocation(val id: String, val name: String)
                     if (location != null) Text("Sede elegida: $locationName", style = MaterialTheme.typography.bodySmall)
                     PageNavigation(locationPage, previousLocations, nextLocations, locationsLoading || state.pending, onLocationPrevious, onLocationNext)
                 }
-                RaisedButton("Iniciar control", { location?.let { onBegin(it, template.versionId) } },
+                RaisedButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } },
                     enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }
             return@Column
+        }
+        BpmCard(Modifier.fillMaxWidth()) {
+            Text(run.templateName.ifBlank { template?.name ?: "Revisión BPM" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(run.locationName.ifBlank { locations.firstOrNull { it.id == run.locationId }?.name.orEmpty() })
+            if (run.createdAt.isNotBlank()) Text("Inicio: ${pe.bpm.core.presentation.displayDateTime(run.createdAt)}", style = MaterialTheme.typography.bodySmall)
         }
         if (run.status == "SUBMITTED" && !state.dirty) {
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
@@ -84,32 +89,29 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 Text("Control finalizado", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("Cumplimiento: ${run.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %")
                 Text("Las respuestas enviadas ya no se pueden editar.")
-                BpmSecondaryButton(onClick = onBack) { Text("Volver a Control") }
+                BpmSecondaryButton(onClick = onBack) { Text("Ver mis revisiones") }
             }
         } else {
             Text(if (state.reviewing) "Revisa antes de finalizar" else "Responde el control", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("${run.answers.size} respuestas guardadas")
             if (run.performedBy != state.userId) Text("Solo la persona que inició este control puede editarlo.")
-            if (state.dirty) Text("Tienes respuestas pendientes de guardar en el servidor.")
+            if (state.dirty) Text("Guarda tus respuestas antes de revisar y finalizar.")
         }
         run.items.forEachIndexed { index, item ->
             val input = state.inputs[item.id] ?: RunAnswerInput()
-            BpmCard(Modifier.fillMaxWidth()) {
+            if (state.reviewing || run.status != "DRAFT") ChecklistAnswerReview(item, index, input)
+            else BpmCard(Modifier.fillMaxWidth()) {
                 Eyebrow(item.sectionName)
                 Text("${index + 1}. ${item.label}${if (item.required) " *" else ""}", fontWeight = FontWeight.Bold)
                 if (item.responseType in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE))
                     Text("Criterio publicado: ${item.minimumValue} a ${item.maximumValue} ${item.unit}")
                 if (item.evidenceRequiredOnFailure) Text("Si no cumple, se requiere evidencia. La carga de archivos aún no está disponible.")
-                if (!state.reviewing && run.status == "DRAFT") {
                     if (item.responseType == ChecklistResponseType.COMPLIANCE) Column(Modifier.selectableGroup()) {
                         complianceLabels.forEach { (value, label) -> BpmChoiceRow(label, input.value == value, state.editable) { onEdit(item.id, input.copy(value = value)) } }
                     } else BpmTextField(input.value, { onEdit(item.id, input.copy(value = it)) }, if (item.responseType == ChecklistResponseType.TEXT) "Respuesta" else "Valor ${item.unit}",
-                        enabled = state.editable, navigation = navigation["${item.id}.value"], keyboardOptions = KeyboardOptions(keyboardType = if (item.responseType == ChecklistResponseType.TEXT) KeyboardType.Text else KeyboardType.Decimal))
-                    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, "Observación (opcional)", enabled = state.editable, navigation = navigation["${item.id}.observation"])
-                } else {
-                    Text(complianceLabels[input.value] ?: input.value.ifBlank { "Sin respuesta" })
-                    if (input.observation.isNotBlank()) Text(input.observation)
-                }
+                        enabled = state.editable, navigation = navigation["${item.id}.value"], inputKind = if (item.responseType == ChecklistResponseType.TEXT) BpmInputKind.Text else BpmInputKind.Decimal,
+                        rule = if (item.responseType == ChecklistResponseType.TEXT) ChecklistInputRules.answer else InputRule { if (it.isBlank()) null else DecimalInput.error(it) })
+                    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, "Observación (opcional)", enabled = state.editable, navigation = navigation["${item.id}.observation"], rule = ChecklistInputRules.answer)
             }
         }
         if (run.status == "DRAFT" && run.performedBy == state.userId) {
@@ -119,12 +121,12 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 BpmSecondaryButton(onClick = onBackToEdit, enabled = state.editable) { Text("Volver a las respuestas") }
             } else {
                 RaisedButton("Guardar borrador", onSave, enabled = state.editable && state.dirty)
-                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty) { Text("Revisar y finalizar") }
+                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true)) { Text("Revisar y finalizar") }
             }
         }
     }
 }
-private val complianceLabels = linkedMapOf("COMPLIANT" to "Cumple", "NON_COMPLIANT" to "No cumple", "NOT_APPLICABLE" to "No aplica")
+internal val complianceLabels = linkedMapOf("COMPLIANT" to "Cumple", "NON_COMPLIANT" to "No cumple", "NOT_APPLICABLE" to "No aplica")
 private fun runFailureMessage(reason: RunFailure) = when (reason) {
     RunFailure.SESSION -> "Tu sesión terminó. Inicia sesión de nuevo."
     RunFailure.DENIED -> "Tu cuenta no tiene permiso para consultar o modificar este control."

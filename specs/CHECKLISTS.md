@@ -6,7 +6,7 @@ Primer incremento del recorrido de checklist previsto en el plan del proyecto,
 relacionado con RF-12 a RF-17. Implementa consulta de plantillas publicadas,
 búsqueda por nombre/área/descripción y detalle de preguntas. Incluye autoría y
 publicación de primera versión, e inicio, respuestas y finalización en línea.
-Evidencias, historial paginado y sincronización offline siguen pendientes; RF-12
+Evidencias, exportación del historial y sincronización offline siguen pendientes; RF-12
 a RF-17 aún no se consideran completos para el piloto.
 
 El diseño sigue el prototipo BPM Aula de Requerimientos: petróleo/coral,
@@ -250,7 +250,8 @@ Referencias: [ViewModel KMP](https://kotlinlang.org/docs/multiplatform/compose-v
 
 ## Ejecución en línea de controles
 
-ADMIN y CHEF acceden desde Control → Ver preguntas → Realizar este control.
+CHEF accede desde Control → Ver preguntas → Comenzar revisión.
+ADMIN/SUPER_ADMIN consultan las revisiones desde Seguimiento.
 La sede se elige con búsqueda y páginas reales del workspace, adaptadas en la
 raíz de composición; checklists no importa workspace. La API conserva la decisión
 sobre membresía y sede. SUPER_ADMIN mantiene gestión y WORKER su recorrido de
@@ -260,7 +261,7 @@ aprendizaje; abrir la URL no amplía sus destinos.
 crear una ejecución. `control/ejecucion/{runId}` permite recuperar su borrador
 remoto con autorización nueva. El alta conserva UUID, operación y fecha UTC
 mientras se reintenta el mismo intento. La URL de la ejecución se establece
-solo tras confirmar el alta. No hay un listado de ejecuciones en la API actual.
+solo tras confirmar el alta. El historial paginado permite recuperar la ejecución sin volver a iniciarla.
 
 `ChecklistRunViewModel` coordina los casos de uso Start/Load/Save/Submit; el puerto
 de lectura está separado del de escritura. `RemoteChecklistRunRepository`
@@ -294,8 +295,9 @@ del piloto; alcance, privacidad y pruebas en OFFLINE.md.
 Las plantillas que exijan evidencia fallida no pueden finalizarse sin el módulo
 multimedia; no se omite la condición ni se ofrece una carga ficticia.
 
-El proxy de ejecuciones admite solo POST de alta, GET por ID, PUT answers y POST
-submit, sin query ni destinos dinámicos. Comprueba Bearer, origen cuando existe,
+El proxy de ejecuciones admite POST de alta, GET de historial, GET por ID, PUT
+answers y POST submit. Solo el historial acepta los filtros documentados y la
+paginación; las escrituras y el detalle rechazan query y destinos dinámicos. Comprueba Bearer, origen cuando existe,
 JSON acotado, campos permitidos y claves de idempotencia. No reenvía cookies,
 actores, roles ni cabeceras de tenant; filtra la respuesta y los errores. El
 Dockerfile incluye el adaptador y su prueba de arranque valida ese paquete.
@@ -304,3 +306,21 @@ Pruebas: obligatoriedad, no aplicable, decimales, evidencia, sesión, tenant aje
 reintento inmutable, revisión obligatoria, bloqueo del control enviado, cancelación
 por contexto, proxy cerrado y sanitización. Las pruebas de UI con API local de
 prueba no crean registros ni usuarios en producción.
+
+## Historial de revisiones
+
+RF-13/RF-17: Control del CHEF incluye «Mis revisiones» con filtros de estado,
+búsqueda, fechas, sede y continuación del borrador propio. ADMIN/SUPER_ADMIN
+usan «Seguimiento» para consultar al equipo, sin recuperar borradores de otras
+personas en el editor ni ejecutar controles. El detalle comparte el componente
+de lectura de respuestas con la revisión previa al envío. WORKER no dispone
+de estas rutas. La API es la autoridad de roles y sedes.
+
+`ChecklistHistoryViewModel` depende de casos de uso y un puerto de lectura
+específico; el repositorio traduce DTO y recibe sesión por DI. Cambiar cuenta o
+empresa cancela trabajos y limpia páginas/detalle; respuestas tardías no restauran
+otro contexto. El buscador reutiliza BpmSearchField; solo conserva la página
+visible y los cursores. La consulta se renueva al volver si quedó desactualizada
+y después de guardar/finalizar una revisión. La exportación permanece pendiente.
+
+La validación de campos y teclado se especifica en [INPUT.md](INPUT.md).

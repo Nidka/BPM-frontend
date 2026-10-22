@@ -2,18 +2,17 @@ package pe.bpm.features.workspace.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
+import pe.bpm.core.domain.InputRule
 
 internal enum class WorkspaceFormKind(val route: String, val destination: WorkspaceDestination) {
     Organization("empresa/nueva-organizacion", WorkspaceDestination.Company),
@@ -42,6 +41,10 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     val formScroll = rememberScrollState()
     val check = formState.memberSearch
     val fields = (state.errors + check.errors).flatMap { it.fields.entries }.associate { it.key to it.value }
+    LaunchedEffect(state.errors) {
+        val aliases = mapOf("legalName" to "name", "tradeName" to "trade", "taxId" to "tax", "contactEmail" to "email", "contactPhone" to "phone")
+        navigation.focusFirstError(fields.keys.map { aliases[it] ?: it })
+    }
     BoxWithConstraints(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
         val shortWindow = maxHeight < 500.dp
         LaunchedEffect(state.errors, check.errors, shortWindow) {
@@ -91,20 +94,20 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                     }
                     }
                 } else {
-                    FormField(draft.name, { value -> onEdit { it.copy(name = value) } }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !saving, navigation = navigation["name"])
+                    FormField(draft.name, { value -> onEdit { it.copy(name = value) } }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !saving, rule = if (kind == WorkspaceFormKind.Organization) WorkspaceInputRules.legalName else WorkspaceInputRules.locationName, navigation = navigation["name"])
                     if (kind == WorkspaceFormKind.Organization) {
-                        FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, navigation = navigation["trade"])
-                        FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, navigation = navigation["tax"])
-                        FormField(draft.contactName, { value -> onEdit { it.copy(contactName = value) } }, "Persona de contacto", fields["contactName"], !saving, navigation = navigation["contactName"])
+                        FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, rule = WorkspaceInputRules.tradeName, navigation = navigation["trade"])
+                        FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, rule = WorkspaceInputRules.taxId, navigation = navigation["tax"])
+                        FormField(draft.contactName, { value -> onEdit { it.copy(contactName = value) } }, "Persona de contacto", fields["contactName"], !saving, BpmInputKind.PersonName, rule = WorkspaceInputRules.contactName, navigation = navigation["contactName"])
                         listOf("RESTAURANT" to "Restaurante", "CAFETERIA" to "Cafetería", "CATERING" to "Catering", "RELATED_SERVICE" to "Servicio afín").forEach { (value, label) ->
                             FilterChip(selected = draft.business == value, onClick = { onEdit { it.copy(business = value) } }, enabled = !saving, label = { Text(label) })
                         }
-                        FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, KeyboardType.Email, navigation = navigation["email"])
+                        FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, BpmInputKind.Email, rule = WorkspaceInputRules.contactEmail, navigation = navigation["email"])
                     } else {
-                        FormField(draft.address, { value -> onEdit { it.copy(address = value) } }, "Dirección *", fields["address"], !saving, navigation = navigation["address"])
-                        FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, navigation = navigation["district"])
+                        FormField(draft.address, { value -> onEdit { it.copy(address = value) } }, "Dirección *", fields["address"], !saving, rule = WorkspaceInputRules.address, navigation = navigation["address"])
+                        FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, rule = WorkspaceInputRules.district, navigation = navigation["district"])
                     }
-                    FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, KeyboardType.Phone, navigation = navigation["phone"])
+                    FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, BpmInputKind.Phone, rule = WorkspaceInputRules.contactPhone, navigation = navigation["phone"])
                 }
             }
             // La respuesta permanece junto a Guardar, fuera del área desplazable de campos.
@@ -121,7 +124,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     }
 }
 @Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
-    keyboard: KeyboardType = KeyboardType.Text, navigation: BpmFieldNavigation) {
+    inputKind: BpmInputKind = BpmInputKind.Text, rule: InputRule, navigation: BpmFieldNavigation) {
     BpmTextField(value, onValue, label, enabled = enabled, error = error,
-        navigation = navigation, keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = keyboard == KeyboardType.Text))
+        navigation = navigation, inputKind = inputKind, rule = rule)
 }

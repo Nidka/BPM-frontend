@@ -5,6 +5,7 @@ enum class WorkspaceDestination(val route: String, val label: String) {
     Home("inicio", "Inicio"),
     Learn("aprender", "Aprender"),
     Operations("control", "Control"),
+    Supervision("seguimiento", "Seguimiento"),
     Team("equipo", "Equipo"),
     Company("empresa", "Empresa"),
     Account("cuenta", "Mi cuenta");
@@ -17,8 +18,8 @@ enum class WorkspaceDestination(val route: String, val label: String) {
 /** Política de presentación; el backend autoriza cada operación empresarial. */
 fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<WorkspaceDestination> {
     return when {
-        platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
-        role == "ADMIN" -> WorkspaceDestination.entries.toList()
+        platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
+        role == "ADMIN" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "CHEF" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Account)
         role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Account)
         else -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Account)

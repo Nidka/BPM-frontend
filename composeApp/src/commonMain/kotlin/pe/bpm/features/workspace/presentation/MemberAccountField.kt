@@ -1,9 +1,7 @@
 package pe.bpm.features.workspace.presentation
 
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.input.KeyboardType
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.MemberEligibility
 
@@ -27,7 +25,7 @@ internal fun MemberAccountField(email: String, onEdit: (String) -> Unit, state: 
         error = fieldError ?: state.inputError ?: if (unavailable) message else null,
         supportingText = message, placeholder = "Ej.: nombre@correo.com",
         suggestions = state.suggestions, onSelect = onSelect,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false), navigation = navigation)
+        keyboardOptions = BpmInputKind.Email.keyboardOptions(), navigation = navigation)
     if (state.errors.isNotEmpty()) {
         Errors(state.errors)
         BpmTextButton(onClick = onRetry, enabled = enabled && !state.loading) { Text("Reintentar búsqueda") }

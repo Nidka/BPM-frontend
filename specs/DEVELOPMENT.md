@@ -138,3 +138,5 @@ con nombres y apellidos; alta de sede con teléfono; editor con límites decimal
 respuestas y observaciones; detalle con un único regreso, también por enlace
 directo; anchos 320, 390, 844 y 1440. Confirmar Unicode, foco y ausencia de
 acciones duplicadas, además de los builds de cada plataforma.
+
+La matriz vigente de validación, teclados y errores está en [INPUT.md](INPUT.md).

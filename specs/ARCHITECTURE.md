@@ -198,3 +198,11 @@ Las ayudas y errores de BpmTextField se dibujan en nodos de texto propios con
 región accesible. La ranura supportingText de Material se veía en Wasm pero no
 aparecía en su árbol accesible durante la edición. El componente conserva estilo
 y navegación comunes; el mensaje de error también se adjunta a su semántica.
+
+## Formatos de entrada
+
+Las reglas puras de formato están en `core/domain/InputRules`. Cada feature
+expresa obligatoriedad y límites en su dominio; UI recibe la misma regla y el
+caso de uso valida antes de data. `BpmInputKind` solo configura el teclado.
+No se duplican reglas por pantalla ni se confía en el teclado como validación.
+Contrato y pruebas: [INPUT.md](INPUT.md).

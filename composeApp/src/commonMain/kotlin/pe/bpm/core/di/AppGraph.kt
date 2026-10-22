@@ -11,6 +11,8 @@ import pe.bpm.features.workspace.data.LocalWorkspaceFormDraftRepository
 import pe.bpm.features.workspace.presentation.WorkspaceFormViewModel
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
+import pe.bpm.features.checklists.data.RemoteChecklistHistoryRepository
+import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
 import pe.bpm.features.checklists.domain.*
 import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
@@ -86,6 +88,10 @@ class AppGraph(
     private val runRepository = RemoteChecklistRunRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    private val historyRepository = RemoteChecklistHistoryRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    fun checklistHistoryViewModel() = ChecklistHistoryViewModel(LoadChecklistHistory(historyRepository), LoadChecklistRun(runRepository))
     @OptIn(ExperimentalUuidApi::class)
     fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
         SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, runDrafts)

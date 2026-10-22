@@ -203,11 +203,12 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
                             else "Recuperamos tus respuestas sin enviar. Revísalas antes de guardarlas.")
                     return
                 }
+                val completedAction = action
                 action = null; mayHaveReachedServer = false; recovery = null; recoveryBase = null; discardOnRead = false
                 mutable.value = mutable.value.copy(run = run, inputs = run.answers.associate { it.itemId to RunAnswerInput(
-                    it.complianceResult.ifEmpty { it.numericValue?.toString() ?: it.textValue }, it.observation) },
+                    it.complianceResult.ifEmpty { it.numericValue?.let(pe.bpm.core.domain.DecimalInput::format) ?: it.textValue }, it.observation) },
                     busy = false, pending = false, failure = null, dirty = false, reviewing = false, resumeId = null, conflicted = false,
-                    notice = if (reading) null else if (run.status == "SUBMITTED") "Control enviado correctamente." else "Borrador guardado en el servidor.")
+                    notice = when { reading -> null; completedAction is RunOperation.Start -> "Revisión iniciada. Responde las preguntas de la sede."; run.status == "SUBMITTED" -> "Revisión finalizada."; else -> "Respuestas guardadas." })
                 autosave?.flush(null)
             }
             is RunResult.Failure -> {
@@ -224,11 +225,13 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
         val result = mutableListOf<ChecklistAnswer>()
         for (item in run.items) {
             val input = inputs[item.id] ?: continue
+            if (ChecklistInputRules.answer.error(input.observation) != null ||
+                item.responseType == ChecklistResponseType.TEXT && ChecklistInputRules.answer.error(input.value) != null) return null
             if (input.value.isBlank()) { if (input.observation.isNotBlank()) return null else continue }
             result += when (item.responseType) {
                 ChecklistResponseType.COMPLIANCE -> ChecklistAnswer(item.id, complianceResult = input.value, observation = input.observation)
                 ChecklistResponseType.TEXT -> ChecklistAnswer(item.id, textValue = input.value.trim(), observation = input.observation)
-                else -> ChecklistAnswer(item.id, numericValue = input.value.replace(',', '.').toDoubleOrNull() ?: return null, observation = input.observation)
+                else -> ChecklistAnswer(item.id, numericValue = pe.bpm.core.domain.DecimalInput.parse(input.value) ?: return null, observation = input.observation)
             }
         }
         return result

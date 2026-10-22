@@ -134,8 +134,7 @@ sesión → entrar con la segunda cuenta y comprobar solo sus permisos.
 La contraseña y el consentimiento Google los introduce el titular.
 
 La política de destinos y el historial se describen en el README. WORKER accede a
-Inicio/Aprender/Mi cuenta; CHEF añade Control/Equipo; ADMIN incluye Empresa y su
-aprendizaje; SUPER_ADMIN conserva gestión sin mostrarse como alumno u operador.
+Inicio/Aprender/Mi cuenta; CHEF añade Control/Equipo; ADMIN incluye Empresa, Equipo y Seguimiento; SUPER_ADMIN conserva gestión sin mostrarse como alumno u operador.
 Esto no amplía los endpoints disponibles ni reemplaza autorización del backend.
 
 El catálogo de Control pertenece a features/checklists y se compone desde App
@@ -274,10 +273,10 @@ remoto y de GET organizations/{id}/locations; no se generan sedes ficticias.
 CHEF y WORKER necesitan al menos una según el contrato del backend; ADMIN accede
 a todas las sedes. La validación definitiva de pertenencia sigue en el servidor.
 
-ADMIN de organización puede publicar plantillas y realizar controles. La política
-actual del backend no separa al autor de la plantilla de quien responde; registra
-performedBy y solo el iniciador puede modificar su ejecución. No equivale al
-SUPER_ADMIN de plataforma, que no recibe operación diaria por tener ese rol.
+ADMIN de organización publica plantillas y supervisa revisiones. CHEF realiza
+los controles de sus sedes asignadas. El backend separa gestión de plantillas
+y ejecución por rol; registra performedBy y solo el chef iniciador modifica su
+borrador. SUPER_ADMIN mantiene gestión y supervisión, sin operación diaria.
 Referencia del alcance: Requerimientos/PlanImplementacion.md, fases 2 y 3; la
 separación corrector/validador de fase 6 pertenece a incidencias.
 

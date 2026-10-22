@@ -81,9 +81,12 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
 }
 @Serializable private data class RunEnvelopeDto(val data: RunDto)
 @Serializable internal data class RunDto(val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
-    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null) {
+    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "") {
     fun domain(): ChecklistRun {
         require(listOf(id, organizationId, locationId, templateVersionId, performedBy).all { it.isNotBlank() })
+        require(templateName.length <= 180 && locationName.length <= 200)
+        if (createdAt.isNotEmpty()) kotlin.time.Instant.parse(createdAt)
+        submittedAt?.let(kotlin.time.Instant::parse)
         require(status in setOf("DRAFT", "SUBMITTED") && rowVersion > 0 && items.size in 1..100)
         require(items.map { it.id }.distinct().size == items.size && items.map { it.displayOrder }.distinct().size == items.size)
         val questions = items.sortedBy { it.displayOrder }.map { it.domain() }
@@ -91,10 +94,10 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         require(validRunAnswers(questions, values, complete = status == "SUBMITTED"))
         require(compliancePercent == null || compliancePercent.isFinite() && compliancePercent in 0.0..100.0)
         require(status != "SUBMITTED" || compliancePercent != null)
-        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent)
+        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName)
     }
 }
 
 internal fun ChecklistAnswer.dto() = AnswerDto(itemId, complianceResult, textValue, numericValue, observation)
 internal fun ChecklistRun.dto() = RunDto(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion,
-    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent)
+    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName)

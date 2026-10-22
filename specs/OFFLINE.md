@@ -66,8 +66,8 @@ atómica; no se agregó una base relacional para estos checkpoints sin consultas
 Esto protege edición local y reintentos, pero no completa el contrato offline del
 piloto. Iniciar requiere una versión y sede autorizadas en línea. La recuperación
 tras un nuevo acceso requiere red; no hay autenticación offline. Los borradores de
-servidor ya confirmados siguen accesibles por su ruta, sin historial paginado de
-ejecuciones todavía. No hay service worker ni garantía de arranque web sin red.
+servidor ya confirmados pueden consultarse por su ruta y por el historial paginado
+autorizado. No hay service worker ni garantía de arranque web sin red.
 
 La siguiente fase debe incorporar:
 

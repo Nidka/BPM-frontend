@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +20,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.identity.domain.hasPendingRegistration
+import pe.bpm.features.identity.domain.IdentityInputRules
+import pe.bpm.core.domain.InputRule
 
 @Composable
 fun IdentityScreen(
@@ -40,7 +41,7 @@ fun IdentityScreen(
     var visible by remember(state.mode) { mutableStateOf(false) }
     val autofill = LocalAutofillManager.current
     LaunchedEffect(state.busy, state.errors) {
-        if (!state.busy && state.errors.isNotEmpty()) {
+        if (!state.busy && state.errors.any { it.code != "VALIDATION_ERROR" }) {
             autofill?.cancel()
             password = ""; confirmation = ""
         }
@@ -52,6 +53,9 @@ fun IdentityScreen(
         else -> listOf("email")
     })
     val fields = state.errors.flatMap { it.fields.entries }.associate { it.key to it.value }
+    LaunchedEffect(state.errors) {
+        navigation.focusFirstError(fields.keys.map { if (it == "confirmPassword") "confirmation" else if (it == "displayName") "lastName" else it })
+    }
     val profile = state.profile
     val needsVerificationEmail = state.verificationDeliveryFailed && !state.verificationEmailSent
     val sessionErrors = state.errors.filter { it.code == "SESSION_EXPIRED" || it.code == "UNAUTHENTICATED" }
@@ -120,18 +124,20 @@ fun IdentityScreen(
                         }
                     } else {
                         if (state.mode == AuthMode.Register) {
-                            AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, capitalization = KeyboardCapitalization.Words, navigation = navigation["firstName"])
-                            AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, capitalization = KeyboardCapitalization.Words, navigation = navigation["lastName"])
+                            AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, inputKind = BpmInputKind.PersonName, rule = IdentityInputRules.personName, navigation = navigation["firstName"])
+                            AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, inputKind = BpmInputKind.PersonName, rule = IdentityInputRules.personName, navigation = navigation["lastName"])
                         }
-                        AuthField(email, { email = it }, "Correo electrónico", fields["email"], !state.busy, KeyboardType.Email,
+                        AuthField(email, { email = it }, "Correo electrónico", fields["email"], !state.busy, BpmInputKind.Email, rule = IdentityInputRules.email,
                             autofillType = (if (state.mode == AuthMode.Register) ContentType.NewUsername else ContentType.Username) + ContentType.EmailAddress, navigation = navigation["email"])
                         if (state.mode != AuthMode.Recovery) {
-                            AuthField(password, { password = it }, "Contraseña", fields["password"], !state.busy, KeyboardType.Password, !visible,
+                            AuthField(password, { password = it }, "Contraseña", fields["password"], !state.busy, BpmInputKind.Password, !visible,
+                                rule = if (state.mode == AuthMode.Register) IdentityInputRules.registrationPassword else IdentityInputRules.loginPassword,
                                 autofillType = if (state.mode == AuthMode.Register) ContentType.NewPassword else ContentType.Password, navigation = navigation["password"])
                             if (state.mode == AuthMode.Register) {
                                 Text("Usa entre 8 y 128 caracteres. Combina letras, números y símbolos.", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                AuthField(confirmation, { confirmation = it }, "Confirmar contraseña", fields["confirmPassword"], !state.busy, KeyboardType.Password, !visible,
+                                AuthField(confirmation, { confirmation = it }, "Confirmar contraseña", fields["confirmPassword"], !state.busy, BpmInputKind.Password, !visible,
+                                    rule = InputRule { if (it == password) null else "Las contraseñas no coinciden." },
                                     autofillType = ContentType.NewPassword, navigation = navigation["confirmation"])
                             }
                             BpmTextButton(onClick = { visible = !visible }, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
@@ -200,12 +206,12 @@ fun IdentityScreen(
 
 @Composable
 private fun AuthField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
-    keyboard: KeyboardType = KeyboardType.Text, hidden: Boolean = false,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None, autofillType: ContentType? = null, navigation: BpmFieldNavigation) {
+    inputKind: BpmInputKind = BpmInputKind.Text, hidden: Boolean = false,
+    rule: InputRule? = null, autofillType: ContentType? = null, navigation: BpmFieldNavigation) {
     BpmTextField(value, onValue, label, enabled = enabled, error = error, navigation = navigation,
         modifier = if (autofillType != null) Modifier.semantics { contentType = autofillType } else Modifier,
         visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = capitalization, autoCorrectEnabled = false))
+        inputKind = inputKind, rule = rule)
 }
 
 @Composable

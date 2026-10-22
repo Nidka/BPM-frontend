@@ -21,6 +21,19 @@ class RegistrationTest {
     private val headers = headersOf("Content-Type", "application/json")
     private val credential = """{"idToken":"firebase-test-token","localId":"uid-test","displayName":"Persona"}"""
 
+    @Test fun namesWithDigitsCannotCreateAFirebaseAccount() = runTest {
+        var calls = 0
+        val client = createHttpClient(MockEngine { calls++; error("No debe consultar Firebase con un formulario inválido") })
+        try {
+            val register = Register(RemoteIdentityRepository(client, config))
+            for (name in listOf("Ana2", "123", "Ana 🙂")) {
+                val result = assertIs<IdentityResult.Failure>(register(name, "Muñoz", "person@example.com", "password8", "password8"))
+                assertTrue(result.errors.single().fields.containsKey("firstName"))
+            }
+            assertEquals(0, calls)
+        } finally { client.close() }
+    }
+
     @Test fun namesRemainSeparateInValidationAndUseTheExistingDisplayNameContract() = runTest {
         val calls = mutableListOf<String>()
         val client = createHttpClient(MockEngine { request ->

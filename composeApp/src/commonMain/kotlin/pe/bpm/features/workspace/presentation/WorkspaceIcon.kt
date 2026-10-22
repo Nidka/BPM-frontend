@@ -9,7 +9,7 @@ import pe.bpm.core.designsystem.BpmSymbol
     BpmIcon(when (destination) {
         WorkspaceDestination.Home -> BpmSymbol.Home
         WorkspaceDestination.Learn -> BpmSymbol.Learn
-        WorkspaceDestination.Operations -> BpmSymbol.Control
+        WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> BpmSymbol.Control
         WorkspaceDestination.Team -> BpmSymbol.Team
         WorkspaceDestination.Company -> BpmSymbol.Company
         WorkspaceDestination.Account -> BpmSymbol.Account

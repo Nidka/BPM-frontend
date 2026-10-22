@@ -1,7 +1,6 @@
 package pe.bpm.features.checklists.domain
 
-import kotlin.math.abs
-import kotlin.math.round
+import pe.bpm.core.domain.DecimalInput
 
 /** Propuesta de primera versión; el backend confirma publicación, permisos y versión. */
 data class ChecklistTemplateDraft(
@@ -30,24 +29,20 @@ class PublishChecklistTemplate(private val publisher: ChecklistTemplatePublisher
     }
     fun validate(draft: ChecklistTemplateDraft): Map<String, String> {
         val fields = mutableMapOf<String, String>()
-        fun text(key: String, value: String, min: Int, max: Int) {
-            val normalized = value.trim()
-            if (normalized.count { !it.isLowSurrogate() } !in min..max || normalized.any { it.isISOControl() })
-                fields[key] = "Usa entre $min y $max caracteres, sin caracteres de control."
-        }
         if (!uuid.matches(draft.id) || !uuid.matches(draft.versionId) || draft.id == draft.versionId)
             fields["id"] = "No pudimos preparar la plantilla. Vuelve a abrir el editor."
-        text("name", draft.name, 2, 180); text("area", draft.area, 2, 80); text("description", draft.description, 0, 500)
+        ChecklistInputRules.name.error(draft.name)?.let { fields["name"] = it }
+        ChecklistInputRules.area.error(draft.area)?.let { fields["area"] = it }
+        ChecklistInputRules.description.error(draft.description)?.let { fields["description"] = it }
         if (draft.items.size !in 1..100) fields["items"] = "Incluye entre 1 y 100 preguntas."
         val ids = mutableSetOf(draft.id, draft.versionId)
         draft.items.forEach { item ->
             if (!uuid.matches(item.id) || !ids.add(item.id)) fields["items"] = "Las preguntas necesitan identificadores únicos."
-            text("items.${item.id}.sectionName", item.sectionName, 2, 120)
-            text("items.${item.id}.label", item.label, 2, 300)
-            if (item.unit.any { it.isISOControl() } || item.unit.encodeToByteArray().size > 20)
-                fields["items.${item.id}.unit"] = "Escribe una unidad breve, sin caracteres de control."
+            ChecklistInputRules.section.error(item.sectionName)?.let { fields["items.${item.id}.sectionName"] = it }
+            ChecklistInputRules.label.error(item.label)?.let { fields["items.${item.id}.label"] = it }
+            ChecklistInputRules.unit.error(item.unit)?.let { fields["items.${item.id}.unit"] = it }
             val numeric = item.responseType in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE)
-            if (numeric && (!validNumber(item.minimumValue) || !validNumber(item.maximumValue) || item.minimumValue!! > item.maximumValue!!))
+            if (numeric && (!DecimalInput.isValid(item.minimumValue) || !DecimalInput.isValid(item.maximumValue) || item.minimumValue!! > item.maximumValue!!))
                 fields["items.${item.id}.range"] = "Indica mínimo y máximo válidos, en orden y con hasta dos decimales."
             if (!numeric && (item.minimumValue != null || item.maximumValue != null || item.unit.isNotEmpty()))
                 fields["items.${item.id}.range"] = "Este tipo de pregunta no utiliza unidad ni rango."
@@ -55,6 +50,5 @@ class PublishChecklistTemplate(private val publisher: ChecklistTemplatePublisher
         }
         return fields
     }
-    private fun validNumber(value: Double?) = value != null && value.isFinite() && abs(value) < 100000000 && abs(value * 100 - round(value * 100)) < 0.000001
     private companion object { val uuid = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") }
 }

@@ -56,21 +56,17 @@ interface SessionLifecycle {
 /** El adaptador implementa las capacidades; cada caso de uso depende solo de la que necesita. */
 interface IdentityRepository : AccountAuthentication, AccountRegistration, ProfileAccess, SessionLifecycle
 
-private fun validEmail(email: String) = email.length <= 320 && email.matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
-
 class Register(private val repository: AccountRegistration) {
     suspend operator fun invoke(firstName: String, lastName: String, email: String, password: String, confirmation: String): IdentityResult<Unit> {
         val names = firstName.trim().replace(Regex(" +"), " ")
         val surnames = lastName.trim().replace(Regex(" +"), " ")
         val displayName = "$names $surnames"
         val fields = buildMap {
-            if (names.isEmpty() || names.length > 80 || firstName.any { it.code < 32 || it.code in 127..159 })
-                put("firstName", "Ingresa tus nombres (hasta 80 caracteres).")
-            if (surnames.isEmpty() || surnames.length > 80 || lastName.any { it.code < 32 || it.code in 127..159 })
-                put("lastName", "Ingresa tus apellidos (hasta 80 caracteres).")
-            if (displayName.length > 100) put("lastName", "Tus nombres y apellidos juntos deben tener como máximo 100 caracteres.")
-            if (!validEmail(email.trim())) put("email", "Ingresa un correo válido.")
-            if (password.length !in 8..128) put("password", "Usa entre 8 y 128 caracteres.")
+            IdentityInputRules.personName.error(firstName)?.let { put("firstName", it) }
+            IdentityInputRules.personName.error(lastName)?.let { put("lastName", it) }
+            if (displayName.count { !it.isLowSurrogate() } > 100) put("lastName", "Tus nombres y apellidos juntos deben tener como máximo 100 caracteres.")
+            IdentityInputRules.email.error(email)?.let { put("email", it) }
+            IdentityInputRules.registrationPassword.error(password)?.let { put("password", it) }
             if (password != confirmation) put("confirmPassword", "Las contraseñas no coinciden.")
         }
         if (fields.isNotEmpty()) return IdentityResult.Failure(listOf(IdentityError("VALIDATION_ERROR", "Revisa los campos del formulario.", fields)))
@@ -80,7 +76,7 @@ class Register(private val repository: AccountRegistration) {
 
 class ResetPassword(private val repository: AccountRegistration) {
     suspend operator fun invoke(email: String): IdentityResult<Unit> {
-        if (!validEmail(email.trim())) return IdentityResult.Failure(listOf(IdentityError("VALIDATION_ERROR", "Revisa el correo.", mapOf("email" to "Ingresa un correo válido."))))
+        IdentityInputRules.email.error(email)?.let { return IdentityResult.Failure(listOf(IdentityError("VALIDATION_ERROR", "Revisa el correo.", mapOf("email" to it)))) }
         return repository.resetPassword(email.trim())
     }
 }
@@ -97,12 +93,8 @@ class SignIn(private val repository: AccountAuthentication) {
     suspend operator fun invoke(email: String, password: String): IdentityResult<Profile> {
         val normalizedEmail = email.trim()
         val fields = buildMap {
-            if (!validEmail(normalizedEmail)) {
-                put("email", "Ingresa un correo válido.")
-            }
-            // No transformar contraseñas ni imponer una política distinta a la del proveedor al iniciar sesión.
-            if (password.isEmpty()) put("password", "Ingresa tu contraseña.")
-            else if (password.length > 4096) put("password", "La contraseña es demasiado larga.")
+            IdentityInputRules.email.error(email)?.let { put("email", it) }
+            IdentityInputRules.loginPassword.error(password)?.let { put("password", it) }
         }
         if (fields.isNotEmpty()) return IdentityResult.Failure(listOf(
             IdentityError("VALIDATION_ERROR", "Revisa los campos del formulario.", fields)))

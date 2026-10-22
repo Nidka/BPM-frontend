@@ -90,7 +90,7 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSele
         if (template.description.isNotBlank()) Text(template.description)
         Text("Versión ${template.versionNumber} · Publicada", style = MaterialTheme.typography.bodyMedium)
         Text("Preguntas: ${template.items.size} · Obligatorias: ${template.items.count { it.required }}", style = MaterialTheme.typography.bodyMedium)
-        RaisedButton("Ver preguntas", onSelect, Modifier.fillMaxWidth())
+        RaisedButton("Abrir plantilla", onSelect, Modifier.fillMaxWidth())
     }
 }
 
@@ -98,14 +98,14 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSele
 @Composable
 private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> Unit)?) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (onStart != null) RaisedButton("Realizar este control", { onStart(template.id) })
+        if (onStart != null) RaisedButton("Preparar revisión", { onStart(template.id) })
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
             Text("DETALLE DEL CONTROL", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(template.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() })
             Text("${template.area} · Versión ${template.versionNumber}")
             if (template.description.isNotBlank()) Text(template.description)
-            Text(if (onStart != null) "Para responder estas preguntas, pulsa Realizar este control y elige la sede." else "Tu equipo utilizará estas preguntas al realizar el control desde su sección Control.", style = MaterialTheme.typography.bodyMedium)
+            Text(if (onStart != null) "Para responder estas preguntas, pulsa Preparar revisión y elige la sede." else "Tu equipo utilizará estas preguntas al realizar el control desde su sección Control.", style = MaterialTheme.typography.bodyMedium)
         }
         template.items.forEach { item -> Question(item) }
     }
