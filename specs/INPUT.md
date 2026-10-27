@@ -21,6 +21,7 @@ pegada, el teclado físico ni una solicitud construida fuera de la aplicación.
 | Contraseña de acceso | Obligatoria, hasta 4096; no impone al usuario existente la política de un registro nuevo | Contraseña |
 | Plantilla y preguntas | Nombre 2–180, área 2–80, descripción 0–500, grupo 2–120, enunciado 2–300 | Texto |
 | Número/temperatura | Signo opcional, coma o punto, hasta dos decimales, magnitud menor que 100000000 | Decimal; el teclado que presente Android depende del IME instalado |
+| Hora de referencia de programación | Opcional; HH:MM de 00:00 a 23:59 | Texto para permitir los dos puntos; IME Done y validación compartida AssignmentInputRules |
 | Respuesta y observación | Hasta 2000 bytes, según contrato de la API | Texto |
 
 `DecimalInput` comparte análisis y validación entre editor y ejecución. No acepta

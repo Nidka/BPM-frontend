@@ -19,7 +19,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
     private val token: suspend () -> String?) : ChecklistRunReader, ChecklistRunWriter {
     override suspend fun read(organizationId: String, id: String) = request(organizationId, id, HttpMethod.Get)
     override suspend fun start(organizationId: String, input: StartChecklistInput) = request(organizationId, "", HttpMethod.Post,
-        body = StartRunDto(input.id, input.locationId, input.templateVersionId, input.clientOperationId, input.clientCreatedAt))
+        body = StartRunDto(input.id, input.locationId, input.templateVersionId, input.clientOperationId, input.clientCreatedAt,input.assignmentId))
     override suspend fun save(organizationId: String, id: String, version: Int, key: String, answers: List<ChecklistAnswer>) =
         request(organizationId, "$id/answers", HttpMethod.Put, key, SaveRunDto(version, answers.map { AnswerDto(it.itemId, it.complianceResult, it.textValue, it.numericValue, it.observation) }))
     override suspend fun submit(organizationId: String, id: String, version: Int, key: String) =
@@ -48,7 +48,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
                 require(run.organizationId == org)
                 val requestedId = if (body is StartRunDto) body.id else path.substringBefore('/')
                 require(run.id == requestedId)
-                if (body is StartRunDto) require(run.locationId == body.locationId && run.templateVersionId == body.templateVersionId)
+                if (body is StartRunDto) require(run.locationId == body.locationId && run.templateVersionId == body.templateVersionId && run.assignmentId == body.assignmentId)
                 if (body is SaveRunDto) require(run.status == "DRAFT" && run.rowVersion > body.rowVersion &&
                     run.answers.sortedBy { it.itemId } == body.answers.map { it.domain() }.sortedBy { it.itemId })
                 if (body is SubmitRunDto) require(run.status == "SUBMITTED" && run.rowVersion > body.rowVersion)
@@ -60,7 +60,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
                     401 -> RunFailure.SESSION
                     403 -> RunFailure.DENIED
                     404 -> RunFailure.NOT_FOUND
-                    409 -> RunFailure.CONFLICT
+                    409 -> when(response.body<RunErrorsDto>().errors.firstOrNull()?.code){"ASSIGNMENT_REQUIRED"->RunFailure.ASSIGNMENT_REQUIRED;"ASSIGNMENT_ALREADY_STARTED"->RunFailure.ASSIGNMENT_STARTED;else->RunFailure.CONFLICT}
                     429 -> RunFailure.RATE_LIMITED
                     else -> RunFailure.UNAVAILABLE
                 })
@@ -73,7 +73,9 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         } catch (_: Throwable) { RunResult.Failure(RunFailure.CONNECTION) }
     }
 }
-@Serializable private data class StartRunDto(val id: String, val locationId: String, val templateVersionId: String, val clientOperationId: String, val clientCreatedAt: String)
+@Serializable private data class RunErrorsDto(val errors:List<RunErrorDto> = emptyList())
+@Serializable private data class RunErrorDto(val code:String="")
+@Serializable private data class StartRunDto(val id: String, val locationId: String, val templateVersionId: String, val clientOperationId: String, val clientCreatedAt: String,val assignmentId:String="")
 @Serializable private data class SaveRunDto(val rowVersion: Int, val answers: List<AnswerDto>)
 @Serializable private data class SubmitRunDto(val rowVersion: Int)
 @Serializable internal data class AnswerDto(val itemId: String, val complianceResult: String = "", val textValue: String = "", val numericValue: Double? = null, val observation: String = "") {
@@ -81,7 +83,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
 }
 @Serializable private data class RunEnvelopeDto(val data: RunDto)
 @Serializable internal data class RunDto(val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
-    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "") {
+    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",val assignmentId:String="") {
     fun domain(): ChecklistRun {
         require(listOf(id, organizationId, locationId, templateVersionId, performedBy).all { it.isNotBlank() })
         require(templateName.length <= 180 && locationName.length <= 200)
@@ -94,10 +96,11 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         require(validRunAnswers(questions, values, complete = status == "SUBMITTED"))
         require(compliancePercent == null || compliancePercent.isFinite() && compliancePercent in 0.0..100.0)
         require(status != "SUBMITTED" || compliancePercent != null)
-        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName)
+        require(assignmentId.isEmpty()||assignmentId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId)
     }
 }
 
 internal fun ChecklistAnswer.dto() = AnswerDto(itemId, complianceResult, textValue, numericValue, observation)
 internal fun ChecklistRun.dto() = RunDto(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion,
-    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName)
+    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId)

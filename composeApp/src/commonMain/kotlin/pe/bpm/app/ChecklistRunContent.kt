@@ -26,7 +26,7 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
         onLocationPrevious = { workspaceActions.pagePrevious(WorkspaceResource.Locations) },
         onLocationNext = { workspaceActions.pageNext(WorkspaceResource.Locations) },
         onLocationRetry = { workspaceActions.pageRetry(WorkspaceResource.Locations) },
-        onBegin = runs::begin, onEdit = runs::edit, onSave = runs::save, onReview = runs::review,
+        onBegin = {site,version->runs.begin(site,version)}, onEdit = runs::edit, onSave = runs::save, onReview = runs::review,
         onProtectDraft = { if (scoped.pending) runs.retry() else if (scoped.run == null) runs.reload() else runs.protectDraft() },
         onSubmit = runs::confirmSubmit, onBackToEdit = runs::backToEdit, onRetry = runs::retry,
         onReload = { runs.reload() }, onBack = onBack)

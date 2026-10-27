@@ -208,12 +208,23 @@ Referencias: [Google Sign-In iOS](https://developers.google.com/identity/sign-in
 La pantalla permite mostrar/ocultar contraseña, confirmar contraseña, recuperar
 acceso, reenviar verificación, consultar perfil y cerrar sesión. Las contraseñas
 no usan rememberSaveable. Permanecen en el formulario durante la validación;
-se vacían tras un fallo, al cambiar de modo o al retirarse la pantalla.
+se vacían tras un fallo del proveedor, al cambiar de modo o al retirarse la pantalla.
 Los campos declaran `ContentType.Username`/`EmailAddress`, `Password` y
 `NewUsername`/`NewPassword` para el servicio Autofill de Android. No se borra la
 entrada antes del resultado: al completar la navegación Compose puede ofrecer
 guardarla en el proveedor elegido por el usuario. Un fallo o cambio de modo
 cancela el contexto Autofill. BPM no guarda la contraseña en su almacenamiento.
+
+Cada modo de acceso tiene una composición propia identificada por `AuthMode`.
+Cambiar entre Entrar, Crear cuenta y Recuperar acceso descarta los valores,
+selección, foco y errores visuales del formulario anterior; el nuevo empieza
+limpio. No copia el correo de un registro rechazado al acceso ni presenta sus
+errores antes de editar o enviar. Pulsar la pestaña que ya está seleccionada no
+reinicia el formulario. Un fallo conserva la entrada para corregirla mientras
+se permanezca en ese modo; esto no confirma que exista una cuenta.
+La dirección de verificación proviene del resultado del recorrido del ViewModel,
+no de un correo transferido entre campos. Cambiar de modo no consulta Firebase
+ni intenta autenticar o registrar usuarios.
 
 En Android se debe habilitar un proveedor en Ajustes → Contraseñas y autocompletar
 (el nombre varía según el dispositivo). El aviso puede estar desactivado para
@@ -351,6 +362,12 @@ espera de reenvío, volver al login y entrar con una cuenta pendiente,
 formulario vacío, contraseñas diferentes, popup cancelado y cuenta
 inactiva. El titular introduce su contraseña y completa Google; no enviarlas al
 equipo ni al chat. Las pruebas automatizadas no crean cuentas Firebase reales.
+
+Regresión de formularios: intentar registrar nombres con números y un correo de
+prueba, cambiar a Entrar y comprobar campos vacíos sin errores heredados; repetir
+desde Recuperar acceso. El acceso vacío no consulta al proveedor. Pulsar la
+pestaña activa conserva la edición. Un alta válida sí muestra su correo de destino
+en Verificación y sigue sin conceder una sesión hasta confirmar el perfil.
 
 ## Límites explícitos
 

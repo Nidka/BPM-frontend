@@ -14,6 +14,10 @@ import pe.bpm.core.storage.UnavailableDraftStorage
 import pe.bpm.features.checklists.data.RemoteChecklistHistoryRepository
 import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
+import pe.bpm.features.checklists.data.RemoteChecklistAssignmentRepository
+import pe.bpm.features.checklists.data.LocalChecklistAssignmentDraftRepository
+import pe.bpm.features.checklists.presentation.ChecklistAssignmentsViewModel
+import pe.bpm.features.checklists.presentation.ChecklistAssignmentFormViewModel
 import pe.bpm.features.checklists.domain.*
 import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
 import kotlin.time.Clock
@@ -63,6 +67,7 @@ class AppGraph(
 ) : AutoCloseable {
     private val runDrafts = ManageRunDraft(LocalChecklistRunDraftRepository(draftStorage, config.apiBaseUrl))
     private val templateDrafts = ManageTemplateDraft(LocalChecklistTemplateDraftRepository(draftStorage, config.apiBaseUrl))
+    private val assignmentDrafts = ManageAssignmentDraft(LocalChecklistAssignmentDraftRepository(draftStorage, config.apiBaseUrl))
     private val workspaceDrafts = ManageWorkspaceFormDraft(LocalWorkspaceFormDraftRepository(draftStorage, config.apiBaseUrl))
     @OptIn(ExperimentalUuidApi::class)
     internal fun workspaceFormViewModel() = WorkspaceFormViewModel(workspaceDrafts, SearchMemberAccounts(workspaceRepository)) { Uuid.random().toString() }
@@ -92,6 +97,14 @@ class AppGraph(
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
     fun checklistHistoryViewModel() = ChecklistHistoryViewModel(LoadChecklistHistory(historyRepository), LoadChecklistRun(runRepository))
+    private val assignmentRepository = RemoteChecklistAssignmentRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    fun checklistAssignmentsViewModel() = ChecklistAssignmentsViewModel(LoadChecklistAssignments(assignmentRepository),
+        LoadChecklistAssignment(assignmentRepository), DeactivateChecklistAssignment(assignmentRepository))
+    @OptIn(ExperimentalUuidApi::class)
+    fun checklistAssignmentFormViewModel() = ChecklistAssignmentFormViewModel(
+        CreateChecklistAssignment(assignmentRepository, assignmentRepository), assignmentDrafts) { Uuid.random().toString() }
     @OptIn(ExperimentalUuidApi::class)
     fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
         SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, runDrafts)

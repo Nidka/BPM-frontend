@@ -88,10 +88,13 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
             accept(load(org, runId), reading = true)
         }
     }
-    fun begin(locationId: String, versionId: String) {
-        if (mutable.value.busy || mutable.value.run != null || action != null || drafts != null && autosave == null) return
+    fun begin(locationId: String, versionId: String, assignmentId: String = "") {
+        if (mutable.value.busy || mutable.value.dirty || mutable.value.conflicted || mutable.value.failure in setOf(RunFailure.SESSION, RunFailure.DENIED) || action != null || drafts != null && autosave == null) return
+        // Una revisión ya guardada permanece en el historial al iniciar otra programación.
+        mutable.value = mutable.value.copy(run = null, inputs = emptyMap(), resumeId = null,
+            reviewing = false, notice = null, failure = null, conflicted = false)
         mayHaveReachedServer = false
-        action = RunOperation.Start(StartChecklistInput(newId(), locationId, versionId, newId(), now()))
+        action = RunOperation.Start(StartChecklistInput(newId(), locationId, versionId, newId(), now(),assignmentId))
         retry()
     }
     fun edit(id: String, value: RunAnswerInput) {
@@ -213,7 +216,7 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
             }
             is RunResult.Failure -> {
                 val locked = result.reason in setOf(RunFailure.SESSION, RunFailure.DENIED)
-                if (!locked && result.reason in setOf(RunFailure.NOT_FOUND, RunFailure.INVALID, RunFailure.CONFLICT)) action = null
+                if (!locked && result.reason in setOf(RunFailure.NOT_FOUND, RunFailure.INVALID, RunFailure.CONFLICT,RunFailure.ASSIGNMENT_REQUIRED,RunFailure.ASSIGNMENT_STARTED)) action = null
                 mutable.value = mutable.value.copy(busy = false, failure = if (mutable.value.conflicted && !locked) RunFailure.CONFLICT else result.reason,
                     conflicted = mutable.value.conflicted || result.reason == RunFailure.CONFLICT, pending = action != null,
                     run = if (locked) null else mutable.value.run, inputs = if (locked) emptyMap() else mutable.value.inputs)

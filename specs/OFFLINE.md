@@ -111,3 +111,13 @@ Referencias: [estado y almacenamiento Android](https://developer.android.com/top
 [protección de archivos Apple](https://developer.apple.com/documentation/foundation/nsdata/writingoptions/completefileprotection),
 [transacciones IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction/complete_event),
 [WCAG 2.2.5, nivel AAA](https://www.w3.org/WAI/WCAG22/Understanding/re-authenticating.html).
+
+### Propuestas de programación
+
+La programación de controles conserva una propuesta por plantilla y contexto
+(usuario/organización/origen), sin tokens. IDs, sede, frecuencia, hora y estado
+pendiente se hacen duraderos antes de crear. Restaurar solo lee; comprobar un
+resultado incierto consulta el mismo ID y, si el servidor confirma que falta,
+reenvía exactamente la propuesta. No es una cola múltiple ni un planificador
+local. Un inicio de revisión programada persiste también assignmentId; reiniciar
+no convierte el intento en una revisión libre ni cambia su período.

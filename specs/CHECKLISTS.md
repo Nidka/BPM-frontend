@@ -324,3 +324,55 @@ visible y los cursores. La consulta se renueva al volver si quedó desactualizad
 y después de guardar/finalizar una revisión. La exportación permanece pendiente.
 
 La validación de campos y teclado se especifica en [INPUT.md](INPUT.md).
+
+## Programación por sede y frecuencia
+
+ADMIN/SUPER_ADMIN: Empresa → Gestionar plantillas → abrir una publicada →
+Programar en una sede. El formulario reutiliza campos, botones, búsqueda y
+selección paginada de sedes autorizadas. Elige una sede, frecuencia y, si hace
+falta, hora de referencia local HH:MM. No hay sedes o fechas ficticias. Las
+programaciones activas se consultan desde el catálogo administrativo y se pueden
+detener con confirmación; se conservan revisiones e historial.
+
+CHEF: Control muestra programaciones de sus sedes y el estado del período:
+pendiente, en curso o finalizado. Abre preguntas y sede fija antes del inicio;
+retoma su borrador o consulta la revisión existente. Un segundo inicio recibe un
+conflicto específico y dirige a la revisión del período. El equipo comparte una
+revisión por programación/período; únicamente el ejecutor edita. ADMIN supervisa,
+WORKER conserva su recorrido de aprendizaje. La API decide los permisos en cada
+llamada, incluidas URL directas.
+
+Rutas: `empresa/controles-programados`,
+`empresa/controles-programados/{assignmentId}`,
+`empresa/plantillas/detalle/{templateId}/asignar`,
+`control/programacion/{assignmentId}`. El catálogo libre está en
+`control/plantillas`; iniciar sin programación solo es válido si no hay una
+asignación activa para esa plantilla y sede. No se impone una frecuencia global
+al catálogo completo.
+
+ONCE exige una revisión; DAILY usa día local; WEEKLY lunes a domingo; MONTHLY mes
+calendario. La zona IANA procede de la sede y el servidor determina el período.
+La hora es una referencia, sin alarmas ni restricción horaria. No se implementan
+turnos ni asignación individual con campos inexistentes en el esquema.
+
+Puertos de lectura/escritura separados, casos de uso y ViewModels propios bajo
+checklists; AppGraph inyecta adaptadores y sesión. La raíz app adapta las sedes
+del workspace mediante `ChecklistLocationSelector`, compartido con el inicio de
+revisión. El proxy web acepta solo cuatro operaciones, filtra metadatos y no
+reenvía cookies ni roles. El Dockerfile incluye el nuevo módulo.
+
+El formulario conserva un borrador por plantilla, propietario, organización y
+origen. Antes de HTTP persiste el UUID y cuerpo propuestos. Si se pierde una
+respuesta bloquea la edición y ofrece comprobar esa misma programación: consulta
+el ID antes de crear y nunca genera otro ID en el reintento. Recuperar no envía
+POST automático. Las propuestas de inicio de revisión conservan assignmentId en
+la copia local junto a operación y fecha originales. Ver OFFLINE.md.
+
+Las listas se revalidan por antigüedad al entrar/volver al primer plano y al
+confirmar una revisión; no se recargan formularios ni se usa un temporizador de
+consultas. Un error o denegación se distingue de una lista vacía. El contrato de
+API, calendario y concurrencia está en Backend/BPM-service/specs/CHECKLISTS.md.
+
+Al volver a la lista se revalida también si terminó el período recibido, aunque
+no hayan pasado los dos minutos de antigüedad. Esto evita conservar el estado de
+ayer al cruzar medianoche; el período definitivo sigue perteneciendo al servidor.

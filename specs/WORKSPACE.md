@@ -318,3 +318,9 @@ Referencias: [búsqueda y sugerencias Compose](https://developer.android.com/dev
 y [semántica accesible](https://developer.android.com/develop/ui/compose/accessibility/semantics).
 El patrón se adapta a los componentes fijados del proyecto sin añadir un
 SearchBar experimental ni una segunda ventana que rompa accesibilidad web.
+
+La programación de controles se coordina desde `app`: Empresa mantiene la autoría
+y programación de ADMIN/SUPER_ADMIN; Control del CHEF muestra lo correspondiente
+a sus sedes. `ChecklistLocationSelector` se reutiliza en programación e inicio de
+revisión. Workspace no depende de checklists ni decide períodos. Rutas, borradores
+y estados del recorrido están en CHECKLISTS.md.
