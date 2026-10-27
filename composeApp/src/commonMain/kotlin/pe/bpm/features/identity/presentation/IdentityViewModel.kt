@@ -154,7 +154,7 @@ class IdentityViewModel(
     val sessionStatus = sessionMonitor?.state ?: MutableStateFlow(SessionStatus()).asStateFlow()
 
     fun changeMode(mode: AuthMode) {
-        if (mutableState.value.busy || mutableState.value.profile != null) return
+        if (mutableState.value.busy || mutableState.value.profile != null || mutableState.value.mode == mode) return
         resendCooldownJob?.cancel()
         // Salir de verificación descarta sus credenciales temporales, sin repetir el alta.
         if (mutableState.value.mode == AuthMode.Verification) signOut()

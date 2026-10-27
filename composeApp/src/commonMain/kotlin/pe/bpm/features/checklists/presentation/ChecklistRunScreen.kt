@@ -2,8 +2,6 @@ package pe.bpm.features.checklists.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,6 +36,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure -> BpmCard(Modifier.fillMaxWidth()) {
             Text(runFailureMessage(failure), color = MaterialTheme.colorScheme.error)
+            if(failure in setOf(RunFailure.ASSIGNMENT_REQUIRED,RunFailure.ASSIGNMENT_STARTED)) BpmSecondaryButton(onClick=onBack){Text("Ver controles programados")}
             if (state.pending) {
                 Text("No pudimos confirmar esta operación. Reintenta para comprobar el resultado antes de continuar.")
                 BpmSecondaryButton(onClick = onRetry, enabled = !state.busy) { Text("Reintentar operación") }
@@ -60,19 +59,8 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 Text(template.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("Versión ${template.versionNumber} · ${template.items.size} preguntas")
                 Text("El chef registra aquí lo que observa en el local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con fecha y responsable.")
-                BpmTextField(locationQuery, onLocationSearch, "Buscar sede", enabled = !state.busy && !state.pending)
-                if (locationsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (locationsFailed) BpmSecondaryButton(onClick = onLocationRetry) { Text("Reintentar sedes") }
-                else {
-                    if (locations.isEmpty()) Text("No hay sedes disponibles para esta búsqueda.")
-                    if (locations.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 260.dp).selectableGroup()) {
-                        items(locations, key = { it.id }) { site ->
-                            BpmChoiceRow(site.name, location == site.id, enabled = !state.busy && !state.pending) { location = site.id; locationName = site.name }
-                        }
-                    }
-                    if (location != null) Text("Sede elegida: $locationName", style = MaterialTheme.typography.bodySmall)
-                    PageNavigation(locationPage, previousLocations, nextLocations, locationsLoading || state.pending, onLocationPrevious, onLocationNext)
-                }
+                ChecklistLocationSelector(locations,location,locationName,locationQuery,locationPage,locationsLoading,locationsFailed,
+                    previousLocations,nextLocations,!state.busy&&!state.pending,onLocationSearch,onLocationPrevious,onLocationNext,onLocationRetry){location=it.id;locationName=it.name}
                 RaisedButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } },
                     enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }
@@ -127,12 +115,14 @@ data class ChecklistRunLocation(val id: String, val name: String)
     }
 }
 internal val complianceLabels = linkedMapOf("COMPLIANT" to "Cumple", "NON_COMPLIANT" to "No cumple", "NOT_APPLICABLE" to "No aplica")
-private fun runFailureMessage(reason: RunFailure) = when (reason) {
+internal fun runFailureMessage(reason: RunFailure) = when (reason) {
     RunFailure.SESSION -> "Tu sesión terminó. Inicia sesión de nuevo."
     RunFailure.DENIED -> "Tu cuenta no tiene permiso para consultar o modificar este control."
     RunFailure.NOT_FOUND -> "Este control o su sede ya no están disponibles."
     RunFailure.INVALID -> "Revisa las respuestas: usa el tipo indicado, hasta dos decimales y completa los campos obligatorios."
     RunFailure.CONFLICT -> "La versión del control cambió."
+    RunFailure.ASSIGNMENT_REQUIRED -> "Esta sede tiene un control programado. Ábrelo desde Control para registrar la revisión correspondiente."
+    RunFailure.ASSIGNMENT_STARTED -> "Ya se inició el control de este período. Consulta Control para retomarlo o ver su resultado."
     RunFailure.RATE_LIMITED -> "Espera un momento antes de volver a intentarlo."
     else -> "No pudimos confirmar los datos del control. Comprueba tu conexión y vuelve a intentarlo."
 }

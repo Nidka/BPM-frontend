@@ -17,6 +17,7 @@ COPY --chown=node:node web/server.mjs ./web/server.mjs
 COPY --chown=node:node web/workspace-proxy.mjs ./web/workspace-proxy.mjs
 COPY --chown=node:node web/checklists-proxy.mjs ./web/checklists-proxy.mjs
 COPY --chown=node:node web/checklist-runs-proxy.mjs ./web/checklist-runs-proxy.mjs
+COPY --chown=node:node web/checklist-assignments-proxy.mjs ./web/checklist-assignments-proxy.mjs
 COPY --chown=node:node web/pagination.mjs ./web/pagination.mjs
 COPY --chown=node:node web/session-headers.mjs ./web/session-headers.mjs
 COPY --chown=node:node web/google-auth-browser.mjs web/google-auth-controller.mjs ./web/

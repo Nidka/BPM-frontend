@@ -37,6 +37,10 @@ import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
 import pe.bpm.features.checklists.presentation.ChecklistHistoryScreen
 import pe.bpm.features.checklists.presentation.ChecklistHistoryDetailScreen
 import pe.bpm.features.checklists.domain.HistoryScope
+import pe.bpm.features.checklists.presentation.ChecklistAssignmentsViewModel
+import pe.bpm.features.checklists.presentation.ChecklistAssignmentFormViewModel
+import pe.bpm.features.checklists.presentation.ChecklistAssignmentsScreen
+import pe.bpm.features.checklists.presentation.ChecklistAssignmentsState
 import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
 import pe.bpm.features.checklists.domain.ChecklistFailure
 import pe.bpm.features.connection.presentation.ConnectionScreen
@@ -67,6 +71,10 @@ fun App(
     val formDraftState by formDrafts.state.collectAsStateWithLifecycle()
     val history = viewModel<ChecklistHistoryViewModel> { owner.graph.checklistHistoryViewModel() }
     val historyState by history.state.collectAsStateWithLifecycle()
+    val assignments = viewModel<ChecklistAssignmentsViewModel> { owner.graph.checklistAssignmentsViewModel() }
+    val assignmentState by assignments.state.collectAsStateWithLifecycle()
+    val assignmentForm = viewModel<ChecklistAssignmentFormViewModel> { owner.graph.checklistAssignmentFormViewModel() }
+    val assignmentFormState by assignmentForm.state.collectAsStateWithLifecycle()
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
@@ -96,7 +104,7 @@ fun App(
     var loadedIdentityId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(profile?.id, profile?.organizations, profile?.platformRole) {
         if (loadedIdentityId != profile?.id || profile == null) {
-            checklists.reset(); history.reset()
+            checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
             templateEditor.reset()
             runs.reset()
             formDrafts.reset()
@@ -111,12 +119,13 @@ fun App(
     LaunchedEffect(nav) { onNavHostReady(nav) }
     // Solo las vistas de consulta se revalidan al entrar o volver al primer plano.
     // No hay temporizador de consultas ni recarga de formularios o borradores.
-    val primaryRoute = WorkspaceDestination.entries.any { it.route == entry?.destination?.route } || entry?.destination?.route == CHECKLIST_HISTORY
+    val primaryRoute = WorkspaceDestination.entries.any { it.route == entry?.destination?.route } || entry?.destination?.route in listOf(CHECKLIST_HISTORY, ASSIGNMENT_MANAGEMENT)
     fun refreshVisibleData() {
         if (identity.state.value.profile != null && primaryRoute && identity.sessionStatus.value.warning == null) {
             workspace.refreshIfStale()
             if (entry?.destination?.route == WorkspaceDestination.Operations.route) checklists.refreshIfStale()
             history.refreshIfStale()
+            assignments.refreshIfStale()
         }
     }
     OnAppForeground {
@@ -131,23 +140,25 @@ fun App(
             history.open(profile.id, currentWorkspace.organization.id, if (WorkspaceDestination.Supervision in allowed) HistoryScope.Team else HistoryScope.Mine)
         else history.reset()
     }
-    LaunchedEffect(runState.run?.id, runState.run?.rowVersion) { if (runState.run != null) history.refresh() }
+    LaunchedEffect(runState.run?.id, runState.run?.rowVersion) { if (runState.run != null) { history.refresh(); assignments.refresh() } }
     LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
         if (runState.userId != null && (runState.userId != profile?.id || runState.organizationId != workspaceState.selected ||
                 WorkspaceDestination.Operations !in workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN") ||
                 workspaceState.errors.any { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") })) runs.reset()
     }
-    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, profile?.platformRole) {
+    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, workspaceState.selected, currentWorkspace?.role, profile?.platformRole,
+        workspaceState.errors.any { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") }) {
         val canRead = currentWorkspace?.canManage == true || WorkspaceDestination.Operations in workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN")
-        if (profile != null && currentWorkspace != null && canRead)
-            checklists.open(profile.id, currentWorkspace.organization.id)
-        else checklists.reset()
+        if (profile != null && currentWorkspace != null && currentWorkspace.organization.id == workspaceState.selected && canRead &&
+            workspaceState.errors.none { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") })
+            { checklists.open(profile.id, currentWorkspace.organization.id); assignments.reset(); assignments.open(profile.id, currentWorkspace.organization.id) }
+        else { checklists.reset(); assignments.reset(); assignmentForm.reset() }
     }
 
     LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
         if (profile == null || templateEditorState.userId != null && templateEditorState.userId != profile.id ||
             templateEditorState.organizationId != null && templateEditorState.organizationId != workspaceState.selected ||
-            currentWorkspace != null && !currentWorkspace.canManage || workspaceState.errors.any { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") }) templateEditor.reset()
+            currentWorkspace != null && !currentWorkspace.canManage || workspaceState.errors.any { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") }) { templateEditor.reset(); assignmentForm.reset() }
     }
     LaunchedEffect(templateEditorState.published?.id) {
         if (templateEditorState.published != null) checklists.refresh()
@@ -192,21 +203,25 @@ fun App(
             }
             WorkspaceDestination.entries.flatMap { destination ->
                 val routes = when (destination) {
-                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL)
+                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER)
-                    WorkspaceDestination.Company -> listOf(destination.route, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Company -> listOf(destination.route, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     else -> listOf(destination.route)
                 }
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
                     .map { destination to it }
             }.forEach { (destination, route) ->
-                composable(route, arguments = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
+                composable(route, arguments = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE))
                     listOf(navArgument("templateId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
-                    listOf(navArgument("runId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
+                    listOf(navArgument("runId") { type = NavType.StringType }) else if (route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL))
+                    listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
                     val formRevision = remember(routeEntry.id) { workspaceState.revision }
                     val managingTemplates = route in listOf(TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
+                    val managingAssignments = route in listOf(ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    val editingAssignment = route == ASSIGNMENT_CREATE
+                    val viewingAssignment = route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL)
                     val editingTemplate = route == TEMPLATE_CREATE
                     val running = route == CHECKLIST_START || route == CHECKLIST_RUN
                     val viewingHistory = route in listOf(CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)
@@ -218,7 +233,7 @@ fun App(
                     }
                     fun closeForm() {
                         if (editingTemplate && templateEditorState.step == TemplateEditorStep.Review && templateEditorState.editable) templateEditor.backToEdit()
-                        else leaveRun { navigateBack(if (managingTemplates) TEMPLATE_MANAGEMENT else destination.route) }
+                        else leaveRun { navigateBack(when { managingAssignments -> ASSIGNMENT_MANAGEMENT; managingTemplates -> TEMPLATE_MANAGEMENT; else -> destination.route }) }
                     }
                     LaunchedEffect(workspaceState.revision) {
                         if (formKind != null && workspaceState.revision > formRevision && entry?.id == routeEntry.id) formDrafts.complete { closeForm() }
@@ -226,12 +241,13 @@ fun App(
                     LaunchedEffect(workspaceState.errors) {
                         if (formKind != null && entry?.id == routeEntry.id) formDrafts.onSaveFailure(workspaceState.errors)
                     }
-                    val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START))
+                    val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
                     val runId = if (route in listOf(CHECKLIST_RUN, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
+                    val assignmentId = if (viewingAssignment) routeEntry.arguments?.let { NavType.StringType[it, "assignmentId"] } else null
                     val requestedRoute = templateId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
-                        ?.let { if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
-                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { when (route) { SUPERVISION_DETAIL -> "seguimiento/$it"; CHECKLIST_HISTORY_DETAIL -> "control/revisiones/$it"; else -> "control/ejecucion/$it" } } ?: route
+                        ?.let { if (route == ASSIGNMENT_CREATE) "empresa/plantillas/detalle/$it/asignar" else if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
+                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { when (route) { SUPERVISION_DETAIL -> "seguimiento/$it"; CHECKLIST_HISTORY_DETAIL -> "control/revisiones/$it"; else -> "control/ejecucion/$it" } } ?: assignmentId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { if (managingAssignments) "empresa/controles-programados/$it" else "control/programacion/$it" } ?: route
                     if (profile == null) {
                         // Las URL directas y el historial deben comprobar la autenticación, incluso después de cerrar sesión.
                         if (identityState.restoring) RestoringSession()
@@ -244,9 +260,9 @@ fun App(
                     } else {
                         val available = workspaceDestinations(workspaceState.workspace?.role, profile.platformRole == "SUPER_ADMIN")
                         val waiting = workspaceState.loading && workspaceState.workspace == null
-                        if ((destination !in available || formKind != null || managingTemplates) && waiting) {
+                        if ((destination !in available || formKind != null || managingTemplates || managingAssignments) && waiting) {
                             RestoringSession()
-                        } else if (destination !in available || managingTemplates && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
+                        } else if (destination !in available || (managingTemplates || managingAssignments) && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
                             LaunchedEffect(destination, available) {
                                 if (entry?.id == routeEntry.id) {
                                     if (workspaceState.errors.none { it.code == "ACCESS_DENIED" })
@@ -266,6 +282,26 @@ fun App(
                             }
                             val scopedHistoryState = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                 ?: pe.bpm.features.checklists.presentation.ChecklistHistoryState(loading = true, detailLoading = true)
+                            fun openAssignedRun(run: pe.bpm.features.checklists.domain.AssignedChecklistRun) {
+                                val target = if (destination == WorkspaceDestination.Company) "seguimiento/${run.id}"
+                                    else if (run.status == "DRAFT" && run.performedBy == profile.id) "control/ejecucion/${run.id}" else "control/revisiones/${run.id}"
+                                nav.navigate(target) { launchSingleTop = true }
+                            }
+                            val scopedAssignments = assignmentState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
+                                ?: ChecklistAssignmentsState(loading = true, detailLoading = true)
+                            val assignmentContent: (@Composable () -> Unit)? = when {
+                                editingAssignment -> ({ ChecklistAssignmentFormContent(profile.id, templateId, workspaceState, assignmentFormState, assignmentForm,
+                                    checklistState, checklists, workspace,
+                                    onSaved = { assignments.refresh(); nav.navigate(ASSIGNMENT_MANAGEMENT) { popUpTo(ASSIGNMENT_CREATE) { inclusive = true }; launchSingleTop = true } },
+                                    onDiscard = { navigateBack(TEMPLATE_MANAGEMENT) }) })
+                                viewingAssignment -> ({ ChecklistAssignmentDetailContent(profile.id, workspaceState.selected.orEmpty(), assignmentId, managingAssignments,
+                                    scopedAssignments, assignments, runState, runs, checklistState, checklists, ::openAssignedRun,
+                                    onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(ASSIGNMENT_DETAIL) { inclusive = true }; launchSingleTop = true } }) })
+                                route == ASSIGNMENT_MANAGEMENT -> ({ ChecklistAssignmentsScreen(scopedAssignments, true, assignments::search, assignments::refresh, assignments::previous, assignments::next,
+                                    onOpen = { nav.navigate("empresa/controles-programados/${it.id}") { launchSingleTop = true } },
+                                    assignments::requestDeactivate, assignments::confirmDeactivate) })
+                                else -> null
+                            }
                             val managementContent: (@Composable () -> Unit)? = if (!managingTemplates) null else {
                                 {
                                     if (editingTemplate) {
@@ -280,6 +316,7 @@ fun App(
                                     } else {
                                         val scopedManagement = checklistState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected } ?: ChecklistCatalogState(loading = true)
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
+                                            BpmSecondaryButton(onClick = { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }) { Text("Controles programados por sede") }
                                             Text("Crea una primera versión y revisa las preguntas antes de publicarla.")
                                             BoxWithConstraints(Modifier.fillMaxWidth()) {
                                                 RaisedButton("Crear plantilla", {
@@ -293,7 +330,8 @@ fun App(
                                         }
                                         ChecklistCatalogScreen(scopedManagement, templateId, checklists::refresh, checklists::search,
                                             onSelect = { id -> nav.navigate("empresa/plantillas/detalle/$id") { launchSingleTop = true } }, onUserActivity = identity::userActivity,
-                                            onNext = checklists::next, onPrevious = checklists::previous, management = true)
+                                            onNext = checklists::next, onPrevious = checklists::previous, management = true,
+                                            onAssign = { id -> nav.navigate("empresa/plantillas/detalle/$id/asignar") { launchSingleTop = true } })
                                     }
                                 }
                             }
@@ -305,7 +343,7 @@ fun App(
                                 state = workspaceState,
                                 section = destination,
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
-                                secondaryContent = if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }) }) else if (running) ({
+                                secondaryContent = if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }) }) else if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
@@ -318,8 +356,8 @@ fun App(
                                     onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
                                     onBack = { nav.navigate(CHECKLIST_HISTORY) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } }) }) else managementContent,
                                 secondaryEditor = editingTemplate,
-                                secondaryTitle = if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
-                                secondaryBusy = templateEditorState.publishing || running && (runState.busy || runState.pending),
+                                secondaryTitle = if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryBusy = assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
                                     when (formKind) {
@@ -345,7 +383,7 @@ fun App(
                                 sessionConfirmation = identityState.verificationMessage,
                                 onSelect = { id ->
                                     if (!workspaceState.saving) {
-                                        checklists.reset(); history.reset()
+                                        checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                         templateEditor.reset()
                                         runs.reset()
                                         workspace.select(id)
@@ -377,7 +415,13 @@ fun App(
                                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                                 },
                                 checklistContent = {
-                                    if (listingHistory) {
+                                    if (route == WorkspaceDestination.Operations.route) {
+                                        ChecklistAssignmentsScreen(scopedAssignments, false, assignments::search, assignments::refresh, assignments::previous, assignments::next,
+                                            onOpen = { item -> if (item.run != null) openAssignedRun(item.run) else nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } },
+                                            assignments::requestDeactivate, assignments::confirmDeactivate)
+                                        BpmSecondaryButton(onClick = { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } }) { Text("Mis revisiones") }
+                                        BpmTextButton(onClick = { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } }) { Text("Consultar otras plantillas publicadas") }
+                                    } else if (listingHistory) {
                                         if (destination == WorkspaceDestination.Operations) BpmSecondaryButton(onClick = { nav.navigate(WorkspaceDestination.Operations.route) { launchSingleTop = true } }) { Text("Preparar una nueva revisión") }
                                         val scopedHistory = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                         if (scopedHistory != null) ChecklistHistoryScreen(scopedHistory, destination == WorkspaceDestination.Operations,
@@ -408,7 +452,7 @@ fun App(
                                 onClear = workspace::clearErrors,
                                 onLogout = {
                                     pendingRoute = WorkspaceDestination.Home.route
-                                    checklists.reset(); history.reset()
+                                    checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                     templateEditor.reset()
                                     runs.reset()
                                     formDrafts.reset()
@@ -447,3 +491,9 @@ private const val TEMPLATE_MANAGEMENT_DETAIL = "empresa/plantillas/detalle/{temp
 private const val CHECKLIST_HISTORY = "control/revisiones"
 private const val CHECKLIST_HISTORY_DETAIL = "control/revisiones/{runId}"
 private const val SUPERVISION_DETAIL = "seguimiento/{runId}"
+
+private const val CHECKLIST_CATALOG = "control/plantillas"
+private const val ASSIGNMENT_DETAIL = "control/programacion/{assignmentId}"
+private const val ASSIGNMENT_CREATE = "empresa/plantillas/detalle/{templateId}/asignar"
+private const val ASSIGNMENT_MANAGEMENT = "empresa/controles-programados"
+private const val ASSIGNMENT_MANAGEMENT_DETAIL = "empresa/controles-programados/{assignmentId}"

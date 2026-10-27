@@ -29,16 +29,16 @@ fun IdentityScreen(
     onVerify: () -> Unit, googleSupported: Boolean, onGoogle: () -> Unit,
     onMode: (AuthMode) -> Unit, onRegister: (String, String, String, String, String) -> Unit,
     onRecover: (String) -> Unit, onResend: () -> Unit, onConfirmEmail: () -> Unit,
-) {
+) = key(state.mode) {
+    // Cada recorrido posee sus campos, foco y validación visual; no se transfieren al cambiar de modo.
     var email by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     val scroll = rememberScrollState()
-    LaunchedEffect(state.mode) { scroll.scrollTo(0) }
     // Contraseñas efímeras: solo viven en el formulario mientras se valida el intento.
-    var password by remember(state.mode) { mutableStateOf("") }
-    var confirmation by remember(state.mode) { mutableStateOf("") }
-    var visible by remember(state.mode) { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    var confirmation by remember { mutableStateOf("") }
+    var visible by remember { mutableStateOf(false) }
     val autofill = LocalAutofillManager.current
     LaunchedEffect(state.busy, state.errors) {
         if (!state.busy && state.errors.any { it.code != "VALIDATION_ERROR" }) {
@@ -46,7 +46,12 @@ fun IdentityScreen(
             password = ""; confirmation = ""
         }
     }
-    fun changeMode(mode: AuthMode) { autofill?.cancel(); password = ""; confirmation = ""; onMode(mode) }
+    fun changeMode(mode: AuthMode) {
+        if (mode == state.mode) return
+        autofill?.cancel()
+        password = ""; confirmation = ""
+        onMode(mode)
+    }
     val navigation = rememberBpmFormNavigation(when (state.mode) {
         AuthMode.Register -> listOf("firstName", "lastName", "email", "password", "confirmation")
         AuthMode.Login -> listOf("email", "password")

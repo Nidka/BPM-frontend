@@ -15,6 +15,47 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdentityViewModelTest {
+    @Test fun changingFormClearsRejectedRegistrationWithoutAuthenticatingOrCreatingAnAccount() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val store = ViewModelStore()
+        val repository = object : FakeIdentityRepository() {
+            override suspend fun register(name: String, email: String, password: String): IdentityResult<Unit> =
+                error("Un registro inválido no debe crear una cuenta")
+            override suspend fun signIn(email: String, password: String): IdentityResult<Profile> =
+                error("Cambiar de formulario no debe iniciar sesión")
+            override suspend fun signInWithGoogle(): IdentityResult<Profile> = error("Google no solicitado")
+            override suspend fun currentProfile(): IdentityResult<Profile> = error("No hay sesión confirmada")
+            override suspend fun resetPassword(email: String): IdentityResult<Unit> = error("Recuperación no solicitada")
+            override suspend fun resendVerification(): IdentityResult<Unit> = error("Reenvío no solicitado")
+            override suspend fun confirmEmailVerification(): IdentityResult<Profile> = error("Confirmación no solicitada")
+            override fun signOut() {}
+        }
+        try {
+            val model = IdentityViewModel(SignIn(repository), GetCurrentProfile(repository), SignOut(repository),
+                SignInWithGoogle(repository), false, Register(repository), ResetPassword(repository),
+                ResendVerification(repository), ConfirmEmailVerification(repository))
+            store.put("identity", model)
+            model.changeMode(AuthMode.Register)
+            model.register("Ana2", "Pérez3", "rejected@example.invalid", "password8", "password8")
+            runCurrent()
+            val rejected = model.state.value
+            assertEquals(setOf("firstName", "lastName"), rejected.errors.single().fields.keys)
+            assertEquals(AuthMode.Register, rejected.mode)
+            assertNull(rejected.profile)
+            // La pestaña seleccionada conserva la corrección que el usuario está realizando.
+            model.changeMode(AuthMode.Register)
+            assertEquals(rejected, model.state.value)
+            model.changeMode(AuthMode.Login)
+            runCurrent()
+            assertEquals(AuthMode.Login, model.state.value.mode)
+            assertTrue(model.state.value.errors.isEmpty())
+            assertNull(model.state.value.verificationEmail)
+            assertNull(model.state.value.notice)
+            assertNull(model.state.value.profile)
+            assertFalse(model.state.value.canResendVerification)
+        } finally { store.clear(); Dispatchers.resetMain() }
+    }
+
     @Test fun failedLoginWaitsForAnotherExplicitSignInAndDoesNotStartAutomaticRetries() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()

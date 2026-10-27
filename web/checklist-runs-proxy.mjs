@@ -16,11 +16,11 @@ function answer(value) {
 }
 function run(value, org, id) {
   if (!value || !identifier(value.id) || value.organizationId !== org || id && value.id !== id || !identifier(value.locationId) || !identifier(value.templateVersionId) ||
-      !text(value.performedBy, 128) || !value.performedBy || !text(value.templateName??'',180) || !text(value.locationName??'',200) || !text(value.performedByName??'',200) ||
+      value.assignmentId && !identifier(value.assignmentId) || !text(value.performedBy, 128) || !value.performedBy || !text(value.templateName??'',180) || !text(value.locationName??'',200) || !text(value.performedByName??'',200) ||
       value.createdAt && (!text(value.createdAt,40)||!Number.isFinite(Date.parse(value.createdAt))) || value.submittedAt != null && (!text(value.submittedAt,40)||!Number.isFinite(Date.parse(value.submittedAt))) || !['DRAFT', 'SUBMITTED'].includes(value.status) || !Number.isInteger(value.rowVersion) || value.rowVersion < 1 ||
       !Array.isArray(value.items) || value.items.length < 1 || value.items.length > 100 || !Array.isArray(value.answers) || value.answers.length > 100 ||
       value.compliancePercent != null && (!Number.isFinite(value.compliancePercent) || value.compliancePercent < 0 || value.compliancePercent > 100)) throw new Error('Control inválido');
-  return { id: value.id, organizationId: org, locationId: value.locationId, templateVersionId: value.templateVersionId, performedBy: value.performedBy,
+  return { id: value.id, organizationId: org, assignmentId: value.assignmentId ?? '', locationId: value.locationId, templateVersionId: value.templateVersionId, performedBy: value.performedBy,
     templateName: value.templateName ?? '', locationName: value.locationName ?? '', createdAt: value.createdAt ?? '', submittedAt: value.submittedAt ?? null, performedByName: value.performedByName ?? '',
     status: value.status, rowVersion: value.rowVersion, items: value.items.map(publicItem), answers: value.answers.map(answer), compliancePercent: value.compliancePercent ?? null };
 }
@@ -53,10 +53,11 @@ export async function proxyChecklistRun(request, url, upstream, send, response) 
     }
     try {
       const value = await readPayload(request, 512 * 1024);
-      const fields = !id ? ['id', 'locationId', 'templateVersionId', 'clientOperationId', 'clientCreatedAt'] : action === 'answers' ? ['rowVersion', 'answers'] : ['rowVersion'];
+      const fields = !id ? ['id', 'locationId', 'templateVersionId', 'clientOperationId', 'clientCreatedAt', 'assignmentId'] : action === 'answers' ? ['rowVersion', 'answers'] : ['rowVersion'];
       if (!value || Array.isArray(value) || Object.keys(value).some(k => !fields.includes(k))) throw new Error('Campos no permitidos');
       if (!id) {
         if (!['id', 'locationId', 'templateVersionId', 'clientOperationId'].every(k => identifier(value[k])) || !text(value.clientCreatedAt, 40) || !Number.isFinite(Date.parse(value.clientCreatedAt))) throw new Error('Alta inválida');
+        if (value.assignmentId != null && value.assignmentId !== '' && !identifier(value.assignmentId)) throw new Error('Programación inválida');
       } else if (!Number.isInteger(value.rowVersion) || value.rowVersion < 1) throw new Error('Versión inválida');
       if (action === 'answers') {
         if (!Array.isArray(value.answers) || value.answers.length > 100) throw new Error('Respuestas inválidas');
@@ -82,6 +83,12 @@ export async function proxyChecklistRun(request, url, upstream, send, response) 
     const failures = { 400: ['INVALID_REQUEST', 'Revisa los datos.'], 401: ['UNAUTHENTICATED', 'Inicia sesión nuevamente.'], 403: ['ACCESS_DENIED', 'No tienes permiso para este control.'],
       404: ['NOT_FOUND', 'El control no está disponible.'], 409: ['VERSION_CONFLICT', 'El control cambió. Revisa la versión guardada antes de continuar.'],
       422: ['VALIDATION_ERROR', 'Revisa las respuestas y los campos obligatorios.'], 429: ['RATE_LIMITED', 'Espera un momento antes de reintentar.'] };
+    if (result.status === 409) {
+      const payload = await readPayload(result.body);
+      const code = payload?.errors?.[0]?.code;
+      const messages = { ASSIGNMENT_REQUIRED: 'Abre el control programado de esta sede.', ASSIGNMENT_ALREADY_STARTED: 'El control de este período ya está iniciado. Consulta su revisión.' };
+      if (Object.hasOwn(messages, code)) return send(409, error(code, messages[code]));
+    }
     const failure = failures[result.status];
     return failure ? send(result.status, error(...failure)) : send(503, error('BACKEND_UNAVAILABLE', 'No pudimos confirmar la operación.'));
   } catch { return send(503, error('BACKEND_UNAVAILABLE', 'No pudimos confirmar la operación.')); }

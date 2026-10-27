@@ -7,12 +7,13 @@ data class ChecklistRun(
     val performedBy: String, val status: String, val rowVersion: Int, val items: List<ChecklistItem>,
     val answers: List<ChecklistAnswer>, val compliancePercent: Double? = null,
     val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",
+    val assignmentId: String = "",
 )
 data class ChecklistAnswer(val itemId: String, val complianceResult: String = "", val textValue: String = "",
     val numericValue: Double? = null, val observation: String = "")
 data class StartChecklistInput(val id: String, val locationId: String, val templateVersionId: String,
-    val clientOperationId: String, val clientCreatedAt: String)
-enum class RunFailure { SESSION, DENIED, NOT_FOUND, INVALID, CONFLICT, RATE_LIMITED, CONNECTION, UNAVAILABLE, INVALID_RESPONSE }
+    val clientOperationId: String, val clientCreatedAt: String, val assignmentId: String = "")
+enum class RunFailure { SESSION, DENIED, NOT_FOUND, INVALID, CONFLICT, ASSIGNMENT_REQUIRED, ASSIGNMENT_STARTED, RATE_LIMITED, CONNECTION, UNAVAILABLE, INVALID_RESPONSE }
 sealed interface RunResult {
     data class Success(val run: ChecklistRun) : RunResult
     data class Failure(val reason: RunFailure) : RunResult

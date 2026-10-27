@@ -60,11 +60,11 @@ class LocalChecklistTemplateDraftRepository(storage: DraftStorage, origin: Strin
     }
 }
 @Serializable private data class StartDraftDto(val id: String, val locationId: String, val templateVersionId: String,
-    val clientOperationId: String, val clientCreatedAt: String) {
-    fun domain() = StartChecklistInput(id, locationId, templateVersionId, clientOperationId, clientCreatedAt)
+    val clientOperationId: String, val clientCreatedAt: String,val assignmentId:String="") {
+    fun domain() = StartChecklistInput(id, locationId, templateVersionId, clientOperationId, clientCreatedAt,assignmentId)
 }
 private fun RunDraft.dto() = RunDraftDto(run?.dto(), inputs.mapValues { InputDto(it.value.value, it.value.observation) }, when (val action = operation) {
-    is RunOperation.Start -> OperationDto("start", start = action.input.let { StartDraftDto(it.id, it.locationId, it.templateVersionId, it.clientOperationId, it.clientCreatedAt) })
+    is RunOperation.Start -> OperationDto("start", start = action.input.let { StartDraftDto(it.id, it.locationId, it.templateVersionId, it.clientOperationId, it.clientCreatedAt,it.assignmentId) })
     is RunOperation.Save -> OperationDto("save", action.run.dto(), action.key, action.answers.map { it.dto() })
     is RunOperation.Submit -> OperationDto("submit", action.run.dto(), action.key)
     null -> null
