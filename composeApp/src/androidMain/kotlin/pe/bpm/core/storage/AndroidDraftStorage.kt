@@ -31,9 +31,9 @@ class AndroidDraftStorage(context: Context) : DraftStorage {
                 .setKeySize(256).build())
         }.generateKey()
     }
-    override suspend fun read(key: String): String? = withContext(Dispatchers.IO) { mutex.withLock {
+    private fun readUnlocked(key: String): String? {
         val file = file(key)
-        if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return@withLock null
+        if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return null
         val bytes = file.openRead().use { input ->
             require(file.baseFile.length() <= MAX_DRAFT_BYTES + 28)
             input.readBytes()
@@ -42,9 +42,9 @@ class AndroidDraftStorage(context: Context) : DraftStorage {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
         cipher.updateAAD(key.toByteArray())
-        cipher.doFinal(bytes.copyOfRange(12, bytes.size)).decodeToString()
-    } }
-    override suspend fun write(key: String, value: String) = withContext(Dispatchers.IO) { mutex.withLock {
+        return cipher.doFinal(bytes.copyOfRange(12, bytes.size)).decodeToString()
+    }
+    private fun writeUnlocked(key: String, value: String) {
         val bytes = value.encodeToByteArray(); require(bytes.size in 1..MAX_DRAFT_BYTES)
         check(directory.isDirectory || directory.mkdirs())
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -53,6 +53,11 @@ class AndroidDraftStorage(context: Context) : DraftStorage {
         val file = file(key); val output = file.startWrite()
         try { output.write(encrypted); file.finishWrite(output) }
         catch (error: Exception) { file.failWrite(output); throw error }
+    }
+    override suspend fun read(key: String): String? = withContext(Dispatchers.IO) { mutex.withLock { readUnlocked(key) } }
+    override suspend fun write(key: String, value: String) = withContext(Dispatchers.IO) { mutex.withLock { writeUnlocked(key, value) } }
+    override suspend fun compareAndSet(key: String, expected: String?, value: String): Boolean = withContext(Dispatchers.IO) { mutex.withLock {
+        if (readUnlocked(key) != expected) false else { writeUnlocked(key, value); true }
     } }
     override suspend fun remove(key: String) = withContext(Dispatchers.IO) { mutex.withLock { file(key).delete() } }
 }

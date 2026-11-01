@@ -67,7 +67,7 @@ La base visual BPM usa petróleo/coral, mascota propia, botones con relieve,
 tarjetas y navegación adaptable. Identidad conserva login/registro, verificación
 y recuperación. Al autenticarse abre workspace con tenant autorizado, altas de
 empresa/sede/equipo y catálogos de Aprender/Control. Ver IDENTITY.md y WORKSPACE.md.
-Hay recuperación local de borradores según OFFLINE.md; el sincronizador completo sigue pendiente. Registro solo crea USER sin acceso
+Hay recuperación local de borradores y cola acotada para controles preparados según OFFLINE.md; el contrato offline completo del piloto sigue pendiente. Registro solo crea USER sin acceso
 a organizaciones. AppGraph comparte sesión y red entre features sin singletons.
 
 ## Fronteras comprobadas
@@ -206,3 +206,14 @@ expresa obligatoriedad y límites en su dominio; UI recibe la misma regla y el
 caso de uso valida antes de data. `BpmInputKind` solo configura el teclado.
 No se duplican reglas por pantalla ni se confía en el teclado como validación.
 Contrato y pruebas: [INPUT.md](INPUT.md).
+
+## Controles preparados
+
+Checklists incorpora `ChecklistOfflineRepository`, `ManageOfflineChecklists` y
+`SyncOfflineChecklists`, con almacenamiento privado inyectado y ViewModel propio.
+App conecta la sesión/organización y las rutas `control/guardados` y
+`control/guardados/{runId}`; workspace no importa esta funcionalidad.
+`ChecklistAnswerEditor` es compartido por ambas modalidades del mismo control;
+las respuestas se interpretan y validan con las mismas reglas de dominio.
+No se proyectan versiones remotas ficticias: la cola conserva la base original y
+el checkpoint confirmado del guardado antes de enviar la finalización.

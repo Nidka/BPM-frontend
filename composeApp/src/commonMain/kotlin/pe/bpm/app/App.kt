@@ -41,6 +41,8 @@ import pe.bpm.features.checklists.presentation.ChecklistAssignmentsViewModel
 import pe.bpm.features.checklists.presentation.ChecklistAssignmentFormViewModel
 import pe.bpm.features.checklists.presentation.ChecklistAssignmentsScreen
 import pe.bpm.features.checklists.presentation.ChecklistAssignmentsState
+import pe.bpm.features.checklists.presentation.ChecklistOfflineViewModel
+import pe.bpm.features.checklists.presentation.ChecklistOfflineScreen
 import pe.bpm.features.checklists.presentation.ChecklistRunViewModel
 import pe.bpm.features.checklists.domain.ChecklistFailure
 import pe.bpm.features.connection.presentation.ConnectionScreen
@@ -77,6 +79,8 @@ fun App(
     val assignmentFormState by assignmentForm.state.collectAsStateWithLifecycle()
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
+    val offlineRuns = viewModel<ChecklistOfflineViewModel> { owner.graph.checklistOfflineViewModel() }
+    val offlineState by offlineRuns.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
     val identityState by identity.state.collectAsStateWithLifecycle()
     val sessionStatus by identity.sessionStatus.collectAsStateWithLifecycle()
@@ -106,7 +110,7 @@ fun App(
         if (loadedIdentityId != profile?.id || profile == null) {
             checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
             templateEditor.reset()
-            runs.reset()
+            runs.reset(); offlineRuns.reset()
             formDrafts.reset()
             workspace.reset()
         }
@@ -130,7 +134,7 @@ fun App(
     }
     OnAppForeground {
         identity.onForeground()
-        if (identity.state.value.profile != null) refreshVisibleData()
+        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync() }
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
@@ -139,6 +143,26 @@ fun App(
         if (profile != null && currentWorkspace != null && (WorkspaceDestination.Operations in allowed || WorkspaceDestination.Supervision in allowed))
             history.open(profile.id, currentWorkspace.organization.id, if (WorkspaceDestination.Supervision in allowed) HistoryScope.Team else HistoryScope.Mine)
         else history.reset()
+    }
+    LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
+        if (profile != null && currentWorkspace != null && currentWorkspace.organization.id == workspaceState.selected &&
+            WorkspaceDestination.Operations in workspaceDestinations(currentWorkspace.role, profile.platformRole == "SUPER_ADMIN") &&
+            workspaceState.errors.none { it.code in setOf("ACCESS_DENIED", "UNAUTHENTICATED") })
+            offlineRuns.open(profile.id, currentWorkspace.organization.id)
+        else offlineRuns.reset()
+    }
+    LaunchedEffect(offlineState.preparedId) {
+        offlineState.preparedId?.let { id ->
+            offlineRuns.consumePrepared()
+            if (offlineState.owner?.userId == profile?.id && offlineState.owner?.organizationId == workspaceState.selected)
+                nav.navigate("control/guardados/$id") { launchSingleTop = true }
+        }
+    }
+    LaunchedEffect(offlineState.owner, offlineState.entries.filter { it.status == pe.bpm.features.checklists.domain.OfflineRunStatus.CONFIRMED }.map { it.run.id to it.run.rowVersion }) {
+        if (offlineState.owner?.userId == profile?.id && offlineState.owner?.organizationId == workspaceState.selected &&
+            offlineState.entries.any { it.status == pe.bpm.features.checklists.domain.OfflineRunStatus.CONFIRMED }) {
+            history.refresh(); assignments.refresh()
+        }
     }
     LaunchedEffect(runState.run?.id, runState.run?.rowVersion) { if (runState.run != null) { history.refresh(); assignments.refresh() } }
     LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
@@ -203,7 +227,7 @@ fun App(
             }
             WorkspaceDestination.entries.flatMap { destination ->
                 val routes = when (destination) {
-                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
+                    WorkspaceDestination.Operations -> listOf(destination.route, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER)
                     WorkspaceDestination.Company -> listOf(destination.route, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
@@ -213,7 +237,7 @@ fun App(
                     .map { destination to it }
             }.forEach { (destination, route) ->
                 composable(route, arguments = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE))
-                    listOf(navArgument("templateId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
+                    listOf(navArgument("templateId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
                     listOf(navArgument("runId") { type = NavType.StringType }) else if (route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL))
                     listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
@@ -224,6 +248,7 @@ fun App(
                     val viewingAssignment = route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL)
                     val editingTemplate = route == TEMPLATE_CREATE
                     val running = route == CHECKLIST_START || route == CHECKLIST_RUN
+                    val offline = route == CHECKLIST_OFFLINE || route == CHECKLIST_OFFLINE_DETAIL
                     val viewingHistory = route in listOf(CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)
                     val listingHistory = route == CHECKLIST_HISTORY || destination == WorkspaceDestination.Supervision && !viewingHistory
                     var runExit by remember(routeEntry.id) { mutableStateOf<(() -> Unit)?>(null) }
@@ -233,6 +258,7 @@ fun App(
                     }
                     fun closeForm() {
                         if (editingTemplate && templateEditorState.step == TemplateEditorStep.Review && templateEditorState.editable) templateEditor.backToEdit()
+                        else if (offline) { offlineRuns.select(null); navigateBack(WorkspaceDestination.Operations.route) }
                         else leaveRun { navigateBack(when { managingAssignments -> ASSIGNMENT_MANAGEMENT; managingTemplates -> TEMPLATE_MANAGEMENT; else -> destination.route }) }
                     }
                     LaunchedEffect(workspaceState.revision) {
@@ -243,11 +269,11 @@ fun App(
                     }
                     val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
-                    val runId = if (route in listOf(CHECKLIST_RUN, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
+                    val runId = if (route in listOf(CHECKLIST_RUN, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
                     val assignmentId = if (viewingAssignment) routeEntry.arguments?.let { NavType.StringType[it, "assignmentId"] } else null
                     val requestedRoute = templateId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
                         ?.let { if (route == ASSIGNMENT_CREATE) "empresa/plantillas/detalle/$it/asignar" else if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
-                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { when (route) { SUPERVISION_DETAIL -> "seguimiento/$it"; CHECKLIST_HISTORY_DETAIL -> "control/revisiones/$it"; else -> "control/ejecucion/$it" } } ?: assignmentId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { if (managingAssignments) "empresa/controles-programados/$it" else "control/programacion/$it" } ?: route
+                        ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { when (route) { CHECKLIST_OFFLINE_DETAIL -> "control/guardados/$it"; SUPERVISION_DETAIL -> "seguimiento/$it"; CHECKLIST_HISTORY_DETAIL -> "control/revisiones/$it"; else -> "control/ejecucion/$it" } } ?: assignmentId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { if (managingAssignments) "empresa/controles-programados/$it" else "control/programacion/$it" } ?: route
                     if (profile == null) {
                         // Las URL directas y el historial deben comprobar la autenticación, incluso después de cerrar sesión.
                         if (identityState.restoring) RestoringSession()
@@ -280,6 +306,8 @@ fun App(
                                 if (editingTemplate && workspaceState.workspace?.canManage == true)
                                     templateEditor.open(profile.id, workspaceState.workspace!!.organization.id)
                             }
+                            val scopedOfflineState = offlineState.takeIf { it.owner?.userId == profile.id && it.owner.organizationId == workspaceState.selected }
+                                ?: pe.bpm.features.checklists.presentation.ChecklistOfflineState(busy = true)
                             val scopedHistoryState = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                 ?: pe.bpm.features.checklists.presentation.ChecklistHistoryState(loading = true, detailLoading = true)
                             fun openAssignedRun(run: pe.bpm.features.checklists.domain.AssignedChecklistRun) {
@@ -338,12 +366,22 @@ fun App(
                             LaunchedEffect(viewingHistory, runId, historyState.userId, historyState.organizationId) {
                                 if (viewingHistory && historyState.userId == profile.id && historyState.organizationId == workspaceState.selected) history.select(runId)
                             }
+                            LaunchedEffect(offline, runId, offlineState.entries.map { it.run.id }, offlineState.localConflict) {
+                                if (offline) offlineRuns.select(runId)
+                            }
                             WorkspaceScreen(
                                 viewer = WorkspaceViewer(profile.id, profile.displayName, profile.email, profile.platformRole == "SUPER_ADMIN"),
                                 state = workspaceState,
                                 section = destination,
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
-                                secondaryContent = if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }) }) else if (running) ({
+                                secondaryContent = if (offline) ({
+                                    ChecklistOfflineScreen(scopedOfflineState, runId,
+                                        onOpen = { id -> nav.navigate("control/guardados/$id") { launchSingleTop = true } },
+                                        onEdit = offlineRuns::edit, onProtect = offlineRuns::protect, onReview = offlineRuns::review,
+                                        onBackToEdit = offlineRuns::backToEdit, onQueue = offlineRuns::enqueue,
+                                        onSync = { offlineRuns.sync(manual = true) }, onRetryOpen = offlineRuns::retryOpen,
+                                        onRemove = { id -> offlineRuns.remove(id) }, onUseServerVersion = offlineRuns::useServerVersion)
+                                }) else if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }) }) else if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
@@ -351,14 +389,19 @@ fun App(
                                         if (!runState.pending && !runState.busy) BpmSecondaryButton(onClick = { val exit = runExit; runExit = null; runs.discard { exit?.invoke() } }) { Text("Descartar cambios y salir") }
                                         BpmTextButton(onClick = { runExit = null }) { Text("Continuar con el control") }
                                     }
+                                    if (scopedOfflineState.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                                    scopedOfflineState.failure?.let { Text(pe.bpm.features.checklists.presentation.runFailureMessage(it), color = MaterialTheme.colorScheme.error) }
+                                    if (scopedOfflineState.localStatus == pe.bpm.core.presentation.DraftSaveStatus.FAILED)
+                                        Text(scopedOfflineState.notice.orEmpty(), color = MaterialTheme.colorScheme.error)
                                     ChecklistRunContent(profile.id, workspaceState, checklistState, runState,
                                     runs, workspace, checklists, route == CHECKLIST_START, templateId, runId,
                                     onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
+                                    onWorkOffline = if (scopedOfflineState.owner == null || scopedOfflineState.busy) null else { id -> offlineRuns.prepare(id) },
                                     onBack = { nav.navigate(CHECKLIST_HISTORY) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } }) }) else managementContent,
                                 secondaryEditor = editingTemplate,
-                                secondaryTitle = if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
-                                secondaryBusy = assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
-                                secondaryScrollKey = if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
+                                secondaryTitle = if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryBusy = offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
+                                secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
                                     when (formKind) {
                                         WorkspaceFormKind.Organization -> workspace.organization(Organization(draft.id, draft.name, draft.trade, draft.business, draft.tax, draft.contactName, draft.phone, draft.email))
@@ -385,7 +428,7 @@ fun App(
                                     if (!workspaceState.saving) {
                                         checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                         templateEditor.reset()
-                                        runs.reset()
+                                        runs.reset(); offlineRuns.reset()
                                         workspace.select(id)
                                         resetTo(WorkspaceDestination.Home.route)
                                     }
@@ -416,6 +459,9 @@ fun App(
                                 },
                                 checklistContent = {
                                     if (route == WorkspaceDestination.Operations.route) {
+                                        BpmSecondaryButton(onClick = { nav.navigate(CHECKLIST_OFFLINE) { launchSingleTop = true } }) {
+                                            Text(if (offlineState.pendingCount > 0) "En este dispositivo · ${offlineState.pendingCount} pendientes" else "Controles en este dispositivo")
+                                        }
                                         ChecklistAssignmentsScreen(scopedAssignments, false, assignments::search, assignments::refresh, assignments::previous, assignments::next,
                                             onOpen = { item -> if (item.run != null) openAssignedRun(item.run) else nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } },
                                             assignments::requestDeactivate, assignments::confirmDeactivate)
@@ -454,7 +500,7 @@ fun App(
                                     pendingRoute = WorkspaceDestination.Home.route
                                     checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                     templateEditor.reset()
-                                    runs.reset()
+                                    runs.reset(); offlineRuns.reset()
                                     formDrafts.reset()
                                     workspace.reset()
                                     identity.logout()
@@ -497,3 +543,6 @@ private const val ASSIGNMENT_DETAIL = "control/programacion/{assignmentId}"
 private const val ASSIGNMENT_CREATE = "empresa/plantillas/detalle/{templateId}/asignar"
 private const val ASSIGNMENT_MANAGEMENT = "empresa/controles-programados"
 private const val ASSIGNMENT_MANAGEMENT_DETAIL = "empresa/controles-programados/{assignmentId}"
+
+private const val CHECKLIST_OFFLINE = "control/guardados"
+private const val CHECKLIST_OFFLINE_DETAIL = "control/guardados/{runId}"

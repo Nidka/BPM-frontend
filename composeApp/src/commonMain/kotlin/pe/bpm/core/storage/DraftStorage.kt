@@ -5,6 +5,10 @@ interface DraftStorage {
     suspend fun read(key: String): String?
     suspend fun write(key: String, value: String)
     suspend fun remove(key: String)
+
+    /** Reemplazo condicional atómico: evita perder cambios entre escritores o pestañas. */
+    suspend fun compareAndSet(key: String, expected: String?, value: String): Boolean =
+        error("El almacenamiento no admite actualizaciones atómicas")
 }
 
 const val MAX_DRAFT_BYTES = 1_048_576

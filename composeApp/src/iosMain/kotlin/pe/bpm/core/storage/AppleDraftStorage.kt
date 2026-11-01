@@ -26,17 +26,22 @@ class AppleDraftStorage : DraftStorage {
         bytes.usePinned { input -> digest.usePinned { output -> CC_SHA256(input.addressOf(0), bytes.size.toUInt(), output.addressOf(0)) } }
         return directory().URLByAppendingPathComponent(digest.joinToString("") { it.toString(16).padStart(2, '0') } + ".json")!!
     }
-    override suspend fun read(key: String): String? = withContext(Dispatchers.Default) { mutex.withLock {
+    private fun readUnlocked(key: String): String? {
         val url = url(key)
-        if (!NSFileManager.defaultManager.fileExistsAtPath(url.path!!)) return@withLock null
+        if (!NSFileManager.defaultManager.fileExistsAtPath(url.path!!)) return null
         val data = NSData.dataWithContentsOfURL(url) ?: error("No se pudo leer el borrador")
         require(data.length.toLong() in 1..MAX_DRAFT_BYTES.toLong())
-        data.bytes!!.readBytes(data.length.toInt()).decodeToString()
-    } }
-    override suspend fun write(key: String, value: String) = withContext(Dispatchers.Default) { mutex.withLock {
+        return data.bytes!!.readBytes(data.length.toInt()).decodeToString()
+    }
+    private fun writeUnlocked(key: String, value: String) {
         val bytes = value.encodeToByteArray(); require(bytes.size in 1..MAX_DRAFT_BYTES)
         val data = bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
         check(data.writeToURL(url(key), NSDataWritingAtomic or NSDataWritingFileProtectionComplete, null))
+    }
+    override suspend fun read(key: String): String? = withContext(Dispatchers.Default) { mutex.withLock { readUnlocked(key) } }
+    override suspend fun write(key: String, value: String) = withContext(Dispatchers.Default) { mutex.withLock { writeUnlocked(key, value) } }
+    override suspend fun compareAndSet(key: String, expected: String?, value: String): Boolean = withContext(Dispatchers.Default) { mutex.withLock {
+        if (readUnlocked(key) != expected) false else { writeUnlocked(key, value); true }
     } }
     override suspend fun remove(key: String) = withContext(Dispatchers.Default) { mutex.withLock {
         val url = url(key)

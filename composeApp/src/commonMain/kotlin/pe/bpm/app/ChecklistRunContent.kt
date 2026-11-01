@@ -10,12 +10,19 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 @Composable internal fun ChecklistRunContent(userId: String, workspace: WorkspaceState,
     catalog: ChecklistCatalogState, run: ChecklistRunState, runs: ChecklistRunViewModel,
     workspaceActions: WorkspaceViewModel, catalogActions: ChecklistCatalogViewModel,
-    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit) {
+    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit, onWorkOffline: ((String) -> Unit)? = null) {
     val org = workspace.workspace?.organization?.id ?: return
     LaunchedEffect(userId, org, runId) { runs.open(userId, org, runId) }
     LaunchedEffect(starting, templateId, org) { if (starting) catalogActions.showTemplate(templateId) }
     LaunchedEffect(starting, run.run?.id) { if (starting || run.run?.id != runId) run.run?.id?.let(onStarted) }
     val scoped = run.takeIf { it.userId == userId && it.organizationId == org && (runId == null || it.run == null || it.run.id == runId) } ?: ChecklistRunState(busy = true)
+    if (onWorkOffline != null && scoped.run?.status == "DRAFT" && scoped.run.performedBy == userId) {
+        pe.bpm.core.designsystem.BpmSecondaryButton(onClick = { onWorkOffline(scoped.run.id) },
+            enabled = !scoped.busy && !scoped.dirty && !scoped.pending && !scoped.conflicted && scoped.failure == null) {
+            androidx.compose.material3.Text("Trabajar sin conexión")
+        }
+        if (scoped.dirty) androidx.compose.material3.Text("Guarda primero tus respuestas para preparar esta revisión sin conexión.")
+    }
     val page = workspace.pages[WorkspaceResource.Locations]
     ChecklistRunScreen(scoped, catalog.detail.takeIf { catalog.organizationId == org }, catalog.detailLoading,
         catalog.detailFailure?.let { "No pudimos consultar esta plantilla. Regresa al catálogo y vuelve a intentarlo." },

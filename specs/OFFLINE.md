@@ -10,8 +10,9 @@ muere antes de esa confirmación, la última edición puede no haberse conservad
 
 La copia se separa por origen API (en web, origen del proxy), cuenta, organización
 y clase de documento. Crear organización usa el contexto de plataforma del mismo
-usuario. Esta fase conserva una autoría y un control pendiente por cuenta/empresa;
-no implementa un historial local de múltiples ejecuciones. La sede y la versión
+usuario. La recuperación inicial conserva una autoría y un control pendiente por cuenta/empresa.
+Además, la colección de controles preparados permite conservar varias revisiones
+propias, con sus envíos independientes, como se describe a continuación. La sede y la versión
 forman parte de la copia del control, sin cambiarse durante un reintento.
 
 El cierre de sesión, el vencimiento y el cambio de empresa limpian el estado de
@@ -61,29 +62,69 @@ dañado, cuota agotada o almacenamiento bloqueado se comunica; no se sobrescribe
 silenciosamente. Son documentos pequeños y completos que se reemplazan de forma
 atómica; no se agregó una base relacional para estos checkpoints sin consultas.
 
+## Controles preparados y cola de envío
+
+El CHEF inicia la revisión con conexión y elige **Trabajar sin conexión** antes de
+perderla. La API vuelve a autorizar la lectura del borrador propio. La copia
+incluye preguntas y criterios inmutables, sede, responsable, versión y respuestas.
+Desde **Control → Controles en este dispositivo** se pueden conservar y responder
+varias revisiones. La edición usa el mismo componente, reglas de entrada y
+navegación del teclado que el formulario conectado.
+
+El usuario puede enviar un borrador o revisar y finalizar. Antes de hacer HTTP
+se conservan respuestas, versión y claves inmutables. El sincronizador guarda
+primero las respuestas y conserva esa confirmación antes de finalizar. Si se
+pierde una respuesta o falla un checkpoint local, repite la misma petición, no
+crea claves nuevas. El resultado y el porcentaje solo se muestran como confirmados
+cuando responde la API y termina su escritura local.
+
+La cola se procesa en primer plano al abrir una sesión autorizada, al volver a
+la aplicación y después de encolar una revisión. Cada tanda realiza hasta tres
+intentos con pausas de 5 y 20 segundos. Tras agotarlos, «Enviar pendientes» permite
+otra tanda; no hay sondeo permanente ni renovación artificial de la actividad.
+Los errores de permisos, formato o concurrencia quedan para revisión. Cargar la
+versión del servidor exige confirmar la pérdida de la edición local; si falla la
+consulta, no se reemplaza la copia. Una operación incierta no se puede quitar.
+
+Cada nueva sesión revalida la lectura de cada revisión antes de revelar sus
+respuestas. Las copias que no pueden autorizarse se conservan sin mostrarlas.
+Cerrar sesión/cambiar de empresa cancela HTTP y limpia la pantalla; otra cuenta
+no recibe respuestas, títulos ni observaciones. La sesión debe seguir vigente:
+no se habilita autenticación offline ni se prolonga el acceso por un temporizador
+de sincronización.
+
+`ChecklistOfflineRepository` expresa las operaciones locales de checklists.
+`ManageOfflineChecklists` coordina preparación, edición y propuestas;
+`SyncOfflineChecklists` conserva el orden de guardado/finalización.
+`LocalChecklistOfflineRepository` implementa una colección atómica por origen,
+cuenta y empresa. `JsonDraftDocument.update` usa comparación/reemplazo atómicos:
+IndexedDB lo realiza dentro de una transacción readwrite, también entre pestañas;
+los hosts nativos lo serializan mediante el adaptador único de AppGraph.
+Ediciones de preguntas distintas se combinan; dos cambios incompatibles en la
+misma respuesta detienen el guardado y exigen confirmar la carga de la copia
+local. Tampoco se encola una respuesta diferente de la que el usuario revisó.
+La colección admite hasta 20 revisiones dentro del límite de documento de 1 MiB.
+Si se alcanza ese límite o la cuota de disco, no se reemplaza el contenido previo
+ni se confirma un envío nuevo. Quitar copias ya confirmadas libera espacio.
+
 ## Lo que continúa pendiente
 
-Esto protege edición local y reintentos, pero no completa el contrato offline del
-piloto. Iniciar requiere una versión y sede autorizadas en línea. La recuperación
-tras un nuevo acceso requiere red; no hay autenticación offline. Los borradores de
-servidor ya confirmados pueden consultarse por su ruta y por el historial paginado
-autorizado. No hay service worker ni garantía de arranque web sin red.
+- Iniciar revisiones nuevas sin red a partir de asignaciones/versiones cacheadas;
+  esta entrega prepara revisiones ya iniciadas en el servidor. No cambia sus
+  períodos ni el historial a partir del reloj del cliente.
+- Registro de dispositivos/deviceId y ejecución en segundo plano con planificadores
+  nativos. Esta cola se procesa mientras la aplicación está abierta.
+- Sincronización de otras funcionalidades y archivos R2 privados después de los
+  datos estructurados.
+- Service worker y garantía de arranque web offline con limpieza/actualización de
+  recursos. Recuperar la sesión después de reiniciar todavía requiere red.
+- Una base local consultable para catálogos grandes; la colección actual es pequeña
+  y acotada, no descarga toda la organización ni simula un catálogo local completo.
 
-La siguiente fase debe incorporar:
-
-1. Catálogos/versiones y registros consultables desde almacenamiento local por Flow.
-2. Cola de múltiples operaciones, deviceId y estados pendiente/sincronizando/
-   sincronizado/requiere atención, con sincronizador y señal de conectividad.
-3. Reanudación autenticada, reintentos acotados y conflictos explícitos; nunca
-   sobrescribir cambios ajenos o repetir una finalización con otra clave.
-4. Archivos locales y cargas R2 privadas después de datos estructurados, sin
-   persistir URL firmada como referencia estable.
-5. Cachear bundle/recursos web con service worker y comprobar arranque sin red,
-   actualizaciones y limpieza por cuenta/dispositivo.
-
-SQLDelight móvil e IndexedDB web siguen siendo opciones para la futura cola y sus
-consultas. No se introducen interfaces vacías de sincronización ni se anuncia
-éxito remoto mientras solo exista una copia local.
+La recuperación simple sigue comprobando su operación manualmente, sin reenviarla
+automáticamente. Solo una propuesta explícita en la nueva cola habilita los
+reintentos automáticos. No se publican plantillas ni altas administrativas sin
+confirmación del usuario.
 
 ## Comprobación manual
 
@@ -121,3 +162,21 @@ resultado incierto consulta el mismo ID y, si el servidor confirma que falta,
 reenvía exactamente la propuesta. No es una cola múltiple ni un planificador
 local. Un inicio de revisión programada persiste también assignmentId; reiniciar
 no convierte el intento en una revisión libre ni cambia su período.
+
+## Comprobación de varios controles
+
+1. Con un CHEF de una empresa de prueba, iniciar cinco revisiones permitidas y
+   preparar cada una con «Trabajar sin conexión».
+2. Abrir Control → Controles en este dispositivo, desactivar la conexión y
+   responder las cinco. Esperar la confirmación local de cada edición.
+3. Revisar/finalizar cada una: debe verse pendiente, sin porcentaje inventado.
+4. Cerrar y volver a abrir la aplicación; recuperar sesión con conexión y
+   verificar que solo se muestran las revisiones nuevamente autorizadas.
+5. Enviar pendientes y confirmar cinco resultados, sin duplicados ni cambios de
+   sede. Provocar pérdida de respuesta y comprobar reutilización de claves.
+6. Modificar una revisión desde otra sesión: el conflicto conserva respuestas;
+   cargar la versión del servidor pide confirmación y no modifica la API.
+7. Entrar con otra cuenta o con permiso revocado: ninguna respuesta local ajena
+   debe mostrarse. No borrar los datos del dispositivo durante esta prueba.
+
+Referencia adicional: [arquitectura offline Android](https://developer.android.com/topic/architecture/data-layer/offline-first).

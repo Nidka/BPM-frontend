@@ -376,3 +376,14 @@ API, calendario y concurrencia está en Backend/BPM-service/specs/CHECKLISTS.md.
 Al volver a la lista se revalida también si terminó el período recibido, aunque
 no hayan pasado los dos minutos de antigüedad. Esto evita conservar el estado de
 ayer al cruzar medianoche; el período definitivo sigue perteneciendo al servidor.
+
+## Preparar varias revisiones sin conexión
+
+Disponible únicamente al CHEF sobre sus borradores ya iniciados. Desde una
+revisión guardada se elige «Trabajar sin conexión» y luego se trabaja en
+`control/guardados/{runId}`. La ruta de lista es `control/guardados`, protegida por
+la misma capacidad de Control; ADMIN/SUPER_ADMIN siguen en Seguimiento.
+El servidor conserva la autorización, idempotencia, versiones y cálculo final
+existentes. No se requieren migraciones, endpoints ni credenciales adicionales.
+La cola persiste por cuenta/empresa/origen; los límites y la recuperación ante
+fallos se detallan en [OFFLINE.md](OFFLINE.md).

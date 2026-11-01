@@ -17,7 +17,7 @@ Para UI, tenant y formularios de empresa/equipo leer también `specs/WORKSPACE.m
 - Ninguna clave PostgreSQL, cuenta de servicio Firebase ni credencial R2 va al cliente.
 - Login confirma /me; no simular éxito ni persistir contraseña/token en el navegador.
 - Toda operación empresarial futura valida tenant/permisos en el backend.
-- Los borradores siguen specs/OFFLINE.md: ya hay recuperación local; la cola múltiple y el sincronizador siguen pendientes.
+- Los borradores siguen specs/OFFLINE.md: hay recuperación local y cola para controles preparados; inicio offline, archivos y trabajo de fondo siguen pendientes.
 - Verificar `./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug`
   y `node --test web/server.test.mjs`; en macOS, compilar el framework iOS.
 - El repositorio contiene exclusivamente Software/Frontend.

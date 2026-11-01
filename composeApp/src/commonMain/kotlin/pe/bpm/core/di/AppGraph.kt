@@ -11,6 +11,8 @@ import pe.bpm.features.workspace.data.LocalWorkspaceFormDraftRepository
 import pe.bpm.features.workspace.presentation.WorkspaceFormViewModel
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
+import pe.bpm.features.checklists.data.LocalChecklistOfflineRepository
+import pe.bpm.features.checklists.presentation.ChecklistOfflineViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistHistoryRepository
 import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
@@ -93,6 +95,12 @@ class AppGraph(
     private val runRepository = RemoteChecklistRunRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    private val offlineRepository = LocalChecklistOfflineRepository(draftStorage, config.apiBaseUrl)
+    @OptIn(ExperimentalUuidApi::class)
+    fun checklistOfflineViewModel() = ChecklistOfflineViewModel(
+        ManageOfflineChecklists(offlineRepository, LoadChecklistRun(runRepository)) { Uuid.random().toString() },
+        SyncOfflineChecklists(offlineRepository, SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository)))
+
     private val historyRepository = RemoteChecklistHistoryRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)

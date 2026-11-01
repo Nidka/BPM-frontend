@@ -111,7 +111,7 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
         val state = mutable.value
         val run = state.run ?: return
         if (!state.editable) return
-        val answers = answers(run, state.inputs)
+        val answers = checklistAnswers(run, state.inputs)
         if (answers == null || !validRunAnswers(run.items, answers, complete = false)) {
             mutable.value = state.copy(failure = RunFailure.INVALID); return
         }
@@ -223,20 +223,5 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
                 if (!reading && !locked) protectDraft()
             }
         }
-    }
-    private fun answers(run: ChecklistRun, inputs: Map<String, RunAnswerInput>): List<ChecklistAnswer>? {
-        val result = mutableListOf<ChecklistAnswer>()
-        for (item in run.items) {
-            val input = inputs[item.id] ?: continue
-            if (ChecklistInputRules.answer.error(input.observation) != null ||
-                item.responseType == ChecklistResponseType.TEXT && ChecklistInputRules.answer.error(input.value) != null) return null
-            if (input.value.isBlank()) { if (input.observation.isNotBlank()) return null else continue }
-            result += when (item.responseType) {
-                ChecklistResponseType.COMPLIANCE -> ChecklistAnswer(item.id, complianceResult = input.value, observation = input.observation)
-                ChecklistResponseType.TEXT -> ChecklistAnswer(item.id, textValue = input.value.trim(), observation = input.observation)
-                else -> ChecklistAnswer(item.id, numericValue = pe.bpm.core.domain.DecimalInput.parse(input.value) ?: return null, observation = input.observation)
-            }
-        }
-        return result
     }
 }
