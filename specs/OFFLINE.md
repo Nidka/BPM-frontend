@@ -180,3 +180,9 @@ no convierte el intento en una revisión libre ni cambia su período.
    debe mostrarse. No borrar los datos del dispositivo durante esta prueba.
 
 Referencia adicional: [arquitectura offline Android](https://developer.android.com/topic/architecture/data-layer/offline-first).
+
+## Fotos de controles
+
+La carga privada de fotos está integrada, con conexión, en [MEDIA.md](MEDIA.md).
+Los bytes de fotos no forman parte de esta cola local. Los recuentos confirmados
+por pregunta sí acompañan la revisión; finalizar siempre revalida en el backend.

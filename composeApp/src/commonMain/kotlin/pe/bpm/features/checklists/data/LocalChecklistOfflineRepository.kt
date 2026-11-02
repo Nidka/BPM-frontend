@@ -31,7 +31,7 @@ class LocalChecklistOfflineRepository(storage: DraftStorage, origin: String) : C
             require((upload != null) == (entry.status in setOf(OfflineRunStatus.PENDING, OfflineRunStatus.SENDING, OfflineRunStatus.ATTENTION)))
             if (upload != null) {
                 require(run.status == "DRAFT" && upload.saveKey.length in 8..100 && upload.submitKey.length in 8..100 &&
-                    validRunAnswers(run.items, upload.answers, complete = upload.finalize))
+                    validRunAnswers(run.items, upload.answers, complete = upload.finalize, evidenceCounts = run.evidenceCounts))
                 upload.savedRun?.let { saved ->
                     require(saved.id == run.id && saved.organizationId == owner.organizationId && saved.performedBy == owner.userId &&
                         saved.locationId == run.locationId && saved.templateVersionId == run.templateVersionId && saved.items == run.items &&

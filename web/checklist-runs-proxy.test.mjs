@@ -20,7 +20,7 @@ test('ejecuciones: rutas cerradas, idempotencia, aislamiento y errores sanitizad
       res.end(JSON.stringify(status === 200 ? { data: {
         id: 'run', organizationId: tenant, locationId: 'site', templateVersionId: 'version', performedBy: 'user',
         rowVersion: 2, status: 'DRAFT', items: [{ id: 'item', sectionName: 'Higiene', label: 'Limpieza', responseType: 'COMPLIANCE', displayOrder: 1, required: true }],
-        answers: [{ itemId: 'item', complianceResult: 'COMPLIANT' }], privateData: 'secret',
+        answers: [{ itemId: 'item', complianceResult: 'COMPLIANT' }], evidenceCounts: {item: 2}, privateData: 'secret',
       } } : { errors: [{ message: 'private SQL token' }] }));
     });
   });
@@ -45,7 +45,9 @@ test('ejecuciones: rutas cerradas, idempotencia, aislamiento y errores sanitizad
   const response = await fetch(base + '/run', { headers });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('x-bpm-session-expires-at'), '1900000000');
-  assert.equal(JSON.stringify(await response.json()).includes('secret'), false);
+  const projected = await response.json();
+  assert.equal(JSON.stringify(projected).includes('secret'), false);
+  assert.deepEqual(projected.data.evidenceCounts, {item: 2});
   const body = JSON.stringify({ rowVersion: 1, answers: [{ itemId: 'item', complianceResult: 'COMPLIANT' }] });
   assert.equal((await fetch(base + '/run/answers', { headers: keyHeaders, method: 'PUT', body })).status, 200);
   assert.equal(requests.at(-1).key, 'operation-unique');

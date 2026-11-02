@@ -1,6 +1,10 @@
 package pe.bpm.core.di
 
 import io.ktor.client.HttpClient
+import pe.bpm.features.media.data.RemoteMediaRepository
+import pe.bpm.features.media.data.createMediaObjectHttpClient
+import pe.bpm.features.media.domain.*
+import pe.bpm.features.media.presentation.MediaEvidenceViewModel
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
@@ -95,6 +99,14 @@ class AppGraph(
     private val runRepository = RemoteChecklistRunRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    private val objectClient = createMediaObjectHttpClient()
+    private val mediaRepository = RemoteMediaRepository(httpClient, objectClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun mediaEvidenceViewModel() = MediaEvidenceViewModel(LoadEvidence(mediaRepository), UploadEvidence(mediaRepository),
+        RemoveEvidence(mediaRepository), LoadEvidencePreview(mediaRepository)) { Uuid.random().toString() }
+
     private val offlineRepository = LocalChecklistOfflineRepository(draftStorage, config.apiBaseUrl)
     @OptIn(ExperimentalUuidApi::class)
     fun checklistOfflineViewModel() = ChecklistOfflineViewModel(
@@ -131,6 +143,7 @@ class AppGraph(
         SessionMonitor(ObserveSessionWindow(identityRepository), RecordSessionActivity(identityRepository)), EndSession(identityRepository))
     override fun close() {
         identityRepository.close()
+        objectClient.close()
         httpClient.close()
     }
 }

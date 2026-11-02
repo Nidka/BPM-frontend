@@ -24,10 +24,10 @@ class ManageRunDraft(private val repository: ChecklistRunDraftRepository) {
 data class TemplateQuestionInput(
     val id: String, val section: String = "", val label: String = "",
     val type: ChecklistResponseType = ChecklistResponseType.COMPLIANCE, val required: Boolean = true,
-    val unit: String = "", val minimum: String = "", val maximum: String = "",
+    val unit: String = "", val minimum: String = "", val maximum: String = "", val evidenceRequired: Boolean = false,
 ) {
     fun domain(index: Int) = ChecklistItem(id, section.trim(), label.trim(), type, index + 1, required, unit.trim(),
-        DecimalInput.parse(minimum), DecimalInput.parse(maximum), false)
+        DecimalInput.parse(minimum), DecimalInput.parse(maximum), evidenceRequired)
 }
 data class TemplateDraft(val id: String, val versionId: String, val name: String, val area: String,
     val description: String, val questions: List<TemplateQuestionInput>, val publicationPending: Boolean = false)

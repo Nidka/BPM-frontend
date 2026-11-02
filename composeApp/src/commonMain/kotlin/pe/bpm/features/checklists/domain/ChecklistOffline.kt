@@ -75,13 +75,20 @@ class ManageOfflineChecklists(
         }
     }
 
+    suspend fun evidenceCount(owner: DraftOwner, id: String, item: String, count: Int) = repository.update(owner) { entries ->
+        entries.replace(id) { entry ->
+            require(count in 0..3 && entry.run.items.any { it.id == item })
+            if (!entry.editable) entry else entry.copy(run = entry.run.copy(evidenceCounts = entry.run.evidenceCounts + (item to count)))
+        }
+    }
+
     suspend fun enqueue(owner: DraftOwner, id: String, finalize: Boolean, expected: Map<String, RunAnswerInput>? = null): List<OfflineChecklist> {
         val saveKey = newKey(); val submitKey = newKey()
         return repository.update(owner) { entries -> entries.replace(id) { entry ->
             check(entry.editable)
             if (expected != null && entry.inputs != expected) throw OfflineInputConflict()
             val answers = requireNotNull(checklistAnswers(entry.run, entry.inputs))
-            require(validRunAnswers(entry.run.items, answers, complete = finalize))
+            require(validRunAnswers(entry.run.items, answers, complete = finalize, evidenceCounts = entry.run.evidenceCounts))
             entry.copy(status = OfflineRunStatus.PENDING, upload = OfflineRunUpload(answers, saveKey, finalize, submitKey), failure = null, attempts = 0)
         } }
     }

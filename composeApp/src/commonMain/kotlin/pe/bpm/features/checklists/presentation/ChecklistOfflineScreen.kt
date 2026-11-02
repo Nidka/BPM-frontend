@@ -17,7 +17,7 @@ import pe.bpm.features.checklists.domain.*
 fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOpen: (String) -> Unit,
     onEdit: (String, RunAnswerInput) -> Unit, onProtect: () -> Unit, onReview: () -> Unit,
     onBackToEdit: () -> Unit, onQueue: (Boolean) -> Unit, onSync: () -> Unit,
-    onRetryOpen: () -> Unit, onRemove: (String) -> Unit, onUseServerVersion: () -> Unit) {
+    onRetryOpen: () -> Unit, onRemove: (String) -> Unit, onUseServerVersion: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     var removing by remember(detailId) { mutableStateOf(false) }
     var resolving by remember(detailId) { mutableStateOf(false) }
     Column(Modifier.widthIn(max = 860.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -72,7 +72,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
         }
         if (state.reviewing) Text("Revisa tus respuestas antes de finalizar", style = MaterialTheme.typography.titleLarge)
         ChecklistAnswerEditor(entry.run.items, entry.inputs, entry.editable && !state.busy && state.localStatus != DraftSaveStatus.FAILED,
-            state.reviewing || !entry.editable || state.localConflict, onEdit)
+            state.reviewing || !entry.editable || state.localConflict, onEdit, evidence)
         if (entry.editable && !state.localConflict) {
             if (state.reviewing) {
                 Text("Se enviará cuando haya conexión. Después de confirmar el envío ya no podrás editar las respuestas.")

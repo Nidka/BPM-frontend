@@ -10,7 +10,7 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 @Composable internal fun ChecklistRunContent(userId: String, workspace: WorkspaceState,
     catalog: ChecklistCatalogState, run: ChecklistRunState, runs: ChecklistRunViewModel,
     workspaceActions: WorkspaceViewModel, catalogActions: ChecklistCatalogViewModel,
-    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit, onWorkOffline: ((String) -> Unit)? = null) {
+    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit, onWorkOffline: ((String) -> Unit)? = null, evidence: @Composable (pe.bpm.features.checklists.domain.ChecklistItem) -> Unit = {}) {
     val org = workspace.workspace?.organization?.id ?: return
     LaunchedEffect(userId, org, runId) { runs.open(userId, org, runId) }
     LaunchedEffect(starting, templateId, org) { if (starting) catalogActions.showTemplate(templateId) }
@@ -36,5 +36,5 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
         onBegin = {site,version->runs.begin(site,version)}, onEdit = runs::edit, onSave = runs::save, onReview = runs::review,
         onProtectDraft = { if (scoped.pending) runs.retry() else if (scoped.run == null) runs.reload() else runs.protectDraft() },
         onSubmit = runs::confirmSubmit, onBackToEdit = runs::backToEdit, onRetry = runs::retry,
-        onReload = { runs.reload() }, onBack = onBack)
+        onReload = { runs.reload() }, onBack = onBack, evidence = evidence)
 }

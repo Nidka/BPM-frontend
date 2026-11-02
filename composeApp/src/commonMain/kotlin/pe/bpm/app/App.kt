@@ -79,6 +79,9 @@ fun App(
     val assignmentFormState by assignmentForm.state.collectAsStateWithLifecycle()
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
+    val evidence = viewModel<pe.bpm.features.media.presentation.MediaEvidenceViewModel> { owner.graph.mediaEvidenceViewModel() }
+    val evidenceState by evidence.state.collectAsStateWithLifecycle()
+    var evidenceQuestion by remember { mutableStateOf<EvidenceQuestion?>(null) }
     val offlineRuns = viewModel<ChecklistOfflineViewModel> { owner.graph.checklistOfflineViewModel() }
     val offlineState by offlineRuns.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
@@ -134,7 +137,7 @@ fun App(
     }
     OnAppForeground {
         identity.onForeground()
-        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync() }
+        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null) evidence.refresh() }
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
@@ -195,6 +198,21 @@ fun App(
     LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role) {
         if (profile != null && currentWorkspace != null && WorkspaceDestination.Operations in workspaceDestinations(currentWorkspace.role, profile.platformRole == "SUPER_ADMIN"))
             runs.open(profile.id, currentWorkspace.organization.id)
+    }
+
+    // La raíz conecta funcionalidades sin importar media dentro de checklists.
+    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, entry?.id, workspaceState.errors) {
+        evidenceQuestion = null
+        evidence.reset()
+    }
+    LaunchedEffect(evidenceState.revision, runState.run?.rowVersion) {
+        val question = evidenceQuestion
+        if (question != null && profile != null && currentWorkspace != null && evidenceState.policy != null && !evidenceState.loading &&
+            evidenceState.userId == profile.id && evidenceState.organizationId == currentWorkspace.organization.id &&
+            evidenceState.runId == question.runId && evidenceState.itemId == question.itemId) {
+            runs.evidenceCount(profile.id, currentWorkspace.organization.id, question.runId, question.itemId, evidenceState.confirmedCount)
+            offlineRuns.evidenceCount(profile.id, currentWorkspace.organization.id, question.runId, question.itemId, evidenceState.confirmedCount)
+        }
     }
 
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, identity::logout) {
@@ -380,8 +398,15 @@ fun App(
                                         onEdit = offlineRuns::edit, onProtect = offlineRuns::protect, onReview = offlineRuns::review,
                                         onBackToEdit = offlineRuns::backToEdit, onQueue = offlineRuns::enqueue,
                                         onSync = { offlineRuns.sync(manual = true) }, onRetryOpen = offlineRuns::retryOpen,
-                                        onRemove = { id -> offlineRuns.remove(id) }, onUseServerVersion = offlineRuns::useServerVersion)
-                                }) else if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }) }) else if (running) ({
+                                        onRemove = { id -> offlineRuns.remove(id) }, onUseServerVersion = offlineRuns::useServerVersion,
+                                        evidence = { item -> scopedOfflineState.selected?.let { saved ->
+                                            EvidenceQuestionAction(item.label, saved.run.evidenceCounts[item.id] ?: 0, saved.editable && !scopedOfflineState.busy && !scopedOfflineState.localConflict,
+                                                onOpen = { edit -> evidenceQuestion = EvidenceQuestion(saved.run.id, item.id, item.label); evidence.open(profile.id, saved.run.organizationId, saved.run.id, item.id, edit && currentWorkspace?.role == "CHEF") })
+                                        } })
+                                }) else if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, evidence = { item ->
+                                    scopedHistoryState.detail?.let { reviewed -> EvidenceQuestionAction(item.label, reviewed.evidenceCounts[item.id] ?: 0, false,
+                                        onOpen = { evidenceQuestion = EvidenceQuestion(reviewed.id, item.id, item.label); evidence.open(profile.id, reviewed.organizationId, reviewed.id, item.id, false) }) }
+                                }) }) else if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
@@ -397,7 +422,10 @@ fun App(
                                     runs, workspace, checklists, route == CHECKLIST_START, templateId, runId,
                                     onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
                                     onWorkOffline = if (scopedOfflineState.owner == null || scopedOfflineState.busy) null else { id -> offlineRuns.prepare(id) },
-                                    onBack = { nav.navigate(CHECKLIST_HISTORY) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } }) }) else managementContent,
+                                    onBack = { nav.navigate(CHECKLIST_HISTORY) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } },
+                                    evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
+                                        onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role == "CHEF") }) }
+                                    }) }) else managementContent,
                                 secondaryEditor = editingTemplate,
                                 secondaryTitle = if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
@@ -511,6 +539,9 @@ fun App(
                     }
                 }
             }
+        }
+        evidenceQuestion?.let { question ->
+            ChecklistEvidenceHost(question, evidence, evidenceState) { evidence.close(); evidenceQuestion = null }
         }
     }
 }

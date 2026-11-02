@@ -20,9 +20,13 @@ function run(value, org, id) {
       value.createdAt && (!text(value.createdAt,40)||!Number.isFinite(Date.parse(value.createdAt))) || value.submittedAt != null && (!text(value.submittedAt,40)||!Number.isFinite(Date.parse(value.submittedAt))) || !['DRAFT', 'SUBMITTED'].includes(value.status) || !Number.isInteger(value.rowVersion) || value.rowVersion < 1 ||
       !Array.isArray(value.items) || value.items.length < 1 || value.items.length > 100 || !Array.isArray(value.answers) || value.answers.length > 100 ||
       value.compliancePercent != null && (!Number.isFinite(value.compliancePercent) || value.compliancePercent < 0 || value.compliancePercent > 100)) throw new Error('Control inválido');
+  const evidenceCounts = value.evidenceCounts ?? {};
+  if (!evidenceCounts || typeof evidenceCounts !== 'object' || Array.isArray(evidenceCounts) ||
+      Object.keys(evidenceCounts).length > 100 || Object.entries(evidenceCounts).some(([item, count]) =>
+        !value.items.some(question => question.id === item) || !Number.isInteger(count) || count < 0 || count > 3)) throw new Error('Fotos inválidas');
   return { id: value.id, organizationId: org, assignmentId: value.assignmentId ?? '', locationId: value.locationId, templateVersionId: value.templateVersionId, performedBy: value.performedBy,
     templateName: value.templateName ?? '', locationName: value.locationName ?? '', createdAt: value.createdAt ?? '', submittedAt: value.submittedAt ?? null, performedByName: value.performedByName ?? '',
-    status: value.status, rowVersion: value.rowVersion, items: value.items.map(publicItem), answers: value.answers.map(answer), compliancePercent: value.compliancePercent ?? null };
+    status: value.status, rowVersion: value.rowVersion, evidenceCounts, items: value.items.map(publicItem), answers: value.answers.map(answer), compliancePercent: value.compliancePercent ?? null };
 }
 
 /** Proxy explícito de ejecuciones: no acepta actores, permisos ni destinos aportados por el cliente. */

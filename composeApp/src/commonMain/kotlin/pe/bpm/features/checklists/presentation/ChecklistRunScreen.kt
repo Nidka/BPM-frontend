@@ -18,7 +18,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
     onLocationSearch: (String) -> Unit, onLocationPrevious: () -> Unit, onLocationNext: () -> Unit, onLocationRetry: () -> Unit,
     onBegin: (String, String) -> Unit, onEdit: (String, RunAnswerInput) -> Unit,
     onSave: () -> Unit, onReview: () -> Unit, onSubmit: () -> Unit, onBackToEdit: () -> Unit,
-    onRetry: () -> Unit, onProtectDraft: () -> Unit, onReload: () -> Unit, onBack: () -> Unit) {
+    onRetry: () -> Unit, onProtectDraft: () -> Unit, onReload: () -> Unit, onBack: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     var location by remember(state.organizationId, template?.id) { mutableStateOf<String?>(null) }
     var locationName by remember(state.organizationId, template?.id) { mutableStateOf("") }
     var confirmReload by remember(state.run?.id, state.failure) { mutableStateOf(false) }
@@ -79,7 +79,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
             if (run.performedBy != state.userId) Text("Solo la persona que inició este control puede editarlo.")
             if (state.dirty) Text("Guarda tus respuestas antes de revisar y finalizar.")
         }
-        ChecklistAnswerEditor(run.items, state.inputs, state.editable, state.reviewing || run.status != "DRAFT", onEdit)
+        ChecklistAnswerEditor(run.items, state.inputs, state.editable, state.reviewing || run.status != "DRAFT", onEdit, evidence)
         if (run.status == "DRAFT" && run.performedBy == state.userId) {
             if (state.reviewing) {
                 Text("Al finalizar, las respuestas quedarán cerradas y se mostrará tu resultado.")
@@ -87,7 +87,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 BpmSecondaryButton(onClick = onBackToEdit, enabled = state.editable) { Text("Volver a las respuestas") }
             } else {
                 RaisedButton("Guardar borrador", onSave, enabled = state.editable && state.dirty)
-                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true)) { Text("Revisar y finalizar") }
+                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
             }
         }
     }

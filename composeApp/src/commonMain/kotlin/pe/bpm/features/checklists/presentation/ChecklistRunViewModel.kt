@@ -103,6 +103,15 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
             dirty = true, reviewing = false, notice = null, failure = null)
         protectDraft()
     }
+    /** Actualiza solo la proyección de fotos; nunca recarga ni sustituye respuestas editadas. */
+    fun evidenceCount(user: String, org: String, runId: String, itemId: String, count: Int) {
+        val current = mutable.value
+        val run = current.run ?: return
+        if (current.userId != user || current.organizationId != org || run.id != runId ||
+            run.items.none { it.id == itemId } || count !in 0..3 || current.pending) return
+        mutable.value = current.copy(run = run.copy(evidenceCounts = run.evidenceCounts + (itemId to count)))
+        if (current.dirty) protectDraft()
+    }
     private fun snapshot(): RunDraft? = mutable.value.let { s ->
         if (s.dirty || action != null) RunDraft(if (s.conflicted) recoveryBase ?: s.run else s.run, s.inputs, action) else null
     }
@@ -123,8 +132,8 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
         val current = mutable.value
         val run = current.run ?: return
         if (!current.editable || current.dirty) return
-        mutable.value = if (validRunAnswers(run.items, run.answers, complete = true)) current.copy(reviewing = true, failure = null)
-            else current.copy(failure = RunFailure.INVALID, notice = "Completa y guarda las preguntas obligatorias. Debe existir al menos una respuesta evaluable; la evidencia obligatoria requiere el módulo de archivos.")
+        mutable.value = if (validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) current.copy(reviewing = true, failure = null)
+            else current.copy(failure = RunFailure.INVALID, notice = "Completa y guarda las respuestas obligatorias. Adjunta las fotos que se soliciten cuando una respuesta no cumple.")
     }
     fun backToEdit() { if (!mutable.value.busy && !mutable.value.pending) mutable.value = mutable.value.copy(reviewing = false) }
     fun confirmSubmit() {

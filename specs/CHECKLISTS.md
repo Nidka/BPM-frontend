@@ -180,8 +180,7 @@ mediante Snackbar. La fila compartida BpmCheckboxRow agrupa casilla y etiqueta c
 
 La revisión muestra el contenido y la primera versión antes de la acción de
 publicar. El contenido publicado se consulta como versión inmutable; no se añade
-edición, borrado ni publicación de versión 2. La evidencia obligatoria sigue
-reservada al módulo multimedia y no se ofrece como función disponible.
+edición, borrado ni publicación de versión 2. La evidencia obligatoria está integrada con el módulo multimedia; consultar [MEDIA.md](MEDIA.md).
 
 Responsabilidades:
 
@@ -292,8 +291,8 @@ registro y se recupera la edición o se ofrece comprobar la operación original.
 Un cambio de versión bloquea el envío sin sobrescribir respuestas; una lectura
 fallida no elimina la copia. Esto no sustituye la cola múltiple ni el sincronizador
 del piloto; alcance, privacidad y pruebas en OFFLINE.md.
-Las plantillas que exijan evidencia fallida no pueden finalizarse sin el módulo
-multimedia; no se omite la condición ni se ofrece una carga ficticia.
+Las plantillas que exijan evidencia ante incumplimiento necesitan una foto confirmada
+por pregunta para finalizar; [MEDIA.md](MEDIA.md) documenta la carga privada con conexión.
 
 El proxy de ejecuciones admite POST de alta, GET de historial, GET por ID, PUT
 answers y POST submit. Solo el historial acepta los filtros documentados y la
@@ -387,3 +386,9 @@ El servidor conserva la autorización, idempotencia, versiones y cálculo final
 existentes. No se requieren migraciones, endpoints ni credenciales adicionales.
 La cola persiste por cuenta/empresa/origen; los límites y la recuperación ante
 fallos se detallan en [OFFLINE.md](OFFLINE.md).
+
+## Evidencias por pregunta
+
+La opción «Solicitar una foto cuando no cumpla» está disponible para cumplimiento
+y mediciones. `evidenceCounts` se consulta y conserva como proyección del servidor;
+no es parte del cuerpo de escritura de respuestas. Ver [MEDIA.md](MEDIA.md).

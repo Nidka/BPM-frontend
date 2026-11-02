@@ -35,6 +35,24 @@ class ChecklistOfflineTest {
         assertTrue(manager(storage, remote, "https://other.example.com").list(owner).isEmpty())
     }
 
+    @Test fun confirmedPhotoCountSurvivesRestartWithoutReplacingTextOrFrozenUpload() = runTest {
+        val storage = Storage(); val remote = Remote()
+        remote.runs["run"] = run("run").copy(items = listOf(item.copy(evidenceRequiredOnFailure = true)))
+        val first = manager(storage, remote)
+        first.prepare(owner, "run")
+        first.edit(owner, "run", "question", RunAnswerInput("NON_COMPLIANT", "Requiere limpieza"))
+        assertFailsWith<IllegalArgumentException> { first.enqueue(owner, "run", true) }
+        first.evidenceCount(owner, "run", "question", 1)
+        val restored = manager(storage, remote)
+        val entry = restored.list(owner).single()
+        assertEquals(1, entry.run.evidenceCounts["question"])
+        assertEquals("Requiere limpieza", entry.inputs["question"]?.observation)
+        restored.enqueue(owner, "run", true)
+        val frozen = restored.list(owner).single()
+        restored.evidenceCount(owner, "run", "question", 0)
+        assertEquals(frozen, restored.list(owner).single())
+    }
+
     @Test fun lostSaveResponseRetriesIdenticalBodyAndKeyBeforeSubmittingOnce() = runTest {
         val storage = Storage(); val remote = Remote(); remote.runs["run"] = run("run")
         val repo = LocalChecklistOfflineRepository(storage, "origin")

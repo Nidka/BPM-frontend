@@ -54,7 +54,7 @@ import pe.bpm.features.checklists.domain.*
     }
 }
 
-@Composable fun ChecklistHistoryDetailScreen(state: ChecklistHistoryState, onRetry: () -> Unit) {
+@Composable fun ChecklistHistoryDetailScreen(state: ChecklistHistoryState, onRetry: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     if (state.detailLoading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
     if (state.detailFailure != null) {
         Text("No pudimos consultar esta revisión. Puede que tu acceso haya cambiado.")
@@ -73,17 +73,18 @@ import pe.bpm.features.checklists.domain.*
         }
         run.items.forEachIndexed { index, item ->
             val answer = run.answers.find { it.itemId == item.id }
-            ChecklistAnswerReview(item, index, answer?.let { RunAnswerInput(it.complianceResult.ifEmpty { it.numericValue?.let(pe.bpm.core.domain.DecimalInput::format) ?: it.textValue }, it.observation) } ?: RunAnswerInput())
+            ChecklistAnswerReview(item, index, answer?.let { RunAnswerInput(it.complianceResult.ifEmpty { it.numericValue?.let(pe.bpm.core.domain.DecimalInput::format) ?: it.textValue }, it.observation) } ?: RunAnswerInput(), evidence)
         }
     }
 }
 
 /** Lectura compartida entre la revisión previa al envío y la consulta del historial. */
-@Composable internal fun ChecklistAnswerReview(item: ChecklistItem, index: Int, input: RunAnswerInput) {
+@Composable internal fun ChecklistAnswerReview(item: ChecklistItem, index: Int, input: RunAnswerInput, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow(item.sectionName)
         Text("${index + 1}. ${item.label}", fontWeight = FontWeight.Bold)
         Text(complianceLabels[input.value] ?: input.value.ifBlank { "Sin respuesta" })
         if (input.observation.isNotBlank()) Text("Observación: ${input.observation}")
+        evidence(item)
     }
 }

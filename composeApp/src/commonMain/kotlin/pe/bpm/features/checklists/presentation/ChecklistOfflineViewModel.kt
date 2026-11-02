@@ -147,11 +147,29 @@ class ChecklistOfflineViewModel(
         }
     }
 
+    /** Conserva los recuentos confirmados sin tocar el borrador ni una operación en cola. */
+    fun evidenceCount(user: String, org: String, runId: String, itemId: String, count: Int) {
+        val current = mutable.value
+        val owner = current.owner ?: return
+        val entry = current.entries.find { it.run.id == runId } ?: return
+        if (owner.userId != user || owner.organizationId != org || !entry.editable || count !in 0..3 ||
+            entry.run.items.none { it.id == itemId }) return
+        val context = generation
+        mutable.value = current.copy(entries = current.entries.map {
+            if (it.run.id == runId) it.copy(run = it.run.copy(evidenceCounts = it.run.evidenceCounts + (itemId to count))) else it
+        })
+        viewModelScope.launch {
+            try { local.evidenceCount(owner, runId, itemId, count) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (generation == context) localFailure() }
+        }
+    }
+
     fun review() {
         val entry = mutable.value.selected ?: return
         val answers = checklistAnswers(entry.run, entry.inputs)
         if (!entry.editable || mutable.value.busy) return
-        mutable.value = if (answers != null && validRunAnswers(entry.run.items, answers, complete = true))
+        mutable.value = if (answers != null && validRunAnswers(entry.run.items, answers, complete = true, evidenceCounts = entry.run.evidenceCounts))
             mutable.value.copy(reviewing = true, failure = null)
         else mutable.value.copy(failure = RunFailure.INVALID)
     }
@@ -163,7 +181,7 @@ class ChecklistOfflineViewModel(
         val entry = mutable.value.selected ?: return
         if (!entry.editable || mutable.value.busy || mutable.value.localConflict || finalize && !mutable.value.reviewing) return
         val answers = checklistAnswers(entry.run, entry.inputs)
-        if (answers == null || !validRunAnswers(entry.run.items, answers, complete = finalize)) {
+        if (answers == null || !validRunAnswers(entry.run.items, answers, complete = finalize, evidenceCounts = entry.run.evidenceCounts)) {
             mutable.value = mutable.value.copy(failure = RunFailure.INVALID); return
         }
         mutable.value = mutable.value.copy(busy = true, failure = null)

@@ -8,6 +8,7 @@ data class ChecklistRun(
     val answers: List<ChecklistAnswer>, val compliancePercent: Double? = null,
     val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",
     val assignmentId: String = "",
+    val evidenceCounts: Map<String, Int> = emptyMap(),
 )
 data class ChecklistAnswer(val itemId: String, val complianceResult: String = "", val textValue: String = "",
     val numericValue: Double? = null, val observation: String = "")
@@ -38,13 +39,13 @@ class SaveChecklistRun(private val writer: ChecklistRunWriter) {
 }
 class SubmitChecklistRun(private val writer: ChecklistRunWriter) {
     suspend operator fun invoke(run: ChecklistRun, key: String): RunResult {
-        if (run.status != "DRAFT" || !validRunAnswers(run.items, run.answers, complete = true)) return RunResult.Failure(RunFailure.INVALID)
+        if (run.status != "DRAFT" || !validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) return RunResult.Failure(RunFailure.INVALID)
         return writer.submit(run.organizationId, run.id, run.rowVersion, key)
     }
 }
 
 /** Valida estructura; el API conserva permisos, concurrencia y cálculo definitivo. */
-fun validRunAnswers(items: List<ChecklistItem>, answers: List<ChecklistAnswer>, complete: Boolean): Boolean {
+fun validRunAnswers(items: List<ChecklistItem>, answers: List<ChecklistAnswer>, complete: Boolean, evidenceCounts: Map<String, Int> = emptyMap()): Boolean {
     if (answers.size > 100 || answers.map { it.itemId }.distinct().size != answers.size) return false
     var scored = 0
     for (answer in answers) {
@@ -64,7 +65,7 @@ fun validRunAnswers(items: List<ChecklistItem>, answers: List<ChecklistAnswer>, 
             }
         }
         if (complete && item.evidenceRequiredOnFailure && (answer.complianceResult == "NON_COMPLIANT" ||
-                numeric != null && (numeric < item.minimumValue!! || numeric > item.maximumValue!!))) return false
+                numeric != null && (numeric < item.minimumValue!! || numeric > item.maximumValue!!)) && (evidenceCounts[item.id] ?: 0) < 1) return false
     }
     return !complete || scored > 0 && items.filter { it.required }.all { item -> answers.any { it.itemId == item.id } }
 }
