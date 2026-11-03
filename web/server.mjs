@@ -9,6 +9,7 @@ import { forwardSessionHeaders } from './session-headers.mjs';
 import { checklistRunRoute, proxyChecklistRun } from './checklist-runs-proxy.mjs';
 import { checklistAssignmentRoute, proxyChecklistAssignment } from './checklist-assignments-proxy.mjs';
 import { mediaRoute, proxyMedia } from './media-proxy.mjs';
+import { operationsRoute, proxyOperations } from './operations-proxy.mjs';
 
 // Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
 const firebasePublic = JSON.parse(readFileSync(new URL('../config/firebase.public.json', import.meta.url), 'utf8'));
@@ -82,12 +83,14 @@ export function createAppServer({
     const isRun = checklistRunRoute(request.url?.split('?')[0] || '');
     const isAssignment = checklistAssignmentRoute(request.url?.split('?')[0] || '');
     const isMedia = mediaRoute(request.url?.split('?')[0] || '');
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia) {
+    const isOperations = operationsRoute(request.url?.split('?')[0] || '');
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
     try {
       const url = new URL(request.url, 'http://localhost');
+      if (isOperations) return await proxyOperations(request, url, upstream, send, response);
       if (isMedia) return await proxyMedia(request, url, upstream, send, response);
       if (isAssignment) return await proxyChecklistAssignment(request, url, upstream, send, response);
       if (isRun) return await proxyChecklistRun(request, url, upstream, send, response);

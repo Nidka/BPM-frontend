@@ -324,3 +324,24 @@ y programación de ADMIN/SUPER_ADMIN; Control del CHEF muestra lo correspondient
 a sus sedes. `ChecklistLocationSelector` se reutiliza en programación e inicio de
 revisión. Workspace no depende de checklists ni decide períodos. Rutas, borradores
 y estados del recorrido están en CHECKLISTS.md.
+
+## Operación diaria por rol
+
+`app/DailyOperationsContent` adapta las sedes autorizadas del workspace a la nueva
+feature. ADMIN/SUPER_ADMIN acceden desde Empresa para configurar catálogos,
+criterios térmicos y planes y supervisar los hechos. CHEF accede desde Control
+para recepción, PEPS y limpieza. WORKER tiene «Mis tareas» y ve únicamente planes
+y su propia limpieza realizada. No recibe pestañas de stock, catálogos ni administración.
+
+Las rutas secundarias son `empresa/operacion` y `control/operacion`; `tareas` es
+un destino principal exclusivo de WORKER. La sede se elige con búsqueda y páginas;
+el selector compartido `BpmPagedChoiceSelector` también soporta
+`ChecklistLocationSelector`, sin dependencias entre features. El nombre de sede
+proviene del workspace real, sin opciones de prueba incorporadas al producto.
+Cambiar sede conserva la sección; durante un formulario se conserva su contexto.
+
+Volver, cambiar de organización o abandonar el módulo espera el guardado local del
+formulario. Un fallo de almacenamiento conserva la pantalla. Los detalles cierran
+primero su vista; no abandonan todo el módulo. Las consultas se actualizan al
+regresar cuando están obsoletas; «Reintentar consulta» aparece al fallar. No se
+añade un botón permanente de recarga. Más límites en OPERATIONS.md.

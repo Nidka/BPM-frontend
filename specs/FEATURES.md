@@ -10,7 +10,8 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 | Identidad | features/identity | Login/registro/recuperación y Google web/Android listos; usuario confirmó Google en celular. iOS con SDK/adaptador y configuración pública: pendiente prueba real y validación adicional de almacenamiento seguro en dispositivos |
 | Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición y bajas |
 | Checklists | features/checklists | Catálogo, autoría y ejecución en línea con revisión, versión e idempotencia; recuperación local y reintentos duraderos; historial paginado, separación ejecución/supervisión y programación por sede/frecuencia implementados; cola múltiple para revisiones preparadas implementada; siguientes: inicio sin red, archivos y trabajo en segundo plano |
-| Evidencias | nueva features/media | Archivos locales, PUT firmado, confirmar y descargar |
+| Evidencias | features/media | Selección, vista previa privada, PUT firmado y confirmación implementados para controles; fotos de limpieza e incidencias pendientes |
+| Operación diaria | features/operations | Catálogos, criterio térmico, recepciones, consulta PEPS y limpieza implementados; activar V5 en backend antes de desplegar. Fotos de limpieza, movimientos de stock, turnos y cola offline nueva pendientes |
 | Academia | nueva features/training | Catálogo, progreso local y evaluaciones |
 | Incidencias | nueva features/incidents | Registro, estados y acciones correctivas |
 
@@ -41,3 +42,5 @@ offline del piloto siguen pendientes. OFFLINE.md delimita la recuperación local
 Identidad requiere Firebase configurado. /me rechaza usuarios sin perfil; el
 cliente completa el registro mínimo por /auth/register solo con email verificado.
 El cliente jamás determina roles/permisos definitivos ni reactiva cuentas inactivas.
+
+Operación diaria y sus permisos se detallan en [OPERATIONS.md](OPERATIONS.md).

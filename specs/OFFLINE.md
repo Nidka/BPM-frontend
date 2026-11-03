@@ -186,3 +186,16 @@ Referencia adicional: [arquitectura offline Android](https://developer.android.c
 La carga privada de fotos está integrada, con conexión, en [MEDIA.md](MEDIA.md).
 Los bytes de fotos no forman parte de esta cola local. Los recuentos confirmados
 por pregunta sí acompañan la revisión; finalizar siempre revalida en el backend.
+
+## Formularios de operación diaria
+
+`features/operations` reutiliza `DraftStorage`, `JsonDraftDocument` y `DraftAutosave`.
+La clave incluye origen, cuenta, empresa, recurso y sede. El formulario vuelve a
+autorizar acceso antes de leer el documento. El cuerpo pendiente se limita a 512 KiB
+en UTF-8, igual que la API y el proxy, incluyendo texto Unicode. UUID, clave y JSON
+se guardan antes de HTTP y permanecen idénticos ante respuesta incierta. La salida
+espera flush; el cierre confirmado borra el documento sin volver a crearlo.
+
+Esto protege un formulario y un envío en duda. No añade una cola de nuevas
+recepciones/limpiezas ni confirma registros sin conexión. El detalle del contrato
+y de las respuestas comparadas está en OPERATIONS.md.

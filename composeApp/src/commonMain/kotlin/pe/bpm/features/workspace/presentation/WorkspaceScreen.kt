@@ -28,6 +28,8 @@ internal fun WorkspaceScreen(
     choosingOrganization: Boolean, onChooseOrganization: () -> Unit,
     checklistContent: @Composable () -> Unit,
     onManageTemplates: () -> Unit,
+    onDailyOperations: () -> Unit = {},
+    taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
     secondaryTitle: String? = null,
@@ -78,7 +80,8 @@ internal fun WorkspaceScreen(
                     onToggleOrganization = onChooseOrganization,
                     onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
+                if (section == WorkspaceDestination.Tasks && workspace != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp), contentAlignment = Alignment.TopCenter) { taskContent() }
+                else if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) { secondaryContent() }
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
@@ -138,6 +141,7 @@ internal fun WorkspaceScreen(
                     }
                     if (secondaryContent != null) secondaryContent()
                     else workspace?.let { current -> when (section) {
+                        WorkspaceDestination.Tasks -> Unit
                         WorkspaceDestination.Account -> Unit
                         WorkspaceDestination.Home -> Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
                         WorkspaceDestination.Company -> {
@@ -152,6 +156,11 @@ internal fun WorkspaceScreen(
                                 Text("Plantillas de control", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("Prepara preguntas y publica los criterios que utilizará tu equipo.")
                                 BpmSecondaryButton(onClick = onManageTemplates) { Text("Gestionar plantillas") }
+                            }
+                            if (current.canManage) BpmCard(Modifier.fillMaxWidth()) {
+                                Text("Operación diaria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.")
+                                BpmSecondaryButton(onClick = onDailyOperations) { Text("Gestionar insumos y limpieza") }
                             }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {

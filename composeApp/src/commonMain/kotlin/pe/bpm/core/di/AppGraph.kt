@@ -1,6 +1,11 @@
 package pe.bpm.core.di
 
 import io.ktor.client.HttpClient
+import pe.bpm.features.operations.data.RemoteOperationsRepository
+import pe.bpm.features.operations.data.LocalOperationsDraftRepository
+import pe.bpm.features.operations.domain.ManageOperations
+import pe.bpm.features.operations.domain.ManageOperationsDraft
+import pe.bpm.features.operations.presentation.OperationsViewModel
 import pe.bpm.features.media.data.RemoteMediaRepository
 import pe.bpm.features.media.data.createMediaObjectHttpClient
 import pe.bpm.features.media.domain.*
@@ -128,6 +133,14 @@ class AppGraph(
     @OptIn(ExperimentalUuidApi::class)
     fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
         SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, runDrafts)
+
+    private val operationsRepository = RemoteOperationsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    private val operationsDrafts = ManageOperationsDraft(LocalOperationsDraftRepository(draftStorage, config.apiBaseUrl))
+    @OptIn(ExperimentalUuidApi::class)
+    fun operationsViewModel() = OperationsViewModel(ManageOperations(operationsRepository, operationsRepository), operationsDrafts,
+        { Uuid.random().toString() }, { Clock.System.now().toString() })
 
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
