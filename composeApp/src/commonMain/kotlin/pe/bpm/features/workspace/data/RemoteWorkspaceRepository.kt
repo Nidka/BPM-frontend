@@ -59,7 +59,7 @@ class RemoteWorkspaceRepository(private val client: HttpClient, private val conf
         })
     }
     override suspend fun createOrganization(input: Organization) = post("organizations", OrgDto(input.id,input.legalName,input.tradeName,input.businessType,input.taxId,input.contactName,input.contactPhone,input.contactEmail))
-    override suspend fun createLocation(organizationId: String,input: Location) = post("organizations/$organizationId/locations", LocationDto(input.id,input.name,input.address,input.district,input.contactPhone))
+    override suspend fun createLocation(organizationId: String,input: Location) = post("organizations/$organizationId/locations", CreateLocationDto(input.id,input.name,input.address,input.district,input.contactPhone))
     override suspend fun addMember(organizationId: String,email: String,role: String,locations: List<String>) = post("organizations/$organizationId/members", MemberRequest(email,role,locations))
     private suspend inline fun <reified T> post(path: String, payload: T): Result<Unit> = request { accessToken ->
         val response = client.post("${config.apiBaseUrl}/api/v1/$path") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(payload) }
@@ -109,7 +109,8 @@ class RemoteWorkspaceRepository(private val client: HttpClient, private val conf
 @Serializable private data class OrgDto(val id: String,val legalName: String,val tradeName: String="",val businessType: String="RESTAURANT",val taxId: String="",val contactName: String="",val contactPhone: String="",val contactEmail: String="") {
  fun domain()=Organization(id,legalName,tradeName,businessType,taxId,contactName,contactPhone,contactEmail)
 }
-@Serializable private data class LocationDto(val id:String,val name:String,val address:String,val district:String="",val contactPhone:String="") {fun domain()=Location(id,name,address,district,contactPhone)}
+@Serializable private data class CreateLocationDto(val id:String,val name:String,val address:String,val district:String="",val contactPhone:String="")
+@Serializable private data class LocationDto(val id:String,val name:String,val address:String,val district:String="",val contactPhone:String="",val timezone:String="") {fun domain()=Location(id,name,address,district,contactPhone,timezone)}
 @Serializable private data class MemberDto(val id:String,val name:String,val email:String,val role:String,val locationIds:List<String> = emptyList()) {fun domain()=Member(id,name,email,role,locationIds)}
 @Serializable private data class EntryDto(val id:String,val title:String,val detail:String,val status:String) {fun domain()=Entry(id,title,detail,status)}
 @Serializable private data class WorkspaceDto(val organization:OrgDto,val role:String,val locations:List<LocationDto>,val members:List<MemberDto>,val courses:List<EntryDto>,val checklists:List<EntryDto>,val incidents:List<EntryDto>,val nextPageTokens:Map<String,String> = emptyMap(),val totals:Map<String,Int> = emptyMap()) {fun domain(): Workspace {

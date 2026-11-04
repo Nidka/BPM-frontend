@@ -29,6 +29,7 @@ internal fun WorkspaceScreen(
     checklistContent: @Composable () -> Unit,
     onManageTemplates: () -> Unit,
     onDailyOperations: () -> Unit = {},
+    onIncidents: () -> Unit = {},
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
@@ -80,7 +81,7 @@ internal fun WorkspaceScreen(
                     onToggleOrganization = onChooseOrganization,
                     onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (section == WorkspaceDestination.Tasks && workspace != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp), contentAlignment = Alignment.TopCenter) { taskContent() }
+                if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp), contentAlignment = Alignment.TopCenter) { taskContent() }
                 else if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) { secondaryContent() }
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
@@ -162,6 +163,7 @@ internal fun WorkspaceScreen(
                                 Text("Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.")
                                 BpmSecondaryButton(onClick = onDailyOperations) { Text("Gestionar insumos y limpieza") }
                             }
+                            if (current.canManage) IncidentEntryCard(onIncidents)
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                             if (current.locations.isEmpty()) EmptyState("Sin sedes para mostrar", "No hay sedes disponibles para esta búsqueda y tus permisos actuales.")
@@ -196,12 +198,7 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
                             checklistContent()
-                            if (secondaryTitle == null && (current.incidents.isNotEmpty() || (current.totals["incidents"] ?: 0) > 0)) {
-                            Eyebrow("INCIDENCIAS DE TUS SEDES")
-                            WorkspacePagedList(WorkspaceResource.Incidents, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
-                            Entries(current.incidents, "No encontramos incidencias", "Prueba con otra búsqueda.")
-                            }
-                            }
+                            if (secondaryTitle == null) IncidentEntryCard(onIncidents)
                         }
                     } }
                 }
@@ -218,5 +215,13 @@ internal fun WorkspaceScreen(
                 }
             }
         }
+    }
+}
+
+@Composable private fun IncidentEntryCard(onOpen: () -> Unit) {
+    BpmCard(Modifier.fillMaxWidth()) {
+        Text("Incidencias y correcciones",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+        Text("Consulta lo reportado, atiende las correcciones y revisa qué falta para validar el cierre.")
+        BpmSecondaryButton(onClick=onOpen){Text("Abrir incidencias")}
     }
 }

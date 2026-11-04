@@ -19,6 +19,7 @@ data class Location(
     val address: String,
     val district: String = "",
     val contactPhone: String = "",
+    val timezone: String = "",
 )
 
 data class Member(

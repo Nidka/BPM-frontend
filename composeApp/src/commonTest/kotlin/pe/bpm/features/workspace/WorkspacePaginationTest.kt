@@ -44,6 +44,19 @@ class WorkspacePaginationTest {
             assertEquals("next_cursor", items.page.nextToken)
         } finally { client.close() }
     }
+    @Test fun locationWriteDoesNotSendReadOnlyTimezone() = runTest {
+        var actualBody = ""
+        val client = createHttpClient(MockEngine { request ->
+            actualBody = (request.body as io.ktor.http.content.TextContent).text
+            respond("{}", HttpStatusCode.OK, headersOf("Content-Type","application/json"))
+        })
+        try {
+            val repository = RemoteWorkspaceRepository(client, AppConfig("https://api.example.com")) { "token" }
+            assertIs<Result.Success<Unit>>(repository.createLocation("org",Location("site","Sede","Dirección",timezone="Europe/Madrid")))
+            assertFalse(actualBody.contains("timezone"), "La zona de lectura no pertenece al comando de creación")
+        } finally { client.close() }
+    }
+
     @Test fun invalidOrNonAdvancingCursorsAreRejectedAsInvalidResponses() = runTest {
         var next = "same_cursor"
         val client = createHttpClient(MockEngine {

@@ -142,6 +142,16 @@ class AppGraph(
     fun operationsViewModel() = OperationsViewModel(ManageOperations(operationsRepository, operationsRepository), operationsDrafts,
         { Uuid.random().toString() }, { Clock.System.now().toString() })
 
+
+    private val incidentsRepository = pe.bpm.features.incidents.data.RemoteIncidentsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    private val incidentDrafts = pe.bpm.features.incidents.data.LocalIncidentDraftRepository(draftStorage, config.apiBaseUrl)
+    @OptIn(ExperimentalUuidApi::class)
+    fun incidentsViewModel() = pe.bpm.features.incidents.presentation.IncidentsViewModel(
+        pe.bpm.features.incidents.domain.ManageIncidents(incidentsRepository, incidentsRepository, incidentDrafts),
+        { Uuid.random().toString() }, { Clock.System.now().toString() })
+
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
         CreateLocation(workspaceRepository), AddMember(workspaceRepository), LoadWorkspacePage(workspaceRepository))

@@ -16,7 +16,7 @@ test('workspace proxy: lista cerrada, Bearer, campos públicos y errores sanitiz
       res.writeHead(422);
       return res.end(JSON.stringify({ errors: [{ code: 'VALIDATION_ERROR', message: 'SQL private', fields: { name: 'secret', password: 'private' } }] }));
     }
-    if (req.url.endsWith('/workspace')) return res.end(JSON.stringify({ data: { organization: org, role: 'ADMIN', locations: [], members: [], courses: [], checklists: [], incidents: [], secret: 'hidden' } }));
+    if (req.url.endsWith('/workspace')) return res.end(JSON.stringify({ data: { organization: org, role: 'ADMIN', locations: [{id:'site',name:'Sede',address:'Dirección',district:'',contactPhone:'',timezone:'Europe/Madrid'}], members: [], courses: [], checklists: [], incidents: [], secret: 'hidden' } }));
     res.end(JSON.stringify({ data: [org] }));
   });
   backend.listen(0, '127.0.0.1'); await once(backend, 'listening');
@@ -39,7 +39,9 @@ test('workspace proxy: lista cerrada, Bearer, campos públicos y errores sanitiz
   assert.equal((await list.text()).includes('hidden'), false);
   const workspace = await fetch(base + '/org/workspace', { headers });
   assert.equal(workspace.status, 200);
-  assert.equal((await workspace.json()).data.role, 'ADMIN');
+  const workspaceData=(await workspace.json()).data;
+  assert.equal(workspaceData.role,'ADMIN');
+  assert.equal(workspaceData.locations[0].timezone,'Europe/Madrid');
   const invalid = await fetch(base + '/org/locations', { method: 'POST', headers, body: '{}' });
   assert.equal(invalid.status, 422);
   const error = await invalid.json();

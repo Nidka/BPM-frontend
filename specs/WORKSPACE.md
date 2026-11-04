@@ -345,3 +345,26 @@ formulario. Un fallo de almacenamiento conserva la pantalla. Los detalles cierra
 primero su vista; no abandonan todo el módulo. Las consultas se actualizan al
 regresar cuando están obsoletas; «Reintentar consulta» aparece al fallar. No se
 añade un botón permanente de recarga. Más límites en OPERATIONS.md.
+
+## Incidencias y evidencia compartida
+
+Empresa y Control ofrecen «Incidencias y correcciones»; Mis tareas incorpora el
+acceso del colaborador. `empresa/incidencias`, `control/incidencias` y
+`tareas/incidencias` conservan los permisos del destino principal y del servidor.
+`app/WorkspaceSiteSelector` adapta el selector paginado de sedes para operación
+diaria e incidencias. `Location.timezone` conserva el valor real de la API y se
+pasa al formulario de asignación, que convierte fecha/hora de sede y rechaza
+horarios ambiguos o inexistentes.
+
+La raíz conecta callbacks de fotos a `MediaEvidenceViewModel.openIncident`; la
+feature de incidencias no importa media. `PrivateEvidenceHost` comparte selector,
+progreso, confirmación, preview y cierre con fotos de controles. En web usa una
+superficie en el mismo árbol, con fondo fuera de la semántica mientras se muestra,
+foco y Escape. Esto evita la pérdida reproducida de accesibilidad al retirar una
+ventana ModalBottomSheet/Dialog en la versión fijada de Compose Web. El puerto
+técnico `supportsNativeModalWindows` mantiene las ventanas nativas de Android,
+iOS y JVM; no contiene reglas de negocio ni altera el flujo de fotos.
+
+La lista resumida anterior de incidencias se sustituyó por este acceso completo.
+El módulo ofrece el siguiente paso de cada rol y preserva catálogos y responsables
+históricos. Ver INCIDENTS.md para editor recuperable, estados y límites.

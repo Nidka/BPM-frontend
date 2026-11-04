@@ -142,7 +142,7 @@ test('media: nunca expone tickets con destino, headers o vencimiento inseguros',
 
 test('media: conserva códigos de reintento sanitizados y no sigue redirecciones del backend', async t => {
   const { state, base } = await setup(t);
-  for (const [status, code] of [[409, 'UPLOAD_NOT_READY'], [409, 'RESOURCE_CONFLICT'], [422, 'MEDIA_CONTENT_INVALID'], [503, 'MEDIA_UNAVAILABLE'], [401, 'UNAUTHENTICATED'], [429, 'RATE_LIMITED']]) {
+  for (const [status, code] of [[409, 'UPLOAD_NOT_READY'], [409, 'RESOURCE_CONFLICT'], [422, 'MEDIA_CONTENT_INVALID'], [503, 'MEDIA_UNAVAILABLE'], [401, 'UNAUTHENTICATED'], [401, 'SESSION_EXPIRED'], [429, 'RATE_LIMITED']]) {
     state.status = status; state.errorCode = code;
     const response = await fetch(`${base}/media/${id}/confirm`, { headers, method: 'POST', body: '{}' });
     assert.equal(response.status, status);
@@ -154,4 +154,70 @@ test('media: conserva códigos de reintento sanitizados y no sigue redirecciones
   state.status = 302; state.extraHeaders.Location = 'https://attacker.example/collect';
   const response = await fetch(`${base}/media/${id}/confirm`, { headers, method: 'POST', body: '{}' });
   assert.equal(response.status, 503); assert.equal((await response.text()).includes('attacker'), false);
+});
+
+test('media: evidencia de incidencia y acción conserva destino explícito y oculta almacenamiento', async t => {
+  const { state, origin } = await setup(t);
+  const base = `${origin}/backend/api/v1/organizations/tenant_media`;
+  const before = { ...file(), runId: '', itemId: '', incidentId: run, stage: 'BEFORE' };
+  state.data = listing([{ ...before, objectKey: 'private' }]);
+  let response = await fetch(`${base}/incidents/${run}/evidence/BEFORE`, { headers });
+  assert.equal(response.status, 200); assert.deepEqual(await response.json(), { data: listing([before]) });
+  const after = { ...before, stage: 'AFTER', actionId: item };
+  state.data = listing([after]);
+  response = await fetch(`${base}/incidents/${run}/actions/${item}/evidence/AFTER`, { headers });
+  assert.equal(response.status, 200); assert.deepEqual(await response.json(), { data: listing([after]) });
+  for (const overrides of [{ incidentId: foreign }, { actionId: foreign }, { stage: 'BEFORE' }, { runId: run }, { actionId: undefined }]) {
+    state.data = listing([{ ...after, ...overrides }]);
+    assert.equal((await fetch(`${base}/incidents/${run}/actions/${item}/evidence/AFTER`, { headers })).status, 503);
+  }
+});
+
+test('media: reserva incidente exclusiva, BEFORE sin acción y AFTER con acción', async t => {
+  const { state, base } = await setup(t);
+  const { runId, itemId, ...metadata } = upload;
+  const before = { ...metadata, incidentId: run, stage: 'BEFORE' };
+  const after = { ...metadata, incidentId: run, actionId: item, stage: 'AFTER' };
+  for (const input of [before, after]) {
+    const incidentFile = { ...file('PENDING_UPLOAD'), runId: '', itemId: '', incidentId: input.incidentId, stage: input.stage, ...(input.actionId ? { actionId: input.actionId } : {}) };
+    state.data = { file: incidentFile, upload: uploadTicket() };
+    const response = await fetch(`${base}/media/uploads`, { headers, method: 'POST', body: JSON.stringify(input) });
+    assert.equal(response.status, 200); assert.deepEqual((await response.json()).data.file, incidentFile);
+    assert.deepEqual(JSON.parse(state.requests.at(-1).body), input);
+  }
+  state.requests.length = 0;
+  for (const input of [{ ...before, actionId: item }, { ...after, actionId: undefined }, { ...before, runId: run, itemId: item }, { ...before, stage: 'UNKNOWN' }, { ...before, incidentId: 'invalid' }, { ...before, unexpected: true }, { ...upload, stage: 'BEFORE' }]) {
+    assert.equal((await fetch(`${base}/media/uploads`, { headers, method: 'POST', body: JSON.stringify(input) })).status, 400);
+  }
+  assert.equal(state.requests.length, 0);
+  state.data = { file: { ...file('PENDING_UPLOAD'), runId: '', itemId: '', incidentId: foreign, stage: 'BEFORE' }, upload: uploadTicket() };
+  assert.equal((await fetch(`${base}/media/uploads`, { headers, method: 'POST', body: JSON.stringify(before) })).status, 503);
+});
+
+test('media: rechaza UTF8 inválido dentro de metadatos permitidos', async t => {
+  const { state, base } = await setup(t);
+  const raw = Buffer.from(JSON.stringify({ ...upload, originalName: 'SENTINEL.jpg' }));
+  const start = raw.indexOf('SENTINEL');
+  const invalid = Buffer.concat([raw.subarray(0, start), Buffer.from([255]), raw.subarray(start + 8)]);
+  state.data = { file: file('PENDING_UPLOAD', { originalName: '�.jpg' }), upload: uploadTicket() };
+  assert.equal((await fetch(base + '/media/uploads', { headers, method: 'POST', body: invalid })).status, 400);
+  assert.equal(state.requests.length, 0);
+});
+
+test('media: conserva cuatro fotos legadas de incidencia y mantiene el límite de controles', async t => {
+  const { state, base, evidence } = await setup(t);
+  const photos = Array.from({ length: 4 }, (_, index) => file('AVAILABLE', {
+    id: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    runId: '', itemId: '', incidentId: run, stage: 'BEFORE',
+  }));
+  state.data = listing(photos.map(photo => ({ ...photo, objectKey: 'private.storage', bucket: 'private.bucket' })));
+  const response = await fetch(`${base}/incidents/${run}/evidence/BEFORE`, { headers });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { data: listing(photos) });
+  for (const changes of [{ incidentId: foreign }, { stage: 'AFTER', actionId: item }, { id: photos[0].id }]) {
+    state.data = listing(photos.map((photo, index) => index === 3 ? { ...photo, ...changes } : photo));
+    assert.equal((await fetch(`${base}/incidents/${run}/evidence/BEFORE`, { headers })).status, 503);
+  }
+  state.data = listing(photos.map(photo => ({ ...photo, runId: run, itemId: item, incidentId: undefined, stage: undefined })));
+  assert.equal((await fetch(evidence, { headers })).status, 503);
 });

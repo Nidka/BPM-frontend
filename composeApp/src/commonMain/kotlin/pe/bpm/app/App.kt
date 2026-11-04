@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import pe.bpm.core.presentation.supportsNativeModalWindows
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,11 +81,13 @@ fun App(
     val assignmentFormState by assignmentForm.state.collectAsStateWithLifecycle()
     val dailyOperations = viewModel<pe.bpm.features.operations.presentation.OperationsViewModel> { owner.graph.operationsViewModel() }
     val dailyState by dailyOperations.state.collectAsStateWithLifecycle()
+    val incidents = viewModel<pe.bpm.features.incidents.presentation.IncidentsViewModel> { owner.graph.incidentsViewModel() }
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
     val evidence = viewModel<pe.bpm.features.media.presentation.MediaEvidenceViewModel> { owner.graph.mediaEvidenceViewModel() }
     val evidenceState by evidence.state.collectAsStateWithLifecycle()
     var evidenceQuestion by remember { mutableStateOf<EvidenceQuestion?>(null) }
+    var incidentEvidence by remember { mutableStateOf<IncidentEvidenceTarget?>(null) }
     val offlineRuns = viewModel<ChecklistOfflineViewModel> { owner.graph.checklistOfflineViewModel() }
     val offlineState by offlineRuns.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
@@ -115,7 +119,7 @@ fun App(
         if (loadedIdentityId != profile?.id || profile == null) {
             checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
             templateEditor.reset()
-            runs.reset(); offlineRuns.reset(); dailyOperations.reset()
+            runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset()
             formDrafts.reset()
             workspace.reset()
         }
@@ -132,6 +136,7 @@ fun App(
     fun refreshVisibleData() {
         if (identity.state.value.profile != null && identity.sessionStatus.value.warning == null &&
             entry?.destination?.route in listOf(DAILY_MANAGEMENT, DAILY_EXECUTION, WorkspaceDestination.Tasks.route)) dailyOperations.refreshIfStale()
+        if (identity.state.value.profile != null && entry?.destination?.route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS) && identity.sessionStatus.value.warning == null) incidents.refreshIfStale()
         if (identity.state.value.profile != null && primaryRoute && identity.sessionStatus.value.warning == null) {
             workspace.refreshIfStale()
             if (entry?.destination?.route == WorkspaceDestination.Operations.route) checklists.refreshIfStale()
@@ -141,7 +146,7 @@ fun App(
     }
     OnAppForeground {
         identity.onForeground()
-        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null) evidence.refresh() }
+        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null || incidentEvidence != null) evidence.refresh() }
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
@@ -207,6 +212,7 @@ fun App(
     // La raíz conecta funcionalidades sin importar media dentro de checklists.
     LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, entry?.id, workspaceState.errors) {
         evidenceQuestion = null
+        incidentEvidence = null
         evidence.reset()
     }
     LaunchedEffect(evidenceState.revision, runState.run?.rowVersion) {
@@ -220,7 +226,8 @@ fun App(
     }
 
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, identity::logout) {
-        NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize(),
+        NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
+            if (!supportsNativeModalWindows() && (evidenceQuestion != null || incidentEvidence != null)) Modifier.clearAndSetSemantics { } else Modifier),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }) {
             composable(LOGIN) {
@@ -249,10 +256,11 @@ fun App(
             }
             WorkspaceDestination.entries.flatMap { destination ->
                 val routes = when (destination) {
-                    WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
+                    WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER)
-                    WorkspaceDestination.Company -> listOf(destination.route, DAILY_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Company -> listOf(destination.route, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     else -> listOf(destination.route)
                 }
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
@@ -263,6 +271,7 @@ fun App(
                     listOf(navArgument("runId") { type = NavType.StringType }) else if (route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL))
                     listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val daily = route in listOf(DAILY_MANAGEMENT, DAILY_EXECUTION, WorkspaceDestination.Tasks.route)
+                    val incidentRoute = route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS)
                     val managingDaily = route == DAILY_MANAGEMENT
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
                     val formRevision = remember(routeEntry.id) { workspaceState.revision }
@@ -277,12 +286,14 @@ fun App(
                     val listingHistory = route == CHECKLIST_HISTORY || destination == WorkspaceDestination.Supervision && !viewingHistory
                     var runExit by remember(routeEntry.id) { mutableStateOf<(() -> Unit)?>(null) }
                     fun leaveRun(action: () -> Unit) {
-                        if (daily && dailyState.form != null) dailyOperations.leave(action)
+                        if (incidentRoute) incidents.prepareLeave(action)
+                        else if (daily && dailyState.form != null) dailyOperations.leave(action)
                         else if (running && (runState.dirty || runState.pending || runState.busy)) runExit = action
                         else action()
                     }
                     fun closeForm() {
-                        if (daily && dailyState.picker != null) dailyOperations.closePicker()
+                        if (incidentRoute) incidents.prepareBack { navigateBack(destination.route) }
+                        else if (daily && dailyState.picker != null) dailyOperations.closePicker()
                         else if (daily && dailyState.review && dailyState.pending == null && dailyState.saved == null) dailyOperations.editReview()
                         else if (daily && dailyState.detail != null) dailyOperations.closeDetail()
                         else if (daily && dailyState.form != null) dailyOperations.closeForm()
@@ -405,10 +416,22 @@ fun App(
                                 section = destination,
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
+                                onIncidents = { nav.navigate(if (destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },
                                 taskContent = {
-                                    DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations)
+                                    Column(Modifier.fillMaxSize()) {
+                                        BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
+                                        DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f))
+                                    }
                                 },
-                                secondaryContent = if (daily && destination != WorkspaceDestination.Tasks) ({
+                                secondaryContent = if (incidentRoute) ({
+                                    IncidentsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, incidents,
+                                        onEvidence = { incidentId, actionId, stage, writable ->
+                                            pe.bpm.features.media.domain.EvidenceStage.entries.firstOrNull { it.name == stage }?.let { phase ->
+                                                incidentEvidence = IncidentEvidenceTarget(incidentId, actionId, phase)
+                                                evidence.openIncident(profile.id, workspaceState.workspace!!.organization.id, incidentId, actionId, phase, writable)
+                                            }
+                                        })
+                                }) else if (daily && destination != WorkspaceDestination.Tasks) ({
                                     DailyOperationsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations)
                                 }) else if (offline) ({
                                     ChecklistOfflineScreen(scopedOfflineState, runId,
@@ -444,8 +467,8 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role == "CHEF") }) }
                                     }) }) else managementContent,
-                                secondaryEditor = editingTemplate || daily && destination != WorkspaceDestination.Tasks,
-                                secondaryTitle = if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryEditor = incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryTitle = if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -474,7 +497,7 @@ fun App(
                                     if (!workspaceState.saving) {
                                         checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                         templateEditor.reset()
-                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset()
+                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset()
                                         workspace.select(id)
                                         resetTo(WorkspaceDestination.Home.route)
                                     }
@@ -551,7 +574,7 @@ fun App(
                                     pendingRoute = WorkspaceDestination.Home.route
                                     checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                     templateEditor.reset()
-                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset()
+                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset()
                                     formDrafts.reset()
                                     workspace.reset()
                                     identity.logout()
@@ -565,6 +588,10 @@ fun App(
         }
         evidenceQuestion?.let { question ->
             ChecklistEvidenceHost(question, evidence, evidenceState) { evidence.close(); evidenceQuestion = null }
+        }
+        incidentEvidence?.let { target ->
+            PrivateEvidenceHost(if (target.stage == pe.bpm.features.media.domain.EvidenceStage.BEFORE) "Fotos de la incidencia" else "Fotos de la corrección", evidence, evidenceState,
+                onClose = { evidence.close(); incidentEvidence = null; incidents.refresh() })
         }
     }
 }
@@ -603,3 +630,8 @@ private const val CHECKLIST_OFFLINE_DETAIL = "control/guardados/{runId}"
 
 private const val DAILY_MANAGEMENT = "empresa/operacion"
 private const val DAILY_EXECUTION = "control/operacion"
+
+private data class IncidentEvidenceTarget(val incidentId: String, val actionId: String?, val stage: pe.bpm.features.media.domain.EvidenceStage)
+private const val INCIDENT_MANAGEMENT = "empresa/incidencias"
+private const val INCIDENT_EXECUTION = "control/incidencias"
+private const val INCIDENT_TASKS = "tareas/incidencias"

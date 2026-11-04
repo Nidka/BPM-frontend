@@ -13,7 +13,7 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 | Evidencias | features/media | Selección, vista previa privada, PUT firmado y confirmación implementados para controles; fotos de limpieza e incidencias pendientes |
 | Operación diaria | features/operations | Catálogos, criterio térmico, recepciones, consulta PEPS y limpieza implementados; activar V5 en backend antes de desplegar. Fotos de limpieza, movimientos de stock, turnos y cola offline nueva pendientes |
 | Academia | nueva features/training | Catálogo, progreso local y evaluaciones |
-| Incidencias | nueva features/incidents | Registro, estados y acciones correctivas |
+| Incidencias | features/incidents | Catálogo versionado, reporte por sede, asignación, corrección, fotos e historial implementados; activar V6 antes del despliegue. Constancia y notificaciones en módulos posteriores |
 
 Cada responsable debe entregar domain, data, presentation, pruebas y su contrato
 actualizado. Se crean carpetas al implementar el primer recorrido, no antes.

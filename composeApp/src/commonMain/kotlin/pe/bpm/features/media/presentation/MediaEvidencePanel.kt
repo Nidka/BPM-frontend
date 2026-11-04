@@ -24,7 +24,7 @@ import pe.bpm.features.media.domain.*
 @Composable
 fun MediaEvidencePanel(viewModel: MediaEvidenceViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
-    key(state.userId, state.organizationId, state.runId, state.itemId) {
+    key(state.userId, state.organizationId, state.runId, state.itemId, state.incidentId, state.actionId, state.stage) {
         MediaEvidenceContent(state, viewModel, modifier)
     }
 }
@@ -37,7 +37,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         onResult = { result -> viewModel.select(result, state.context, state.userId) },
     )
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Fotos de esta pregunta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Fotos guardadas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(if (state.confirmedCount == 1) "1 foto guardada" else "${state.confirmedCount} fotos guardadas", style = MaterialTheme.typography.bodyMedium)
         if (state.loading || state.busy) {
             if (state.progress == null) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -47,7 +47,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         state.failure?.let { Text(mediaFailureMessage(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.selectionFailure?.let { Text(selectionFailureMessage(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         if (!state.loading && state.files.none { it.status != EvidenceStatus.DELETED }) {
-            Text("Todavía no hay fotos guardadas para esta pregunta.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Todavía no hay fotos guardadas.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         state.files.filterNot { it.status == EvidenceStatus.DELETED }.forEach { file ->
             BpmCard(Modifier.fillMaxWidth()) {
@@ -76,15 +76,15 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
             Text("Para guardar fotos necesitas conexión. Reintenta cualquier envío pendiente antes de cerrar este panel.", style = MaterialTheme.typography.bodySmall)
             RaisedButton("Elegir foto", picker, enabled = state.canSelect)
             state.policy?.let { policy ->
-                Text("Máximo ${formatPhotoLimit(policy.maxBytes)} por foto y hasta ${policy.maxFiles} fotos por pregunta.", style = MaterialTheme.typography.bodySmall)
+                Text("Máximo ${formatPhotoLimit(policy.maxBytes)} por foto y hasta ${policy.maxFiles} fotos en esta sección.", style = MaterialTheme.typography.bodySmall)
                 if (!policy.uploadAvailable) Text("El envío de fotos no está disponible en este momento. Puedes consultar las fotos existentes.")
             }
-        } else Text("Puedes consultar las fotos de esta revisión.")
+        } else Text("Puedes consultar las fotos guardadas.")
         if (state.failure != null) BpmSecondaryButton(onClick = viewModel::refresh, enabled = !state.loading && !state.busy) { Text("Reintentar consulta") }
         state.removalCandidate?.let { file ->
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
                 Text("¿Retirar ${file.originalName}?", fontWeight = FontWeight.Bold)
-                Text("Dejará de contar como evidencia de esta pregunta.")
+                Text("Dejará de contar como evidencia.")
                 RaisedButton("Confirmar retirada", viewModel::confirmRemove, enabled = !state.busy)
                 BpmSecondaryButton(onClick = viewModel::cancelRemove, enabled = !state.busy) { Text("Conservar foto") }
             }
@@ -122,7 +122,7 @@ private fun selectionFailureMessage(failure: PhotoSelectionFailure): String = wh
 private fun mediaFailureMessage(failure: MediaFailure): String = when (failure) {
     MediaFailure.SESSION -> "Tu sesión terminó. Vuelve a ingresar para consultar las fotos."
     MediaFailure.DENIED -> "No tienes permiso para realizar esta acción en la revisión."
-    MediaFailure.NOT_FOUND -> "La foto o la pregunta ya no está disponible. Actualiza la lista."
+    MediaFailure.NOT_FOUND -> "El registro o la foto ya no están disponibles. Vuelve a consultar."
     MediaFailure.INVALID -> "No pudimos enviar esa foto. Revisa la selección y vuelve a intentarlo."
     MediaFailure.TOO_LARGE -> "La foto supera el tamaño permitido. Elige una más pequeña."
     MediaFailure.UNSUPPORTED -> "El formato de esa foto no está admitido. Elige otra imagen."

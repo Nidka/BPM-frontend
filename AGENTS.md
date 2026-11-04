@@ -21,3 +21,8 @@ Para UI, tenant y formularios de empresa/equipo leer también `specs/WORKSPACE.m
 - Verificar `./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug`
   y `node --test web/server.test.mjs`; en macOS, compilar el framework iOS.
 - El repositorio contiene exclusivamente Software/Frontend.
+
+Estado de operación diaria e incidencias: leer `specs/OPERATIONS.md` y
+`specs/INCIDENTS.md`. Los módulos y sus fotos privadas están implementados
+localmente; su activación depende de V5/V6 y despliegue del backend antes de la UI.
+No confundir compilación o aceptación aislada con publicación en Railway.

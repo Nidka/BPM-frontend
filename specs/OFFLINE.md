@@ -199,3 +199,14 @@ espera flush; el cierre confirmado borra el documento sin volver a crearlo.
 Esto protege un formulario y un envío en duda. No añade una cola de nuevas
 recepciones/limpiezas ni confirma registros sin conexión. El detalle del contrato
 y de las respuestas comparadas está en OPERATIONS.md.
+
+## Editor de incidencias
+
+El editor separado reutiliza DraftAutosave/JsonDraftDocument. Reautoriza sede y,
+para acciones recuperadas, el detalle concreto antes de mostrar una copia local.
+UUID, clave y cuerpo se confirman en disco antes de HTTP. Solo los resultados
+inciertos conservan un cuerpo pendiente inmutable. Rechazos definitivos 400,404,
+409 y422 liberan ese pendiente y conservan los campos para corregir o descartar
+explícitamente; un conflicto no ajusta la versión ni reenvía automáticamente.
+La salida espera flush y un fallo local conserva la pantalla. Esto es recuperación
+de un formulario y su operación; no una cola offline de incidencias nuevas.

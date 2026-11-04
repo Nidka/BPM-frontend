@@ -40,7 +40,7 @@ test('proxy paginado conserva cursor, totales, filtros literales y detalle, sin 
   t.after(async()=>{app.closeAllConnections();backend.closeAllConnections();await Promise.all([new Promise(r=>app.close(r)),new Promise(r=>backend.close(r))]);});
   const base='http://127.0.0.1:'+app.address().port+'/backend/api/v1/organizations';
   const headers={Authorization:'Bearer test.token',Cookie:'private'};
-  for (const resource of ['', '/org/locations','/org/members','/org/courses','/org/incidents','/org/checklist-summaries','/org/checklists']) {
+  for (const resource of ['', '/org/locations','/org/members','/org/courses','/org/checklist-summaries','/org/checklists']) {
     const response=await fetch(base+resource+'?pageSize=17&pageToken=next_2&query=%25_%C3%A1',{headers});
     assert.equal(response.status,200,resource);
     const body=await response.json();assert.equal(body.pagination.nextPageToken,'next_25');assert.equal(JSON.stringify(body).includes('secret'),false);
