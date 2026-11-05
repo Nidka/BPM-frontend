@@ -1,13 +1,8 @@
 package pe.bpm.features.checklists.presentation
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 
 /**
@@ -32,23 +27,26 @@ internal fun ChecklistLocationSelector(
     onRetry: () -> Unit,
     onSelect: (ChecklistRunLocation) -> Unit,
 ) {
-    BpmSearchField(query, onSearch, "Buscar sede", enabled = enabled)
-    if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (failed) BpmSecondaryButton(onClick = onRetry) { Text("Reintentar sedes") }
-    else {
-        if (locations.isEmpty()) Text("No hay sedes disponibles para esta búsqueda.")
-        if (locations.isNotEmpty())
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 260.dp).selectableGroup()) {
-                items(locations, key = { it.id }) { site ->
-                    BpmChoiceRow(site.name, selected == site.id, enabled) { onSelect(site) }
-                }
-            }
-        if (selected != null && selected.isNotEmpty())
-            Text(
-                if (selectedName.isNotEmpty()) "Sede elegida: $selectedName"
-                else "Hay una sede seleccionada en el borrador.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        PageNavigation(page, previous, next, loading || !enabled, onPrevious, onNext)
-    }
+    BpmPagedChoiceSelector(
+        options = locations.map { BpmChoiceOption(it.id, it.name) },
+        selectedId = selected,
+        selectedDescription =
+            if (selected.isNullOrBlank()) ""
+            else if (selectedName.isNotBlank()) "Sede elegida: $selectedName"
+            else "Hay una sede seleccionada en el borrador.",
+        query = query,
+        page = page,
+        loading = loading,
+        failed = failed,
+        previous = previous,
+        next = next,
+        enabled = enabled,
+        searchLabel = "Buscar sede",
+        emptyMessage = "No hay sedes disponibles para esta búsqueda.",
+        onSearch = onSearch,
+        onPrevious = onPrevious,
+        onNext = onNext,
+        onRetry = onRetry,
+        onSelect = { option -> locations.firstOrNull { it.id == option.id }?.let(onSelect) },
+    )
 }

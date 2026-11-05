@@ -12,6 +12,14 @@ class WorkspaceNavigationTest {
         }
     }
 
+    @Test fun workerGetsCleaningTasksWithoutStockOrAdministration() {
+        val allowed = workspaceDestinations("WORKER", false)
+        assertTrue(WorkspaceDestination.Tasks in allowed)
+        assertFalse(WorkspaceDestination.Operations in allowed)
+        assertFalse(WorkspaceDestination.Company in allowed)
+        assertTrue(workspacePrimaryDestinations(allowed).size <= 5)
+    }
+
     @Test fun unknownRoleAndMissingMembershipFailClosed() {
         for (role in listOf(null, "SUPER_ADMIN", "worker", "UNRECOGNIZED")) {
             assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Account), workspaceDestinations(role, false))

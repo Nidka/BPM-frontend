@@ -324,3 +324,47 @@ y programación de ADMIN/SUPER_ADMIN; Control del CHEF muestra lo correspondient
 a sus sedes. `ChecklistLocationSelector` se reutiliza en programación e inicio de
 revisión. Workspace no depende de checklists ni decide períodos. Rutas, borradores
 y estados del recorrido están en CHECKLISTS.md.
+
+## Operación diaria por rol
+
+`app/DailyOperationsContent` adapta las sedes autorizadas del workspace a la nueva
+feature. ADMIN/SUPER_ADMIN acceden desde Empresa para configurar catálogos,
+criterios térmicos y planes y supervisar los hechos. CHEF accede desde Control
+para recepción, PEPS y limpieza. WORKER tiene «Mis tareas» y ve únicamente planes
+y su propia limpieza realizada. No recibe pestañas de stock, catálogos ni administración.
+
+Las rutas secundarias son `empresa/operacion` y `control/operacion`; `tareas` es
+un destino principal exclusivo de WORKER. La sede se elige con búsqueda y páginas;
+el selector compartido `BpmPagedChoiceSelector` también soporta
+`ChecklistLocationSelector`, sin dependencias entre features. El nombre de sede
+proviene del workspace real, sin opciones de prueba incorporadas al producto.
+Cambiar sede conserva la sección; durante un formulario se conserva su contexto.
+
+Volver, cambiar de organización o abandonar el módulo espera el guardado local del
+formulario. Un fallo de almacenamiento conserva la pantalla. Los detalles cierran
+primero su vista; no abandonan todo el módulo. Las consultas se actualizan al
+regresar cuando están obsoletas; «Reintentar consulta» aparece al fallar. No se
+añade un botón permanente de recarga. Más límites en OPERATIONS.md.
+
+## Incidencias y evidencia compartida
+
+Empresa y Control ofrecen «Incidencias y correcciones»; Mis tareas incorpora el
+acceso del colaborador. `empresa/incidencias`, `control/incidencias` y
+`tareas/incidencias` conservan los permisos del destino principal y del servidor.
+`app/WorkspaceSiteSelector` adapta el selector paginado de sedes para operación
+diaria e incidencias. `Location.timezone` conserva el valor real de la API y se
+pasa al formulario de asignación, que convierte fecha/hora de sede y rechaza
+horarios ambiguos o inexistentes.
+
+La raíz conecta callbacks de fotos a `MediaEvidenceViewModel.openIncident`; la
+feature de incidencias no importa media. `PrivateEvidenceHost` comparte selector,
+progreso, confirmación, preview y cierre con fotos de controles. En web usa una
+superficie en el mismo árbol, con fondo fuera de la semántica mientras se muestra,
+foco y Escape. Esto evita la pérdida reproducida de accesibilidad al retirar una
+ventana ModalBottomSheet/Dialog en la versión fijada de Compose Web. El puerto
+técnico `supportsNativeModalWindows` mantiene las ventanas nativas de Android,
+iOS y JVM; no contiene reglas de negocio ni altera el flujo de fotos.
+
+La lista resumida anterior de incidencias se sustituyó por este acceso completo.
+El módulo ofrece el siguiente paso de cada rol y preserva catálogos y responsables
+históricos. Ver INCIDENTS.md para editor recuperable, estados y límites.

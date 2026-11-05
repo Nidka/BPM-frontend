@@ -1,7 +1,6 @@
 package pe.bpm.features.checklists.presentation
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -9,8 +8,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.checklists.domain.*
-import pe.bpm.core.domain.DecimalInput
-import pe.bpm.core.domain.InputRule
 
 data class ChecklistRunLocation(val id: String, val name: String)
 
@@ -21,10 +18,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
     onLocationSearch: (String) -> Unit, onLocationPrevious: () -> Unit, onLocationNext: () -> Unit, onLocationRetry: () -> Unit,
     onBegin: (String, String) -> Unit, onEdit: (String, RunAnswerInput) -> Unit,
     onSave: () -> Unit, onReview: () -> Unit, onSubmit: () -> Unit, onBackToEdit: () -> Unit,
-    onRetry: () -> Unit, onProtectDraft: () -> Unit, onReload: () -> Unit, onBack: () -> Unit) {
-    val navigation = rememberBpmFormNavigation(state.run?.items.orEmpty().flatMap { item ->
-        (if (item.responseType == ChecklistResponseType.COMPLIANCE) emptyList() else listOf("${item.id}.value")) + "${item.id}.observation"
-    })
+    onRetry: () -> Unit, onProtectDraft: () -> Unit, onReload: () -> Unit, onBack: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     var location by remember(state.organizationId, template?.id) { mutableStateOf<String?>(null) }
     var locationName by remember(state.organizationId, template?.id) { mutableStateOf("") }
     var confirmReload by remember(state.run?.id, state.failure) { mutableStateOf(false) }
@@ -85,23 +79,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
             if (run.performedBy != state.userId) Text("Solo la persona que inició este control puede editarlo.")
             if (state.dirty) Text("Guarda tus respuestas antes de revisar y finalizar.")
         }
-        run.items.forEachIndexed { index, item ->
-            val input = state.inputs[item.id] ?: RunAnswerInput()
-            if (state.reviewing || run.status != "DRAFT") ChecklistAnswerReview(item, index, input)
-            else BpmCard(Modifier.fillMaxWidth()) {
-                Eyebrow(item.sectionName)
-                Text("${index + 1}. ${item.label}${if (item.required) " *" else ""}", fontWeight = FontWeight.Bold)
-                if (item.responseType in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE))
-                    Text("Criterio publicado: ${item.minimumValue} a ${item.maximumValue} ${item.unit}")
-                if (item.evidenceRequiredOnFailure) Text("Si no cumple, se requiere evidencia. La carga de archivos aún no está disponible.")
-                    if (item.responseType == ChecklistResponseType.COMPLIANCE) Column(Modifier.selectableGroup()) {
-                        complianceLabels.forEach { (value, label) -> BpmChoiceRow(label, input.value == value, state.editable) { onEdit(item.id, input.copy(value = value)) } }
-                    } else BpmTextField(input.value, { onEdit(item.id, input.copy(value = it)) }, if (item.responseType == ChecklistResponseType.TEXT) "Respuesta" else "Valor ${item.unit}",
-                        enabled = state.editable, navigation = navigation["${item.id}.value"], inputKind = if (item.responseType == ChecklistResponseType.TEXT) BpmInputKind.Text else BpmInputKind.Decimal,
-                        rule = if (item.responseType == ChecklistResponseType.TEXT) ChecklistInputRules.answer else InputRule { if (it.isBlank()) null else DecimalInput.error(it) })
-                    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, "Observación (opcional)", enabled = state.editable, navigation = navigation["${item.id}.observation"], rule = ChecklistInputRules.answer)
-            }
-        }
+        ChecklistAnswerEditor(run.items, state.inputs, state.editable, state.reviewing || run.status != "DRAFT", onEdit, evidence)
         if (run.status == "DRAFT" && run.performedBy == state.userId) {
             if (state.reviewing) {
                 Text("Al finalizar, las respuestas quedarán cerradas y se mostrará tu resultado.")
@@ -109,7 +87,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 BpmSecondaryButton(onClick = onBackToEdit, enabled = state.editable) { Text("Volver a las respuestas") }
             } else {
                 RaisedButton("Guardar borrador", onSave, enabled = state.editable && state.dirty)
-                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true)) { Text("Revisar y finalizar") }
+                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
             }
         }
     }

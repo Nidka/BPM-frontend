@@ -1,7 +1,7 @@
 // Proxy cerrado: el backend conserva la autoridad sobre tenant, identidad y roles.
 import { pageQuery, publicPagination } from './pagination.mjs';
 import { forwardSessionHeaders } from './session-headers.mjs';
-const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members(?:\/(?:check|search))?|courses|checklist-summaries|incidents))?$/;
+const routes = /^\/backend\/api\/v1\/organizations(?:\/([A-Za-z0-9_-]{1,64})\/(workspace|locations|members(?:\/(?:check|search))?|courses|checklist-summaries))?$/;
 export const workspaceRoute = path => routes.test(path);
 const orgFields = ['id', 'legalName', 'tradeName', 'businessType', 'taxId', 'contactName', 'contactPhone', 'contactEmail'];
 const locationFields = ['id', 'name', 'address', 'district', 'contactPhone'];
@@ -25,6 +25,14 @@ function strings(value, keys) {
     return [key, value[key]];
   }));
 }
+function publicLocation(value) {
+  const result = strings(value, locationFields);
+  if (value.timezone !== undefined) {
+    if (typeof value.timezone !== 'string' || value.timezone.length > 100 || /[\u0000-\u0020\u007f]/u.test(value.timezone)) throw new Error('Zona horaria inválida');
+    result.timezone = value.timezone;
+  }
+  return result;
+}
 function list(value, map) {
   if (!Array.isArray(value) || value.length > 100) throw new Error('Invalid list');
   return value.map(map);
@@ -46,12 +54,12 @@ function publicData(data, action, method) {
     return result;
   }
   if (action === 'members') return method === 'POST' ? strings(data, ['status']) : list(data, x => ({ ...strings(x, ['id','name','email','role']), locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('ID inválido'); return id; }) }));
-  if (action === 'locations') return method === 'POST' ? strings(data, locationFields) : list(data, x => strings(x, locationFields));
-  if (['courses','checklist-summaries','incidents'].includes(action)) return list(data, x => strings(x, ['id','title','detail','status']));
+  if (action === 'locations') return method === 'POST' ? publicLocation(data) : list(data, publicLocation);
+  if (['courses','checklist-summaries'].includes(action)) return list(data, x => strings(x, ['id','title','detail','status']));
   if (action !== 'workspace') return method === 'GET' ? list(data, x => strings(x, orgFields)) : strings(data, orgFields);
   return {
     ...workspaceMetadata(data), organization: strings(data.organization, orgFields), ...strings(data, ['role']),
-    locations: list(data.locations, x => strings(x, locationFields)),
+    locations: list(data.locations, publicLocation),
     members: list(data.members, x => ({ ...strings(x, ['id', 'name', 'email', 'role']),
       locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('Invalid ID'); return id; }) })),
     ...Object.fromEntries(['courses', 'checklists', 'incidents'].map(key => [key,
@@ -61,7 +69,7 @@ function publicData(data, action, method) {
 export async function proxyWorkspace(request, url, upstream, send, response) {
   const match = url.pathname.match(routes);
   const action = match?.[2];
-  const allowed = ['members/check','members/search'].includes(action) ? ['POST'] : ['workspace','courses','checklist-summaries','incidents'].includes(action) ? ['GET'] : ['GET', 'POST'];
+  const allowed = ['members/check','members/search'].includes(action) ? ['POST'] : ['workspace','courses','checklist-summaries'].includes(action) ? ['GET'] : ['GET', 'POST'];
   if (!match) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   if (!allowed.includes(request.method)) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   let query;

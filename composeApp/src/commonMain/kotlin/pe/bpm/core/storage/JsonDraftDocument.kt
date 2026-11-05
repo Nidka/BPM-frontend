@@ -23,6 +23,23 @@ class JsonDraftDocument<T>(private val storage: DraftStorage, private val origin
         require(raw.encodeToByteArray().size <= MAX_DRAFT_BYTES)
         storage.write(key(owner), raw)
     }
+    /** Reintenta la transformación pura si otro escritor confirmó antes; nunca pisa su versión. */
+    suspend fun update(owner: DraftOwner, transform: (T?) -> T): T {
+        repeat(16) {
+            val raw = storage.read(key(owner))
+            val previous = raw?.let {
+                require(it.encodeToByteArray().size <= MAX_DRAFT_BYTES)
+                json.decodeFromString(serializer, it).also { envelope ->
+                    require(envelope.schema == 1 && envelope.user == owner.userId && envelope.organization == owner.organizationId)
+                }.document
+            }
+            val value = transform(previous)
+            val encoded = json.encodeToString(serializer, DraftEnvelope(1, owner.userId, owner.organizationId, value))
+            require(encoded.encodeToByteArray().size <= MAX_DRAFT_BYTES)
+            if (storage.compareAndSet(key(owner), raw, encoded)) return value
+        }
+        error("El documento cambió repetidamente; vuelve a intentarlo")
+    }
     suspend fun remove(owner: DraftOwner) = storage.remove(key(owner))
 }
 @Serializable private data class DraftEnvelope<T>(val schema: Int, val user: String, val organization: String, val document: T)

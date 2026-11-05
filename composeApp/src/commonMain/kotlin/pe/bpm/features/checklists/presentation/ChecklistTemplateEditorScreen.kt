@@ -163,6 +163,10 @@ import pe.bpm.core.domain.DecimalInput
             fields["$prefix.range"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida (opcional)", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades", rule = ChecklistInputRules.unit, navigation = navigation["${input.id}.unit"])
         }
+        if (input.type != ChecklistResponseType.TEXT) {
+            BpmCheckboxRow("Solicitar una foto cuando no cumpla", input.evidenceRequired) { checked -> onChange { it.copy(evidenceRequired = checked) } }
+            Text("La persona que realiza el control deberá adjuntar una foto antes de finalizar si marca No cumple o registra un valor fuera de los límites.", style = MaterialTheme.typography.bodySmall)
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (index > 0) BpmTextButton(onClick = { onMove(-1) }, modifier = Modifier.semantics { contentDescription = "Mover pregunta ${index + 1} antes de la anterior" }) { Text("Mover antes") }
             if (index < count - 1) BpmTextButton(onClick = { onMove(1) }, modifier = Modifier.semantics { contentDescription = "Mover pregunta ${index + 1} después de la siguiente" }) { Text("Mover después") }

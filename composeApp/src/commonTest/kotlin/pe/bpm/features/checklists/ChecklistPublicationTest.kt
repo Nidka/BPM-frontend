@@ -32,7 +32,7 @@ class ChecklistPublicationTest {
         val d=draft()
         for(invalid in listOf(d.copy(name=" "),d.copy(items=emptyList()),d.copy(items=d.items+d.items),
             d.copy(items=listOf(d.items[0].copy(responseType=ChecklistResponseType.TEMPERATURE,minimumValue=10.123,maximumValue=2.0))),
-            d.copy(items=listOf(d.items[0].copy(evidenceRequiredOnFailure=true))))) {
+            d.copy(items=listOf(d.items[0].copy(responseType=ChecklistResponseType.TEXT,evidenceRequiredOnFailure=true))))) {
             assertEquals(PublicationFailure.VALIDATION,assertIs<TemplatePublicationResult.Rejected>(useCase("org",invalid)).reason)
         }
         assertEquals(0,writes)

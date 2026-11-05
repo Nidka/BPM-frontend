@@ -28,6 +28,10 @@ internal fun WorkspaceScreen(
     choosingOrganization: Boolean, onChooseOrganization: () -> Unit,
     checklistContent: @Composable () -> Unit,
     onManageTemplates: () -> Unit,
+    onDailyOperations: () -> Unit = {},
+    onIncidents: () -> Unit = {},
+ onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
+    taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
     secondaryTitle: String? = null,
@@ -76,9 +80,11 @@ internal fun WorkspaceScreen(
                     canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin),
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
-                    onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
+                    onAlerts=onAlerts,unreadCount=unreadAlertCount,
+ onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
+                if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp), contentAlignment = Alignment.TopCenter) { taskContent() }
+                else if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) { secondaryContent() }
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
                     contentAlignment = Alignment.TopCenter) {
@@ -138,6 +144,7 @@ internal fun WorkspaceScreen(
                     }
                     if (secondaryContent != null) secondaryContent()
                     else workspace?.let { current -> when (section) {
+                        WorkspaceDestination.Tasks -> Unit
                         WorkspaceDestination.Account -> Unit
                         WorkspaceDestination.Home -> Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
                         WorkspaceDestination.Company -> {
@@ -153,6 +160,17 @@ internal fun WorkspaceScreen(
                                 Text("Prepara preguntas y publica los criterios que utilizará tu equipo.")
                                 BpmSecondaryButton(onClick = onManageTemplates) { Text("Gestionar plantillas") }
                             }
+                            if (current.canManage) BpmCard(Modifier.fillMaxWidth()) {
+                                Text("Operación diaria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.")
+                                BpmSecondaryButton(onClick = onDailyOperations) { Text("Gestionar insumos y limpieza") }
+                            }
+                            if(current.canManage) BpmCard(Modifier.fillMaxWidth()) {
+                                Text("Reglas de avisos",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+                                Text("Elige cuándo avisar a las personas responsables de tus sedes.")
+                                BpmSecondaryButton(onClick=onAlertRules){Text("Configurar avisos")}
+                            }
+                            if (current.canManage) IncidentEntryCard(onIncidents)
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                             if (current.locations.isEmpty()) EmptyState("Sin sedes para mostrar", "No hay sedes disponibles para esta búsqueda y tus permisos actuales.")
@@ -187,12 +205,7 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
                             checklistContent()
-                            if (secondaryTitle == null && (current.incidents.isNotEmpty() || (current.totals["incidents"] ?: 0) > 0)) {
-                            Eyebrow("INCIDENCIAS DE TUS SEDES")
-                            WorkspacePagedList(WorkspaceResource.Incidents, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
-                            Entries(current.incidents, "No encontramos incidencias", "Prueba con otra búsqueda.")
-                            }
-                            }
+                            if (secondaryTitle == null) IncidentEntryCard(onIncidents)
                         }
                     } }
                 }
@@ -209,5 +222,13 @@ internal fun WorkspaceScreen(
                 }
             }
         }
+    }
+}
+
+@Composable private fun IncidentEntryCard(onOpen: () -> Unit) {
+    BpmCard(Modifier.fillMaxWidth()) {
+        Text("Incidencias y correcciones",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+        Text("Consulta lo reportado, atiende las correcciones y revisa qué falta para validar el cierre.")
+        BpmSecondaryButton(onClick=onOpen){Text("Abrir incidencias")}
     }
 }

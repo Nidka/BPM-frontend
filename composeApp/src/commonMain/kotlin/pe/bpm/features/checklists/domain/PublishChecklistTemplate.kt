@@ -46,7 +46,7 @@ class PublishChecklistTemplate(private val publisher: ChecklistTemplatePublisher
                 fields["items.${item.id}.range"] = "Indica mínimo y máximo válidos, en orden y con hasta dos decimales."
             if (!numeric && (item.minimumValue != null || item.maximumValue != null || item.unit.isNotEmpty()))
                 fields["items.${item.id}.range"] = "Este tipo de pregunta no utiliza unidad ni rango."
-            if (item.evidenceRequiredOnFailure) fields["items"] = "La evidencia obligatoria estará disponible con el módulo multimedia."
+            if (item.evidenceRequiredOnFailure && item.responseType == ChecklistResponseType.TEXT) fields["items"] = "La foto obligatoria requiere una pregunta de cumplimiento o medición."
         }
         return fields
     }

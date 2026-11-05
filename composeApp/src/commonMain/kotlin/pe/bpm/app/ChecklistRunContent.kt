@@ -10,12 +10,19 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 @Composable internal fun ChecklistRunContent(userId: String, workspace: WorkspaceState,
     catalog: ChecklistCatalogState, run: ChecklistRunState, runs: ChecklistRunViewModel,
     workspaceActions: WorkspaceViewModel, catalogActions: ChecklistCatalogViewModel,
-    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit) {
+    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit, onWorkOffline: ((String) -> Unit)? = null, evidence: @Composable (pe.bpm.features.checklists.domain.ChecklistItem) -> Unit = {}) {
     val org = workspace.workspace?.organization?.id ?: return
     LaunchedEffect(userId, org, runId) { runs.open(userId, org, runId) }
     LaunchedEffect(starting, templateId, org) { if (starting) catalogActions.showTemplate(templateId) }
     LaunchedEffect(starting, run.run?.id) { if (starting || run.run?.id != runId) run.run?.id?.let(onStarted) }
     val scoped = run.takeIf { it.userId == userId && it.organizationId == org && (runId == null || it.run == null || it.run.id == runId) } ?: ChecklistRunState(busy = true)
+    if (onWorkOffline != null && scoped.run?.status == "DRAFT" && scoped.run.performedBy == userId) {
+        pe.bpm.core.designsystem.BpmSecondaryButton(onClick = { onWorkOffline(scoped.run.id) },
+            enabled = !scoped.busy && !scoped.dirty && !scoped.pending && !scoped.conflicted && scoped.failure == null) {
+            androidx.compose.material3.Text("Trabajar sin conexión")
+        }
+        if (scoped.dirty) androidx.compose.material3.Text("Guarda primero tus respuestas para preparar esta revisión sin conexión.")
+    }
     val page = workspace.pages[WorkspaceResource.Locations]
     ChecklistRunScreen(scoped, catalog.detail.takeIf { catalog.organizationId == org }, catalog.detailLoading,
         catalog.detailFailure?.let { "No pudimos consultar esta plantilla. Regresa al catálogo y vuelve a intentarlo." },
@@ -29,5 +36,5 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
         onBegin = {site,version->runs.begin(site,version)}, onEdit = runs::edit, onSave = runs::save, onReview = runs::review,
         onProtectDraft = { if (scoped.pending) runs.retry() else if (scoped.run == null) runs.reload() else runs.protectDraft() },
         onSubmit = runs::confirmSubmit, onBackToEdit = runs::backToEdit, onRetry = runs::retry,
-        onReload = { runs.reload() }, onBack = onBack)
+        onReload = { runs.reload() }, onBack = onBack, evidence = evidence)
 }

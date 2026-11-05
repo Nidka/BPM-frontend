@@ -64,6 +64,12 @@ class TemplateDraftRecoveryTest {
             assertNull(drafts.read(DraftOwner("other", "org")))
             vm.open("third", "org"); advanceUntilIdle()
             vm.type(vm.state.value.questions.single().id, ChecklistResponseType.TEMPERATURE)
+            val questionId = vm.state.value.questions.single().id
+            vm.question(questionId) { it.copy(evidenceRequired = true) }; advanceUntilIdle()
+            assertTrue(drafts.read(DraftOwner("third", "org"))!!.questions.single().evidenceRequired)
+            vm.type(questionId, ChecklistResponseType.TEXT); advanceUntilIdle()
+            assertFalse(vm.state.value.questions.single().evidenceRequired)
+            vm.type(questionId, ChecklistResponseType.TEMPERATURE)
             vm.useSuggestion("opening"); advanceUntilIdle()
             assertEquals("", vm.state.value.name)
             assertEquals(ChecklistResponseType.TEMPERATURE, vm.state.value.questions.single().type)

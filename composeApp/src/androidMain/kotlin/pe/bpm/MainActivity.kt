@@ -16,6 +16,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         identityOwner.googleAuth.attach(this)
+        identityOwner.pushProvider.attach(this)
         // La aplicación utiliza superficies claras; los íconos del sistema deben mantener contraste.
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
@@ -24,11 +25,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val sessionStore = remember { AndroidSessionStore(applicationContext) }
             val drafts = remember { AndroidDraftStorage(applicationContext) }
-            App(draftStorage = drafts, sessionStore = sessionStore, googleAuthProvider = identityOwner.googleAuth)
+            App(draftStorage = drafts, sessionStore = sessionStore, googleAuthProvider = identityOwner.googleAuth, pushProvider = identityOwner.pushProvider)
         }
     }
     override fun onDestroy() {
         identityOwner.googleAuth.detach(this)
+        identityOwner.pushProvider.detach()
         super.onDestroy()
     }
 }

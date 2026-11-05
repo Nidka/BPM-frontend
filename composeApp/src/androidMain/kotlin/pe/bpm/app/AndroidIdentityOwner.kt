@@ -7,6 +7,7 @@ import pe.bpm.features.identity.data.AndroidGoogleAuthProvider
 
 /** Mantiene el proveedor durante recreaciones; la Activity visible se adjunta solo mientras existe. */
 class AndroidIdentityOwner(application: Application) : AndroidViewModel(application) {
+    val pushProvider = pe.bpm.features.notifications.data.AndroidPushProvider(application)
     val googleAuth = AndroidGoogleAuthProvider(application, GOOGLE_WEB_CLIENT_ID)
-    init { addCloseable(googleAuth) }
+    init { addCloseable(googleAuth);addCloseable(pushProvider) }
 }

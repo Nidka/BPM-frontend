@@ -31,6 +31,27 @@ class ChecklistRunTest {
         assertFalse(validRunAnswers(listOf(numeric), listOf(ChecklistAnswer("question", numericValue = -17.555)), true))
     }
 
+    @Test fun requiredPhotoCountsBelongToTheQuestionAndDoNotReplaceAnswers() = runTest {
+        val question = item.copy(evidenceRequiredOnFailure = true)
+        val answers = listOf(ChecklistAnswer("question", "NON_COMPLIANT"))
+        assertFalse(validRunAnswers(listOf(question), answers, true, mapOf("other" to 1)))
+        assertTrue(validRunAnswers(listOf(question), answers, true, mapOf("question" to 1)))
+        assertTrue(validRunAnswers(listOf(question), listOf(ChecklistAnswer("question", "COMPLIANT")), true))
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val remote = FakeRunRepository(initial.copy(items = listOf(question)))
+            val vm = ChecklistRunViewModel(LoadChecklistRun(remote), StartChecklistRun(remote), SaveChecklistRun(remote), SubmitChecklistRun(remote), { "key-valid" }, { "2026-11-01T12:00:00Z" })
+            vm.open("user", "org", "run"); advanceUntilIdle()
+            vm.edit("question", RunAnswerInput("NON_COMPLIANT", "Respuesta sin guardar"))
+            vm.evidenceCount("user", "wrong-org", "run", "question", 1)
+            assertTrue(vm.state.value.run!!.evidenceCounts.isEmpty())
+            vm.evidenceCount("user", "org", "run", "question", 1)
+            assertEquals(1, vm.state.value.run!!.evidenceCounts["question"])
+            assertEquals("Respuesta sin guardar", vm.state.value.inputs["question"]!!.observation)
+            assertTrue(vm.state.value.dirty)
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun retriesTheExactWriteAndRequiresSaveThenReviewBeforeSubmission() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

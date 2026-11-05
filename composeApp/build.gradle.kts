@@ -29,12 +29,18 @@ val googleWebClientId = providers.gradleProperty("googleWebClientId")
 val googleIosClientId = providers.gradleProperty("googleIosClientId")
     .orElse(providers.environmentVariable("GOOGLE_IOS_CLIENT_ID"))
     .orElse(firebasePublic["googleIosClientId"] as? String ?: "")
+val firebaseAndroidAppId = firebasePublic["androidAppId"] as? String ?: ""
+val firebaseSenderId = firebasePublic["messagingSenderId"] as? String ?: ""
+val firebaseProjectId = firebasePublic["projectId"] as? String ?: ""
 val generatedAppleInfo = layout.buildDirectory.file("generated/config/ios/App-Info.plist")
 val generateAppConfig by tasks.registering {
     inputs.property("apiBaseUrl", apiBaseUrl)
     inputs.property("firebaseApiKey", firebaseApiKey)
     inputs.property("googleWebClientId", googleWebClientId)
     inputs.property("googleIosClientId", googleIosClientId)
+    inputs.property("firebaseAndroidAppId", firebaseAndroidAppId)
+    inputs.property("firebaseSenderId", firebaseSenderId)
+    inputs.property("firebaseProjectId", firebaseProjectId)
     outputs.dir(generatedConfig)
     outputs.file(generatedAppleInfo)
     doLast {
@@ -49,6 +55,9 @@ val generateAppConfig by tasks.registering {
         require(key.isEmpty() || key.matches(Regex("[A-Za-z0-9_-]{20,100}"))) {
             "FIREBASE_API_KEY debe ser la clave pública de Firebase, no un JSON ni un secreto Admin."
         }
+        require(firebaseAndroidAppId.isEmpty() || firebaseAndroidAppId.matches(Regex("1:[0-9]+:android:[a-f0-9]+")))
+        require(firebaseSenderId.isEmpty() || firebaseSenderId.matches(Regex("[0-9]+")))
+        require(firebaseProjectId.isEmpty() || firebaseProjectId.matches(Regex("[a-z0-9-]+")))
         file.parentFile.mkdirs()
         val googleClient = googleWebClientId.get().trim()
         require(googleClient.isEmpty() || googleClient.matches(Regex("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com"))) {
@@ -77,7 +86,10 @@ val generateAppConfig by tasks.registering {
         """.trimIndent())
         file.writeText("package pe.bpm.core.config\n\ninternal const val NATIVE_API_BASE_URL = \"" + url + "\"\n" +
             "internal const val FIREBASE_API_KEY = \"" + key + "\"\n" +
-            "internal const val GOOGLE_WEB_CLIENT_ID = \"" + googleClient + "\"\n")
+            "internal const val GOOGLE_WEB_CLIENT_ID = \"" + googleClient + "\"\n" +
+            "internal const val FIREBASE_ANDROID_APP_ID = \"" + firebaseAndroidAppId + "\"\n" +
+            "internal const val FIREBASE_MESSAGING_SENDER_ID = \"" + firebaseSenderId + "\"\n" +
+            "internal const val FIREBASE_PROJECT_ID = \"" + firebaseProjectId + "\"\n")
     }
 }
 
@@ -122,6 +134,7 @@ kotlin {
             implementation(libs.credentials)
             implementation(libs.credentials.play.services)
             implementation(libs.googleid)
+            implementation("com.google.firebase:firebase-messaging:26.0.0")
         }
         iosMain.dependencies { implementation(libs.ktor.darwin) }
         wasmJsMain.dependencies { implementation(libs.ktor.js) }

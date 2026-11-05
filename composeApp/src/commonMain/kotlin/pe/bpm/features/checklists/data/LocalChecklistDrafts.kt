@@ -29,7 +29,7 @@ class LocalChecklistRunDraftRepository(storage: DraftStorage, origin: String) : 
             is RunOperation.Save -> require(operation.run == run && operation.key.length in 8..100 &&
                 validRunAnswers(operation.run.items, operation.answers, complete = false))
             is RunOperation.Submit -> require(operation.run == run && operation.key.length in 8..100 &&
-                validRunAnswers(operation.run.items, operation.run.answers, complete = true))
+                validRunAnswers(operation.run.items, operation.run.answers, complete = true, evidenceCounts = operation.run.evidenceCounts))
             null -> Unit
         }
         require(draft.inputs.size <= 100 && draft.inputs.all { (id, input) ->
@@ -70,10 +70,10 @@ private fun RunDraft.dto() = RunDraftDto(run?.dto(), inputs.mapValues { InputDto
     null -> null
 })
 @Serializable private data class QuestionDraftDto(val id: String, val section: String, val label: String, val type: String,
-    val required: Boolean, val unit: String, val minimum: String, val maximum: String) {
+    val required: Boolean, val unit: String, val minimum: String, val maximum: String, val evidenceRequired: Boolean = false) {
     fun domain(): TemplateQuestionInput {
         require(id.isNotBlank() && listOf(section, label, unit, minimum, maximum).all { it.length <= 2000 })
-        return TemplateQuestionInput(id, section, label, ChecklistResponseType.valueOf(type), required, unit, minimum, maximum)
+        return TemplateQuestionInput(id, section, label, ChecklistResponseType.valueOf(type), required, unit, minimum, maximum, evidenceRequired)
     }
 }
 @Serializable private data class TemplateDraftDto(val id: String, val versionId: String, val name: String, val area: String,
@@ -85,4 +85,4 @@ private fun RunDraft.dto() = RunDraftDto(run?.dto(), inputs.mapValues { InputDto
     }
 }
 private fun TemplateDraft.dto() = TemplateDraftDto(id, versionId, name, area, description,
-    questions.map { QuestionDraftDto(it.id, it.section, it.label, it.type.name, it.required, it.unit, it.minimum, it.maximum) }, publicationPending)
+    questions.map { QuestionDraftDto(it.id, it.section, it.label, it.type.name, it.required, it.unit, it.minimum, it.maximum, it.evidenceRequired) }, publicationPending)

@@ -8,7 +8,7 @@ import pe.bpm.features.identity.data.GoogleAuthProvider
 import pe.bpm.core.storage.DraftStorage
 
 /** Conserva la infraestructura durante el ciclo de vida de la app, no por recomposición. */
-internal class GraphOwner(sessionStore: SessionStore, googleAuthProvider: GoogleAuthProvider?, draftStorage: DraftStorage) : ViewModel() {
-    val graph = AppGraph(platformAppConfig(), sessionStore = sessionStore, googleAuthProvider = googleAuthProvider, draftStorage = draftStorage)
+internal class GraphOwner(sessionStore: SessionStore, googleAuthProvider: GoogleAuthProvider?, draftStorage: DraftStorage,pushProvider:pe.bpm.features.notifications.domain.PushProvider) : ViewModel() {
+    val graph = AppGraph(platformAppConfig(), sessionStore = sessionStore, googleAuthProvider = googleAuthProvider, draftStorage = draftStorage,pushProvider=pushProvider)
     init { addCloseable(graph) }
 }

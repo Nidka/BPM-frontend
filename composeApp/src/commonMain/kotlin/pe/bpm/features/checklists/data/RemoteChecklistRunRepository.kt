@@ -83,7 +83,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
 }
 @Serializable private data class RunEnvelopeDto(val data: RunDto)
 @Serializable internal data class RunDto(val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
-    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",val assignmentId:String="") {
+    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",val assignmentId:String="", val evidenceCounts: Map<String, Int> = emptyMap()) {
     fun domain(): ChecklistRun {
         require(listOf(id, organizationId, locationId, templateVersionId, performedBy).all { it.isNotBlank() })
         require(templateName.length <= 180 && locationName.length <= 200)
@@ -93,14 +93,15 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         require(items.map { it.id }.distinct().size == items.size && items.map { it.displayOrder }.distinct().size == items.size)
         val questions = items.sortedBy { it.displayOrder }.map { it.domain() }
         val values = answers.map { it.domain() }
-        require(validRunAnswers(questions, values, complete = status == "SUBMITTED"))
+        require(evidenceCounts.size <= 100 && evidenceCounts.all { (id, count) -> questions.any { it.id == id } && count in 0..3 })
+        require(validRunAnswers(questions, values, complete = status == "SUBMITTED", evidenceCounts = evidenceCounts))
         require(compliancePercent == null || compliancePercent.isFinite() && compliancePercent in 0.0..100.0)
         require(status != "SUBMITTED" || compliancePercent != null)
         require(assignmentId.isEmpty()||assignmentId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
-        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId)
+        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId,evidenceCounts)
     }
 }
 
 internal fun ChecklistAnswer.dto() = AnswerDto(itemId, complianceResult, textValue, numericValue, observation)
 internal fun ChecklistRun.dto() = RunDto(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion,
-    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId)
+    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId,evidenceCounts)

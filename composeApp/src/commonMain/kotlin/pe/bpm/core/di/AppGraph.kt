@@ -1,6 +1,15 @@
 package pe.bpm.core.di
 
 import io.ktor.client.HttpClient
+import pe.bpm.features.operations.data.RemoteOperationsRepository
+import pe.bpm.features.operations.data.LocalOperationsDraftRepository
+import pe.bpm.features.operations.domain.ManageOperations
+import pe.bpm.features.operations.domain.ManageOperationsDraft
+import pe.bpm.features.operations.presentation.OperationsViewModel
+import pe.bpm.features.media.data.RemoteMediaRepository
+import pe.bpm.features.media.data.createMediaObjectHttpClient
+import pe.bpm.features.media.domain.*
+import pe.bpm.features.media.presentation.MediaEvidenceViewModel
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
@@ -11,6 +20,8 @@ import pe.bpm.features.workspace.data.LocalWorkspaceFormDraftRepository
 import pe.bpm.features.workspace.presentation.WorkspaceFormViewModel
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
+import pe.bpm.features.checklists.data.LocalChecklistOfflineRepository
+import pe.bpm.features.checklists.presentation.ChecklistOfflineViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistHistoryRepository
 import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
@@ -64,6 +75,7 @@ class AppGraph(
     sessionStore: SessionStore = EphemeralSessionStore(),
     googleAuthProvider: GoogleAuthProvider? = null,
     draftStorage: DraftStorage = UnavailableDraftStorage(),
+    private val pushProvider:pe.bpm.features.notifications.domain.PushProvider=pe.bpm.features.notifications.domain.UnavailablePushProvider(),
 ) : AutoCloseable {
     private val runDrafts = ManageRunDraft(LocalChecklistRunDraftRepository(draftStorage, config.apiBaseUrl))
     private val templateDrafts = ManageTemplateDraft(LocalChecklistTemplateDraftRepository(draftStorage, config.apiBaseUrl))
@@ -93,6 +105,20 @@ class AppGraph(
     private val runRepository = RemoteChecklistRunRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    private val objectClient = createMediaObjectHttpClient()
+    private val mediaRepository = RemoteMediaRepository(httpClient, objectClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun mediaEvidenceViewModel() = MediaEvidenceViewModel(LoadEvidence(mediaRepository), UploadEvidence(mediaRepository),
+        RemoveEvidence(mediaRepository), LoadEvidencePreview(mediaRepository)) { Uuid.random().toString() }
+
+    private val offlineRepository = LocalChecklistOfflineRepository(draftStorage, config.apiBaseUrl)
+    @OptIn(ExperimentalUuidApi::class)
+    fun checklistOfflineViewModel() = ChecklistOfflineViewModel(
+        ManageOfflineChecklists(offlineRepository, LoadChecklistRun(runRepository)) { Uuid.random().toString() },
+        SyncOfflineChecklists(offlineRepository, SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository)))
+
     private val historyRepository = RemoteChecklistHistoryRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
@@ -109,6 +135,37 @@ class AppGraph(
     fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
         SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, runDrafts)
 
+    private val operationsRepository = RemoteOperationsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    private val operationsDrafts = ManageOperationsDraft(LocalOperationsDraftRepository(draftStorage, config.apiBaseUrl))
+    @OptIn(ExperimentalUuidApi::class)
+    fun operationsViewModel() = OperationsViewModel(ManageOperations(operationsRepository, operationsRepository), operationsDrafts,
+        { Uuid.random().toString() }, { Clock.System.now().toString() })
+
+
+    private val incidentsRepository = pe.bpm.features.incidents.data.RemoteIncidentsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    private val incidentDrafts = pe.bpm.features.incidents.data.LocalIncidentDraftRepository(draftStorage, config.apiBaseUrl)
+    @OptIn(ExperimentalUuidApi::class)
+    fun incidentsViewModel() = pe.bpm.features.incidents.presentation.IncidentsViewModel(
+        pe.bpm.features.incidents.domain.ManageIncidents(incidentsRepository, incidentsRepository, incidentDrafts),
+        { Uuid.random().toString() }, { Clock.System.now().toString() })
+
+    private val alertsRepository = pe.bpm.features.alerts.data.RemoteAlertsRepository(httpClient,config,
+        onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,
+        token=identityRepository::validSessionToken)
+    private val alertDrafts = pe.bpm.features.alerts.data.LocalAlertRuleDraftRepository(draftStorage,config.apiBaseUrl)
+    @OptIn(ExperimentalUuidApi::class)
+    fun alertsViewModel() = pe.bpm.features.alerts.presentation.AlertsViewModel(
+        pe.bpm.features.alerts.domain.ManageAlerts(alertsRepository,alertsRepository,alertDrafts)) { Uuid.random().toString() }
+
+    private val notificationDevicesRepository=pe.bpm.features.notifications.data.RemoteNotificationDevicesRepository(httpClient,config,
+        onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,token=identityRepository::validSessionToken)
+    fun notificationDevicesViewModel()=pe.bpm.features.notifications.presentation.NotificationDevicesViewModel(
+        pe.bpm.features.notifications.domain.ManageNotificationDevices(notificationDevicesRepository,pushProvider))
+
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
         CreateLocation(workspaceRepository), AddMember(workspaceRepository), LoadWorkspacePage(workspaceRepository))
@@ -123,6 +180,7 @@ class AppGraph(
         SessionMonitor(ObserveSessionWindow(identityRepository), RecordSessionActivity(identityRepository)), EndSession(identityRepository))
     override fun close() {
         identityRepository.close()
+        objectClient.close()
         httpClient.close()
     }
 }

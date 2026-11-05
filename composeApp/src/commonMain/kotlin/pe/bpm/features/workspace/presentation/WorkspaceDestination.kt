@@ -8,6 +8,7 @@ enum class WorkspaceDestination(val route: String, val label: String) {
     Supervision("seguimiento", "Seguimiento"),
     Team("equipo", "Equipo"),
     Company("empresa", "Empresa"),
+    Tasks("tareas", "Mis tareas"),
     Account("cuenta", "Mi cuenta");
 
     companion object {
@@ -21,7 +22,7 @@ fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<Workspace
         platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "ADMIN" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "CHEF" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Account)
-        role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Account)
+        role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Tasks, WorkspaceDestination.Learn, WorkspaceDestination.Account)
         else -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Account)
     }
 }

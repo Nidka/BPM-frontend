@@ -103,7 +103,7 @@ class ChecklistTemplateEditorViewModel(private val publish: PublishChecklistTemp
             questions = suggestion.questions.map { (section, label) -> TemplateQuestionInput(newId(), section, label) }) }
     }
     fun question(id: String, change: (TemplateQuestionInput) -> TemplateQuestionInput) = edit { s -> s.copy(questions = s.questions.map { if (it.id == id) change(it).let { q -> q.copy(id = id, section = q.section.take(2000), label = q.label.take(2000), unit = q.unit.take(2000), minimum = q.minimum.take(2000), maximum = q.maximum.take(2000)) } else it }) }
-    fun type(id: String, type: ChecklistResponseType) = question(id) { if (it.type == type) it else it.copy(type = type, minimum = "", maximum = "", unit = "") }
+    fun type(id: String, type: ChecklistResponseType) = question(id) { if (it.type == type) it else it.copy(type = type, minimum = "", maximum = "", unit = "", evidenceRequired = it.evidenceRequired && type != ChecklistResponseType.TEXT) }
     fun addQuestion() = edit { if (it.questions.size < 100) it.copy(questions = it.questions + TemplateQuestionInput(newId()), removed = null) else it }
     fun removeQuestion(id: String) = edit { s ->
         val index = s.questions.indexOfFirst { it.id == id }
