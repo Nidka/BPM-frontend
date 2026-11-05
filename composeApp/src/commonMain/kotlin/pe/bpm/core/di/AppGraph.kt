@@ -75,6 +75,7 @@ class AppGraph(
     sessionStore: SessionStore = EphemeralSessionStore(),
     googleAuthProvider: GoogleAuthProvider? = null,
     draftStorage: DraftStorage = UnavailableDraftStorage(),
+    private val pushProvider:pe.bpm.features.notifications.domain.PushProvider=pe.bpm.features.notifications.domain.UnavailablePushProvider(),
 ) : AutoCloseable {
     private val runDrafts = ManageRunDraft(LocalChecklistRunDraftRepository(draftStorage, config.apiBaseUrl))
     private val templateDrafts = ManageTemplateDraft(LocalChecklistTemplateDraftRepository(draftStorage, config.apiBaseUrl))
@@ -151,6 +152,19 @@ class AppGraph(
     fun incidentsViewModel() = pe.bpm.features.incidents.presentation.IncidentsViewModel(
         pe.bpm.features.incidents.domain.ManageIncidents(incidentsRepository, incidentsRepository, incidentDrafts),
         { Uuid.random().toString() }, { Clock.System.now().toString() })
+
+    private val alertsRepository = pe.bpm.features.alerts.data.RemoteAlertsRepository(httpClient,config,
+        onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,
+        token=identityRepository::validSessionToken)
+    private val alertDrafts = pe.bpm.features.alerts.data.LocalAlertRuleDraftRepository(draftStorage,config.apiBaseUrl)
+    @OptIn(ExperimentalUuidApi::class)
+    fun alertsViewModel() = pe.bpm.features.alerts.presentation.AlertsViewModel(
+        pe.bpm.features.alerts.domain.ManageAlerts(alertsRepository,alertsRepository,alertDrafts)) { Uuid.random().toString() }
+
+    private val notificationDevicesRepository=pe.bpm.features.notifications.data.RemoteNotificationDevicesRepository(httpClient,config,
+        onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,token=identityRepository::validSessionToken)
+    fun notificationDevicesViewModel()=pe.bpm.features.notifications.presentation.NotificationDevicesViewModel(
+        pe.bpm.features.notifications.domain.ManageNotificationDevices(notificationDevicesRepository,pushProvider))
 
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),

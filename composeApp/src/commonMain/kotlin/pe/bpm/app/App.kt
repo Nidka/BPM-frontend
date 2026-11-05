@@ -65,8 +65,9 @@ fun App(
     onBackNavigation: (() -> Unit)? = null,
     googleAuthProvider: GoogleAuthProvider? = null,
     draftStorage: DraftStorage = remember { UnavailableDraftStorage() },
+    pushProvider:pe.bpm.features.notifications.domain.PushProvider=remember { pe.bpm.features.notifications.domain.UnavailablePushProvider() },
 ) {
-    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage) }
+    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage,pushProvider) }
     val identity = viewModel<IdentityViewModel> { owner.graph.identityViewModel() }
     val workspace = viewModel<WorkspaceViewModel> { owner.graph.workspaceViewModel() }
     val checklists = viewModel<ChecklistCatalogViewModel> { owner.graph.checklistCatalogViewModel() }
@@ -81,6 +82,10 @@ fun App(
     val assignmentFormState by assignmentForm.state.collectAsStateWithLifecycle()
     val dailyOperations = viewModel<pe.bpm.features.operations.presentation.OperationsViewModel> { owner.graph.operationsViewModel() }
     val dailyState by dailyOperations.state.collectAsStateWithLifecycle()
+    val notificationDevices = viewModel<pe.bpm.features.notifications.presentation.NotificationDevicesViewModel> {owner.graph.notificationDevicesViewModel()}
+    val alerts = viewModel<pe.bpm.features.alerts.presentation.AlertsViewModel> { owner.graph.alertsViewModel() }
+    val alertsState by alerts.state.collectAsStateWithLifecycle()
+    val alertEditorState by alerts.editor.state.collectAsStateWithLifecycle()
     val incidents = viewModel<pe.bpm.features.incidents.presentation.IncidentsViewModel> { owner.graph.incidentsViewModel() }
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
@@ -96,6 +101,7 @@ fun App(
     val workspaceState by workspace.state.collectAsStateWithLifecycle()
     val checklistState by checklists.state.collectAsStateWithLifecycle()
     val profile = identityState.profile
+    var alertSource by remember(profile?.id,workspaceState.selected,workspaceState.workspace?.role) {mutableStateOf<pe.bpm.features.alerts.domain.Alert?>(null)}
     var accessNotice by remember(profile?.id, workspaceState.selected) { mutableStateOf<String?>(null) }
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
@@ -119,7 +125,7 @@ fun App(
         if (loadedIdentityId != profile?.id || profile == null) {
             checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
             templateEditor.reset()
-            runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset()
+            runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset()
             formDrafts.reset()
             workspace.reset()
         }
@@ -137,6 +143,7 @@ fun App(
         if (identity.state.value.profile != null && identity.sessionStatus.value.warning == null &&
             entry?.destination?.route in listOf(DAILY_MANAGEMENT, DAILY_EXECUTION, WorkspaceDestination.Tasks.route)) dailyOperations.refreshIfStale()
         if (identity.state.value.profile != null && entry?.destination?.route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS) && identity.sessionStatus.value.warning == null) incidents.refreshIfStale()
+        if(identity.state.value.profile!=null && identity.sessionStatus.value.warning==null && entry?.destination?.route in listOf(ALERT_INBOX,ALERT_RULES)) alerts.refreshIfStale()
         if (identity.state.value.profile != null && primaryRoute && identity.sessionStatus.value.warning == null) {
             workspace.refreshIfStale()
             if (entry?.destination?.route == WorkspaceDestination.Operations.route) checklists.refreshIfStale()
@@ -156,6 +163,16 @@ fun App(
             history.open(profile.id, currentWorkspace.organization.id, if (WorkspaceDestination.Supervision in allowed) HistoryScope.Team else HistoryScope.Mine)
         else history.reset()
     }
+    LaunchedEffect(profile?.id,currentWorkspace?.organization?.id,currentWorkspace?.role,profile?.platformRole,workspaceState.selected,workspaceState.errors) {
+        if(profile!=null && currentWorkspace!=null && currentWorkspace.organization.id==workspaceState.selected && workspaceState.errors.none{it.code in setOf("ACCESS_DENIED","UNAUTHENTICATED")})
+            alerts.open(profile.id,currentWorkspace.organization.id,if(profile.platformRole=="SUPER_ADMIN") "SUPER_ADMIN" else currentWorkspace.role)
+        else alerts.reset()
+    }
+    LaunchedEffect(profile?.id,currentWorkspace?.organization?.id,workspaceState.selected,workspaceState.errors) {
+        if(profile!=null && currentWorkspace!=null && currentWorkspace.organization.id==workspaceState.selected && workspaceState.errors.none{it.code in setOf("ACCESS_DENIED","UNAUTHENTICATED")}) notificationDevices.open(profile.id,currentWorkspace.organization.id)
+        else notificationDevices.reset()
+    }
+    LaunchedEffect(entry?.id) { if(entry?.destination?.route !in listOf(DAILY_MANAGEMENT,DAILY_EXECUTION)) alertSource=null }
     LaunchedEffect(profile?.id, workspaceState.selected, currentWorkspace?.role, workspaceState.errors) {
         if (profile != null && currentWorkspace != null && currentWorkspace.organization.id == workspaceState.selected &&
             WorkspaceDestination.Operations in workspaceDestinations(currentWorkspace.role, profile.platformRole == "SUPER_ADMIN") &&
@@ -258,8 +275,8 @@ fun App(
                 val routes = when (destination) {
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
-                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER)
-                    WorkspaceDestination.Company -> listOf(destination.route, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX)
+                    WorkspaceDestination.Company -> listOf(destination.route, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     else -> listOf(destination.route)
                 }
@@ -270,6 +287,8 @@ fun App(
                     listOf(navArgument("templateId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
                     listOf(navArgument("runId") { type = NavType.StringType }) else if (route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL))
                     listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
+                    val alertRoute=route in listOf(ALERT_INBOX,ALERT_RULES)
+ val managingAlerts=route==ALERT_RULES
                     val daily = route in listOf(DAILY_MANAGEMENT, DAILY_EXECUTION, WorkspaceDestination.Tasks.route)
                     val incidentRoute = route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS)
                     val managingDaily = route == DAILY_MANAGEMENT
@@ -286,13 +305,16 @@ fun App(
                     val listingHistory = route == CHECKLIST_HISTORY || destination == WorkspaceDestination.Supervision && !viewingHistory
                     var runExit by remember(routeEntry.id) { mutableStateOf<(() -> Unit)?>(null) }
                     fun leaveRun(action: () -> Unit) {
-                        if (incidentRoute) incidents.prepareLeave(action)
+                        if(managingAlerts) alerts.editor.deactivate(action)
+ else if (incidentRoute) incidents.prepareLeave(action)
                         else if (daily && dailyState.form != null) dailyOperations.leave(action)
                         else if (running && (runState.dirty || runState.pending || runState.busy)) runExit = action
                         else action()
                     }
                     fun closeForm() {
-                        if (incidentRoute) incidents.prepareBack { navigateBack(destination.route) }
+                        if(alertRoute && alertsState.detail!=null) alerts.closeDetail()
+                        else if(managingAlerts && alertEditorState.form!=null) { if(alertEditorState.reviewing && alertEditorState.pending==null) alerts.editor.resumeEditing() else alerts.editor.close() }
+                        else if (incidentRoute) incidents.prepareBack { navigateBack(destination.route) }
                         else if (daily && dailyState.picker != null) dailyOperations.closePicker()
                         else if (daily && dailyState.review && dailyState.pending == null && dailyState.saved == null) dailyOperations.editReview()
                         else if (daily && dailyState.detail != null) dailyOperations.closeDetail()
@@ -327,9 +349,9 @@ fun App(
                     } else {
                         val available = workspaceDestinations(workspaceState.workspace?.role, profile.platformRole == "SUPER_ADMIN")
                         val waiting = workspaceState.loading && workspaceState.workspace == null
-                        if ((destination !in available || formKind != null || managingTemplates || managingAssignments || managingDaily || daily) && waiting) {
+                        if ((destination !in available || formKind != null || managingTemplates || managingAssignments || managingDaily || daily || alertRoute) && waiting) {
                             RestoringSession()
-                        } else if (destination !in available || (managingTemplates || managingAssignments || managingDaily) && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
+                        } else if (destination !in available || (managingTemplates || managingAssignments || managingDaily || managingAlerts) && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
                             LaunchedEffect(destination, available) {
                                 if (entry?.id == routeEntry.id) {
                                     if (workspaceState.errors.none { it.code == "ACCESS_DENIED" })
@@ -346,6 +368,11 @@ fun App(
                             LaunchedEffect(editingTemplate, profile.id, workspaceState.workspace?.organization?.id) {
                                 if (editingTemplate && workspaceState.workspace?.canManage == true)
                                     templateEditor.open(profile.id, workspaceState.workspace!!.organization.id)
+                            }
+                            LaunchedEffect(alertRoute,managingAlerts,alertsState.userId,alertsState.organizationId) {
+                                if(alertRoute && alertsState.userId==profile.id && alertsState.organizationId==workspaceState.selected) {
+                                    if(managingAlerts) alerts.rules() else alerts.inbox()
+                                }
                             }
                             val scopedOfflineState = offlineState.takeIf { it.owner?.userId == profile.id && it.owner.organizationId == workspaceState.selected }
                                 ?: pe.bpm.features.checklists.presentation.ChecklistOfflineState(busy = true)
@@ -414,6 +441,9 @@ fun App(
                                 viewer = WorkspaceViewer(profile.id, profile.displayName, profile.email, profile.platformRole == "SUPER_ADMIN"),
                                 state = workspaceState,
                                 section = destination,
+                                onAlerts=if(currentWorkspace!=null) ({leaveRun{nav.navigate(ALERT_INBOX){launchSingleTop=true}}}) else null,
+                                unreadAlertCount=alertsState.unreadCount,
+                                onAlertRules={nav.navigate(ALERT_RULES){launchSingleTop=true}},
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
                                 onIncidents = { nav.navigate(if (destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },
@@ -423,7 +453,20 @@ fun App(
                                         DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f))
                                     }
                                 },
-                                secondaryContent = if (incidentRoute) ({
+                                secondaryContent = if(alertRoute) ({
+                                    if(managingAlerts) pe.bpm.features.alerts.presentation.AlertRulesScreen(alerts,modifier=Modifier.widthIn(max=960.dp),
+                                        locationSelector={selected,onSelect,enabled->
+                                            AlertScopeSelector(workspaceState,workspace,selected,alertEditorState.form?.locationName.orEmpty(),if(alertEditorState.form!=null) "Toda la empresa" else "Empresa y todas las sedes",enabled,onSelect)
+                                        })
+                                    else pe.bpm.features.alerts.presentation.AlertsScreen(alerts,modifier=Modifier.widthIn(max=960.dp),pushControls={pe.bpm.features.notifications.presentation.PushOptInPanel(notificationDevices)},onOpenSource={notice->
+                                        if(notice.sourceAvailable) when(notice.sourceType){
+                                            "CHECKLIST_ASSIGNMENT"->nav.navigate("control/programacion/${notice.sourceId}"){launchSingleTop=true}
+                                            "RECEIPT_ITEM"->{alertSource=notice;nav.navigate(if(workspaceState.workspace?.canManage==true) DAILY_MANAGEMENT else DAILY_EXECUTION){launchSingleTop=true}}
+                                            "ORGANIZATION"->nav.navigate(WorkspaceDestination.Company.route){launchSingleTop=true}
+                                            "TRAINING_ASSIGNMENT"->nav.navigate(WorkspaceDestination.Learn.route){launchSingleTop=true}
+                                        }
+                                    })
+                                }) else if (incidentRoute) ({
                                     IncidentsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, incidents,
                                         onEvidence = { incidentId, actionId, stage, writable ->
                                             pe.bpm.features.media.domain.EvidenceStage.entries.firstOrNull { it.name == stage }?.let { phase ->
@@ -432,7 +475,7 @@ fun App(
                                             }
                                         })
                                 }) else if (daily && destination != WorkspaceDestination.Tasks) ({
-                                    DailyOperationsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations)
+                                    DailyOperationsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations,sourceSiteId=alertSource?.locationId,sourceSiteName=alertSource?.locationName.orEmpty(),sourceReceiptId=alertSource?.sourceParentId)
                                 }) else if (offline) ({
                                     ChecklistOfflineScreen(scopedOfflineState, runId,
                                         onOpen = { id -> nav.navigate("control/guardados/$id") { launchSingleTop = true } },
@@ -467,8 +510,8 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role == "CHEF") }) }
                                     }) }) else managementContent,
-                                secondaryEditor = incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
-                                secondaryTitle = if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryEditor = alertRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryTitle = if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -497,7 +540,7 @@ fun App(
                                     if (!workspaceState.saving) {
                                         checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                         templateEditor.reset()
-                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset()
+                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset()
                                         workspace.select(id)
                                         resetTo(WorkspaceDestination.Home.route)
                                     }
@@ -574,7 +617,7 @@ fun App(
                                     pendingRoute = WorkspaceDestination.Home.route
                                     checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                     templateEditor.reset()
-                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset()
+                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset()
                                     formDrafts.reset()
                                     workspace.reset()
                                     identity.logout()
@@ -635,3 +678,6 @@ private data class IncidentEvidenceTarget(val incidentId: String, val actionId: 
 private const val INCIDENT_MANAGEMENT = "empresa/incidencias"
 private const val INCIDENT_EXECUTION = "control/incidencias"
 private const val INCIDENT_TASKS = "tareas/incidencias"
+
+private const val ALERT_INBOX="avisos"
+private const val ALERT_RULES="empresa/avisos"

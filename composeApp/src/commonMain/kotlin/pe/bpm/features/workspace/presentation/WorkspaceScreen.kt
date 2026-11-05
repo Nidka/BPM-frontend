@@ -30,6 +30,7 @@ internal fun WorkspaceScreen(
     onManageTemplates: () -> Unit,
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
+ onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
@@ -79,7 +80,8 @@ internal fun WorkspaceScreen(
                     canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin),
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
-                    onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
+                    onAlerts=onAlerts,unreadCount=unreadAlertCount,
+ onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp), contentAlignment = Alignment.TopCenter) { taskContent() }
                 else if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(if (wide) 32.dp else 16.dp),
@@ -162,6 +164,11 @@ internal fun WorkspaceScreen(
                                 Text("Operación diaria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.")
                                 BpmSecondaryButton(onClick = onDailyOperations) { Text("Gestionar insumos y limpieza") }
+                            }
+                            if(current.canManage) BpmCard(Modifier.fillMaxWidth()) {
+                                Text("Reglas de avisos",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+                                Text("Elige cuándo avisar a las personas responsables de tus sedes.")
+                                BpmSecondaryButton(onClick=onAlertRules){Text("Configurar avisos")}
                             }
                             if (current.canManage) IncidentEntryCard(onIncidents)
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }

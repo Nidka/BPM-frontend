@@ -26,3 +26,6 @@ Estado de operación diaria e incidencias: leer `specs/OPERATIONS.md` y
 `specs/INCIDENTS.md`. Los módulos y sus fotos privadas están implementados
 localmente; su activación depende de V5/V6 y despliegue del backend antes de la UI.
 No confundir compilación o aceptación aislada con publicación en Railway.
+
+Alertas/reglas y registro de notificaciones Android: leer specs/ALERTS.md.
+La activación necesita V7, API y worker antes del frontend; no implica despliegue.

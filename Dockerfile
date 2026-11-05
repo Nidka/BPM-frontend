@@ -20,6 +20,7 @@ COPY --chown=node:node web/checklist-runs-proxy.mjs ./web/checklist-runs-proxy.m
 COPY --chown=node:node web/media-proxy.mjs ./web/media-proxy.mjs
 COPY --chown=node:node web/operations-proxy.mjs ./web/operations-proxy.mjs
 COPY --chown=node:node web/incidents-proxy.mjs ./web/incidents-proxy.mjs
+COPY --chown=node:node web/alerts-proxy.mjs ./web/alerts-proxy.mjs
 COPY --chown=node:node web/checklist-assignments-proxy.mjs ./web/checklist-assignments-proxy.mjs
 COPY --chown=node:node web/pagination.mjs ./web/pagination.mjs
 COPY --chown=node:node web/session-headers.mjs ./web/session-headers.mjs

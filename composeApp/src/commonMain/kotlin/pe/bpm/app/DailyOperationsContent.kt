@@ -22,13 +22,17 @@ internal fun DailyOperationsContent(
     workspaceActions: WorkspaceViewModel,
     operations: OperationsViewModel,
     modifier: Modifier = Modifier,
+ sourceSiteId:String?=null,sourceSiteName:String="",sourceReceiptId:String?=null,
 ) {
     val org = workspace.workspace?.organization?.id ?: return
-    var siteId by rememberSaveable(userId, org) { mutableStateOf<String?>(null) }
-    var siteName by rememberSaveable(userId, org) { mutableStateOf("") }
+    var siteId by rememberSaveable(userId, org) { mutableStateOf<String?>(sourceSiteId) }
+    var siteName by rememberSaveable(userId, org) { mutableStateOf(sourceSiteName) }
     var choosingSite by rememberSaveable(userId, org) { mutableStateOf(false) }
     val state by operations.state.collectAsStateWithLifecycle()
-    LaunchedEffect(userId, org, role, siteId) { operations.open(userId, org, role, siteId) }
+    LaunchedEffect(userId, org, role, siteId) {
+        operations.open(userId, org, role, siteId)
+        if(sourceReceiptId!=null && siteId==sourceSiteId) operations.receiptDetail(sourceReceiptId)
+    }
     DisposableEffect(operations, userId, org) { onDispose { operations.reset() } }
     LaunchedEffect(state.resource, state.siteId) {
         if (state.resource.needsSite && siteId == null) choosingSite = true

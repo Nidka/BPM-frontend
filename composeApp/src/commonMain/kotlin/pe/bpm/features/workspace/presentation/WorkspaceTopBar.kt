@@ -23,6 +23,7 @@ import pe.bpm.core.designsystem.*
     organizationName: String?, wide: Boolean, canChangeOrganization: Boolean,
     enabled: Boolean, onToggleOrganization: () -> Unit,
     onBack: (() -> Unit)? = null,
+ onAlerts: (() -> Unit)? = null, unreadCount:Int? = null,
 ) {
     val organizationInteractions = remember { MutableInteractionSource() }
     val organizationFocused by organizationInteractions.collectIsFocusedAsState()
@@ -34,6 +35,13 @@ import pe.bpm.core.designsystem.*
             IconButton(onClick = onBack, enabled = enabled) {
                 BpmIcon(BpmSymbol.Back, contentDescription = "Volver")
             }
+            }
+        },
+        actions = {
+            if(onAlerts!=null) BpmFeedback(MaterialTheme.colorScheme.primary) {
+                IconButton(onClick=onAlerts,enabled=enabled,modifier=Modifier.semantics{contentDescription=if(unreadCount==null) "Mis avisos" else "Mis avisos. $unreadCount sin leer"}) {
+                    BadgedBox(badge={if(unreadCount!=null && unreadCount>0) Badge{Text(if(unreadCount>99) "99+" else unreadCount.toString())}}){BpmIcon(BpmSymbol.Bell)}
+                }
             }
         },
         title = {

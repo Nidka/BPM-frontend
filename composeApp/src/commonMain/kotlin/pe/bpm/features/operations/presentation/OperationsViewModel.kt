@@ -792,7 +792,10 @@ class OperationsViewModel(
             }
     }
 
-    fun detail(entry: OperationsEntry) {
+    fun detail(entry: OperationsEntry) = loadDetail(entry,null)
+    /** Consulta por ID para navegación contextual; el servidor vuelve a autorizar la sede. */
+    fun receiptDetail(id:String) = loadDetail(null,id)
+    private fun loadDetail(entry: OperationsEntry?, receiptId:String?) {
         val s = mutable.value
         if (s.form != null) return
         val org = s.organizationId ?: return
@@ -801,14 +804,18 @@ class OperationsViewModel(
         job =
             viewModelScope.launch {
                 val result: OperationsResult<OperationsEntry> =
-                    when (entry) {
-                        is OperationsEntry.ReceiptEntry ->
+                    when {
+                        receiptId!=null -> when(val r=operations.receipt(org,receiptId)) {
+                            is OperationsResult.Success -> OperationsResult.Success(OperationsEntry.ReceiptEntry(r.value))
+                            is OperationsResult.Failure -> r
+                        }
+                        entry is OperationsEntry.ReceiptEntry ->
                             when (val r = operations.receipt(org, entry.id)) {
                                 is OperationsResult.Success ->
                                     OperationsResult.Success(OperationsEntry.ReceiptEntry(r.value))
                                 is OperationsResult.Failure -> r
                             }
-                        is OperationsEntry.ExecutionEntry ->
+                        entry is OperationsEntry.ExecutionEntry ->
                             when (val r = operations.execution(org, entry.id)) {
                                 is OperationsResult.Success ->
                                     OperationsResult.Success(
@@ -816,7 +823,8 @@ class OperationsViewModel(
                                     )
                                 is OperationsResult.Failure -> r
                             }
-                        else -> OperationsResult.Success(entry)
+                        entry!=null -> OperationsResult.Success(entry)
+                        else -> OperationsResult.Failure(OperationsFailure.INVALID_RESPONSE)
                     }
                 currentCoroutineContext().ensureActive()
                 when (result) {
