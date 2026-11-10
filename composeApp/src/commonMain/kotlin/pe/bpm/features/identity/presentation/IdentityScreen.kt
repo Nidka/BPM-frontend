@@ -77,7 +77,7 @@ fun IdentityScreen(
             if (wide) IdentityWelcomePane(Modifier.weight(1f).fillMaxHeight())
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
-        Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             if (!wide) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Brand()
                 Mascot(Modifier.size(80.dp))

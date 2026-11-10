@@ -1,5 +1,7 @@
 package pe.bpm.core.designsystem
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
@@ -13,7 +15,9 @@ import androidx.compose.ui.unit.dp
 /** La fila completa comparte etiqueta, estado y área de interacción con la casilla. */
 @Composable fun BpmCheckboxRow(label: String, checked: Boolean, enabled: Boolean = true, onChecked: (Boolean) -> Unit) {
     BpmFeedback(MaterialTheme.colorScheme.primary) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.small)
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.medium)
+            .background(if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+            .border(2.dp, if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
             .toggleable(value = checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChecked)
             .padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {

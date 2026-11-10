@@ -40,8 +40,13 @@ object BpmBrand {
 }
 @Composable fun Mascot(modifier:Modifier=Modifier,learning:Boolean=false){Image(painterResource(if(learning)Res.drawable.mascot_learning else Res.drawable.mascot_welcome),contentDescription=null,modifier=modifier)}
 @Composable fun BpmCard(modifier:Modifier=Modifier,tint:Color=MaterialTheme.colorScheme.surface,content:@Composable ColumnScope.()->Unit){
-    Surface(modifier,shape=RoundedCornerShape(24.dp),color=tint,border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant)){
-        Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(14.dp),content=content)
+    val shape=RoundedCornerShape(24.dp)
+    val border=MaterialTheme.colorScheme.outlineVariant
+    // Borde de 2 dp y relieve de 3 dp, como `.course-card` en playful.css.
+    Box(modifier.bpmRelief(border,shape,3.dp),propagateMinConstraints=true){
+        Surface(shape=shape,color=tint,border=BorderStroke(2.dp,border)){
+            Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(14.dp),content=content)
+        }
     }
 }
 @Composable fun RaisedButton(label:String,onClick:()->Unit,modifier:Modifier=Modifier,enabled:Boolean=true){
@@ -49,7 +54,7 @@ object BpmBrand {
     val pressed by interactions.collectIsPressedAsState()
     val focused by interactions.collectIsFocusedAsState()
     val offset by animateDpAsState(if (pressed && enabled) 2.dp else 0.dp, tween(100), label = "Presión del botón")
-    Box(modifier.background(if(enabled)Color(0xFF064D49)else MaterialTheme.colorScheme.outlineVariant,RoundedCornerShape(16.dp)).padding(bottom=4.dp)){
+    Box(modifier.background(if(enabled)BpmTokens.primaryRelief else MaterialTheme.colorScheme.outlineVariant,RoundedCornerShape(16.dp)).padding(bottom=4.dp)){
         BpmFeedback(MaterialTheme.colorScheme.onPrimary) {
         Button(onClick=onClick,enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp).offset(y = offset),
             interactionSource = interactions,

@@ -27,9 +27,12 @@ import pe.bpm.core.designsystem.*
 ) {
     val organizationInteractions = remember { MutableInteractionSource() }
     val organizationFocused by organizationInteractions.collectIsFocusedAsState()
+    // TopAppBar reserva 16 dp laterales propios; se completa hasta el margen común del contenido.
+    Surface(color = MaterialTheme.colorScheme.surface) {
     TopAppBar(
+        modifier = Modifier.padding(horizontal = BpmSpacing.gutter(wide) - 16.dp),
         windowInsets = WindowInsets(0),
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
             if (onBack != null) BpmFeedback(MaterialTheme.colorScheme.primary) {
             IconButton(onClick = onBack, enabled = enabled) {
@@ -63,6 +66,7 @@ import pe.bpm.core.designsystem.*
             }
         },
     )
+    }
 }
 
 @Composable private fun WorkspaceContext(organizationName: String?, wide: Boolean,
