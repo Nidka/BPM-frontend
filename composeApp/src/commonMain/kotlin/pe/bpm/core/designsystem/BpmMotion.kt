@@ -15,11 +15,15 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.unit.Constraints
+import kotlinx.coroutines.launch
 
 import androidx.compose.ui.unit.dp
 
@@ -36,8 +40,8 @@ object BpmMotion {
     /** Transiciones de pantalla o de bloques grandes. */
     const val LONG = 450
     /** Retraso entre elementos consecutivos de una lista y tope para que la cascada no se alargue. */
-    const val STAGGER = 45
-    const val STAGGER_MAX_ITEMS = 6
+    const val STAGGER = 40
+    const val STAGGER_MAX_ITEMS = 5
     /** Curva de desaceleración de Material 3 («emphasized decelerate»): para lo que entra. */
     val enter = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     /** Curva de aceleración de Material 3 («emphasized accelerate»): para lo que sale. */
@@ -54,18 +58,42 @@ expect fun rememberReduceMotion(): Boolean
 /**
  * Aparición escalonada: el elemento sube unos dp mientras se vuelve opaco, con retraso según
  * su [index]. Se ejecuta una vez al entrar a la composición; con «reducir movimiento» aparece al instante.
+ * Implementada como `Modifier.Node` (no `composed`): sin asignaciones por recomposición y con
+ * el progreso leído en la fase de colocación, sin recomponer ni medir de nuevo cada cuadro.
  */
-fun Modifier.bpmAppear(index: Int = 0): Modifier = composed {
-    val reduce = rememberReduceMotion()
-    val progress = remember { Animatable(if (reduce) 1f else 0f) }
-    LaunchedEffect(reduce) {
-        if (reduce) progress.snapTo(1f)
-        else progress.animateTo(1f, tween(BpmMotion.MEDIUM, delayMillis = index.coerceIn(0, BpmMotion.STAGGER_MAX_ITEMS) * BpmMotion.STAGGER, easing = BpmMotion.enter))
+@Composable
+fun Modifier.bpmAppear(index: Int = 0): Modifier = this.then(AppearElement(index, rememberReduceMotion()))
+
+private data class AppearElement(val index: Int, val reduce: Boolean) : ModifierNodeElement<AppearNode>() {
+    override fun create() = AppearNode(index, reduce)
+    override fun update(node: AppearNode) { node.index = index; node.updateReduce(reduce) }
+}
+
+private class AppearNode(var index: Int, var reduce: Boolean) : Modifier.Node(), LayoutModifierNode {
+    private val progress = Animatable(if (reduce) 1f else 0f)
+
+    fun updateReduce(value: Boolean) {
+        if (value && !reduce) coroutineScope.launch { progress.snapTo(1f) }
+        reduce = value
     }
-    // graphicsLayer lee el progreso en la fase de dibujo: no recompone ni vuelve a medir cada cuadro.
-    graphicsLayer {
-        alpha = progress.value
-        translationY = (1f - progress.value) * 16.dp.toPx()
+
+    override fun onAttach() {
+        coroutineScope.launch {
+            if (reduce) progress.snapTo(1f)
+            else progress.animateTo(1f, tween(BpmMotion.MEDIUM,
+                delayMillis = index.coerceIn(0, BpmMotion.STAGGER_MAX_ITEMS) * BpmMotion.STAGGER, easing = BpmMotion.enter))
+        }
+    }
+
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            // El bloque de la capa lee el progreso en dibujo: el cuadro animado no vuelve a medir ni a componer.
+            placeable.placeWithLayer(0, 0) {
+                alpha = progress.value
+                translationY = (1f - progress.value) * 16.dp.toPx()
+            }
+        }
     }
 }
 

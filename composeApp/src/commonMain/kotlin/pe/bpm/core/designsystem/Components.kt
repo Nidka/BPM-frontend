@@ -45,7 +45,7 @@ object BpmBrand {
     // Borde de 2 dp y relieve de 3 dp, como `.course-card` en playful.css.
     Box(modifier.bpmRelief(border,shape,3.dp),propagateMinConstraints=true){
         Surface(shape=shape,color=tint,border=BorderStroke(2.dp,border)){
-            Column(Modifier.fillMaxHeight().padding(24.dp),verticalArrangement=Arrangement.spacedBy(14.dp),content=content)
+            Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(14.dp),content=content)
         }
     }
 }

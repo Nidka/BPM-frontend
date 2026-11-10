@@ -169,3 +169,12 @@ android {
     buildFeatures { compose = true }
     packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
 }
+
+// Informes del compilador de Compose (estabilidad y omisión) para auditar rendimiento.
+// Uso: ./gradlew :composeApp:compileKotlinJvm -PcomposeReports=true  → composeApp/build/compose_compiler
+composeCompiler {
+    if (providers.gradleProperty("composeReports").isPresent) {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
+    }
+}

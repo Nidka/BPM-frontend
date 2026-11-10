@@ -1,5 +1,7 @@
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { brotliCompress, gzip, constants as zlibConstants } from 'node:zlib';
+import { promisify } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +25,28 @@ const types = {
   '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.map': 'application/json',
 };
+const brotli = promisify(brotliCompress);
+const gzipAsync = promisify(gzip);
+/** Tipos que se comprimen; imágenes y fuentes ya vienen comprimidas. */
+const compressible = new Set(['.html', '.js', '.mjs', '.wasm', '.css', '.json', '.svg', '.map']);
+/** Archivos con hash de contenido en el nombre (p. ej. 0a9ab08110b046c37ad9.wasm): nunca cambian. */
+const hashedAsset = /(^|[\\/])[0-9a-f]{16,}\.[a-z0-9]+$/;
+/** Respuestas comprimidas en memoria por archivo, versión y codificación; evita recomprimir 15 MB por solicitud. */
+const encodedCache = new Map();
+async function encode(file, version, contents, encoding) {
+  const key = file + '|' + version + '|' + encoding;
+  let pending = encodedCache.get(key);
+  if (!pending) {
+    pending = encoding === 'br'
+      ? brotli(contents, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 5, [zlibConstants.BROTLI_PARAM_SIZE_HINT]: contents.length } })
+      : gzipAsync(contents, { level: 6 });
+    // Solo se conserva la versión vigente de cada archivo.
+    for (const old of encodedCache.keys()) if (old.startsWith(file + '|') && !old.startsWith(file + '|' + version + '|')) encodedCache.delete(old);
+    encodedCache.set(key, pending);
+    pending.catch(() => encodedCache.delete(key));
+  }
+  return pending;
+}
 const errorBody = (code, message) => JSON.stringify({ errors: [{ code, message, fields: {} }] });
 
 function registrationBody(request) {
@@ -228,8 +252,26 @@ export function createAppServer({
       }
       if (decoded.endsWith('/')) file = resolve(file, 'index.html');
       try {
-        const contents = await readFile(file);
-        return send(200, contents, types[extname(file)] || 'application/octet-stream');
+        const info = await stat(file);
+        const extension = extname(file);
+        const version = info.size + '-' + Math.trunc(info.mtimeMs);
+        const etag = '"' + version + '"';
+        const headers = {
+          'Content-Type': types[extension] || 'application/octet-stream',
+          ETag: etag,
+          // Con hash en el nombre el archivo es inmutable; el resto se revalida con ETag en cada visita.
+          'Cache-Control': hashedAsset.test(file) ? 'public, max-age=31536000, immutable' : 'no-cache',
+          Vary: 'Accept-Encoding',
+        };
+        if (request.headers['if-none-match'] === etag) { response.writeHead(304, headers); return response.end(); }
+        let contents = await readFile(file);
+        const accepted = String(request.headers['accept-encoding'] || '');
+        const encoding = !compressible.has(extension) || contents.length < 1024 ? null
+          : /\bbr\b/.test(accepted) ? 'br' : /\bgzip\b/.test(accepted) ? 'gzip' : null;
+        if (encoding) { contents = await encode(file, version, contents, encoding); headers['Content-Encoding'] = encoding; }
+        headers['Content-Length'] = contents.length;
+        response.writeHead(200, headers);
+        return response.end(request.method === 'HEAD' ? undefined : contents);
       } catch {
         // Las rutas de navegación de la SPA vuelven al index; los assets faltantes son 404.
         if (extname(decoded)) return send(404, errorBody('NOT_FOUND', 'Recurso no disponible.'));

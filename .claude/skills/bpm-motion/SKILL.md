@@ -43,7 +43,7 @@ Reglas de ciclo de vida e identidad:
 | `SHORT` | 150 | pulsación, selección, color, icono |
 | `MEDIUM` | 300 | aparición de contenido, cambio de tamaño |
 | `LONG` | 450 | cambio de pantalla o bloque grande |
-| `STAGGER` | 45 | retraso entre elementos; máximo `STAGGER_MAX_ITEMS` (6) para que la cascada no se alargue |
+| `STAGGER` | 40 | retraso entre elementos; máximo `STAGGER_MAX_ITEMS` (5) para que la cascada no se alargue |
 
 - **Entrar** desacelera (`BpmMotion.enter`); **salir** acelera y es más corto (≈ 60 % de la entrada).
 - Posición y tamaño: **resorte** amortiguado (`BpmMotion.spatial()`), interrumpible y natural.
