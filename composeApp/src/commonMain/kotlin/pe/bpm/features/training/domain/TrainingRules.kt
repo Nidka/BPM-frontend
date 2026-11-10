@@ -2,11 +2,11 @@ package pe.bpm.features.training.domain
 
 /** Límites del contrato de Academia; la interfaz y los casos de uso los comparten. */
 object TrainingLimits {
-    const val COURSE_CODE_MAX = 32
+    const val COURSE_CODE_MAX = 50
     const val COURSE_TITLE_MIN = 2
     const val COURSE_TITLE_MAX = 200
     const val COURSE_DESCRIPTION_MAX = 2000
-    const val DURATION_MAX_MINUTES = 10080
+    const val DURATION_MAX_MINUTES = 1440
     const val LESSON_TITLE_MAX = 200
     const val LESSON_CONTENT_MAX = 20000
     const val MAX_LESSONS = 50
@@ -35,13 +35,14 @@ enum class DraftIssueKind {
 data class DraftIssue(val kind: DraftIssueKind, val id: String = "", val message: String)
 
 object TrainingDraftRules {
-    private val codePattern = Regex("[A-Za-z0-9._-]{1,${TrainingLimits.COURSE_CODE_MAX}}")
+    /** Igual que el backend: inicia con mayúscula o dígito; luego mayúsculas, dígitos, guion o guion bajo. */
+    private val codePattern = Regex("[A-Z0-9][A-Z0-9_-]{0,${TrainingLimits.COURSE_CODE_MAX - 1}}")
 
     private fun String.textLength() = count { !it.isLowSurrogate() }
 
     fun validateNewCourse(course: NewCourse): List<DraftIssue> = buildList {
         if (!codePattern.matches(course.code.trim()))
-            add(DraftIssue(DraftIssueKind.COURSE_CODE, message = "Usa un código de hasta ${TrainingLimits.COURSE_CODE_MAX} letras, números, punto, guion o guion bajo."))
+            add(DraftIssue(DraftIssueKind.COURSE_CODE, message = "Usa un código de hasta ${TrainingLimits.COURSE_CODE_MAX} caracteres: mayúsculas, números, guion o guion bajo (ej. M-01)."))
         val title = course.title.trim()
         if (title.textLength() !in TrainingLimits.COURSE_TITLE_MIN..TrainingLimits.COURSE_TITLE_MAX || course.title.any { it.isISOControl() })
             add(DraftIssue(DraftIssueKind.COURSE_TITLE, message = "El título debe tener entre ${TrainingLimits.COURSE_TITLE_MIN} y ${TrainingLimits.COURSE_TITLE_MAX} caracteres."))

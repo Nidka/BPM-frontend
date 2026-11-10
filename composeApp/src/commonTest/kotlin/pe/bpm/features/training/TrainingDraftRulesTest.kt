@@ -61,7 +61,12 @@ class TrainingDraftRulesTest {
         assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M-01", "Higiene", "", 15)).isEmpty())
         assertEquals(setOf(DraftIssueKind.COURSE_CODE, DraftIssueKind.COURSE_TITLE, DraftIssueKind.COURSE_DURATION),
             TrainingDraftRules.validateNewCourse(NewCourse("", "a", "", 0)).map { it.kind }.toSet())
-        assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M".repeat(33), "Higiene", "", 15)).isNotEmpty())
+        assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M".repeat(50), "Higiene", "", 15)).isEmpty())
+        assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M".repeat(51), "Higiene", "", 15)).isNotEmpty())
+        // El backend exige mayúsculas y no admite punto: el cliente rechaza antes de enviar.
+        assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("m-01", "Higiene", "", 15)).isNotEmpty())
+        assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M.01", "Higiene", "", 15)).isNotEmpty())
+        assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M-01", "Higiene", "", 1441)).isNotEmpty())
         assertTrue(TrainingDraftRules.validateNewCourse(NewCourse("M-01", "Higiene", "x".repeat(2001), 15)).isNotEmpty())
     }
 

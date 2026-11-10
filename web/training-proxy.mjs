@@ -44,7 +44,7 @@ const optionalStamp = value => value == null ? null : stamp(value);
 // ---- Proyecciones de salida ---------------------------------------------------------------
 
 function courseInfo(value) {
-  need(object(value) && uuid(value.id) && /^[A-Za-z0-9._-]{1,32}$/.test(value.code) && string(value.title, 200, 1) && string(value.description ?? '', 2000) && integer(value.estimatedDurationMinutes ?? 0, 0, 10080));
+  need(object(value) && uuid(value.id) && /^[A-Z0-9][A-Z0-9_-]{0,49}$/.test(value.code) && string(value.title, 200, 1) && string(value.description ?? '', 2000) && integer(value.estimatedDurationMinutes ?? 0, 0, 1440));
   return { id: value.id, code: value.code, title: value.title, description: value.description ?? '', estimatedDurationMinutes: value.estimatedDurationMinutes ?? 0 };
 }
 function progress(value) {
@@ -86,7 +86,7 @@ function learningCourse(value, courseId) {
 }
 
 function adminItem(value, status) {
-  need(object(value) && uuid(value.id) && /^[A-Za-z0-9._-]{1,32}$/.test(value.code) && string(value.title, 200, 1) && courseStates.includes(value.status) &&
+  need(object(value) && uuid(value.id) && /^[A-Z0-9][A-Z0-9_-]{0,49}$/.test(value.code) && string(value.title, 200, 1) && courseStates.includes(value.status) &&
     (value.publishedVersionNumber == null || integer(value.publishedVersionNumber, 1, 1e9)) && typeof value.hasDraft === 'boolean' && (!status || value.status === status));
   return { id: value.id, code: value.code, title: value.title, status: value.status, publishedVersionNumber: value.publishedVersionNumber ?? null, hasDraft: value.hasDraft };
 }
@@ -154,7 +154,7 @@ function inputFor(kind, value) {
   switch (kind) {
     case 'create':
       exact(value, ['code', 'title', 'description', 'estimatedDurationMinutes']);
-      need(/^[A-Za-z0-9._-]{1,32}$/.test(value.code) && string(value.title, 200, 2) && string(value.description, 2000) && integer(value.estimatedDurationMinutes, 1, 10080));
+      need(/^[A-Z0-9][A-Z0-9_-]{0,49}$/.test(value.code) && string(value.title, 200, 2) && string(value.description, 2000) && integer(value.estimatedDurationMinutes, 1, 1440));
       return { code: value.code, title: value.title.trim(), description: value.description, estimatedDurationMinutes: value.estimatedDurationMinutes };
     case 'progress':
       exact(value, ['lastLessonId']); need(uuid(value.lastLessonId));
