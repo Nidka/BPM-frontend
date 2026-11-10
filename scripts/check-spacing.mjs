@@ -31,6 +31,9 @@ for (const file of walk(source)) {
     // R4: una pantalla alojada en el contenedor del workspace no repite el margen lateral.
     if (/Screen\.kt$/.test(file) && /verticalScroll\([^)]*\)\)?\.padding\((?:all\s*=\s*)?\d+\.dp\)/.test(code))
       errors.push(`${at} R4 relleno propio en pantalla alojada; el margen lo aporta el contenedor`);
+    // R5: listas de registros en tarjetas van en BpmCardGrid; las secuenciales se marcan con // lista-apilada.
+    if (/forEach\s*\{[^}]*->\s*BpmCard\(Modifier\.fillMaxWidth\(\)\)/.test(code) && !line.includes('lista-apilada'))
+      warnings.push(`${at} R5 lista de tarjetas apiladas; usar BpmCardGrid o marcar // lista-apilada`);
     // R2: relleno y separación dentro de la escala.
     for (const match of code.matchAll(/(?:padding|spacedBy|offset)\s*\([^)]*?\)/g))
       for (const value of match[0].matchAll(/(\d+(?:\.\d+)?)\.dp/g))

@@ -97,13 +97,13 @@ internal fun WorkspaceScreen(
                         onUserActivity = onUserActivity, notice = screenNotice, noticeVisible = noticeVisible,
                         page = state.organizationPage, onSearch = onOrganizationSearch, onNext = onOrganizationNext,
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
-                } else Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(contentScroll).padding(BpmSpacing.gutter(wide)),
+                } else key(section, secondaryTitle) { Column(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll).padding(BpmSpacing.gutter(wide)),
                     verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
                     screenNotice()
                     Text(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else section.label,
                         style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
-                    state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+                    state.notice?.let { notice -> key(notice) { BpmReveal { Text(notice, color = MaterialTheme.colorScheme.primary) } } }
                     if (section == WorkspaceDestination.Account) {
                         BpmCard(Modifier.fillMaxWidth()) {
                             Text(viewer.displayName, style = MaterialTheme.typography.titleLarge)
@@ -155,16 +155,16 @@ internal fun WorkspaceScreen(
                                 if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
                                 if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
                             }
-                            if (current.canManage) ActionCardGrid(columns = if (wide) 2 else 1, cards = listOf(
+                            if (current.canManage) BpmCardGrid(minCardWidth = 400.dp, maxColumns = 2, items = listOf<@Composable (Modifier) -> Unit>(
                                 { m -> ActionCard(m, "Plantillas de control", "Prepara preguntas y publica los criterios que utilizará tu equipo.", "Gestionar plantillas", onManageTemplates) },
                                 { m -> ActionCard(m, "Operación diaria", "Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.", "Gestionar insumos y limpieza", onDailyOperations) },
                                 { m -> ActionCard(m, "Reglas de avisos", "Elige cuándo avisar a las personas responsables de tus sedes.", "Configurar avisos", onAlertRules) },
                                 { m -> IncidentEntryCard(onIncidents, m) },
-                            ))
+                            )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                             if (current.locations.isEmpty()) EmptyState("Sin sedes para mostrar", "No hay sedes disponibles para esta búsqueda y tus permisos actuales.")
-                            current.locations.forEach { location -> BpmCard(Modifier.fillMaxWidth()) {
+                            BpmCardGrid(current.locations, minCardWidth = 320.dp, maxColumns = 3) { location, cardModifier -> BpmCard(cardModifier) {
                                 Text(location.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text(location.address)
                                 if (location.district.isNotBlank()) Text(location.district, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -178,7 +178,7 @@ internal fun WorkspaceScreen(
                             else {
                                 WorkspacePagedList(WorkspaceResource.Members, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                                 if (current.members.isEmpty()) EmptyState("Sin personas para mostrar", "No hay personas disponibles para esta búsqueda. Puedes agregar cuentas BPM verificadas al equipo.")
-                                current.members.forEach { member -> BpmCard(Modifier.fillMaxWidth()) {
+                                BpmCardGrid(current.members, minCardWidth = 320.dp, maxColumns = 3) { member, cardModifier -> BpmCard(cardModifier) {
                                     Text(member.name, fontWeight = FontWeight.Bold)
                                     Text(member.email)
                                     Eyebrow(roleLabel(member.role))
@@ -195,10 +195,10 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
                             checklistContent()
-                            if (secondaryTitle == null) IncidentEntryCard(onIncidents)
+                            if (secondaryTitle == null) IncidentBanner(onIncidents)
                         }
                     } }
-                }
+                } }
                 if (!wide && form == null && !secondaryEditor && !choosingOrganization) NavigationBar {
                     destinations.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = section == item,
@@ -220,24 +220,32 @@ internal fun WorkspaceScreen(
         "Consulta lo reportado, atiende las correcciones y revisa qué falta para validar el cierre.", "Abrir incidencias", onOpen)
 }
 
+/** Acceso a incidencias cuando va solo bajo otra lista: franja compacta, sin botón a todo el ancho. */
+@Composable private fun IncidentBanner(onOpen: () -> Unit) {
+    BpmCard(Modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val title: @Composable () -> Unit = {
+                Text("Incidencias y correcciones", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Consulta lo reportado, atiende las correcciones y revisa qué falta para validar el cierre.")
+            }
+            if (maxWidth >= 640.dp) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
+                BpmSecondaryButton(onClick = onOpen) { Text("Abrir incidencias") }
+            } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
+                BpmSecondaryButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Abrir incidencias") }
+            }
+        }
+    }
+}
+
 /** Tarjeta de acceso a un módulo: título, descripción y botón a todo el ancho, como en el mockup. */
 @Composable private fun ActionCard(modifier: Modifier, title: String, description: String, action: String, onClick: () -> Unit) {
     BpmCard(modifier) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(description)
-        Spacer(Modifier.weight(1f, fill = false))
+        Spacer(Modifier.weight(1f))
         BpmSecondaryButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(action) }
     }
 }
 
-/** Reparte tarjetas en filas de [columns] columnas con la misma altura por fila. */
-@Composable private fun ActionCardGrid(columns: Int, cards: List<@Composable (Modifier) -> Unit>) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-        cards.chunked(columns).forEach { row ->
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-                row.forEach { card -> card(Modifier.weight(1f).fillMaxHeight()) }
-                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
-}

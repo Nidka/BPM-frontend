@@ -114,7 +114,7 @@ import pe.bpm.core.domain.DecimalInput
                         if (state.description.isNotBlank()) Text(state.description.trim())
                         Text("Publicar hará que esta versión esté disponible para los miembros autorizados de tu organización. Revisa las preguntas y los criterios antes de continuar.")
                     }
-                    state.draft().items.forEach { question -> BpmCard(Modifier.fillMaxWidth()) {
+                    state.draft().items.forEach { question -> BpmCard(Modifier.fillMaxWidth()) { // lista-apilada: preguntas en orden
                         Text("${question.displayOrder}. ${question.label}", fontWeight = FontWeight.Bold)
                         Text("${question.sectionName} · ${question.responseType.label()}")
                         Text(if (question.required) "Respuesta obligatoria" else "Respuesta opcional")

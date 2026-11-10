@@ -61,7 +61,7 @@ import pe.bpm.features.workspace.domain.*
 }
 @Composable internal fun Entries(entries: List<Entry>, title: String, empty: String) {
     if (entries.isEmpty()) EmptyState(title, empty)
-    entries.forEach { entry -> BpmCard(Modifier.fillMaxWidth()) {
+    BpmCardGrid(entries, minCardWidth = 320.dp, maxColumns = 3) { entry, cardModifier -> BpmCard(cardModifier) {
         Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (entry.detail.isNotBlank()) Text(entry.detail)
         Eyebrow(when (entry.status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" })

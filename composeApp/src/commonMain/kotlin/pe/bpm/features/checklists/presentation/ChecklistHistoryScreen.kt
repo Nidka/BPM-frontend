@@ -34,18 +34,22 @@ import pe.bpm.features.checklists.domain.*
                 "Prueba otra búsqueda o cambia el filtro." else if (canPerform)
                 "Cuando inicies una revisión con una plantilla, aparecerá aquí con su sede y su estado."
                 else "Las revisiones aparecerán cuando el chef comience un control en una sede autorizada.")
-            else -> state.items.forEach { item -> BpmCard(Modifier.fillMaxWidth()) {
+            else -> BpmCardGrid(state.items, minCardWidth = 340.dp, maxColumns = 3) { item, cardModifier -> BpmCard(cardModifier) {
                 Eyebrow(if (item.status == "DRAFT") "EN CURSO" else "FINALIZADA")
                 Text(item.templateName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(item.locationName)
-                Text("Responsable: ${item.performedByName}")
-                Text("Inicio: ${displayDateTime(item.createdAt)}", style = MaterialTheme.typography.bodySmall)
-                if (item.status == "DRAFT") Text("${item.answerCount} de ${item.questionCount} respuestas guardadas")
-                else {
-                    item.submittedAt?.let { Text("Finalización: ${displayDateTime(it)}", style = MaterialTheme.typography.bodySmall) }
-                    Text("Cumplimiento: ${item.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %")
+                // Los datos de la revisión se agrupan con poca separación; el relleno de 14 dp separa bloques.
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.locationName)
+                    Text("Responsable: ${item.performedByName}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Inicio: ${displayDateTime(item.createdAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (item.status != "DRAFT") item.submittedAt?.let {
+                        Text("Finalización: ${displayDateTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                BpmSecondaryButton(onClick = { onOpen(item) }) {
+                if (item.status == "DRAFT") Text("${item.answerCount} de ${item.questionCount} respuestas guardadas", fontWeight = FontWeight.Bold)
+                else Text("Cumplimiento: ${item.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f)) // empuja el botón al borde inferior para alinear la fila
+                BpmSecondaryButton(onClick = { onOpen(item) }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (canPerform && item.status == "DRAFT" && item.performedBy == state.userId) "Continuar revisión" else "Ver revisión")
                 }
             } }

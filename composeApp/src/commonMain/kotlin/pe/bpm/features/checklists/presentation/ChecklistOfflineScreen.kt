@@ -44,7 +44,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
                 Text("Todavía no preparaste controles", style = MaterialTheme.typography.titleMedium)
                 Text("Con conexión, abre una revisión que hayas iniciado y elige «Trabajar sin conexión». Así sus preguntas estarán disponibles aquí.")
             }
-            state.entries.forEach { entry -> BpmCard(Modifier.fillMaxWidth()) {
+            state.entries.forEach { entry -> BpmCard(Modifier.fillMaxWidth()) { // lista-apilada: cola en orden de envío
                 Text(entry.run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.titleLarge)
                 Text(entry.run.locationName.ifBlank { "Sede de la revisión" })
                 Text(offlineRunLabel(entry))
