@@ -14,6 +14,7 @@ import { mediaRoute, proxyMedia } from './media-proxy.mjs';
 import { operationsRoute, proxyOperations } from './operations-proxy.mjs';
 import { incidentsRoute, proxyIncidents } from './incidents-proxy.mjs';
 import { alertsRoute, proxyAlerts } from './alerts-proxy.mjs';
+import { trainingRoute, proxyTraining } from './training-proxy.mjs';
 
 // Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
 const firebasePublic = JSON.parse(readFileSync(new URL('../config/firebase.public.json', import.meta.url), 'utf8'));
@@ -95,7 +96,7 @@ export function createAppServer({
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     response.setHeader('Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com/firebasejs/13.0.0/ https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.r2.cloudflarestorage.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://" + firebaseAuthDomain + "; frame-src https://" + firebaseAuthDomain + "; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com/firebasejs/13.0.0/ https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' https://*.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://*.r2.cloudflarestorage.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://" + firebaseAuthDomain + "; frame-src https://" + firebaseAuthDomain + "; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     response.setHeader('Cache-Control', 'no-store');
     if (hstsEnabled) response.setHeader('Strict-Transport-Security', 'max-age=31536000');
     const send = (status, body, contentType = 'application/json; charset=utf-8') => {
@@ -111,13 +112,15 @@ export function createAppServer({
     const isMedia = mediaRoute(request.url?.split('?')[0] || '');
     const isIncidents = incidentsRoute(request.url?.split('?')[0] || '');
     const isAlerts = alertsRoute(request.url?.split('?')[0] || '');
+    const isTraining = trainingRoute(request.url?.split('?')[0] || '');
     const isOperations = operationsRoute(request.url?.split('?')[0] || '');
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations && !isIncidents && !isAlerts) {
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations && !isIncidents && !isAlerts && !isTraining) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
     try {
       const url = new URL(request.url, 'http://localhost');
+      if (isTraining) return await proxyTraining(request, url, upstream, send, response);
       if (isAlerts) return await proxyAlerts(request, url, upstream, send, response);
       if (isIncidents) return await proxyIncidents(request, url, upstream, send, response);
       if (isOperations) return await proxyOperations(request, url, upstream, send, response);

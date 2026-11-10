@@ -134,6 +134,9 @@ kotlin {
             implementation(libs.credentials)
             implementation(libs.credentials.play.services)
             implementation(libs.googleid)
+            // Reproductor de video de las lecciones de Academia (URL firmada de R2).
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.ui)
             implementation("com.google.firebase:firebase-messaging:26.0.0")
         }
         iosMain.dependencies { implementation(libs.ktor.darwin) }

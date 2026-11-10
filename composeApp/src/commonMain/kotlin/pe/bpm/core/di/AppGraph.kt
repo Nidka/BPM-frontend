@@ -12,6 +12,7 @@ import pe.bpm.features.media.domain.*
 import pe.bpm.features.media.presentation.MediaEvidenceViewModel
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
+import pe.bpm.core.network.createObjectStorageClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
 import pe.bpm.features.checklists.data.RemoteChecklistTemplatePublisher
 import pe.bpm.features.checklists.data.LocalChecklistRunDraftRepository
@@ -153,6 +154,22 @@ class AppGraph(
         pe.bpm.features.incidents.domain.ManageIncidents(incidentsRepository, incidentsRepository, incidentDrafts),
         { Uuid.random().toString() }, { Clock.System.now().toString() })
 
+    // Academia: API autorizada y cliente separado para subir videos directo a R2 (sin token BPM).
+    private val trainingObjects = createObjectStorageClient()
+    private val trainingRepository = pe.bpm.features.training.data.RemoteTrainingRepository(httpClient, trainingObjects, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun trainingViewModel() = pe.bpm.features.training.presentation.TrainingViewModel(
+        pe.bpm.features.training.domain.LoadTrainingCourse(trainingRepository), pe.bpm.features.training.domain.RequestLessonVideo(trainingRepository),
+        pe.bpm.features.training.domain.SaveLessonProgress(trainingRepository), pe.bpm.features.training.domain.CheckStudyAnswer(trainingRepository),
+        pe.bpm.features.training.domain.SubmitTrainingAttempt(trainingRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
+    @OptIn(ExperimentalUuidApi::class)
+    fun trainingAuthoringViewModel() = pe.bpm.features.training.presentation.TrainingAuthoringViewModel(
+        pe.bpm.features.training.domain.ListAdminCourses(trainingRepository), pe.bpm.features.training.domain.CreateTrainingCourse(trainingRepository),
+        pe.bpm.features.training.domain.LoadTrainingDraft(trainingRepository), pe.bpm.features.training.domain.SaveTrainingDraft(trainingRepository),
+        pe.bpm.features.training.domain.PublishTrainingCourse(trainingRepository), pe.bpm.features.training.domain.UploadLessonVideo(trainingRepository)) { Uuid.random().toString() }
+
     private val alertsRepository = pe.bpm.features.alerts.data.RemoteAlertsRepository(httpClient,config,
         onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,
         token=identityRepository::validSessionToken)
@@ -181,6 +198,7 @@ class AppGraph(
     override fun close() {
         identityRepository.close()
         objectClient.close()
+        trainingObjects.close()
         httpClient.close()
     }
 }

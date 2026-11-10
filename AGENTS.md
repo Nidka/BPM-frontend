@@ -27,5 +27,9 @@ Estado de operación diaria e incidencias: leer `specs/OPERATIONS.md` y
 localmente; su activación depende de V5/V6 y despliegue del backend antes de la UI.
 No confundir compilación o aceptación aislada con publicación en Railway.
 
+Academia BPM (lecciones con video, modo estudio sin calificación, evaluaciones y autoría): leer specs/TRAINING.md.
+Está implementada localmente; su UI depende del backend de Academia. El reproductor Android/iOS
+y los selectores de video nativos no se compilan sin Android SDK/macOS: verificarlos en esos entornos.
+
 Alertas/reglas y registro de notificaciones Android: leer specs/ALERTS.md.
 La activación necesita V7, API y worker antes del frontend; no implica despliegue.

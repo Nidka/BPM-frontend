@@ -30,6 +30,8 @@ internal fun WorkspaceScreen(
     onManageTemplates: () -> Unit,
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
+    onTraining: () -> Unit = {},
+    onOpenCourse: ((String) -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -160,6 +162,7 @@ internal fun WorkspaceScreen(
                                 { m -> ActionCard(m, "Operación diaria", "Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.", "Gestionar insumos y limpieza", onDailyOperations) },
                                 { m -> ActionCard(m, "Reglas de avisos", "Elige cuándo avisar a las personas responsables de tus sedes.", "Configurar avisos", onAlertRules) },
                                 { m -> IncidentEntryCard(onIncidents, m) },
+                                { m -> ActionCard(m, "Academia BPM", "Prepara cursos con lecciones, video y preguntas; publícalos para que tu equipo aprenda y se evalúe.", "Gestionar Academia", onTraining) },
                             )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -190,7 +193,7 @@ internal fun WorkspaceScreen(
                         WorkspaceDestination.Learn -> {
                             BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
-                            Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.")
+                            Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse)
                             }
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
