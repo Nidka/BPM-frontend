@@ -19,7 +19,7 @@ import pe.bpm.features.operations.domain.*
 fun OperationsScreen(viewModel: OperationsViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(

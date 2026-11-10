@@ -24,7 +24,7 @@ fun IncidentsScreen(
     val s by viewModel.state.collectAsState()
     val e by viewModel.editor.state.collectAsState()
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(

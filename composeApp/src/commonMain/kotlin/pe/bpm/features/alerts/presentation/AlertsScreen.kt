@@ -23,7 +23,7 @@ fun AlertsScreen(
 ) {
   val s by viewModel.state.collectAsState()
   Column(
-    modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+    modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
     verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
     Text("Mis avisos", style = MaterialTheme.typography.headlineSmall)
