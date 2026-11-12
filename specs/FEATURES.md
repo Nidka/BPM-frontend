@@ -14,6 +14,7 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 | Operación diaria | features/operations | Catálogos, criterio térmico, recepciones, consulta PEPS y limpieza implementados; activar V5 en backend antes de desplegar. Fotos de limpieza, movimientos de stock, turnos y cola offline nueva pendientes |
 | Academia | features/training | Detalle de curso, lecciones con texto y video (ExoPlayer, AVPlayer, <video> web), retoma desde la última lección, modo estudio sin calificación, evaluación DIAGNOSTIC/FINAL idempotente con constancia y autoría ADMIN con subida de video a R2 implementados localmente; ver TRAINING.md. Requiere el backend de Academia antes de activar la UI; subida de videos de más de 100 MiB desde el cliente y pruebas en dispositivo pendientes |
 | Incidencias | features/incidents | Catálogo versionado, reporte por sede, asignación, corrección, fotos e historial implementados; activar V6 antes del despliegue. Constancia y notificaciones en módulos posteriores |
+| Reportes y uso | features/reports, features/usage | Panel de indicadores en Inicio, cumplimiento por día/sede, resumen, exportación CSV, avance de capacitación, configuración, constancias con verificación pública web y registro de uso por lotes implementados; ver REPORTS.md. Requiere backend V10. Persistencia offline del registro de uso y pruebas Android/iOS del guardado de archivos pendientes |
 
 Cada responsable debe entregar domain, data, presentation, pruebas y su contrato
 actualizado. Se crean carpetas al implementar el primer recorrido, no antes.

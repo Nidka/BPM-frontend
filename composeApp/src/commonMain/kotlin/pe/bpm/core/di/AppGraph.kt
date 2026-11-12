@@ -183,6 +183,29 @@ class AppGraph(
     fun notificationDevicesViewModel()=pe.bpm.features.notifications.presentation.NotificationDevicesViewModel(
         pe.bpm.features.notifications.domain.ManageNotificationDevices(notificationDevicesRepository,pushProvider))
 
+    // Reportes (cumplimiento, KPIs, exportación, constancias) y registro de uso (RF-27).
+    private val reportsRepository = pe.bpm.features.reports.data.RemoteReportsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    fun reportsDashboardViewModel() = pe.bpm.features.reports.presentation.DashboardViewModel(pe.bpm.features.reports.domain.LoadKpis(reportsRepository))
+    fun reportsViewModel() = pe.bpm.features.reports.presentation.ReportsViewModel(pe.bpm.features.reports.domain.LoadCompliance(reportsRepository),
+        pe.bpm.features.reports.domain.LoadSummary(reportsRepository), pe.bpm.features.reports.domain.ExportComplianceCsv(reportsRepository))
+    fun reportsAdminViewModel() = pe.bpm.features.reports.presentation.ReportsAdminViewModel(pe.bpm.features.reports.domain.LoadTrainingCourseProgress(reportsRepository),
+        pe.bpm.features.reports.domain.LoadTrainingPeopleProgress(reportsRepository), pe.bpm.features.reports.domain.LoadReportSettings(reportsRepository),
+        pe.bpm.features.reports.domain.SaveReportSettings(reportsRepository), pe.bpm.features.reports.domain.IssueComplianceCertificate(reportsRepository),
+        pe.bpm.features.reports.domain.ListComplianceCertificates(reportsRepository))
+    // La cola es en memoria; la persistencia offline-first posterior sustituye solo UsageEventQueue.
+    private val usageQueue: pe.bpm.features.usage.domain.UsageEventQueue = pe.bpm.features.usage.domain.InMemoryUsageEventQueue()
+    private val usageSink = pe.bpm.features.usage.data.RemoteUsageEventSink(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun usageViewModel(): pe.bpm.features.usage.presentation.UsageViewModel {
+        val now = { Clock.System.now().toEpochMilliseconds() }
+        val batcher = pe.bpm.features.usage.domain.UsageBatcher(usageQueue, usageSink, now)
+        return pe.bpm.features.usage.presentation.UsageViewModel(pe.bpm.features.usage.domain.UsageTracker(batcher, { Uuid.random().toString() }, now))
+    }
+
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
         CreateLocation(workspaceRepository), AddMember(workspaceRepository), LoadWorkspacePage(workspaceRepository))

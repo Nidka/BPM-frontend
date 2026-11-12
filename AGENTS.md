@@ -33,3 +33,6 @@ y los selectores de video nativos no se compilan sin Android SDK/macOS: verifica
 
 Alertas/reglas y registro de notificaciones Android: leer specs/ALERTS.md.
 La activación necesita V7, API y worker antes del frontend; no implica despliegue.
+
+Reportes, constancias y registro de uso (RF-09/16/17/27/28/29/30/39): leer specs/REPORTS.md.
+Requiere el backend con V10; el guardado de CSV en Android/iOS no se compila sin SDK/macOS.
