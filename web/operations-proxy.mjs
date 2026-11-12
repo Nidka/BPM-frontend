@@ -5,8 +5,8 @@ import { forwardSessionHeaders } from './session-headers.mjs';
 const uuidPattern = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
 const organizationPattern = '[A-Za-z0-9_-]{1,64}';
 const organization = value => typeof value === 'string' && new RegExp(`^${organizationPattern}$`).test(value);
-const route = new RegExp(`^/backend/api/v1/organizations/(${organizationPattern})/(suppliers|products|supply-receipts|storage-lots|cleaning-plans|cleaning-executions)(?:/(${uuidPattern})(/temperature-policy)?)?$`);
-const scoped = ['supply-receipts', 'storage-lots', 'cleaning-plans', 'cleaning-executions'];
+const route = new RegExp(`^/backend/api/v1/organizations/(${organizationPattern})/(suppliers|products|supply-receipts|storage-lots|cleaning-plans|cleaning-executions|shifts|stock-movements)(?:/(${uuidPattern})(/temperature-policy|/deactivate)?)?$`);
+const scoped = ['supply-receipts', 'storage-lots', 'cleaning-plans', 'cleaning-executions', 'shifts', 'stock-movements'];
 const own = (value, key) => Object.hasOwn(value, key);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const uuid = value => typeof value === 'string' && new RegExp(`^${uuidPattern}$`).test(value) && value !== '00000000-0000-0000-0000-000000000000';
@@ -38,6 +38,7 @@ function expiry(value, input = false) {
   if (input && value === '') return null;
   require(value == null || calendar(value)); return value ?? null;
 }
+const receivedQuantity = value => { require(quantity(value)); return value; };
 const dueTime = value => typeof value === 'string' && /^(?:|(?:[01][0-9]|2[0-3]):[0-5][0-9])$/.test(value);
 function policy(value, input) {
   require(typeof value.requiresTemperature === 'boolean');
@@ -52,8 +53,29 @@ const fields = {
   products: ['id', 'name', 'category', 'unit', 'requiresTemperature', 'minimumTemperature', 'maximumTemperature'],
   'supply-receipts': ['id', 'locationId', 'supplierId', 'receivedAt', 'documentReference', 'notes', 'clientOperationId', 'clientCreatedAt', 'items'],
   'cleaning-plans': ['id', 'locationId', 'area', 'task', 'instructions', 'productName', 'frequency', 'dueTime'],
-  'cleaning-executions': ['id', 'locationId', 'cleaningPlanId', 'executedAt', 'result', 'observation', 'clientOperationId', 'clientCreatedAt'],
+  'cleaning-executions': ['id', 'locationId', 'cleaningPlanId', 'executedAt', 'result', 'observation', 'clientOperationId', 'clientCreatedAt', 'shiftId'],
+  shifts: ['id', 'locationId', 'name', 'startTime', 'endTime'],
+  'stock-movements': ['id', 'locationId', 'lotId', 'type', 'quantity', 'reason', 'note', 'clientOperationId', 'clientCreatedAt'],
 };
+const shiftUpdateFields = ['name', 'startTime', 'endTime', 'rowVersion'];
+const frequencies = ['DAILY', 'WEEKLY', 'MONTHLY', 'PER_SHIFT'];
+const discardReasons = ['EXPIRED', 'DETERIORATED', 'CONTAMINATION', 'OTHER'];
+const clock = value => typeof value === 'string' && /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
+/** Filtros adicionales permitidos por recurso; cualquier otro parámetro se rechaza. */
+const listFilters = {
+  shifts: { status: value => ['ACTIVE', 'ALL'].includes(value) },
+  'stock-movements': { lotId: uuid, type: value => ['CONSUMPTION', 'DISCARD'].includes(value) },
+};
+/** Códigos de negocio que la interfaz sabe explicar; el resto se reduce a un error genérico. */
+const businessErrors = {
+  409: { SHIFT_IN_USE: 'El turno tiene controles programados activos. Desactívalos antes de continuar.', INSUFFICIENT_STOCK: 'El lote no tiene saldo suficiente. Actualiza el saldo e inténtalo de nuevo.', LOT_EXPIRED: 'El lote está vencido. Registra un descarte por vencimiento.' },
+  422: { SHIFT_OUT_OF_HOURS: 'El turno elegido no está abierto en este momento.' },
+};
+function shiftUpdate(value) {
+  exact(value, shiftUpdateFields); require(Number.isSafeInteger(value.rowVersion) && value.rowVersion > 0);
+  require(string(value.name, 60, 2) && value.name === value.name.trim() && clock(value.startTime) && clock(value.endTime));
+  return { name: value.name, startTime: value.startTime, endTime: value.endTime, rowVersion: value.rowVersion };
+}
 const itemFields = ['id', 'productId', 'batchCode', 'expirationDate', 'quantity', 'temperatureCelsius', 'decision', 'rejectionReason', 'packagingCondition', 'storageLocation', 'label'];
 const policyFields = ['rowVersion', 'requiresTemperature', 'minimumTemperature', 'maximumTemperature'];
 function receiptItem(value, input) {
@@ -94,15 +116,39 @@ function entity(resource, value, input = false) {
       }
     } else if (resource === 'storage-lots') {
       require(quantity(value.quantityAvailable, true) && ['AVAILABLE', 'CONSUMED', 'DISCARDED'].includes(value.status) && typeof value.expired === 'boolean');
-      Object.assign(result, { receiptItemId: identifier(value, 'receiptItemId'), productId: identifier(value, 'productId'), productName: text(value, 'productName', 200, 2), unit: text(value, 'unit', 24, 1), batchCode: text(value, 'batchCode', 100), expirationDate: expiry(value.expirationDate), receivedAt: stamp(value, 'receivedAt'), storageLocation: text(value, 'storageLocation', 120, 1), label: text(value, 'label', 160), quantityAvailable: value.quantityAvailable, status: value.status, expired: value.expired });
+      Object.assign(result, { receiptItemId: identifier(value, 'receiptItemId'), productId: identifier(value, 'productId'), productName: text(value, 'productName', 200, 2), unit: text(value, 'unit', 24, 1), batchCode: text(value, 'batchCode', 100), expirationDate: expiry(value.expirationDate), receivedAt: stamp(value, 'receivedAt'), storageLocation: text(value, 'storageLocation', 120, 1), label: text(value, 'label', 160), quantityAvailable: value.quantityAvailable, receivedQuantity: own(value, 'receivedQuantity') ? receivedQuantity(value.receivedQuantity) : '', status: value.status, expired: value.expired });
     } else if (resource === 'cleaning-plans') {
-      require(['DAILY', 'WEEKLY', 'MONTHLY'].includes(value.frequency) && dueTime(input && value.dueTime === undefined ? '' : value.dueTime));
+      require(frequencies.includes(value.frequency) && dueTime(input && value.dueTime === undefined ? '' : value.dueTime) && !(input && value.frequency === 'PER_SHIFT' && value.dueTime));
       Object.assign(result, { area: text(value, 'area', 100, 2), task: text(value, 'task', 240, 2), instructions: text(value, 'instructions', 2000, 0, input), productName: text(value, 'productName', 160, 0, input), frequency: value.frequency, dueTime: value.dueTime ?? '' });
       if (!input) { require(typeof value.active === 'boolean'); result.active = value.active; }
     } else if (resource === 'cleaning-executions') {
       require(['COMPLETED', 'NOT_COMPLETED', 'OBSERVED'].includes(value.result));
       Object.assign(result, { cleaningPlanId: identifier(value, 'cleaningPlanId'), executedAt: stamp(value, 'executedAt', input), result: value.result, observation: text(value, 'observation', 2000, 0, input), clientOperationId: identifier(value, 'clientOperationId'), clientCreatedAt: stamp(value, 'clientCreatedAt', input) });
+      if (own(value, 'shiftId') && (input || value.shiftId !== null && value.shiftId !== '')) result.shiftId = identifier(value, 'shiftId');
+      if (!input && own(value, 'shiftName') && value.shiftName) result.shiftName = text(value, 'shiftName', 60);
       if (!input) Object.assign(result, { area: text(value, 'area', 100, 2), task: text(value, 'task', 240, 2), responsibleUserId: text(value, 'responsibleUserId', 128, 1), responsibleName: text(value, 'responsibleName', 200), createdAt: stamp(value, 'createdAt') });
+    } else if (resource === 'shifts') {
+      require(clock(value.startTime) && clock(value.endTime));
+      Object.assign(result, { name: text(value, 'name', 60, 2), startTime: value.startTime, endTime: value.endTime });
+      if (input) require(value.name === value.name.trim());
+      else {
+        require(typeof value.crossesMidnight === 'boolean' && typeof value.active === 'boolean' && typeof value.openNow === 'boolean' && Number.isSafeInteger(value.rowVersion) && value.rowVersion > 0);
+        Object.assign(result, { timezone: text(value, 'timezone', 100, 1), crossesMidnight: value.crossesMidnight, active: value.active, openNow: value.openNow, rowVersion: value.rowVersion, createdAt: stamp(value, 'createdAt') });
+      }
+    } else if (resource === 'stock-movements') {
+      require(['CONSUMPTION', 'DISCARD'].includes(value.type) && quantity(value.quantity));
+      const reason = value.reason ?? '', note = value.note ?? '';
+      require(typeof reason === 'string' && string(note, 500));
+      if (value.type === 'DISCARD' && input) require(discardReasons.includes(reason) && (reason !== 'OTHER' || note.trim()));
+      else if (input) require(reason === '');
+      else require(reason === '' || discardReasons.includes(reason));
+      Object.assign(result, { lotId: identifier(value, 'lotId'), type: value.type, quantity: value.quantity, clientOperationId: identifier(value, 'clientOperationId'), clientCreatedAt: stamp(value, 'clientCreatedAt', input) });
+      if (input) { if (reason) result.reason = reason; if (note) result.note = note; }
+      else {
+        require(quantity(value.balanceAfter, true));
+        Object.assign(result, { reason, note, productName: text(value, 'productName', 200, 1), unit: text(value, 'unit', 24, 1), batchCode: text(value, 'batchCode', 100), balanceAfter: value.balanceAfter,
+          performedBy: text(value, 'performedBy', 128, 1), performedByName: text(value, 'performedByName', 200), createdAt: stamp(value, 'createdAt') });
+      }
     } else fail();
   }
   return result;
@@ -126,7 +172,7 @@ function confirmation(input, output) {
 }
 export function operationsRoute(path) {
   const match = path.match(route);
-  return Boolean(match && organization(match[1]) && (!match[3] || uuid(match[3]) && (match[2] === 'products' ? Boolean(match[4]) : !match[4] && ['supply-receipts', 'cleaning-executions'].includes(match[2]))));
+  return Boolean(match && organization(match[1]) && (!match[3] || uuid(match[3]) && (match[2] === 'products' ? match[4] === '/temperature-policy' : match[2] === 'shifts' ? !match[4] || match[4] === '/deactivate' : !match[4] && ['supply-receipts', 'cleaning-executions', 'stock-movements'].includes(match[2]))));
 }
 
 /** Operaciones públicas cerradas; la API vuelve a autorizar empresa, sede, rol y reglas de negocio. */
@@ -134,7 +180,7 @@ export async function proxyOperations(request, url, upstream, send, response) {
   if (!operationsRoute(url.pathname)) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   const [, organizationId, resource, id, action] = url.pathname.match(route);
   const method = request.method, writing = method === 'POST' || method === 'PUT';
-  const permitted = action ? method === 'PUT' : id ? method === 'GET' : method === 'GET' || method === 'POST' && resource !== 'storage-lots';
+  const permitted = action === '/temperature-policy' ? method === 'PUT' : action === '/deactivate' ? method === 'POST' : id ? method === 'GET' || method === 'PUT' && resource === 'shifts' : method === 'GET' || method === 'POST' && resource !== 'storage-lots';
   if (!permitted) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   const collection = !id && method === 'GET';
   let query, locationId;
@@ -142,7 +188,14 @@ export async function proxyOperations(request, url, upstream, send, response) {
     if (collection && scoped.includes(resource)) {
       const locations = url.searchParams.getAll('locationId'); require(locations.length === 1 && uuid(locations[0])); locationId = locations[0];
       const filters = new URL(url); filters.searchParams.delete('locationId');
-      query = pageQuery(filters); const params = new URLSearchParams(query); params.set('locationId', locationId); query = '?' + params.toString();
+      const extra = new URLSearchParams();
+      for (const [name, valid] of Object.entries(listFilters[resource] ?? {})) {
+        const values = url.searchParams.getAll(name); require(values.length <= 1);
+        if (values.length) { require(valid(values[0])); extra.set(name, values[0]); filters.searchParams.delete(name); }
+      }
+      query = pageQuery(filters); const params = new URLSearchParams(query); params.set('locationId', locationId);
+      for (const [name, value] of extra) params.set(name, value);
+      query = '?' + params.toString();
     } else query = pageQuery(url, { detail: !collection });
     if (!writing) require(!request.headers['transfer-encoding'] && (!request.headers['content-length'] || request.headers['content-length'] === '0'));
   } catch { return send(400, error(collection ? 'INVALID_PAGINATION' : 'INVALID_REQUEST', 'Revisa los filtros y los datos de la solicitud.')); }
@@ -160,10 +213,14 @@ export async function proxyOperations(request, url, upstream, send, response) {
     if (typeof key !== 'string' || !/^[\x21-\x7e]{8,100}$/.test(key)) return send(400, error('INVALID_REQUEST', 'La clave de la operación no es válida.'));
     try {
       const raw = await readPayload(request, 512 * 1024);
-      if (action) {
+      if (action === '/temperature-policy') {
         exact(raw, policyFields); require(Number.isSafeInteger(raw.rowVersion) && raw.rowVersion > 0);
         input = { rowVersion: raw.rowVersion, ...policy(raw, true) };
-      } else input = entity(resource, raw, true);
+      } else if (action === '/deactivate') {
+        exact(raw, ['rowVersion']); require(Number.isSafeInteger(raw.rowVersion) && raw.rowVersion > 0);
+        input = { rowVersion: raw.rowVersion };
+      } else if (method === 'PUT') input = shiftUpdate(raw);
+      else input = entity(resource, raw, true);
       // Se preserva el JSON público enviado para que el replay mantenga la misma operación.
       body = JSON.stringify(raw); headers['Content-Type'] = 'application/json'; headers['Idempotency-Key'] = key;
     } catch { return send(400, error('INVALID_REQUEST', 'Revisa los datos de la operación.')); }
@@ -173,14 +230,17 @@ export async function proxyOperations(request, url, upstream, send, response) {
     forwardSessionHeaders(result, response);
     if (!result.ok) {
       const invalidFields = {};
+      let businessCode = '';
       const recognized = [400, 401, 403, 404, 409, 422, 429].includes(result.status);
       if (recognized) {
         const invalid = await readPayload(result.body, 65536);
         require(object(invalid) && Array.isArray(invalid.errors) && invalid.errors.length > 0 && invalid.errors.length <= 100);
         for (const item of invalid.errors) {
           require(object(item) && typeof item.code === 'string' && typeof item.message === 'string' && (item.fields === undefined || object(item.fields)));
+          if (writing && Object.hasOwn(businessErrors[result.status] ?? {}, item.code) && !businessCode) businessCode = item.code;
           if (result.status !== 422 || !writing) continue;
-          for (const key of Object.keys(item.fields || {})) if ((action ? policyFields : fields[resource]).includes(key) || resource === 'supply-receipts' && /^items\.(?:[0-9]|[1-4][0-9])\.[A-Za-z]+$/.test(key) && itemFields.includes(key.split('.')[2])) invalidFields[key] = 'Revisa este campo.';
+          const allowed = action === '/temperature-policy' ? policyFields : action === '/deactivate' ? ['rowVersion'] : method === 'PUT' ? shiftUpdateFields : fields[resource];
+          for (const key of Object.keys(item.fields || {})) if (allowed.includes(key) || resource === 'supply-receipts' && /^items\.(?:[0-9]|[1-4][0-9])\.[A-Za-z]+$/.test(key) && itemFields.includes(key.split('.')[2])) invalidFields[key] = 'Revisa este campo.';
         }
       } else await result.body?.cancel();
       const failures = {
@@ -189,6 +249,7 @@ export async function proxyOperations(request, url, upstream, send, response) {
         404: ['NOT_FOUND', 'El recurso no está disponible.'], 409: ['RESOURCE_CONFLICT', 'La operación cambió o ya existe. Actualiza los datos.'],
         422: ['VALIDATION_ERROR', 'Revisa los campos indicados.'], 429: ['RATE_LIMITED', 'Espera un momento antes de reintentar.'],
       };
+      if (businessCode) return send(result.status, error(businessCode, businessErrors[result.status][businessCode], invalidFields));
       return failures[result.status] ? send(result.status, error(...failures[result.status], invalidFields)) : unavailable(send);
     }
     const payload = await readPayload(result.body);
@@ -202,9 +263,11 @@ export async function proxyOperations(request, url, upstream, send, response) {
     context(payload.data, { organizationId, locationId: input?.locationId, id: id || input?.id });
     const data = entity(resource, payload.data);
     if (writing) {
-      if (action) { const { rowVersion, ...expected } = input; confirmation(expected, data); require(data.rowVersion > rowVersion); }
-      else { confirmation(input, data); if (resource === 'cleaning-plans') require(data.active); }
+      if (action === '/temperature-policy') { const { rowVersion, ...expected } = input; confirmation(expected, data); require(data.rowVersion > rowVersion); }
+      else if (action === '/deactivate') require(data.active === false);
+      else if (method === 'PUT') { const { rowVersion, ...expected } = input; confirmation(expected, data); require(data.rowVersion > rowVersion && data.active); }
+      else { confirmation(input, data); if (resource === 'cleaning-plans' || resource === 'shifts') require(data.active); }
     }
-    return send(method === 'POST' ? 201 : 200, JSON.stringify({ data }));
+    return send(method === 'POST' && !action ? 201 : 200, JSON.stringify({ data }));
   } catch { return unavailable(send); }
 }
