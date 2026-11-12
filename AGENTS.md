@@ -33,3 +33,5 @@ y los selectores de video nativos no se compilan sin Android SDK/macOS: verifica
 
 Alertas/reglas y registro de notificaciones Android: leer specs/ALERTS.md.
 La activación necesita V7, API y worker antes del frontend; no implica despliegue.
+
+Estudio CAP (consentimiento, encuesta pre/post e investigación): leer specs/RESEARCH.md. Requiere el backend V9.

@@ -170,6 +170,19 @@ class AppGraph(
         pe.bpm.features.training.domain.LoadTrainingDraft(trainingRepository), pe.bpm.features.training.domain.SaveTrainingDraft(trainingRepository),
         pe.bpm.features.training.domain.PublishTrainingCourse(trainingRepository), pe.bpm.features.training.domain.UploadLessonVideo(trainingRepository)) { Uuid.random().toString() }
 
+    // Estudio CAP: participante e investigación comparten un solo adaptador autenticado.
+    private val researchRepository = pe.bpm.features.research.data.RemoteResearchRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun surveyViewModel() = pe.bpm.features.research.presentation.SurveyViewModel(
+        pe.bpm.features.research.domain.LoadParticipation(researchRepository), pe.bpm.features.research.domain.RecordConsent(researchRepository),
+        pe.bpm.features.research.domain.SubmitSurvey(researchRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
+    fun researchViewModel() = pe.bpm.features.research.presentation.ResearchViewModel(
+        pe.bpm.features.research.domain.LoadResearchAccess(researchRepository), pe.bpm.features.research.domain.ManageAccessGrants(researchRepository),
+        pe.bpm.features.research.domain.ManageConsentDocuments(researchRepository), pe.bpm.features.research.domain.ManageInstruments(researchRepository),
+        pe.bpm.features.research.data.JsonInstrumentImportParser(), pe.bpm.features.research.domain.AnalyzeResearch(researchRepository)) { Clock.System.now().toString() }
+
     private val alertsRepository = pe.bpm.features.alerts.data.RemoteAlertsRepository(httpClient,config,
         onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,
         token=identityRepository::validSessionToken)
