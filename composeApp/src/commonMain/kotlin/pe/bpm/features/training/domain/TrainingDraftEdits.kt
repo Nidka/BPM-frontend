@@ -10,8 +10,13 @@ object TrainingDraftEdits {
     fun updateLesson(draft: TrainingDraft, id: String, title: String? = null, content: String? = null): TrainingDraft =
         draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(title = title ?: it.title, content = content ?: it.content) else it })
 
+    /** Adjuntar un video privado retira el de YouTube: una lección tiene como máximo uno. */
     fun setLessonVideo(draft: TrainingDraft, id: String, mediaId: String?): TrainingDraft =
-        draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(videoMediaId = mediaId) else it })
+        draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(videoMediaId = mediaId, externalVideoId = if (mediaId != null) null else it.externalVideoId) else it })
+
+    /** Fija el video de YouTube (o lo quita con `null`) y retira el video privado. */
+    fun setExternalVideo(draft: TrainingDraft, id: String, videoId: String?): TrainingDraft =
+        draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(externalVideoId = videoId, videoMediaId = if (videoId != null) null else it.videoMediaId) else it })
 
     /** Al quitar una lección sus preguntas siguen existiendo pero quedan sin lección. */
     fun removeLesson(draft: TrainingDraft, id: String): TrainingDraft = draft.copy(

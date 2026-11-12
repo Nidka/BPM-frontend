@@ -73,7 +73,7 @@ class TrainingViewModel(
                     val course = result.value
                     val lesson = current.lessonId?.takeIf { id -> course.lessons.any { it.id == id } }
                     val evaluation = current.evaluation?.takeIf { keepEvaluation }
-                        ?.let { EvaluationState(it.type, now()) }
+                        ?.let { EvaluationState(it.type, now(), it.lessonId) }
                     // Las preguntas pudieron cambiar: la práctica se reinicia y la evaluación solo continúa si se pidió.
                     val screen = when {
                         lesson == null && current.screen == TrainingPane.LESSON -> TrainingPane.OVERVIEW
@@ -217,9 +217,20 @@ class TrainingViewModel(
 
     // ---- Modo evaluación ---------------------------------------------------------------------
 
+    /** Evalúa solo las preguntas de una lección; no completa el curso ni emite constancia. */
+    fun startModuleEvaluation(lessonId: String) {
+        val course = mutable.value.course ?: return
+        if (!mutable.value.canPersist || course.lessons.none { it.id == lessonId }) return
+        if (course.questions.none { it.lessonId == lessonId }) {
+            mutable.value = mutable.value.copy(notice = "Esta lección todavía no tiene preguntas para evaluar.")
+            return
+        }
+        mutable.value = mutable.value.copy(screen = TrainingPane.EVALUATION, evaluation = EvaluationState(AttemptType.MODULE, now(), lessonId), video = VideoState.Idle)
+    }
+
     fun startEvaluation(type: AttemptType) {
         val course = mutable.value.course ?: return
-        if (!mutable.value.canPersist) return
+        if (!mutable.value.canPersist || type == AttemptType.MODULE) return
         if (course.questions.isEmpty()) {
             mutable.value = mutable.value.copy(notice = "Este curso todavía no tiene preguntas para evaluar.")
             return
@@ -231,7 +242,7 @@ class TrainingViewModel(
     fun answerEvaluation(questionId: String, option: Int) {
         val s = mutable.value
         val evaluation = s.evaluation ?: return
-        val question = s.course?.questions?.firstOrNull { it.id == questionId } ?: return
+        val question = s.evaluationQuestions.firstOrNull { it.id == questionId } ?: return
         if (evaluation.pending != null || evaluation.submitting || evaluation.outcome != null || option !in question.options.indices) return
         mutable.value = s.copy(evaluation = evaluation.copy(answers = evaluation.answers + (questionId to option), failure = null))
     }
@@ -239,7 +250,7 @@ class TrainingViewModel(
     fun canSubmitEvaluation(): Boolean {
         val s = mutable.value
         val evaluation = s.evaluation ?: return false
-        val total = s.course?.questions?.size ?: return false
+        val total = s.evaluationQuestions.size
         return evaluation.outcome == null && !evaluation.submitting && (evaluation.pending != null || total > 0 && evaluation.answers.size == total)
     }
 
@@ -250,7 +261,7 @@ class TrainingViewModel(
         val course = s.course ?: return
         val evaluation = s.evaluation ?: return
         if (evaluation.submitting || evaluation.outcome != null) return
-        val attempt = evaluation.pending ?: submitAttempt.prepare(course, evaluation.type, evaluation.answers, newId, evaluation.startedAt, now())
+        val attempt = evaluation.pending ?: submitAttempt.prepare(course, evaluation.type, evaluation.answers, newId, evaluation.startedAt, now(), evaluation.lessonId)
         if (attempt == null) {
             mutable.value = s.copy(evaluation = evaluation.copy(failure = TrainingFailure.ANSWERS_INVALID))
             return

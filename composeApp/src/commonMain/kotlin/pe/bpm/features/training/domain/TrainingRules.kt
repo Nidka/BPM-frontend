@@ -28,7 +28,7 @@ object TrainingLimits {
 
 enum class DraftIssueKind {
     COURSE_CODE, COURSE_TITLE, COURSE_DESCRIPTION, COURSE_DURATION, PASSING_SCORE, LESSON_COUNT, LESSON_TITLE, LESSON_CONTENT,
-    QUESTION_COUNT, QUESTION_TEXT, OPTION_COUNT, OPTION_TEXT, CORRECT_OPTION, EXPLANATION, QUESTION_LESSON, DUPLICATE_ID, DUPLICATE_OPTION, BODY_SIZE,
+    QUESTION_COUNT, EXTERNAL_VIDEO, QUESTION_TEXT, OPTION_COUNT, OPTION_TEXT, CORRECT_OPTION, EXPLANATION, QUESTION_LESSON, DUPLICATE_ID, DUPLICATE_OPTION, BODY_SIZE,
 }
 
 /** Problema localizable: [id] identifica la lección o pregunta afectada (o vacío si es global). */
@@ -63,6 +63,8 @@ object TrainingDraftRules {
                 add(DraftIssue(DraftIssueKind.LESSON_TITLE, lesson.id, "El título de la lección es obligatorio y admite hasta ${TrainingLimits.LESSON_TITLE_MAX} caracteres."))
             if (lesson.content.textLength() > TrainingLimits.LESSON_CONTENT_MAX)
                 add(DraftIssue(DraftIssueKind.LESSON_CONTENT, lesson.id, "El contenido admite hasta ${TrainingLimits.LESSON_CONTENT_MAX} caracteres."))
+            if (lesson.externalVideoId != null && (lesson.videoMediaId != null || !YouTubeLinks.isVideoId(lesson.externalVideoId)))
+                add(DraftIssue(DraftIssueKind.EXTERNAL_VIDEO, lesson.id, "Usa un video subido o un enlace de YouTube, no ambos."))
         }
         // El servidor limita el cuerpo completo a 1 MiB; se valida un tamaño aproximado con margen.
         val approxBytes = draft.lessons.sumOf { it.title.encodeToByteArray().size + it.content.encodeToByteArray().size + 200 } +

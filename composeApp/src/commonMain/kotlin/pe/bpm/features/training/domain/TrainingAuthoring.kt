@@ -19,6 +19,8 @@ data class DraftLesson(
     val content: String,
     val displayOrder: Int,
     val videoMediaId: String?,
+    /** Identificador de un video de YouTube; excluyente con [videoMediaId]. */
+    val externalVideoId: String? = null,
 )
 
 data class DraftQuestion(

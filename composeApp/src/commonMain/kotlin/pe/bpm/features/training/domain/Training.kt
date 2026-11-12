@@ -13,6 +13,13 @@ data class TrainingVersionInfo(val id: String, val versionNumber: Int, val passi
 
 data class LessonVideo(val mediaId: String, val mimeType: String, val sizeBytes: Long)
 
+/** Video externo de YouTube: el contrato solo entrega el identificador, nunca una URL. */
+data class ExternalVideo(val videoId: String) {
+    /** Dirección de inserción sin cookies de seguimiento; requiere conexión a internet. */
+    val embedUrl: String get() = YouTubeLinks.embedUrl(videoId)
+    val watchUrl: String get() = YouTubeLinks.watchUrl(videoId)
+}
+
 data class TrainingLesson(
     val id: String,
     val title: String,
@@ -20,6 +27,8 @@ data class TrainingLesson(
     val content: String,
     val displayOrder: Int,
     val video: LessonVideo?,
+    /** Alternativa en línea al video privado; una lección tiene como máximo uno de los dos. */
+    val externalVideo: ExternalVideo? = null,
 )
 
 /** Pregunta de la vista de aprendizaje: por contrato nunca trae la respuesta ni la explicación. */
@@ -62,7 +71,8 @@ data class VideoTicket(val url: String, val mimeType: String, val expiresAt: Str
 /** Resultado de practicar en modo estudio: informativo, sin puntaje ni persistencia. */
 data class StudyFeedback(val correct: Boolean, val correctOption: Int, val explanation: String)
 
-enum class AttemptType { DIAGNOSTIC, FINAL }
+/** [MODULE] evalúa solo las preguntas de una lección: no completa el curso ni emite constancia. */
+enum class AttemptType { DIAGNOSTIC, FINAL, MODULE }
 
 data class AttemptAnswer(val questionId: String, val selectedOption: Int)
 
@@ -78,6 +88,8 @@ data class AttemptSubmission(
     val startedAt: String,
     val clientCreatedAt: String,
     val answers: List<AttemptAnswer>,
+    /** Obligatoria y exclusiva de [AttemptType.MODULE]. */
+    val lessonId: String? = null,
 )
 
 data class QuestionResult(
@@ -95,12 +107,15 @@ data class AttemptOutcome(
     val results: List<QuestionResult>,
     val progress: TrainingProgress,
     val certificate: TrainingCertificate?,
+    /** Insignias otorgadas por este intento (también en la repetición idéntica). */
+    val achievements: List<Achievement> = emptyList(),
 )
 
 /** Motivos públicos y sanitizados; el detalle técnico no llega a la interfaz. */
 enum class TrainingFailure {
     CONNECTION, SESSION, DENIED, NOT_FOUND, VERSION_OUTDATED, CONFLICT, DRAFT_CONFLICT, CODE_TAKEN,
-    ANSWERS_INVALID, DRAFT_INCOMPLETE, INVALID, CONTENT_INVALID, TOO_LARGE, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE;
+    ANSWERS_INVALID, DRAFT_INCOMPLETE, INVALID, CONTENT_INVALID, TOO_LARGE, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE,
+    ASSIGNMENT_EXISTS, PATH_CONFLICT, PATH_ARCHIVED, COURSE_NOT_PUBLISHED;
 
     /** Un reintento con el mismo cuerpo puede resolver el fallo sin riesgo de duplicar. */
     val retryable: Boolean

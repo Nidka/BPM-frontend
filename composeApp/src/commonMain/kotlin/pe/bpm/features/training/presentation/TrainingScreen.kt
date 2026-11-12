@@ -77,7 +77,7 @@ private fun CourseOverview(course: TrainingCourse, canPersist: Boolean, viewMode
         BpmCard(cardModifier) {
             Eyebrow("LECCIÓN ${course.lessons.indexOf(lesson) + 1}" + if (lesson.id == course.progress.lastLessonId) " · ÚLTIMA QUE VISTE" else "")
             Text(lesson.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            if (lesson.video != null) Text("Incluye video", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (lesson.video != null || lesson.externalVideo != null) Text("Incluye video", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BpmSecondaryButton(onClick = { viewModel.selectLesson(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Abrir lección") }
         }
     }
@@ -117,6 +117,13 @@ private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: T
     Text(lesson.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     if (state.progressNotSaved) Text("No pudimos guardar tu avance. Puedes seguir leyendo; se guardará al abrir otra lección.", color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+    lesson.externalVideo?.let { external ->
+        // Video de YouTube: se incrusta sin cookies de seguimiento y solo funciona con conexión.
+        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+        Text("Requiere conexión", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ExternalLessonVideo(external.embedUrl, external.watchUrl, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+        BpmTextButton(onClick = { runCatching { uriHandler.openUri(external.watchUrl) } }) { Text("Abrir video en el navegador") }
+    }
     if (lesson.video != null) {
         when (val video = state.video) {
             VideoState.Idle -> BpmSecondaryButton(onClick = viewModel::loadVideo, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Ver video de la lección") }
@@ -133,7 +140,7 @@ private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: T
     }
     // El texto de la lección hace de transcripción accesible del video y de lectura sin video.
     BpmCard(Modifier.fillMaxWidth()) {
-        Eyebrow(if (lesson.video != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
+        Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
         Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -147,6 +154,8 @@ private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: T
         else Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) { previous(Modifier.weight(1f)); next(Modifier.weight(1f)) }
     }
     if (course.questions.isNotEmpty()) BpmTextButton(onClick = { viewModel.startStudy(lesson.id) }) { Text("Practicar esta lección · modo estudio, sin calificación") }
+    if (state.canPersist && course.questions.any { it.lessonId == lesson.id })
+        BpmSecondaryButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Evaluar esta lección · se califica") }
     BpmTextButton(onClick = { viewModel.back() }) { Text("Volver al curso") }
 }
 
@@ -198,14 +207,16 @@ private fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
 
 @Composable
 private fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evaluation: EvaluationState, viewModel: TrainingViewModel) {
-    val label = if (evaluation.type == AttemptType.FINAL) "EVALUACIÓN FINAL" else "EVALUACIÓN DIAGNÓSTICA"
+    val label = when (evaluation.type) { AttemptType.FINAL -> "EVALUACIÓN FINAL"; AttemptType.MODULE -> "EVALUACIÓN DE LECCIÓN"; else -> "EVALUACIÓN DIAGNÓSTICA" }
+    val questions = state.evaluationQuestions
     Eyebrow("$label · SE CALIFICA")
     val outcome = evaluation.outcome
     if (outcome != null) { EvaluationResult(course, outcome, viewModel); return }
     Text("Responde todas las preguntas", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Text("Aprobar requiere ${course.version.passingScore} puntos. Respondidas: ${evaluation.answers.size} de ${course.questions.size}.")
+    Text("Aprobar requiere ${course.version.passingScore} puntos. Respondidas: ${evaluation.answers.size} de ${questions.size}.")
+    if (evaluation.type == AttemptType.MODULE) Text("Esta evaluación solo mide esta lección: no completa el curso ni emite constancia, pero suma puntos de experiencia.", style = MaterialTheme.typography.bodySmall)
     val locked = evaluation.pending != null || evaluation.submitting
-    course.questions.forEachIndexed { number, question ->
+    questions.forEachIndexed { number, question ->
         BpmCard(Modifier.fillMaxWidth()) {
             Text("${number + 1}. ${question.questionText}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             question.options.forEachIndexed { option, text ->
@@ -233,6 +244,8 @@ private fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, vi
             if (attempt.attemptType == AttemptType.FINAL && outcome.progress.experiencePoints > 0) Text("Puntos de experiencia: ${outcome.progress.experiencePoints} XP")
         }
     }
+    if (outcome.achievements.isNotEmpty()) AchievementCelebration(outcome.achievements)
+    if (attempt.attemptType == AttemptType.MODULE) Text("La evaluación de lección no completa el curso. Tu XP total está en «Mis logros».", style = MaterialTheme.typography.bodySmall)
     outcome.certificate?.let { CertificateCard(it) }
     Text("Resultado por pregunta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
     outcome.results.forEachIndexed { number, result ->
@@ -247,7 +260,7 @@ private fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, vi
     }
     if (!attempt.passed || attempt.attemptType == AttemptType.DIAGNOSTIC) {
         BpmSecondaryButton(onClick = { viewModel.startStudy() }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Repasar en modo estudio") }
-        RaisedButton("Intentar otra vez", { viewModel.startEvaluation(attempt.attemptType) }, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+        RaisedButton("Intentar otra vez", { val lesson = viewModel.state.value.evaluation?.lessonId; if (attempt.attemptType == AttemptType.MODULE && lesson != null) viewModel.startModuleEvaluation(lesson) else viewModel.startEvaluation(attempt.attemptType) }, Modifier.widthIn(max = 360.dp).fillMaxWidth())
     }
     BpmTextButton(onClick = viewModel::closeEvaluation) { Text("Volver al curso") }
 }

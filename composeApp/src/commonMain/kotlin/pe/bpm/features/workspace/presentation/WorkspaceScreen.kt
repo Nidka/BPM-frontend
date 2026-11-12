@@ -32,6 +32,7 @@ internal fun WorkspaceScreen(
     onIncidents: () -> Unit = {},
     onTraining: () -> Unit = {},
     onOpenCourse: ((String) -> Unit)? = null,
+    learnHeader: (@Composable () -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -192,6 +193,7 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Learn -> {
                             BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
+                            learnHeader?.invoke()
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                             Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse)
                             }

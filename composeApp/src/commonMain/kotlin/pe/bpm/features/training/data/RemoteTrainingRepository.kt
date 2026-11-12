@@ -65,6 +65,9 @@ class RemoteTrainingRepository(
             put("attemptType", attempt.attemptType.name)
             put("startedAt", attempt.startedAt)
             put("clientCreatedAt", attempt.clientCreatedAt)
+            // MODULE evalúa solo una lección: el identificador viaja únicamente en ese tipo.
+            if (attempt.attemptType == AttemptType.MODULE) put("lessonId", trainingId(requireNotNull(attempt.lessonId)))
+            else require(attempt.lessonId == null)
             putJsonArray("answers") {
                 attempt.answers.forEach { add(buildJsonObject { put("questionId", trainingId(it.questionId)); put("selectedOption", it.selectedOption) }) }
             }
@@ -106,6 +109,12 @@ class RemoteTrainingRepository(
                     put("id", trainingId(lesson.id)); put("title", lesson.title); put("content", lesson.content)
                     put("displayOrder", lesson.displayOrder)
                     put("videoMediaId", lesson.videoMediaId?.let { JsonPrimitive(trainingId(it)) } ?: JsonNull)
+                    // Video privado y de YouTube son excluyentes; se envía el identificador normalizado.
+                    require(lesson.videoMediaId == null || lesson.externalVideoId == null)
+                    put("externalVideo", lesson.externalVideoId?.let { id ->
+                        require(YouTubeLinks.isVideoId(id))
+                        buildJsonObject { put("provider", "YOUTUBE"); put("videoId", id) }
+                    } ?: JsonNull)
                 }) }
             }
             putJsonArray("questions") {
@@ -239,6 +248,9 @@ internal fun failureFor(status: Int, code: String): TrainingFailure = when (stat
         "TRAINING_VERSION_OUTDATED" -> TrainingFailure.VERSION_OUTDATED
         "TRAINING_COURSE_CODE_TAKEN" -> TrainingFailure.CODE_TAKEN
         "TRAINING_DRAFT_CONFLICT" -> TrainingFailure.DRAFT_CONFLICT
+        "TRAINING_ASSIGNMENT_EXISTS" -> TrainingFailure.ASSIGNMENT_EXISTS
+        "TRAINING_PATH_CONFLICT" -> TrainingFailure.PATH_CONFLICT
+        "TRAINING_PATH_ARCHIVED" -> TrainingFailure.PATH_ARCHIVED
         // Aún no hay confirmación: repetir comprueba la misma reserva, no crea otra.
         "UPLOAD_NOT_READY", "TRAINING_VIDEO_NOT_READY" -> TrainingFailure.CONNECTION
         else -> TrainingFailure.CONFLICT
@@ -247,6 +259,7 @@ internal fun failureFor(status: Int, code: String): TrainingFailure = when (stat
     422 -> when (code) {
         "TRAINING_ANSWERS_INVALID" -> TrainingFailure.ANSWERS_INVALID
         "TRAINING_DRAFT_INCOMPLETE" -> TrainingFailure.DRAFT_INCOMPLETE
+        "TRAINING_COURSE_NOT_PUBLISHED" -> TrainingFailure.COURSE_NOT_PUBLISHED
         "MEDIA_CONTENT_INVALID", "TRAINING_VIDEO_INVALID" -> TrainingFailure.CONTENT_INVALID
         else -> TrainingFailure.INVALID
     }
@@ -254,11 +267,11 @@ internal fun failureFor(status: Int, code: String): TrainingFailure = when (stat
     else -> TrainingFailure.UNAVAILABLE
 }
 
-private class TransportFailure(val reason: TrainingFailure) : Exception()
+internal class TransportFailure(val reason: TrainingFailure) : Exception()
 
-private val lenientJson = Json { ignoreUnknownKeys = true }
+internal val lenientJson = Json { ignoreUnknownKeys = true }
 
-private suspend inline fun <T> guarded(block: () -> T): TrainingResult<T> =
+internal suspend inline fun <T> guarded(block: () -> T): TrainingResult<T> =
     try {
         val result = block()
         currentCoroutineContext().ensureActive()
