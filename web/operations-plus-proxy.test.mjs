@@ -174,7 +174,8 @@ test('limpieza por turno: planes PER_SHIFT, shiftId en ejecuciones y SHIFT_OUT_O
   const planInput = { id, locationId: site, area: 'Cocina', task: 'Limpiar mesa', instructions: '', productName: '', frequency: 'PER_SHIFT', dueTime: '' };
   state.payload = { data: { ...planInput, active: true } };
   assert.equal((await call('/cleaning-plans', 'POST', planInput)).status, 201);
-  assert.equal((await call('/cleaning-plans', 'POST', { ...planInput, dueTime: '08:00' })).status, 400);
+  state.payload = { data: { ...planInput, dueTime: '08:00', active: true } };
+  assert.equal((await call('/cleaning-plans', 'POST', { ...planInput, dueTime: '08:00' })).status, 201);
   const executionInput = { id, locationId: site, cleaningPlanId: other, executedAt: stamp, result: 'COMPLETED', observation: '', clientOperationId: id, clientCreatedAt: stamp, shiftId: lotId };
   state.payload = { data: { ...executionInput, shiftName: 'Mañana', area: 'Cocina', task: 'Limpiar mesa', responsibleUserId: 'firebase-user', responsibleName: 'Ana', createdAt: stamp } };
   const response = await call('/cleaning-executions', 'POST', executionInput);

@@ -13,7 +13,7 @@ async function readPayload(body, maximum = 4 * 1024 * 1024) {
 
 const uuidPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuid = value => typeof value === 'string' && new RegExp(`^${uuidPattern}$`, 'i').test(value);
-const route = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/(?:checklist-runs/(${uuidPattern})/items/(${uuidPattern})/evidence|media/(?:(uploads)|(${uuidPattern})(?:/(confirm|download))?)|incidents/(${uuidPattern})/(?:evidence/(BEFORE)|actions/(${uuidPattern})/evidence/(AFTER)))$`, 'i');
+const route = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/(?:checklist-runs/(${uuidPattern})/items/(${uuidPattern})/evidence|media/(?:(uploads)|(${uuidPattern})(?:/(confirm|download))?)|incidents/(${uuidPattern})/(?:evidence/(BEFORE)|actions/(${uuidPattern})/evidence/(AFTER))|cleaning-executions/(${uuidPattern})/evidence)$`, 'i');
 export const mediaRoute = path => route.test(path);
 const maxBytes = 25 * 1024 * 1024;
 const mimeTypes = ['image/jpeg', 'image/png'];
@@ -28,6 +28,10 @@ const unavailable = send => send(503, error('MEDIA_UNAVAILABLE', 'No pudimos con
 
 function target(value, output = false) {
   if (!object(value)) throw new Error('Destino no válido');
+  if (uuid(value.cleaningExecutionId)) {
+    if (['incidentId', 'actionId', 'stage'].some(key => value[key] !== undefined) || (output ? value.runId !== '' || value.itemId !== '' : value.runId !== undefined || value.itemId !== undefined)) throw new Error('Destino no válido');
+    return { cleaningExecutionId: value.cleaningExecutionId };
+  }
   if (uuid(value.incidentId)) {
     if (!['BEFORE', 'AFTER'].includes(value.stage) || value.stage === 'BEFORE' && value.actionId !== undefined || value.stage === 'AFTER' && !uuid(value.actionId) ||
         (output ? value.runId !== '' || value.itemId !== '' : value.runId !== undefined || value.itemId !== undefined)) throw new Error('Destino no válido');
@@ -37,16 +41,16 @@ function target(value, output = false) {
   return { runId: value.runId, itemId: value.itemId };
 }
 
-function publicFile(value, { org, id, runId, itemId, incidentId, actionId, stage, input, status } = {}) {
+function publicFile(value, { org, id, runId, itemId, incidentId, actionId, stage, cleaningId, input, status } = {}) {
   const destination = target(value, true);
   if (!object(value) || !uuid(value.id) || !name(value.originalName) || !mimeTypes.includes(value.mimeType) || !size(value.sizeBytes) ||
       !statuses.includes(value.status) || !date(value.createdAt) || value.uploadedAt != null && (!date(value.uploadedAt) || Date.parse(value.uploadedAt) < Date.parse(value.createdAt)) ||
       value.status === 'AVAILABLE' && value.uploadedAt == null || id && value.id !== id || runId && value.runId !== runId || itemId && value.itemId !== itemId ||
-      incidentId && value.incidentId !== incidentId || incidentId && value.actionId !== actionId || stage && value.stage !== stage ||
+      incidentId && value.incidentId !== incidentId || cleaningId && value.cleaningExecutionId !== cleaningId || incidentId && value.actionId !== actionId || stage && value.stage !== stage ||
       value.organizationId != null && value.organizationId !== org || status && value.status !== status || input &&
       (value.id !== input.id || Object.entries(target(input)).some(([key, expected]) => value[key] !== expected) || value.originalName !== input.originalName || value.mimeType !== input.mimeType || value.sizeBytes !== input.sizeBytes))
     throw new Error('Archivo no válido');
-  return { id: value.id, runId: value.runId, itemId: value.itemId, ...(value.incidentId ? destination : {}), originalName: value.originalName, mimeType: value.mimeType,
+  return { id: value.id, runId: value.runId, itemId: value.itemId, ...(value.incidentId || value.cleaningExecutionId ? destination : {}), originalName: value.originalName, mimeType: value.mimeType,
     sizeBytes: value.sizeBytes, status: value.status, createdAt: value.createdAt, uploadedAt: value.uploadedAt ?? null };
 }
 
@@ -104,9 +108,9 @@ function originAllowed(request) {
 export async function proxyMedia(request, url, upstream, send, response) {
   const match = url.pathname.match(route);
   if (!match || url.search) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
-  const [, org, runId, itemId, reserve, id, action, incidentId, before, actionId, after] = match;
+  const [, org, runId, itemId, reserve, id, action, incidentId, before, actionId, after, cleaningId] = match;
   const stage = before || after;
-  const method = runId || incidentId ? 'GET' : reserve || action ? 'POST' : 'DELETE';
+  const method = runId || incidentId || cleaningId ? 'GET' : reserve || action ? 'POST' : 'DELETE';
   if (request.method !== method) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || authorization.length > 8192 || !/^Bearer [A-Za-z0-9._-]+$/.test(authorization))
@@ -137,7 +141,7 @@ export async function proxyMedia(request, url, upstream, send, response) {
       const payload = await readPayload(result.body, 4 * 1024 * 1024);
       if (!object(payload)) throw new Error('Respuesta no válida');
       let data;
-      if (runId || incidentId) data = publicListing(payload.data, { org, runId, itemId, incidentId, actionId, stage });
+      if (runId || incidentId || cleaningId) data = publicListing(payload.data, { org, runId, itemId, incidentId, actionId, stage, cleaningId });
       else if (reserve) {
         if (!object(payload.data)) throw new Error('Reserva no válida');
         const file = publicFile(payload.data.file, { org, input });

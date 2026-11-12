@@ -118,7 +118,7 @@ function entity(resource, value, input = false) {
       require(quantity(value.quantityAvailable, true) && ['AVAILABLE', 'CONSUMED', 'DISCARDED'].includes(value.status) && typeof value.expired === 'boolean');
       Object.assign(result, { receiptItemId: identifier(value, 'receiptItemId'), productId: identifier(value, 'productId'), productName: text(value, 'productName', 200, 2), unit: text(value, 'unit', 24, 1), batchCode: text(value, 'batchCode', 100), expirationDate: expiry(value.expirationDate), receivedAt: stamp(value, 'receivedAt'), storageLocation: text(value, 'storageLocation', 120, 1), label: text(value, 'label', 160), quantityAvailable: value.quantityAvailable, receivedQuantity: own(value, 'receivedQuantity') ? receivedQuantity(value.receivedQuantity) : '', status: value.status, expired: value.expired });
     } else if (resource === 'cleaning-plans') {
-      require(frequencies.includes(value.frequency) && dueTime(input && value.dueTime === undefined ? '' : value.dueTime) && !(input && value.frequency === 'PER_SHIFT' && value.dueTime));
+      require(frequencies.includes(value.frequency) && dueTime(input && value.dueTime === undefined ? '' : value.dueTime));
       Object.assign(result, { area: text(value, 'area', 100, 2), task: text(value, 'task', 240, 2), instructions: text(value, 'instructions', 2000, 0, input), productName: text(value, 'productName', 160, 0, input), frequency: value.frequency, dueTime: value.dueTime ?? '' });
       if (!input) { require(typeof value.active === 'boolean'); result.active = value.active; }
     } else if (resource === 'cleaning-executions') {
