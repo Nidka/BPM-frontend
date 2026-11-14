@@ -165,11 +165,11 @@ de video **no** se implementan aquí: son de otra entrega.
 - **Insignias nuevas**: el intento devuelve `achievements`; el resultado muestra una celebración breve (aparece sin animación con
   «reducir movimiento») y se anuncia a lectores de pantalla.
 - **Asignaciones**: el `id` lo genera el cliente al primer envío y se conserva en reintentos idénticos; cualquier edición lo renueva
-  (evita `IDEMPOTENCY_CONFLICT`). La fecha límite se envía como `AAAA-MM-DDT23:59:00Z` (fin de día en hora universal; el contrato
+  (evita `IDEMPOTENCY_CONFLICT`). La fecha límite se envía como las 23:59 de America/Lima (UTC-5 fijo): `AAAA-MM-(DD+1)T04:59:00Z` (el contrato
   exige futura y hasta 5 años). El aviso al destinatario lo genera el worker de alertas (no es instantáneo).
 - **Rutas**: 409 `TRAINING_PATH_CONFLICT` conserva la copia local y ofrece «Recargar ruta»; publicar exige guardar antes.
 - **Selectores de persona y sede**: los aporta la raíz de la app (`app/TrainingContent.kt`) con las páginas de miembros y sedes del
-  workspace; el `id` de miembro se usa como `userId` (supuesto: coincide con el UID de la cuenta).
+  workspace; el `id` de miembro se usa como `userId` (verificado: el backend devuelve `application_users.id`, el mismo UID que `organization_memberships.user_id` valida en `POST /training/assignments`).
 
 ### Video de YouTube
 

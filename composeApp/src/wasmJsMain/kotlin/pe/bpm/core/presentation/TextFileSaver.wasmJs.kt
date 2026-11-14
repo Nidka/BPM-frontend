@@ -9,15 +9,19 @@ import androidx.compose.runtime.remember
 @Composable
 actual fun rememberTextFileSaver(): TextFileSaver = remember {
     object : TextFileSaver {
-        override fun save(fileName: String, mimeType: String, text: String, onResult: (Boolean) -> Unit) {
-            onResult(downloadText(safeFileName(fileName), mimeType, text))
+        override fun save(fileName: String, mimeType: String, text: String, onResult: (FileSaveResult) -> Unit) {
+            val ok = try { downloadText(safeFileName(fileName), mimeType, text) } catch (_: Throwable) { false }
+            onResult(if (ok) FileSaveResult.SAVED else FileSaveResult.FAILED)
         }
     }
 }
 
+// Se antepone una marca BOM UTF-8 (si falta) para que Excel interprete bien los acentos.
 @JsFun("""(name, mime, text) => {
     try {
-        const blob = new Blob(['﻿' + text], { type: mime + ';charset=utf-8' });
+        if (!globalThis.document || !globalThis.Blob || !globalThis.URL) return false;
+        const body = text.charCodeAt(0) === 0xFEFF ? text : '﻿' + text;
+        const blob = new Blob([body], { type: mime + ';charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url; link.download = name; link.style.display = 'none';

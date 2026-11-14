@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,16 +56,23 @@ data class AssignmentAdminState(
 )
 
 object AssignmentFormRules {
+    /** Lima no usa horario de verano: su desfase con UTC es siempre -5 h. */
+    private const val LIMA_UTC_OFFSET_HOURS = 5
     private val datePattern = Regex("\\d{4}-\\d{2}-\\d{2}")
 
-    /** Convierte la fecha al instante ISO del contrato o `null` si está vacía; lanza si es inválida o pasada. */
+    /**
+     * Convierte la fecha al instante ISO del contrato o `null` si está vacía; falla si es inválida o pasada.
+     * El día elegido termina a las 23:59 de America/Lima (UTC-5 fijo, sin horario de verano), es decir,
+     * a las 04:59 UTC del día siguiente; la aritmética sobre el instante resuelve fin de mes y de año.
+     */
     fun dueAt(date: String, now: Instant): Result<String?> {
         val text = date.trim()
         if (text.isEmpty()) return Result.success(null)
         if (!datePattern.matches(text)) return Result.failure(IllegalArgumentException("Usa el formato AAAA-MM-DD."))
-        val instant = text + "T23:59:00Z"
-        val parsed = runCatching { Instant.parse(instant) }.getOrNull()
+        val startOfDayUtc = runCatching { Instant.parse(text + "T00:00:00Z") }.getOrNull()
             ?: return Result.failure(IllegalArgumentException("La fecha no existe."))
+        val parsed = startOfDayUtc + (24 + LIMA_UTC_OFFSET_HOURS).hours - 1.minutes
+        val instant = parsed.toString()
         if (parsed <= now) return Result.failure(IllegalArgumentException("La fecha límite debe ser futura."))
         // El contrato limita la fecha a 5 años.
         if (parsed > now + (5 * 365 * 24).hours) return Result.failure(IllegalArgumentException("La fecha límite admite hasta 5 años."))

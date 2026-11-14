@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
+import pe.bpm.core.presentation.FileSaveResult
+import pe.bpm.core.presentation.rememberTextFileSaver
 import pe.bpm.features.research.domain.*
 
 private fun tabLabel(tab: ResearchTab) = when (tab) {
@@ -209,9 +211,9 @@ private fun QuestionEditor(index: Int, question: DraftQuestion, total: Int, enab
 @Composable
 private fun ResultsTab(controller: AnalysisController) {
     val state by controller.state.collectAsStateWithLifecycle()
-    val save = rememberCsvSaver { result -> controller.exportDelivered(saved = result == CsvSaveResult.SAVED, failed = result == CsvSaveResult.FAILED) }
+    val saver = rememberTextFileSaver()
     // La plataforma recibe el archivo una sola vez; después los bytes se descartan.
-    LaunchedEffect(state.pendingExport) { state.pendingExport?.let { save(it.fileName, it.bytes) } }
+    LaunchedEffect(state.pendingExport) { state.pendingExport?.let { export -> saver.save(export.fileName, "text/csv", export.bytes.decodeToString()) { result -> controller.exportDelivered(saved = result == FileSaveResult.SAVED, failed = result == FileSaveResult.FAILED) } } }
     LaunchedEffect(Unit) { controller.loadOrganizations() }
     Text("Resultados por empresa", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     Text("Comparación entre la encuesta inicial y la final. Los conocimientos van de 0 a 100; actitudes y prácticas, de 1 a 5. Las empresas con pocas personas participantes pueden dar promedios poco estables.")

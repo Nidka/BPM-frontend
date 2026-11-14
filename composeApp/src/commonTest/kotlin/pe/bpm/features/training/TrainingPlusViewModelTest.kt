@@ -199,7 +199,7 @@ class TrainingPlusViewModelTest {
             vm.create(); advanceUntilIdle()
             assertEquals(2, repo.created.size)
             assertEquals(repo.created[0], repo.created[1])
-            assertEquals("2026-12-31T23:59:00Z", repo.created[0].dueAt)
+            assertEquals("2027-01-01T04:59:00Z", repo.created[0].dueAt)
             // Editar el contenido genera una identidad nueva.
             vm.edit { it.copy(dueDate = "2027-01-15") }
             repo.createResult = { TrainingResult.Success(sampleAssignment(id = it.id)) }

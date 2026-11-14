@@ -28,7 +28,7 @@ filtro por empresa) y Accesos (SUPER_ADMIN: listar, conceder por correo, retirar
 Los listados pequeños (concesiones, documentos, instrumentos, empresas) recorren hasta 10 páginas de 100.
 
 ## Descarga del CSV
-`rememberCsvSaver` (expect/actual): web = descarga por `blob:`; Android = selector "Crear documento" (SAF); iOS = hoja de
+`rememberTextFileSaver` de `core/presentation` (expect/actual, compartido con reportes): web = descarga por `blob:`; Android = selector "Crear documento" (SAF); iOS = hoja de
 compartir con archivo temporal que se borra al terminar; JVM = carpeta temporal (solo pruebas). El repositorio acota el CSV
 a 16 MiB, exige `text/csv` y un nombre de archivo seguro; los bytes se borran de memoria tras entregarlos.
 

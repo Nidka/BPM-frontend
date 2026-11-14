@@ -97,7 +97,11 @@ class TrainingPlusDomainTest {
 
     @Test fun assignmentDueDateRules() {
         assertEquals(null, AssignmentFormRules.dueAt("", now).getOrThrow())
-        assertEquals("2026-12-31T23:59:00Z", AssignmentFormRules.dueAt("2026-12-31", now).getOrThrow())
+        // 23:59 en Lima (UTC-5) equivale a las 04:59 UTC del día siguiente, también en fin de mes y de año.
+        assertEquals("2027-01-01T04:59:00Z", AssignmentFormRules.dueAt("2026-12-31", now).getOrThrow())
+        assertEquals("2026-12-01T04:59:00Z", AssignmentFormRules.dueAt("2026-11-30", now).getOrThrow())
+        assertEquals("2028-03-01T04:59:00Z", AssignmentFormRules.dueAt("2028-02-29", now).getOrThrow())
+        assertEquals("2026-11-21T04:59:00Z", AssignmentFormRules.dueAt("2026-11-20", now).getOrThrow())
         listOf("31/12/2026", "2026-13-40", "2026-11-09", "2040-01-01").forEach { assertTrue(AssignmentFormRules.dueAt(it, now).isFailure, it) }
         val form = AssignmentForm(courseId = COURSE_ID, kind = TargetKind.USER)
         assertEquals(setOf("target"), AssignmentFormRules.issues(form, now).keys)

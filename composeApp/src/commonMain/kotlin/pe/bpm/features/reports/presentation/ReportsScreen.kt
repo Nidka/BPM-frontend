@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
+import pe.bpm.core.presentation.FileSaveResult
 import pe.bpm.core.presentation.rememberTextFileSaver
 import pe.bpm.features.reports.domain.*
 
@@ -32,7 +33,7 @@ fun ReportsScreen(
 ) {
     val saver = rememberTextFileSaver()
     LaunchedEffect(state.exportReady) {
-        state.exportReady?.let { file -> saver.save(file.fileName, "text/csv", file.text, viewModel::exportHandled) }
+        state.exportReady?.let { file -> saver.save(file.fileName, "text/csv", file.text) { result -> viewModel.exportHandled(result == FileSaveResult.SAVED) } }
     }
     Column(modifier.fillMaxWidth().widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

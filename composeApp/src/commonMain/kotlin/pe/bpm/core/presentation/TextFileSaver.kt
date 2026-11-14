@@ -2,18 +2,21 @@ package pe.bpm.core.presentation
 
 import androidx.compose.runtime.Composable
 
+/** Resultado de entregar el archivo a la plataforma. */
+enum class FileSaveResult { SAVED, CANCELLED, FAILED }
+
 /**
  * Guarda o comparte un archivo de texto UTF-8 generado por la app (por ejemplo un CSV). El texto
- * se conserva solo mientras dura la operación. [onResult] recibe verdadero si la persona completó el
- * guardado o el uso compartido y falso si lo canceló o falló.
+ * se conserva solo mientras dura la operación y el archivo nunca se escribe en un lugar que la
+ * persona no haya elegido o conocido. [onResult] informa si se guardó, se canceló o falló.
  *
  * - Web: descarga mediante un Blob temporal.
  * - Android: selector de documentos del sistema (crear archivo).
- * - iOS: hoja de compartir/guardar en Archivos.
+ * - iOS: hoja de compartir/guardar en Archivos con un archivo temporal que se borra al terminar.
  * - JVM (solo desarrollo y pruebas): escribe en la carpeta temporal.
  */
 interface TextFileSaver {
-    fun save(fileName: String, mimeType: String, text: String, onResult: (Boolean) -> Unit)
+    fun save(fileName: String, mimeType: String, text: String, onResult: (FileSaveResult) -> Unit)
 }
 
 @Composable
