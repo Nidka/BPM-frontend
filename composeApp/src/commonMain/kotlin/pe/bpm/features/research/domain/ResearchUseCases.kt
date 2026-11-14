@@ -65,7 +65,7 @@ class ManageInstruments(private val repository: ResearchCatalogRepository) {
     suspend fun detail(id: String) = repository.instrument(id)
     suspend fun draft(id: String) = repository.draft(id)
     suspend fun create(instrument: NewInstrument, imported: Boolean): ResearchResult<InstrumentDraft> {
-        val valid = ResearchLimits.codePattern.matches(instrument.code) && instrument.name.isNotBlank() && instrument.name.length <= ResearchLimits.NAME_MAX &&
+        val valid = ResearchLimits.codePattern.matches(instrument.code) && instrument.name.isNotBlank() && instrument.name.length <= ResearchLimits.INSTRUMENT_NAME_MAX &&
             instrument.description.length <= ResearchLimits.DESCRIPTION_MAX && InstrumentRules.saveProblems(instrument.questions).isEmpty()
         return if (valid) repository.createInstrument(instrument, imported) else ResearchResult.Failure(ResearchFailure.INVALID)
     }

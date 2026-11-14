@@ -136,7 +136,8 @@ object ResearchLimits {
     const val CONSENT_TEXT_MAX = 20000
     const val INVESTIGATOR_MAX = 200
     const val CODE_MAX = 50
-    const val NAME_MAX = 200
+    // No usar NAME_MAX: choca con la macro de C en el encabezado ObjC de iOS.
+    const val INSTRUMENT_NAME_MAX = 200
     const val DESCRIPTION_MAX = 2000
     const val QUESTION_MAX = 500
     const val OPTION_MAX = 300

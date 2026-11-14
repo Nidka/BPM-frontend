@@ -129,14 +129,15 @@ data class AchievementEdit(val name: String, val description: String, val points
 
 object AchievementRules {
     const val NAME_MIN = 2
-    const val NAME_MAX = 120
+    // No usar NAME_MAX: choca con la macro de C en el encabezado ObjC de iOS.
+    const val NAME_LENGTH_MAX = 120
     const val DESCRIPTION_MAX = 300
     const val POINTS_MAX = 1000
     const val THRESHOLD_MAX = 100
 
     /** Mensajes de validación en español; vacío significa válido. */
     fun validate(edit: AchievementEdit): List<String> = buildList {
-        if (edit.name.trim().count { !it.isLowSurrogate() } !in NAME_MIN..NAME_MAX) add("El nombre debe tener entre $NAME_MIN y $NAME_MAX caracteres.")
+        if (edit.name.trim().count { !it.isLowSurrogate() } !in NAME_MIN..NAME_LENGTH_MAX) add("El nombre debe tener entre $NAME_MIN y $NAME_LENGTH_MAX caracteres.")
         if (edit.description.count { !it.isLowSurrogate() } > DESCRIPTION_MAX) add("La descripción admite hasta $DESCRIPTION_MAX caracteres.")
         if (edit.points !in 0..POINTS_MAX) add("Los puntos van de 0 a $POINTS_MAX.")
         if (edit.criterionThreshold !in 1..THRESHOLD_MAX) add("El umbral va de 1 a $THRESHOLD_MAX.")
