@@ -16,6 +16,11 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import pe.bpm.core.presentation.supportsNativeModalWindows
+import pe.bpm.core.offline.LocalOnline
+import pe.bpm.core.offline.OfflinePlatform
+import pe.bpm.core.offline.OfflineStatusBar
+import pe.bpm.core.offline.OfflineViewModel
+import pe.bpm.core.offline.PendingChangesScreen
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,8 +71,12 @@ fun App(
     googleAuthProvider: GoogleAuthProvider? = null,
     draftStorage: DraftStorage = remember { UnavailableDraftStorage() },
     pushProvider:pe.bpm.features.notifications.domain.PushProvider=remember { pe.bpm.features.notifications.domain.UnavailablePushProvider() },
+    offline: OfflinePlatform = remember { OfflinePlatform() },
 ) {
-    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage,pushProvider) }
+    val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage,pushProvider, offline) }
+    val offlineVm = viewModel<OfflineViewModel> { owner.graph.offlineViewModel() }
+    val offlineUi by offlineVm.state.collectAsStateWithLifecycle()
+    var confirmLogout by remember { mutableStateOf(false) }
     val identity = viewModel<IdentityViewModel> { owner.graph.identityViewModel() }
     val workspace = viewModel<WorkspaceViewModel> { owner.graph.workspaceViewModel() }
     val checklists = viewModel<ChecklistCatalogViewModel> { owner.graph.checklistCatalogViewModel() }
@@ -181,7 +190,7 @@ fun App(
         }
     }
     OnAppForeground {
-        identity.onForeground(); usage.flushNow()
+        identity.onForeground(); usage.flushNow(); offlineVm.onForeground()
         if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null || incidentEvidence != null) evidence.refresh() }
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
@@ -302,7 +311,24 @@ fun App(
         }
     }
 
-    SessionContent(sessionStatus, identity::userActivity, identity::continueSession, identity::logout) {
+    fun performLogout() {
+        confirmLogout = false
+        pendingRoute = WorkspaceDestination.Home.route
+        checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
+        templateEditor.reset()
+        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset(); resetTrainingPlus(); resetReports()
+        formDrafts.reset()
+        workspace.reset()
+        usage.endSession()
+        identity.logout()
+        resetTo(LOGIN)
+    }
+    // Cerrar sesión borra los datos del dispositivo: con cambios sin enviar se pide confirmación.
+    fun requestLogout() { if (offlineUi.status.pending > 0 || offlineUi.status.attention > 0) confirmLogout = true else performLogout() }
+
+    CompositionLocalProvider(LocalOnline provides offlineUi.status.online) {
+    SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
+        banner = { if (profile != null) OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow) }) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
             if (!supportsNativeModalWindows() && (evidenceQuestion != null || incidentEvidence != null || cleaningPhotos != null)) Modifier.clearAndSetSemantics { } else Modifier),
             enterTransition = { EnterTransition.None },
@@ -330,6 +356,10 @@ fun App(
                     }
                     Box(Modifier.weight(1f)) { ConnectionScreen(connectionState, connection::retry) }
                 }
+            }
+            composable(PENDING_CHANGES) {
+                PendingChangesScreen(offlineUi, onBack = { navigateBack(WorkspaceDestination.Home.route) }, onSync = offlineVm::syncNow,
+                    onRetry = offlineVm::retry, onDiscard = offlineVm::discard, onDismissNotice = offlineVm::dismissNotice)
             }
             composable(VERIFY_CERTIFICATE, arguments = listOf(navArgument("codigo") { type = NavType.StringType })) { routeEntry ->
                 // Ruta pública: no exige sesión ni organización.
@@ -757,23 +787,18 @@ fun App(
                                     }
                                 },
                                 onClear = workspace::clearErrors,
-                                onLogout = {
-                                    pendingRoute = WorkspaceDestination.Home.route
-                                    checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
-                                    templateEditor.reset()
-                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset(); resetTrainingPlus(); resetReports()
-                                    formDrafts.reset()
-                                    workspace.reset()
-                                    usage.endSession()
-                                    identity.logout()
-                                    resetTo(LOGIN)
-                                },
+                                onLogout = ::requestLogout,
                             )
                         }
                     }
                 }
             }
         }
+        if (confirmLogout) AlertDialog(onDismissRequest = { confirmLogout = false },
+            title = { Text("Tienes cambios sin enviar") },
+            text = { Text("Si cierras sesión se borrarán de este dispositivo los datos guardados, incluidos ${offlineUi.status.pending + offlineUi.status.attention} cambios que todavía no se enviaron. Conéctate y sincroniza antes de salir para no perderlos.") },
+            confirmButton = { BpmTextButton(onClick = ::performLogout) { Text("Cerrar sesión y borrar") } },
+            dismissButton = { BpmTextButton(onClick = { confirmLogout = false }) { Text("Seguir aquí") } })
         evidenceQuestion?.let { question ->
             ChecklistEvidenceHost(question, evidence, evidenceState) { evidence.close(); evidenceQuestion = null }
         }
@@ -787,6 +812,7 @@ fun App(
                 onClose = { evidence.close(); incidentEvidence = null; incidents.refresh() })
         }
     }
+    }
 }
 
 @Composable
@@ -799,6 +825,7 @@ private fun RestoringSession() {
 
 private const val LOGIN = "acceso"
 private const val CONNECTION = "conexion"
+private const val PENDING_CHANGES = "cambios-pendientes"
 private const val CHECKLIST_DETAIL = "control/plantilla/{templateId}"
 private const val CHECKLIST_START = "control/plantilla/{templateId}/iniciar"
 private const val CHECKLIST_RUN = "control/ejecucion/{runId}"

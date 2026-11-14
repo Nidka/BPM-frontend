@@ -25,7 +25,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val sessionStore = remember { AndroidSessionStore(applicationContext) }
             val drafts = remember { AndroidDraftStorage(applicationContext) }
-            App(draftStorage = drafts, sessionStore = sessionStore, googleAuthProvider = identityOwner.googleAuth, pushProvider = identityOwner.pushProvider)
+            App(draftStorage = drafts, sessionStore = sessionStore, googleAuthProvider = identityOwner.googleAuth, pushProvider = identityOwner.pushProvider,
+                offline = remember { pe.bpm.core.offline.AndroidOffline.platform(applicationContext) })
         }
     }
     override fun onDestroy() {

@@ -12,6 +12,22 @@ import pe.bpm.features.media.domain.*
 import pe.bpm.features.media.presentation.MediaEvidenceViewModel
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.createHttpClient
+import pe.bpm.core.network.platformHttpEngine
+import pe.bpm.core.offline.HttpOutboxHandler
+import pe.bpm.core.offline.OfflineHttpEngine
+import pe.bpm.core.offline.OfflinePlatform
+import pe.bpm.core.offline.OfflineRuntime
+import pe.bpm.core.offline.OfflineViewModel
+import pe.bpm.core.offline.OutboxStatus
+import pe.bpm.core.offline.RuntimeOfflineIdentity
+import pe.bpm.core.domain.DraftOwner
+import pe.bpm.features.checklists.data.LegacyChecklistMigration
+import pe.bpm.features.identity.domain.IdentityResult
+import pe.bpm.features.identity.domain.permitsRestoreRetry
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import pe.bpm.core.network.createObjectStorageClient
 import pe.bpm.features.checklists.data.RemoteChecklistCatalogRepository
 import pe.bpm.features.checklists.data.RemoteChecklistTemplatePublisher
@@ -71,14 +87,25 @@ import pe.bpm.features.workspace.domain.*
 import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 
 // Raíz de composición manual. Los ViewModels reciben casos de uso, no clientes HTTP.
+/** Resultado de un envío en segundo plano: RETRY pide a WorkManager volver a intentarlo con backoff. */
+enum class BackgroundSyncResult { DONE, RETRY }
+
 class AppGraph(
     config: AppConfig,
-    private val httpClient: HttpClient = createHttpClient(),
+    httpClientOverride: HttpClient? = null,
     sessionStore: SessionStore = EphemeralSessionStore(),
     googleAuthProvider: GoogleAuthProvider? = null,
     draftStorage: DraftStorage = UnavailableDraftStorage(),
     private val pushProvider:pe.bpm.features.notifications.domain.PushProvider=pe.bpm.features.notifications.domain.UnavailablePushProvider(),
+    offline: OfflinePlatform = OfflinePlatform(),
 ) : AutoCloseable {
+    // Offline-first: el motor HTTP guarda lecturas y difiere escrituras; la Outbox las envía al volver la red.
+    private val offlineRuntime = OfflineRuntime(offline)
+    private val platformEngine = if (httpClientOverride == null) platformHttpEngine() else null
+    private val offlineEngine = platformEngine?.let { OfflineHttpEngine(it, offlineRuntime.http, config.apiBaseUrl) }
+    private val httpClient: HttpClient = httpClientOverride ?: createHttpClient(offlineEngine!!)
+    /** Cliente sin capa offline para reenviar la Outbox sin volver a encolar. */
+    private val replayClient: HttpClient = if (platformEngine != null) createHttpClient(platformEngine) else this.httpClient
     private val runDrafts = ManageRunDraft(LocalChecklistRunDraftRepository(draftStorage, config.apiBaseUrl))
     private val templateDrafts = ManageTemplateDraft(LocalChecklistTemplateDraftRepository(draftStorage, config.apiBaseUrl))
     private val assignmentDrafts = ManageAssignmentDraft(LocalChecklistAssignmentDraftRepository(draftStorage, config.apiBaseUrl))
@@ -89,7 +116,13 @@ class AppGraph(
     private val googleAuth = googleAuthProvider ?: platformGoogleAuthProvider()
     private val identityRepository = RemoteIdentityRepository(
         FirebaseIdentityDataSource(httpClient, config), BpmIdentityDataSource(httpClient, config),
-        config.apiBaseUrl, googleAuth, sessionStore)
+        config.apiBaseUrl, googleAuth, sessionStore, offline = RuntimeOfflineIdentity(offlineRuntime, config.apiBaseUrl))
+    init {
+        offlineRuntime.register(HttpOutboxHandler.KIND, HttpOutboxHandler(replayClient, config.apiBaseUrl,
+            identityRepository::validSessionToken, identityRepository::rejectSession, offlineRuntime.store))
+        // Cierre de sesión explícito: también se borran los borradores heredados del dispositivo.
+        offlineRuntime.onWipe { draftStorage.clearAll() }
+    }
     private val workspaceRepository = RemoteWorkspaceRepository(httpClient, config, onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse, token = identityRepository::validSessionToken)
     private val checklistRepository = RemoteChecklistCatalogRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession,
@@ -111,11 +144,25 @@ class AppGraph(
     private val mediaRepository = RemoteMediaRepository(httpClient, objectClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    private val offlineMediaWriter = pe.bpm.features.media.data.OfflineMediaWriter(mediaRepository, offline.files, offlineRuntime.outbox,
+        offlineRuntime.connectivity, { offlineRuntime.newId() }, offlineRuntime.clock)
+    init { offlineRuntime.register(pe.bpm.core.offline.PHOTO_KIND, pe.bpm.features.media.data.PhotoOutboxHandler(mediaRepository, offline.files)) }
     @OptIn(ExperimentalUuidApi::class)
-    fun mediaEvidenceViewModel() = MediaEvidenceViewModel(LoadEvidence(mediaRepository), UploadEvidence(mediaRepository),
+    fun mediaEvidenceViewModel() = MediaEvidenceViewModel(LoadEvidence(mediaRepository), UploadEvidence(offlineMediaWriter),
         RemoveEvidence(mediaRepository), LoadEvidencePreview(mediaRepository)) { Uuid.random().toString() }
 
     private val offlineRepository = LocalChecklistOfflineRepository(draftStorage, config.apiBaseUrl)
+    private val legacyChecklistMigration = LegacyChecklistMigration(offlineRepository, offlineRuntime.outbox, { offlineRuntime.newId() }, offlineRuntime.clock)
+    init { offlineRuntime.beforeSync { migrateLegacyChecklists() } }
+    /** Traslada a la Outbox los envíos de controles preparados que la cola antigua dejó pendientes. */
+    private suspend fun migrateLegacyChecklists() {
+        val scope = offlineRuntime.active.current ?: return
+        val profile = offlineRuntime.store.get(RuntimeOfflineIdentity.PROFILE_COLLECTION, RuntimeOfflineIdentity.PROFILE_KEY) ?: return
+        val organizations = runCatching {
+            Json.parseToJsonElement(profile.json).jsonObject["organizations"]!!.jsonArray.map { it.jsonObject["id"]!!.jsonPrimitive.content }
+        }.getOrDefault(emptyList())
+        organizations.forEach { legacyChecklistMigration.migrate(DraftOwner(scope.userId, it)) }
+    }
     @OptIn(ExperimentalUuidApi::class)
     fun checklistOfflineViewModel() = ChecklistOfflineViewModel(
         ManageOfflineChecklists(offlineRepository, LoadChecklistRun(runRepository)) { Uuid.random().toString() },
@@ -269,8 +316,8 @@ class AppGraph(
         pe.bpm.features.reports.domain.LoadTrainingPeopleProgress(reportsRepository), pe.bpm.features.reports.domain.LoadReportSettings(reportsRepository),
         pe.bpm.features.reports.domain.SaveReportSettings(reportsRepository), pe.bpm.features.reports.domain.IssueComplianceCertificate(reportsRepository),
         pe.bpm.features.reports.domain.ListComplianceCertificates(reportsRepository))
-    // La cola es en memoria; la persistencia offline-first posterior sustituye solo UsageEventQueue.
-    private val usageQueue: pe.bpm.features.usage.domain.UsageEventQueue = pe.bpm.features.usage.domain.InMemoryUsageEventQueue()
+    // Cola persistente sobre el almacén local (sobrevive a reinicios y se borra al cerrar sesión).
+    private val usageQueue: pe.bpm.features.usage.domain.UsageEventQueue = pe.bpm.features.usage.data.PersistentUsageEventQueue(offlineRuntime.store)
     private val usageSink = pe.bpm.features.usage.data.RemoteUsageEventSink(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
@@ -285,6 +332,22 @@ class AppGraph(
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
         CreateLocation(workspaceRepository), AddMember(workspaceRepository), LoadWorkspacePage(workspaceRepository))
 
+    fun offlineViewModel() = OfflineViewModel(offlineRuntime)
+
+    /**
+     * Envío con la app cerrada (WorkManager): restaura la sesión guardada si hace falta y sincroniza.
+     * Devuelve RETRY mientras queden operaciones por enviar para que el planificador reintente con backoff.
+     */
+    suspend fun syncInBackground(): BackgroundSyncResult {
+        if (offlineRuntime.active.current == null) {
+            val restored = identityRepository.restoreSession()
+            if (restored is IdentityResult.Failure) return if (restored.errors.all { it.permitsRestoreRetry }) BackgroundSyncResult.RETRY else BackgroundSyncResult.DONE
+        }
+        offlineRuntime.syncNow()
+        val remaining = offlineRuntime.outbox.snapshot().any { it.status == OutboxStatus.PENDING && !it.exhausted }
+        return if (remaining) BackgroundSyncResult.RETRY else BackgroundSyncResult.DONE
+    }
+
     fun connectionViewModel(): ConnectionViewModel = ConnectionViewModel(checkConnection)
     fun identityViewModel(): IdentityViewModel = IdentityViewModel(
         SignIn(identityRepository), GetCurrentProfile(identityRepository), SignOut(identityRepository),
@@ -298,5 +361,7 @@ class AppGraph(
         objectClient.close()
         trainingObjects.close()
         httpClient.close()
+        if (platformEngine != null) replayClient.close()
+        offlineEngine?.close()
     }
 }

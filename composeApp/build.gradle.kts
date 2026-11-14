@@ -9,9 +9,19 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.android.application)
+    alias(libs.plugins.sqldelight)
 }
 
 compose.resources { packageOfResClass = "pe.bpm.resources" }
+
+// Base local offline-first (Android/iOS/JVM); la web usa el mismo puerto sobre IndexedDB.
+sqldelight {
+    databases {
+        create("OfflineDb") {
+            packageName.set("pe.bpm.core.offline.sql")
+        }
+    }
+}
 
 val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
     .orElse(providers.environmentVariable("API_BASE_URL"))
@@ -107,6 +117,7 @@ kotlin {
         binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            linkerOpts("-lsqlite3")
         }
     }
     sourceSets {
@@ -126,9 +137,12 @@ kotlin {
                 implementation(libs.ktor.core)
                 implementation(libs.ktor.negotiation)
                 implementation(libs.ktor.json)
+                implementation(libs.sqldelight.runtime)
             }
         }
         androidMain.dependencies {
+            implementation(libs.sqldelight.android)
+            implementation(libs.workmanager)
             implementation(libs.activity.compose)
             implementation(libs.ktor.okhttp)
             implementation(libs.credentials)
@@ -139,10 +153,14 @@ kotlin {
             implementation(libs.media3.ui)
             implementation("com.google.firebase:firebase-messaging:26.0.0")
         }
-        iosMain.dependencies { implementation(libs.ktor.darwin) }
+        iosMain.dependencies {
+            implementation(libs.ktor.darwin)
+            implementation(libs.sqldelight.native)
+        }
         wasmJsMain.dependencies { implementation(libs.ktor.js) }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+            implementation(libs.sqldelight.jvm)
             implementation(libs.ktor.okhttp)
         }
         commonTest.dependencies {

@@ -46,3 +46,8 @@ cliente completa el registro mínimo por /auth/register solo con email verificad
 El cliente jamás determina roles/permisos definitivos ni reactiva cuentas inactivas.
 
 Operación diaria y sus permisos se detallan en [OPERATIONS.md](OPERATIONS.md).
+
+Offline-first (fase 1): base local, Outbox, motor de sincronización, caché de lecturas, inicio sin
+conexión y fotos pendientes. Diseño completo, estados y límites en [OFFLINE.md](OFFLINE.md).
+Capacitación (catálogo con ETag, videos), encuesta CAP y registro de uso quedan para la fase 2 sobre
+los mismos puertos (`LocalStore`, `Outbox`, `CachedResource`, `PersistentUsageEventQueue`).

@@ -10,5 +10,6 @@ import pe.bpm.features.identity.data.GoogleAuthProvider
 fun MainViewController(googleAuthProvider: GoogleAuthProvider? = null) = ComposeUIViewController {
     val store = remember { KeychainSessionStore() }
     val drafts = remember { AppleDraftStorage() }
-    App(draftStorage = drafts, sessionStore = store, googleAuthProvider = googleAuthProvider)
+    val offline = remember { pe.bpm.core.offline.AppleOffline.platform() }
+    App(draftStorage = drafts, sessionStore = store, googleAuthProvider = googleAuthProvider, offline = offline)
 }

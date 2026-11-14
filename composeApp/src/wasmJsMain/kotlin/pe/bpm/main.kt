@@ -18,6 +18,6 @@ fun main() {
     val code = verificationPath.matchEntire(window.location.pathname)?.groupValues?.get(1)?.uppercase()
     ComposeViewport {
         if (code != null) PublicCertificateVerification(code)
-        else { val drafts = remember { BrowserDraftStorage() }; App(draftStorage = drafts, onNavHostReady = { it.bindToBrowserNavigation() }, onBackNavigation = { window.history.back() }) }
+        else { val drafts = remember { BrowserDraftStorage() }; val offline = remember { pe.bpm.core.offline.BrowserOffline.platform() }; App(draftStorage = drafts, offline = offline, onNavHostReady = { it.bindToBrowserNavigation() }, onBackNavigation = { window.history.back() }) }
     }
 }

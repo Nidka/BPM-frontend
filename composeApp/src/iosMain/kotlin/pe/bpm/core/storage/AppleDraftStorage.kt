@@ -43,6 +43,10 @@ class AppleDraftStorage : DraftStorage {
     override suspend fun compareAndSet(key: String, expected: String?, value: String): Boolean = withContext(Dispatchers.Default) { mutex.withLock {
         if (readUnlocked(key) != expected) false else { writeUnlocked(key, value); true }
     } }
+    override suspend fun clearAll() = withContext(Dispatchers.Default) { mutex.withLock {
+        val target = directory()
+        if (NSFileManager.defaultManager.fileExistsAtPath(target.path!!)) check(NSFileManager.defaultManager.removeItemAtURL(target, null))
+    } }
     override suspend fun remove(key: String) = withContext(Dispatchers.Default) { mutex.withLock {
         val url = url(key)
         if (NSFileManager.defaultManager.fileExistsAtPath(url.path!!)) check(NSFileManager.defaultManager.removeItemAtURL(url, null))

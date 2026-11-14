@@ -60,4 +60,5 @@ class AndroidDraftStorage(context: Context) : DraftStorage {
         if (readUnlocked(key) != expected) false else { writeUnlocked(key, value); true }
     } }
     override suspend fun remove(key: String) = withContext(Dispatchers.IO) { mutex.withLock { file(key).delete() } }
+    override suspend fun clearAll() { withContext(Dispatchers.IO) { mutex.withLock { directory.deleteRecursively() } } }
 }

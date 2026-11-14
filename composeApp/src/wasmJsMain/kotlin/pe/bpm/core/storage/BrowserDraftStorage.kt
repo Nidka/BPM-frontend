@@ -11,6 +11,7 @@ class BrowserDraftStorage : DraftStorage {
     override suspend fun read(key: String): String? = access("read", key)
     override suspend fun write(key: String, value: String) { require(value.encodeToByteArray().size <= MAX_DRAFT_BYTES); access("write", key, value) }
     override suspend fun remove(key: String) { access("remove", key) }
+    override suspend fun clearAll() { access("clear", "") }
     override suspend fun compareAndSet(key: String, expected: String?, value: String): Boolean {
         require(value.encodeToByteArray().size <= MAX_DRAFT_BYTES)
         return access("compare", key, value, expected) == "changed"
@@ -37,7 +38,7 @@ class BrowserDraftStorage : DraftStorage {
         try {
             const tx = db.transaction('documents', operation === 'read' ? 'readonly' : 'readwrite');
             const store = tx.objectStore('documents');
-            const item = operation === 'read' || operation === 'compare' ? store.get(key) : operation === 'write' ? store.put(value, key) : store.delete(key);
+            const item = operation === 'read' || operation === 'compare' ? store.get(key) : operation === 'write' ? store.put(value, key) : operation === 'clear' ? store.clear() : store.delete(key);
             let result = null;
             item.onsuccess = () => {
                 if (operation === 'read' || operation === 'compare') {

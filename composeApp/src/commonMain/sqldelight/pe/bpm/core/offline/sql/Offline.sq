@@ -1,0 +1,81 @@
+-- Base local offline-first. Todo se separa por `scope` (origen API + usuario + empresa).
+-- Una migración posterior debe ser un archivo .sqm incremental; nunca editar tablas ya liberadas.
+
+CREATE TABLE IF NOT EXISTS record (
+    scope TEXT NOT NULL,
+    collection TEXT NOT NULL,
+    key TEXT NOT NULL,
+    json TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (scope, collection, key)
+);
+
+CREATE TABLE IF NOT EXISTS outbox (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    scope TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    organization_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    client_created_at INTEGER NOT NULL,
+    payload TEXT NOT NULL,
+    depends_on TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts INTEGER NOT NULL,
+    next_attempt_at INTEGER NOT NULL,
+    last_error TEXT NOT NULL,
+    last_http_status INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS outbox_scope ON outbox(scope, seq);
+CREATE UNIQUE INDEX IF NOT EXISTS outbox_idempotency ON outbox(scope, idempotency_key);
+
+getRecord:
+SELECT json, updated_at FROM record WHERE scope = ? AND collection = ? AND key = ?;
+
+listRecords:
+SELECT key, json, updated_at FROM record WHERE scope = ? AND collection = ? ORDER BY key;
+
+putRecord:
+INSERT OR REPLACE INTO record(scope, collection, key, json, updated_at) VALUES (?, ?, ?, ?, ?);
+
+deleteRecord:
+DELETE FROM record WHERE scope = ? AND collection = ? AND key = ?;
+
+deleteCollection:
+DELETE FROM record WHERE scope = ? AND collection = ?;
+
+insertOperation:
+INSERT INTO outbox(id, scope, kind, organization_id, entity_id, idempotency_key, client_created_at, payload, depends_on, status, attempts, next_attempt_at, last_error, last_http_status, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateOperation:
+UPDATE outbox SET payload = ?, depends_on = ?, status = ?, attempts = ?, next_attempt_at = ?, last_error = ?, last_http_status = ?, updated_at = ?
+WHERE scope = ? AND id = ?;
+
+listOperations:
+SELECT seq, id, kind, organization_id, entity_id, idempotency_key, client_created_at, payload, depends_on, status, attempts, next_attempt_at, last_error, last_http_status, updated_at
+FROM outbox WHERE scope = ? ORDER BY seq;
+
+deleteOperation:
+DELETE FROM outbox WHERE scope = ? AND id = ?;
+
+clearScopeRecords:
+DELETE FROM record WHERE scope = ?;
+
+clearScopeOutbox:
+DELETE FROM outbox WHERE scope = ?;
+
+clearAllRecords:
+DELETE FROM record;
+
+clearAllOutbox:
+DELETE FROM outbox;
+
+recordScopes:
+SELECT DISTINCT scope FROM record;
+
+outboxScopes:
+SELECT DISTINCT scope FROM outbox;

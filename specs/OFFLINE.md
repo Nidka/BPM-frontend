@@ -1,3 +1,76 @@
+# Offline-first (fase 1)
+
+Este apartado reemplaza el estado «pendiente» de las secciones siguientes en lo que cubre; la
+recuperación de borradores y la cola de controles preparados descritas abajo siguen vigentes como
+editor local.
+
+## Diseño
+
+- `core/offline` define los puertos: `LocalStore` (lectura local por colección/clave), `Outbox`
+  (operaciones pendientes), `SyncEngine` y `ConnectivityMonitor`. Las features no conocen el driver.
+- Persistencia (`OfflineDatabase`): SQLDelight en Android (driver Android), iOS (driver nativo) y JVM
+  (JDBC, pruebas); en web, la misma API sobre IndexedDB mediante `DocumentOfflineDatabase`
+  (mejor esfuerzo; no se usó el worker de SQLDelight para evitar OPFS/worker y empaquetado extra).
+  Todo se separa por ámbito (origen API + cuenta); la empresa viaja en la ruta y en cada operación.
+- `OfflineHttpEngine` envuelve el motor HTTP de la plataforma. Lecturas permitidas (lista explícita
+  en `OfflineHttpPolicy`): se guardan y, sin red o ante fallo de conexión, se sirven de la caché con la
+  marca de tiempo («Datos de hace X»). Escrituras permitidas (controles, recepciones, limpieza, stock,
+  incidencias y acciones correctivas, atender/leer alertas): sin red o tras un fallo de conexión se
+  registran en la Outbox con su Idempotency-Key (o clientOperationId/clave determinista) y el
+  repositorio recibe un fallo de conexión. Nunca se guarda el token: el envío usa uno vigente.
+- Nota: la lectura es «red primero con caché de respaldo» a nivel HTTP; `CachedResource` ofrece el
+  patrón completo cache-then-network (emite lo local y refresca) para repositorios nuevos (fase 2).
+- Orden y dependencias: una operación depende de las pendientes de la misma entidad (guardar →
+  finalizar; alta → foto). Un registro con pendientes mantiene el orden aunque haya red.
+
+## Estados y reglas
+
+PENDING → SENDING → SENT; CONFLICT (409, requiere decisión); REJECTED (4xx de validación/permisos).
+Red, 5xx, 408, 429: reintento con backoff exponencial (5 s, doblando, tope 15 min) hasta 12 intentos;
+después queda en pausa hasta «Reintentar». 401 no consume intentos. Un cierre inesperado devuelve
+SENDING a PENDING y se reenvía con la misma clave (el backend es idempotente). Los dependientes de
+una operación fallida esperan; descartarla descarta también a los dependientes (con confirmación).
+Conflicto: la interfaz ofrece «Descartar y recargar» o «Reintentar»; nunca se sobrescribe en silencio.
+
+## Sincronización
+
+Al recuperar red, al volver a primer plano, cada minuto con la app abierta y con «Sincronizar ahora».
+Android: WorkManager (trabajo único, red conectada, backoff exponencial) envía con la app cerrada
+restaurando la sesión guardada. iOS: sin planificador de fondo (requiere BGTaskScheduler en Xcode).
+Web: solo con la pestaña abierta. La cola de controles preparados antigua se traslada a la Outbox
+(`LegacyChecklistMigration`, mismas claves, sin duplicar); «finalizar» lee la versión vigente del
+servidor justo antes de enviar.
+
+## Sesión sin conexión y privacidad
+
+Si hubo una sesión válida, la app abre sin red con el último perfil verificado (máximo 14 días); al
+volver la red se renueva el token y se revalida en /me. Un rechazo del servidor nunca se rescata con
+la caché. El primer inicio siempre requiere red. Cierre de sesión explícito o cambio de cuenta borran
+base, archivos y borradores (con confirmación si hay pendientes); vencimiento de sesión solo oculta.
+Las acciones que requieren servidor muestran `OfflineRequiredNotice` (`LocalOnline`); aún no se
+aplicó en todas las pantallas administrativas.
+
+## Fotos
+
+`OfflineMediaWriter` copia la foto a almacenamiento privado y la encola; `PhotoOutboxHandler` hace
+reserva → PUT firmado → confirmación cuando existe el registro padre. La URL firmada no se guarda.
+Una foto pendiente no cuenta como evidencia confirmada. En web no hay archivos durables.
+
+## Límites de almacenamiento
+
+Respuestas cacheadas ≤ 400 KB cada una; operaciones ≤ 600 KB; web: documentos ≤ 1 MiB. Se conservan
+las últimas 30 operaciones enviadas. Fotos huérfanas por descarte se borran al cerrar sesión.
+
+## Interfaces para la fase 2
+
+`LocalStore`/`CachedResource` (catálogo de capacitación con ETag), `PrivateFileStore` (videos),
+`OutboxHandler` por tipo (encuesta CAP) y `PersistentUsageEventQueue` (ya cableada).
+
+## Verificación manual pendiente
+
+Android/iOS no se compilaron en este entorno: revisar `AndroidOffline.kt`, `AppleOffline.kt`
+(NWPathMonitor sin verificar) y el Worker en dispositivo.
+
 # Recuperación local y trabajo sin conexión
 
 ## Disponible en esta entrega
