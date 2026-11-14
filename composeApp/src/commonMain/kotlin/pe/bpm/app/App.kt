@@ -95,6 +95,9 @@ fun App(
     val accountOrganization = viewModel<pe.bpm.features.accounts.presentation.OrganizationViewModel> { owner.graph.organizationAccountViewModel() }
     val invitationAccept = viewModel<pe.bpm.features.accounts.presentation.InvitationAcceptViewModel> { owner.graph.invitationAcceptViewModel() }
     val myDevices = viewModel<pe.bpm.features.accounts.presentation.DevicesViewModel> { owner.graph.devicesViewModel() }
+    val survey = viewModel<pe.bpm.features.research.presentation.SurveyViewModel> { owner.graph.surveyViewModel() }
+    val research = viewModel<pe.bpm.features.research.presentation.ResearchViewModel> { owner.graph.researchViewModel() }
+    val researchState by research.state.collectAsStateWithLifecycle()
     val runs = viewModel<ChecklistRunViewModel> { owner.graph.checklistRunViewModel() }
     val runState by runs.state.collectAsStateWithLifecycle()
     val evidence = viewModel<pe.bpm.features.media.presentation.MediaEvidenceViewModel> { owner.graph.mediaEvidenceViewModel() }
@@ -133,7 +136,7 @@ fun App(
         if (loadedIdentityId != profile?.id || profile == null) {
             checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
             templateEditor.reset()
-            runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset()
+            runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset()
             formDrafts.reset()
             workspace.reset()
         }
@@ -143,6 +146,7 @@ fun App(
             if (nav.currentDestination?.route == LOGIN) resetTo(pendingRoute)
         }
     }
+    LaunchedEffect(profile?.id, researchState.userId) { if (profile != null) research.loadAccess(profile.id) }
     LaunchedEffect(nav) { onNavHostReady(nav) }
     // Solo las vistas de consulta se revalidan al entrar o volver al primer plano.
     // No hay temporizador de consultas ni recarga de formularios o borradores.
@@ -284,7 +288,7 @@ fun App(
                     WorkspaceDestination.Learn -> listOf(destination.route, TRAINING_COURSE)
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
-                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX)
+                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL)
                     WorkspaceDestination.Company -> listOf(destination.route, ACCOUNTS_MANAGEMENT, TRAINING_MANAGEMENT, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT)
@@ -303,6 +307,8 @@ fun App(
                     val managingAccounts = route == ACCOUNTS_MANAGEMENT
                     val viewingDevices = route == DEVICES
                     val acceptingInvitation = route == INVITATION_ACCEPT
+                    val studySurvey = route == STUDY_SURVEY
+                    val researching = route == RESEARCH_PANEL
  val managingAlerts=route==ALERT_RULES
                     val daily = route in listOf(DAILY_MANAGEMENT, DAILY_EXECUTION, WorkspaceDestination.Tasks.route)
                     val incidentRoute = route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS)
@@ -329,6 +335,8 @@ fun App(
                     fun closeForm() {
                         if (managingAccounts || viewingDevices || acceptingInvitation) { navigateBack(destination.route); return }
                         if (learningCourse) { if (!training.back()) navigateBack(destination.route); return }
+                        if (studySurvey) { if (!survey.back()) navigateBack(destination.route); return }
+                        if (researching) { if (!research.back()) navigateBack(destination.route); return }
                         if (managingTraining) {
                             if (trainingAuthoringState.editor != null) trainingAuthoring.closeDraft()
                             else if (trainingAuthoringState.creating != null) trainingAuthoring.cancelCreate()
@@ -374,7 +382,7 @@ fun App(
                     } else {
                         val available = workspaceDestinations(workspaceState.workspace?.role, profile.platformRole == "SUPER_ADMIN")
                         val waiting = workspaceState.loading && workspaceState.workspace == null
-                        if ((destination !in available || formKind != null || managingTraining || managingTemplates || managingAssignments || managingDaily || daily || alertRoute || managingAccounts) && waiting) {
+                        if ((destination !in available || formKind != null || studySurvey || researching || managingTraining || managingTemplates || managingAssignments || managingDaily || daily || alertRoute || managingAccounts) && waiting) {
                             RestoringSession()
                         } else if (destination !in available || (managingTraining || managingTemplates || managingAssignments || managingDaily || managingAlerts || managingAccounts) && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
                             LaunchedEffect(destination, available) {
@@ -483,7 +491,11 @@ fun App(
                                         DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f))
                                     }
                                 },
-                                secondaryContent = if (learningCourse) ({
+                                secondaryContent = if (studySurvey) ({
+                                    SurveyContent(profile.id, workspaceState.selected.orEmpty(), survey)
+                                }) else if (researching) ({
+                                    ResearchContent(profile.id, research)
+                                }) else if (learningCourse) ({
                                     if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training)
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
                                 }) else if (managingAccounts) ({
@@ -551,8 +563,8 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role == "CHEF") }) }
                                     }) }) else managementContent,
-                                secondaryEditor = learningCourse || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
-                                secondaryTitle = if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryEditor = studySurvey || researching || learningCourse || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -581,7 +593,7 @@ fun App(
                                     if (!workspaceState.saving) {
                                         checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                         templateEditor.reset()
-                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset()
+                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset()
                                         workspace.select(id)
                                         resetTo(WorkspaceDestination.Home.route)
                                     }
@@ -593,6 +605,18 @@ fun App(
                                 onUserActivity = identity::userActivity,
                                 noticeVisible = accessNotice != null,
                                 screenNotice = {
+                                    if (destination == WorkspaceDestination.Home && route == WorkspaceDestination.Home.route) {
+                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN") BpmCard(Modifier.fillMaxWidth()) {
+                                            Text("Encuesta del estudio", style = MaterialTheme.typography.titleMedium)
+                                            Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.")
+                                            BpmSecondaryButton(onClick = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }) { Text("Abrir encuesta del estudio") }
+                                        }
+                                        if (researchState.access?.let { it.canResearch || it.canManageGrants } == true) BpmCard(Modifier.fillMaxWidth()) {
+                                            Text("Investigación", style = MaterialTheme.typography.titleMedium)
+                                            Text("Consentimiento, cuestionarios, resultados por empresa y necesidades detectadas.")
+                                            BpmSecondaryButton(onClick = { nav.navigate(RESEARCH_PANEL) { launchSingleTop = true } }) { Text("Abrir investigación") }
+                                        }
+                                    }
                                     if (destination in listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations) && !running && runState.resumeId != null && runState.userId == profile.id && runState.organizationId == workspaceState.selected) {
                                         BpmCard(Modifier.fillMaxWidth()) {
                                             Text("Tienes un control pendiente en este dispositivo")
@@ -658,7 +682,7 @@ fun App(
                                     pendingRoute = WorkspaceDestination.Home.route
                                     checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
                                     templateEditor.reset()
-                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset()
+                                    runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset()
                                     formDrafts.reset()
                                     workspace.reset()
                                     identity.logout()
@@ -722,6 +746,8 @@ private const val INCIDENT_TASKS = "tareas/incidencias"
 
 private const val TRAINING_COURSE = "aprender/{courseId}"
 private const val TRAINING_MANAGEMENT = "empresa/academia"
+private const val STUDY_SURVEY = "estudio"
+private const val RESEARCH_PANEL = "investigacion"
 
 private const val ACCOUNTS_MANAGEMENT = "empresa/cuentas"
 private const val DEVICES = "cuenta/dispositivos"

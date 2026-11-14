@@ -16,6 +16,7 @@ import { incidentsRoute, proxyIncidents } from './incidents-proxy.mjs';
 import { alertsRoute, proxyAlerts } from './alerts-proxy.mjs';
 import { trainingRoute, proxyTraining } from './training-proxy.mjs';
 import { accountsRoute, proxyAccounts } from './accounts-proxy.mjs';
+import { researchRoute, proxyResearch } from './research-proxy.mjs';
 
 // Configuración pública compartida por KMP y web, separada de cualquier secreto Admin.
 const firebasePublic = JSON.parse(readFileSync(new URL('../config/firebase.public.json', import.meta.url), 'utf8'));
@@ -115,8 +116,9 @@ export function createAppServer({
     const isAlerts = alertsRoute(request.url?.split('?')[0] || '');
     const isTraining = trainingRoute(request.url?.split('?')[0] || '');
     const isAccounts = !isWorkspace && accountsRoute(request.url?.split('?')[0] || '');
+    const isResearch = researchRoute(request.url?.split('?')[0] || '');
     const isOperations = operationsRoute(request.url?.split('?')[0] || '');
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations && !isIncidents && !isAlerts && !isTraining && !isAccounts) {
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations && !isIncidents && !isAlerts && !isTraining && !isAccounts && !isResearch) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
@@ -124,6 +126,7 @@ export function createAppServer({
       const url = new URL(request.url, 'http://localhost');
       if (isAccounts) return await proxyAccounts(request, url, upstream, send, response);
       if (isTraining) return await proxyTraining(request, url, upstream, send, response);
+      if (isResearch) return await proxyResearch(request, url, upstream, send, response);
       if (isAlerts) return await proxyAlerts(request, url, upstream, send, response);
       if (isIncidents) return await proxyIncidents(request, url, upstream, send, response);
       if (isOperations) return await proxyOperations(request, url, upstream, send, response);
