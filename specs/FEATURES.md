@@ -8,7 +8,7 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
 | Identidad | features/identity | Login/registro/recuperación y Google web/Android listos; usuario confirmó Google en celular. iOS con SDK/adaptador y configuración pública: pendiente prueba real y validación adicional de almacenamiento seguro en dispositivos |
-| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición y bajas |
+| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; edición, bajas, invitaciones, dispositivos y tipo de establecimiento en `features/accounts` (ver ACCOUNTS.md; requiere V12 del backend) |
 | Checklists | features/checklists | Catálogo, autoría y ejecución en línea con revisión, versión e idempotencia; recuperación local y reintentos duraderos; historial paginado, separación ejecución/supervisión y programación por sede/frecuencia implementados; cola múltiple para revisiones preparadas implementada; siguientes: inicio sin red, archivos y trabajo en segundo plano |
 | Evidencias | features/media | Selección, vista previa privada, PUT firmado y confirmación implementados para controles; fotos de limpieza e incidencias pendientes |
 | Operación diaria | features/operations | Catálogos, criterio térmico, recepciones, consulta PEPS y limpieza implementados; activar V5 en backend antes de desplegar. Fotos de limpieza, movimientos de stock, turnos y cola offline nueva pendientes |

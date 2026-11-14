@@ -31,6 +31,7 @@ internal fun WorkspaceScreen(
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
     onTraining: () -> Unit = {},
+    onAccounts: () -> Unit = {}, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
     onOpenCourse: ((String) -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
     taskContent: @Composable () -> Unit = {},
@@ -126,6 +127,8 @@ internal fun WorkspaceScreen(
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                             sessionMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                             if (WorkspaceDestination.Learn in available) BpmSecondaryButton(onClick = { navigate(WorkspaceDestination.Learn) }) { Text("Mi aprendizaje") }
+                            BpmSecondaryButton(onClick = onDevices) { Text("Mis dispositivos") }
+                            BpmSecondaryButton(onClick = onAcceptInvitation) { Text("Aceptar una invitación") }
                             HorizontalDivider()
                             BpmTextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
                                 BpmIcon(BpmSymbol.Logout)
@@ -162,6 +165,7 @@ internal fun WorkspaceScreen(
                                 { m -> ActionCard(m, "Operación diaria", "Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.", "Gestionar insumos y limpieza", onDailyOperations) },
                                 { m -> ActionCard(m, "Reglas de avisos", "Elige cuándo avisar a las personas responsables de tus sedes.", "Configurar avisos", onAlertRules) },
                                 { m -> IncidentEntryCard(onIncidents, m) },
+                                { m -> ActionCard(m, "Cuentas y equipo", "Edita roles y sedes, desactiva o reactiva personas, invita por correo y actualiza los datos de la organización y de cada sede.", "Gestionar cuentas", onAccounts) },
                                 { m -> ActionCard(m, "Academia BPM", "Prepara cursos con lecciones, video y preguntas; publícalos para que tu equipo aprenda y se evalúe.", "Gestionar Academia", onTraining) },
                             )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
@@ -177,6 +181,7 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Team -> {
                             SectionHeading("Personas que hacen la diferencia", if (current.canManage) "Agregar persona" else null) { open(WorkspaceFormKind.Member) }
+                            if (current.canManage) BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")
                             else {
                                 WorkspacePagedList(WorkspaceResource.Members, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {

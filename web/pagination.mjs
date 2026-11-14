@@ -1,5 +1,5 @@
 // Contrato compartido por los dos proxies de lectura; no acepta filtros arbitrarios.
-export function pageQuery(url, { workspace = false, detail = false } = {}) {
+export function pageQuery(url, { workspace = false, detail = false, statuses = [] } = {}) {
   if (detail && url.search) throw new Error('Consulta no permitida');
   const result = new URLSearchParams();
   for (const [key, value] of url.searchParams) {
@@ -10,6 +10,8 @@ export function pageQuery(url, { workspace = false, detail = false } = {}) {
       if (value.length > 2048 || !/^[A-Za-z0-9_-]*$/.test(value)) throw new Error('Cursor inválido');
     } else if (!workspace && key === 'query') {
       if ([...value].length > 160 || /\p{Cc}/u.test(value)) throw new Error('Búsqueda inválida');
+    } else if (key === 'status' && statuses.includes(value)) {
+      // Filtro de estado de miembros y sedes; solo valores del contrato.
     } else throw new Error('Parámetro no permitido');
     result.set(key, value);
   }

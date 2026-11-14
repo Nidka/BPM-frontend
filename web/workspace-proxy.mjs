@@ -25,8 +25,21 @@ function strings(value, keys) {
     return [key, value[key]];
   }));
 }
+/** Campos de concurrencia y estado que el backend añade a lecturas; opcionales para convivir con versiones anteriores. */
+function withControl(source, result) {
+  if (source.rowVersion !== undefined) {
+    if (!Number.isSafeInteger(source.rowVersion) || source.rowVersion < 1) throw new Error('Versión inválida');
+    result.rowVersion = source.rowVersion;
+  }
+  if (source.status !== undefined) {
+    if (!['ACTIVE', 'INACTIVE'].includes(source.status)) throw new Error('Estado inválido');
+    result.status = source.status;
+  }
+  return result;
+}
+function publicOrganization(value) { return withControl(value, strings(value, orgFields)); }
 function publicLocation(value) {
-  const result = strings(value, locationFields);
+  const result = withControl(value, strings(value, locationFields));
   if (value.timezone !== undefined) {
     if (typeof value.timezone !== 'string' || value.timezone.length > 100 || /[\u0000-\u0020\u007f]/u.test(value.timezone)) throw new Error('Zona horaria inválida');
     result.timezone = value.timezone;
@@ -53,14 +66,14 @@ function publicData(data, action, method) {
     if (!['READY', 'ALREADY_MEMBER', 'UNAVAILABLE'].includes(result.status)) throw new Error('Estado inválido');
     return result;
   }
-  if (action === 'members') return method === 'POST' ? strings(data, ['status']) : list(data, x => ({ ...strings(x, ['id','name','email','role']), locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('ID inválido'); return id; }) }));
+  if (action === 'members') return method === 'POST' ? strings(data, ['status']) : list(data, x => withControl(x, { ...strings(x, ['id','name','email','role']), locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('ID inválido'); return id; }) }));
   if (action === 'locations') return method === 'POST' ? publicLocation(data) : list(data, publicLocation);
   if (['courses','checklist-summaries'].includes(action)) return list(data, x => strings(x, ['id','title','detail','status']));
-  if (action !== 'workspace') return method === 'GET' ? list(data, x => strings(x, orgFields)) : strings(data, orgFields);
+  if (action !== 'workspace') return method === 'GET' ? list(data, publicOrganization) : publicOrganization(data);
   return {
-    ...workspaceMetadata(data), organization: strings(data.organization, orgFields), ...strings(data, ['role']),
+    ...workspaceMetadata(data), organization: publicOrganization(data.organization), ...strings(data, ['role']),
     locations: list(data.locations, publicLocation),
-    members: list(data.members, x => ({ ...strings(x, ['id', 'name', 'email', 'role']),
+    members: list(data.members, x => withControl(x, { ...strings(x, ['id', 'name', 'email', 'role']),
       locationIds: list(x.locationIds, id => { if (typeof id !== 'string') throw new Error('Invalid ID'); return id; }) })),
     ...Object.fromEntries(['courses', 'checklists', 'incidents'].map(key => [key,
       list(data[key], x => strings(x, ['id', 'title', 'detail', 'status']))])),
@@ -73,7 +86,7 @@ export async function proxyWorkspace(request, url, upstream, send, response) {
   if (!match) return send(404, error('NOT_FOUND', 'Recurso no disponible.'));
   if (!allowed.includes(request.method)) return send(405, error('METHOD_NOT_ALLOWED', 'Método no permitido.'));
   let query;
-  try { query = pageQuery(url, { workspace: action === 'workspace', detail: request.method !== 'GET' }); }
+  try { query = pageQuery(url, { workspace: action === 'workspace', detail: request.method !== 'GET', statuses: request.method === 'GET' && ['members', 'locations'].includes(action) ? ['ACTIVE', 'INACTIVE'] : [] }); }
   catch { return send(404, error('NOT_FOUND', 'Recurso no disponible.')); }
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || authorization.length > 8192 || !/^Bearer [A-Za-z0-9._-]+$/.test(authorization))
