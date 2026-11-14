@@ -51,11 +51,11 @@ La salud del contenedor frontend no depende del backend; si la API se cae,
 la web continúa disponible y muestra el estado de error con reintento.
 
 Dominio appbpm.com:
-1. Añadir appbpm.com en Settings → Networking → Custom Domain.
-2. Crear en Cloudflare los registros exactos CNAME y TXT que entregue Railway.
-3. Para el CNAME del dominio raíz, usar nombre @; Cloudflare puede aplanarlo.
-4. Comenzar con DNS only hasta verificar certificado/HTTPS.
-5. Probar https://appbpm.com y el mensaje de conexión exitosa.
+1. Registrar `appbpm.com` y `www.appbpm.com` en Settings → Networking → Custom Domain.
+2. Publicar en Cloudflare los CNAME y TXT exactos que entregue Railway.
+3. Para el CNAME del dominio raíz, usar nombre `@`; Cloudflare puede aplanarlo.
+4. Mantener ambos CNAME en **Solo DNS** hasta verificar el certificado HTTPS.
+5. Probar `https://appbpm.com/healthz` y `https://www.appbpm.com/healthz`.
 
 No cambiar registros MX, correo ni otros subdominios. La web usa proxy del mismo
 origen, por lo que cambiar al dominio propio no exige ampliar CORS en el backend.
@@ -73,8 +73,8 @@ publique los registros. Crear el dominio en Railway no modifica el DNS externo.
 - Proyecto: bpm / production. Servicio: BPM-frontend.
 - URL web: https://bpm-frontend-production.up.railway.app
 - Ambos dominios usan target port 8080, el PORT efectivo de Railway (no el 3000 local).
-- appbpm.com ya está registrado en Railway. El 13/10/2026 seguía pendiente de
-  verificación de propiedad y certificado; usar la URL Railway mientras tanto.
+- `appbpm.com` y `www.appbpm.com` están registrados en Railway y apuntan al
+  frontend. Sus certificados HTTPS están emitidos.
 
 Registros solicitados por Railway (consultar `railway domain status appbpm.com --json`
 antes de modificarlos si se vuelve a crear el dominio):
@@ -83,16 +83,18 @@ antes de modificarlos si se vuelve a crear el dominio):
 |---|---|---|
 | CNAME | @ | jt7bsxt7.up.railway.app |
 | TXT | _railway-verify | railway-verify=0cafc3593eba3b615fd9dbfb8c657a9aead2db83a7e4cb49f2734fd1a4d7ea08 |
+| CNAME | www | nipc9gv4.up.railway.app |
+| TXT | _railway-verify.www | railway-verify=a09aa8fef7145ac38bf17a3b9e551ad60d001fdb384c97d403b74f0837b41ee6 |
 
-Estado observado el 13/10/2026: el dominio ya resuelve por Cloudflare y tiene
-certificado TLS en el borde, pero `railway domain status appbpm.com --json` aún
-informa CNAME raíz `REQUIRES_UPDATE` y `verified: false`. El dominio propio no
-responde; no confundir TLS del borde con verificación del origen Railway.
+Estado comprobado el 13/10/2026: los cuatro registros están publicados en
+Cloudflare. Railway marca ambos CNAME como `PROPAGATED`, los dos dominios como
+`verified: true` y sus certificados como `VALID`. Tanto
+`https://appbpm.com/healthz` como `https://www.appbpm.com/healthz` responden 200
+con HTTPS válido. `https://appbpm.com/backend/health` también responde 200.
+`www.appbpm.com` está añadido a Firebase Authentication → Dominios autorizados,
+igual que el dominio raíz. Los CNAME continúan en **Solo DNS**.
 
-En Cloudflare → DNS, reemplazar **solo** el A de `@` que apunta al parking de
-Namecheap por el CNAME `@ → jt7bsxt7.up.railway.app`. Configurarlo inicialmente
-como **Solo DNS** (nube gris). Añadir el TXT `_railway-verify` de la tabla si
-no existe. Mantener intactos MX, SPF y otros subdominios. Luego esperar la
-propagación y comprobar que Railway muestre `verified: true`, certificado listo
-y `https://appbpm.com/healthz` responda 200. Solo entonces evaluar activar el
-proxy naranja de Cloudflare.
+Para futuras comprobaciones, usar `railway domain status appbpm.com --json` y
+`railway domain status www.appbpm.com --json`. Mantener intactos MX, SPF y los
+demás subdominios. Si se evalúa activar el proxy naranja de Cloudflare, revisar
+primero su modo TLS y volver a probar HTTPS y el login en ambos dominios.
