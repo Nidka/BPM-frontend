@@ -39,3 +39,5 @@ La activación necesita V7, API y worker antes del frontend; no implica desplieg
 Cuentas (edición de miembros/sedes/organización, invitaciones, dispositivos propios, tipo de establecimiento): leer specs/ACCOUNTS.md.
 Requiere V12 del backend antes de activar la UI; no implica despliegue.
 Estudio CAP (consentimiento, encuesta pre/post e investigación): leer specs/RESEARCH.md. Requiere el backend V9.
+Reportes, constancias y registro de uso (RF-09/16/17/27/28/29/30/39): leer specs/REPORTS.md.
+Requiere el backend con V10; el guardado de CSV en Android/iOS no se compila sin SDK/macOS.
