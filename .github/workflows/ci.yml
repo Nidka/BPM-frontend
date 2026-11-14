@@ -47,7 +47,14 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v6
       - name: Compile iOS framework for simulator
-        run: ./gradlew :composeApp:iosSimulatorArm64Test :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:iosSimulatorArm64Test :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace 2>&1 | tee "$RUNNER_TEMP/ios-build.log"
+      - name: Publish Kotlin/Native compile errors as annotations
+        if: failure()
+        run: |
+          # Las anotaciones se leen sin descargar el log completo.
+          grep -E "^e: " "$RUNNER_TEMP/ios-build.log" | head -n 40 | sed -E "s|^e: (file://)?|::error::|" || true
       - name: Prepare XcodeGen
         run: |
           curl --fail --location --silent --show-error --retry 3 https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip -o "$RUNNER_TEMP/bpm-xcodegen.zip"

@@ -11,7 +11,7 @@ import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.writeToFile
-import platform.UIKit.UIActivityViewController
+import platform.UIKit.*
 
 /** iOS: escribe un archivo temporal y abre la hoja de compartir (incluye "Guardar en Archivos"). */
 @Composable

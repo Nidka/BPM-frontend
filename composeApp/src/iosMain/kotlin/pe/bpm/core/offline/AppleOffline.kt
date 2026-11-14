@@ -4,6 +4,7 @@ package pe.bpm.core.offline
 
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,6 @@ import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSData
 import platform.Foundation.NSDataWritingAtomic
 import platform.Foundation.NSDataWritingFileProtectionComplete
-import platform.Foundation.NSFileHandle
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileProtectionComplete
 import platform.Foundation.NSFileProtectionKey
@@ -35,6 +35,13 @@ import platform.Network.nw_path_monitor_set_update_handler
 import platform.Network.nw_path_monitor_start
 import platform.Network.nw_path_status_satisfied
 import platform.darwin.dispatch_get_global_queue
+import platform.posix.SEEK_SET
+import platform.posix.fclose
+import platform.posix.fopen
+import platform.posix.fread
+import platform.posix.fseeko
+import platform.posix.fwrite
+import platform.posix.truncate
 
 /**
  * Piezas offline de iOS: SQLite nativo en el contenedor privado, NWPathMonitor para la red y
@@ -69,7 +76,7 @@ class ApplePrivateFileStore : PrivateFileStore {
         val base = NSFileManager.defaultManager.URLForDirectory(NSApplicationSupportDirectory, NSUserDomainMask, null, true, null)!!
         val directory = base.URLByAppendingPathComponent("bpm-offline-files-v1", true)!!
         check(NSFileManager.defaultManager.createDirectoryAtURL(directory, true, null, null))
-        check(directory.setResourceValue(NSNumber.numberWithBool(true), NSURLIsExcludedFromBackupKey, null))
+        check(directory.setResourceValue(NSNumber(bool = true), NSURLIsExcludedFromBackupKey, null))
         return directory
     }
     private fun url(ref: String): NSURL {
@@ -122,21 +129,30 @@ class ApplePrivateFileStore : PrivateFileStore {
         if (!exists(target)) {
             check(manager.createFileAtPath(target.path!!, data, mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionComplete)))
         } else {
-            val handle = checkNotNull(NSFileHandle.fileHandleForWritingAtPath(target.path!!))
-            handle.seekToEndOfFile()
-            handle.writeData(data)
-            handle.closeFile()
+            // POSIX en modo "ab": agrega al final sin cargar el archivo; conserva la protección del archivo.
+            if (length > 0) {
+                val file = checkNotNull(fopen(target.path!!, "ab")) { "No se pudo abrir el archivo parcial" }
+                try {
+                    val written = bytes.usePinned { fwrite(it.addressOf(0), 1.convert(), length.convert(), file) }
+                    check(written.toLong() == length.toLong()) { "Escritura incompleta del archivo parcial" }
+                } finally {
+                    fclose(file)
+                }
+            }
         }
     }
     override suspend fun readPart(ref: String, offset: Long, buffer: ByteArray): Int = withContext(Dispatchers.Default) {
         val target = partUrl(ref)
         if (!exists(target)) return@withContext -1
-        val handle = NSFileHandle.fileHandleForReadingAtPath(target.path!!) ?: return@withContext -1
-        handle.seekToFileOffset(offset.toULong())
-        val data = handle.readDataOfLength(buffer.size.toULong())
-        handle.closeFile()
-        val count = data.length.toInt()
-        if (count == 0) -1 else { data.bytes!!.readBytes(count).copyInto(buffer); count }
+        if (buffer.isEmpty()) return@withContext 0
+        val file = fopen(target.path!!, "rb") ?: return@withContext -1
+        try {
+            if (fseeko(file, offset.convert(), SEEK_SET) != 0) return@withContext -1
+            val count = buffer.usePinned { fread(it.addressOf(0), 1.convert(), buffer.size.convert(), file) }.toInt()
+            if (count <= 0) -1 else count
+        } finally {
+            fclose(file)
+        }
     }
     override suspend fun commitPart(ref: String) = withContext(Dispatchers.Default) {
         val final = url(ref)
@@ -152,9 +168,7 @@ class ApplePrivateFileStore : PrivateFileStore {
         val target = partUrl(ref)
         if (!exists(target)) return@withContext
         if (length <= 0) { manager.removeItemAtURL(target, null); return@withContext }
-        val handle = NSFileHandle.fileHandleForWritingAtPath(target.path!!) ?: return@withContext
-        handle.truncateFileAtOffset(length.toULong())
-        handle.closeFile()
+        check(truncate(target.path!!, length.convert()) == 0) { "No se pudo recortar el archivo parcial" }
     }
     override suspend fun size(ref: String): Long? = withContext(Dispatchers.Default) { url(ref).let { if (exists(it)) length(it) else null } }
     override suspend fun localUri(ref: String): String? = withContext(Dispatchers.Default) { url(ref).let { if (exists(it)) it.absoluteString else null } }

@@ -9,9 +9,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitViewController
 import kotlinx.coroutines.delay
-import platform.AVFoundation.AVPlayer
-import platform.AVFoundation.AVPlayerItemStatusFailed
-import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
+// Comodín: currentItem y pause vienen de categorías de AVPlayer y requieren importarse.
+import platform.AVFoundation.*
 import platform.AVKit.AVPlayerViewController
 import platform.Foundation.NSURL
 
