@@ -13,6 +13,8 @@ data class EvidenceContext(
     val incidentId: String? = null,
     val actionId: String? = null,
     val stage: EvidenceStage? = null,
+    /** Destino de limpieza: excluye control e incidencia. */
+    val cleaningExecutionId: String? = null,
 )
 
 enum class EvidenceStatus {
@@ -35,6 +37,7 @@ data class EvidenceFile(
     val incidentId: String? = null,
     val actionId: String? = null,
     val stage: EvidenceStage? = null,
+    val cleaningExecutionId: String? = null,
 )
 
 data class EvidencePolicy(
@@ -173,6 +176,13 @@ internal fun String.isEvidenceId(): Boolean = matches(Regex("[A-Za-z0-9_-]{1,64}
 
 internal fun EvidenceContext.valid(): Boolean {
     if (!organizationId.isEvidenceId()) return false
+    if (cleaningExecutionId != null)
+        return cleaningExecutionId.isEvidenceId() &&
+            incidentId == null &&
+            actionId == null &&
+            stage == null &&
+            runId.isEmpty() &&
+            itemId.isEmpty()
     if (incidentId == null)
         return stage == null && actionId == null && runId.isEvidenceId() && itemId.isEvidenceId()
     return runId.isEmpty() &&
@@ -191,7 +201,8 @@ internal fun EvidenceFile.belongsTo(context: EvidenceContext): Boolean =
         itemId == context.itemId &&
         incidentId == context.incidentId &&
         actionId == context.actionId &&
-        stage == context.stage
+        stage == context.stage &&
+        cleaningExecutionId == context.cleaningExecutionId
 
 /** Cuenta puntos de código como el backend y rechaza Unicode incompleto, rutas y controles. */
 internal fun validEvidenceName(value: String): Boolean {

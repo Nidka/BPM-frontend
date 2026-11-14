@@ -98,7 +98,7 @@ test('operaciones: tipos, UUID, decimales, fechas y actores forjados nunca se re
   const invalid = [
     ['/suppliers', { ...supplier, receivedBy: 'other' }], ['/suppliers', { ...supplier, organizationId: other }], ['/suppliers', { ...supplier, id: 'bad' }], ['/suppliers', { ...supplier, name: 12 }], ['/suppliers', { ...supplier, contactPhone: 'abc' }], ['/suppliers', { ...supplier, contactEmail: 'invalid' }],
     ['/products', product], ['/products', { ...product, rowVersion: undefined, requiresTemperature: 'yes' }], ['/products', { ...product, rowVersion: undefined, minimumTemperature: 1.001 }], ['/products', { ...product, rowVersion: undefined, minimumTemperature: null }],
-    ['/cleaning-plans', { ...planInput, active: true }], ['/cleaning-plans', { ...planInput, frequency: 'PER_SHIFT' }], ['/cleaning-plans', { ...planInput, dueTime: '24:00' }],
+    ['/cleaning-plans', { ...planInput, active: true }], ['/cleaning-plans', { ...planInput, frequency: 'HOURLY' }], ['/cleaning-plans', { ...planInput, dueTime: '24:00' }],
     ['/cleaning-executions', { ...executionInput, responsibleUserId: 'other' }], ['/cleaning-executions', { ...executionInput, executedAt: '2026-02-30T12:00:00Z' }], ['/cleaning-executions', { ...executionInput, clientCreatedAt: '2999-01-01T00:00:00Z' }], ['/cleaning-executions', { ...executionInput, cleaningPlanId: 'https://evil.example' }],
   ];
   for (const patch of [{ quantity: 1.125 }, { quantity: '1.1234' }, { quantity: '0.000' }, { quantity: '1000000000.000' }, { temperatureCelsius: '3.25' }, { temperatureCelsius: 3.251 }, { expirationDate: '2026-02-30' }, { packagingCondition: null }, { actor: 'other' }, { decision: 'DISCARDED' }]) invalid.push(['/supply-receipts', { ...receiptInput, items: [{ ...receiptInput.items[0], ...patch }] }]);
@@ -185,7 +185,7 @@ test('operaciones: valida cada entidad pública antes de confirmar una lista o e
     ['supply-receipts', { ...receipt, items: [{ ...receipt.items[0], temperatureCelsius: 10000 }] }],
     ['supply-receipts', { ...receipt, items: [{ ...receipt.items[0], minimumTemperature: 1.001 }] }],
     ['storage-lots', { ...lot, quantityAvailable: '-1.000' }], ['storage-lots', { ...lot, receiptItemId: 'bad' }], ['storage-lots', { ...lot, expired: 'false' }], ['storage-lots', { ...lot, status: 'UNKNOWN' }],
-    ['cleaning-plans', { ...plan, active: 'true' }], ['cleaning-plans', { ...plan, frequency: 'PER_SHIFT' }],
+    ['cleaning-plans', { ...plan, active: 'true' }], ['cleaning-plans', { ...plan, frequency: 'HOURLY' }],
     ['cleaning-executions', { ...execution, cleaningPlanId: 'bad' }], ['cleaning-executions', { ...execution, responsibleUserId: '' }], ['cleaning-executions', { ...execution, result: 'UNKNOWN' }],
   ];
   for (const [resource, data] of cases) {

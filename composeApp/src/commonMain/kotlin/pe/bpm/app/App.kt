@@ -115,6 +115,10 @@ fun App(
     val evidenceState by evidence.state.collectAsStateWithLifecycle()
     var evidenceQuestion by remember { mutableStateOf<EvidenceQuestion?>(null) }
     var incidentEvidence by remember { mutableStateOf<IncidentEvidenceTarget?>(null) }
+    var cleaningPhotos by remember { mutableStateOf<String?>(null) }
+    val versionsVm = viewModel<pe.bpm.features.checklists.presentation.ChecklistVersionsViewModel> { owner.graph.checklistVersionsViewModel() }
+    val shiftsVm = viewModel<pe.bpm.features.operations.presentation.ShiftsViewModel> { owner.graph.shiftsViewModel() }
+    val stockVm = viewModel<pe.bpm.features.operations.presentation.StockMovementsViewModel> { owner.graph.stockMovementsViewModel() }
     val offlineRuns = viewModel<ChecklistOfflineViewModel> { owner.graph.checklistOfflineViewModel() }
     val offlineState by offlineRuns.state.collectAsStateWithLifecycle()
     val templateEditorState by templateEditor.state.collectAsStateWithLifecycle()
@@ -225,6 +229,16 @@ fun App(
             offlineRuns.open(profile.id, currentWorkspace.organization.id)
         else offlineRuns.reset()
     }
+    // Las fotos de limpieza solo se editan por quien la registró y durante las 24 horas siguientes; el servidor decide.
+    fun openCleaningPhotos(execution: pe.bpm.features.operations.domain.CleaningExecution) {
+        val org = workspaceState.workspace?.organization?.id ?: return
+        val user = profile?.id ?: return
+        val role = workspaceState.workspace?.role
+        val recent = runCatching { kotlin.time.Clock.System.now() - kotlin.time.Instant.parse(execution.createdAt) < 24.hours }.getOrDefault(false)
+        val canEdit = execution.responsibleUserId == user && recent && role in setOf("CHEF", "WORKER")
+        cleaningPhotos = execution.input.id
+        evidence.openCleaning(user, org, execution.input.id, canEdit)
+    }
     LaunchedEffect(offlineState.preparedId) {
         offlineState.preparedId?.let { id ->
             offlineRuns.consumePrepared()
@@ -275,6 +289,7 @@ fun App(
     LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, entry?.id, workspaceState.errors) {
         evidenceQuestion = null
         incidentEvidence = null
+        cleaningPhotos = null
         evidence.reset()
     }
     LaunchedEffect(evidenceState.revision, runState.run?.rowVersion) {
@@ -289,7 +304,7 @@ fun App(
 
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, identity::logout) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
-            if (!supportsNativeModalWindows() && (evidenceQuestion != null || incidentEvidence != null)) Modifier.clearAndSetSemantics { } else Modifier),
+            if (!supportsNativeModalWindows() && (evidenceQuestion != null || incidentEvidence != null || cleaningPhotos != null)) Modifier.clearAndSetSemantics { } else Modifier),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }) {
             composable(LOGIN) {
@@ -327,7 +342,7 @@ fun App(
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS)
-                    WorkspaceDestination.Company -> listOf(destination.route, ACCOUNTS_MANAGEMENT, TRAINING_MANAGEMENT, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Company -> listOf(destination.route, ACCOUNTS_MANAGEMENT, TEMPLATE_VERSIONS, TRAINING_MANAGEMENT, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT)
                     else -> listOf(destination.route)
@@ -335,7 +350,7 @@ fun App(
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
                     .map { destination to it }
             }.forEach { (destination, route) ->
-                composable(route, arguments = if (route == INVITATION_ACCEPT) listOf(navArgument("token") { type = NavType.StringType; nullable = true; defaultValue = null }) else if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE))
+                composable(route, arguments = if (route == INVITATION_ACCEPT) listOf(navArgument("token") { type = NavType.StringType; nullable = true; defaultValue = null }) else if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE, TEMPLATE_VERSIONS))
                     listOf(navArgument("templateId") { type = NavType.StringType }) else if (route == TRAINING_COURSE) listOf(navArgument("courseId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
                     listOf(navArgument("runId") { type = NavType.StringType }) else if (route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL))
                     listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
@@ -355,7 +370,7 @@ fun App(
                     val managingDaily = route == DAILY_MANAGEMENT
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
                     val formRevision = remember(routeEntry.id) { workspaceState.revision }
-                    val managingTemplates = route in listOf(TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
+                    val managingTemplates = route in listOf(TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, TEMPLATE_VERSIONS)
                     val managingAssignments = route in listOf(ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     val editingAssignment = route == ASSIGNMENT_CREATE
                     val viewingAssignment = route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL)
@@ -403,14 +418,14 @@ fun App(
                     LaunchedEffect(workspaceState.errors) {
                         if (formKind != null && entry?.id == routeEntry.id) formDrafts.onSaveFailure(workspaceState.errors)
                     }
-                    val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE))
+                    val templateId = if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE, TEMPLATE_VERSIONS))
                         routeEntry.arguments?.let { NavType.StringType[it, "templateId"] } else null
                     val trainingCourseId = if (learningCourse) routeEntry.arguments?.let { NavType.StringType[it, "courseId"] }?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) } else null
                     val runId = if (route in listOf(CHECKLIST_RUN, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL)) routeEntry.arguments?.let { NavType.StringType[it, "runId"] } else null
                     val assignmentId = if (viewingAssignment) routeEntry.arguments?.let { NavType.StringType[it, "assignmentId"] } else null
                     val invitationToken = if (acceptingInvitation) routeEntry.arguments?.let { NavType.StringType[it, "token"] }?.takeIf { pe.bpm.features.accounts.domain.AccountsRules.invitationToken(it) != null } else null
                     val requestedRoute = templateId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
-                        ?.let { if (route == ASSIGNMENT_CREATE) "empresa/plantillas/detalle/$it/asignar" else if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
+                        ?.let { if (route == TEMPLATE_VERSIONS) "empresa/plantillas/detalle/$it/versiones" else if (route == ASSIGNMENT_CREATE) "empresa/plantillas/detalle/$it/asignar" else if (route == TEMPLATE_MANAGEMENT_DETAIL) "empresa/plantillas/detalle/$it" else "control/plantilla/$it" + if (route == CHECKLIST_START) "/iniciar" else "" }
                         ?: invitationToken?.let { "$INVITATION_BASE?token=$it" } ?: trainingCourseId?.let { "aprender/$it" } ?: runId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { when (route) { CHECKLIST_OFFLINE_DETAIL -> "control/guardados/$it"; SUPERVISION_DETAIL -> "seguimiento/$it"; CHECKLIST_HISTORY_DETAIL -> "control/revisiones/$it"; else -> "control/ejecucion/$it" } } ?: assignmentId?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { if (managingAssignments) "empresa/controles-programados/$it" else "control/programacion/$it" } ?: route
                     if (profile == null) {
                         // Las URL directas y el historial deben comprobar la autenticación, incluso después de cerrar sesión.
@@ -475,7 +490,10 @@ fun App(
                             }
                             val managementContent: (@Composable () -> Unit)? = if (!managingTemplates) null else {
                                 {
-                                    if (editingTemplate) {
+                                    if (route == TEMPLATE_VERSIONS) {
+                                        ChecklistVersionsContent(profile.id, workspaceState.selected.orEmpty(), templateId,
+                                            workspaceState.workspace?.canManage == true, versionsVm, checklists)
+                                    } else if (editingTemplate) {
                                         ChecklistTemplateEditorScreen(templateEditorState, templateEditor::name, templateEditor::area, templateEditor::description,
                                             templateEditor::question, templateEditor::type, templateEditor::addQuestion, templateEditor::removeQuestion,
                                             templateEditor::move, templateEditor::undoRemove, templateEditor::clearUndo, templateEditor::review, templateEditor::confirmPublication, templateEditor::backToEdit,
@@ -502,7 +520,8 @@ fun App(
                                         ChecklistCatalogScreen(scopedManagement, templateId, checklists::refresh, checklists::search,
                                             onSelect = { id -> nav.navigate("empresa/plantillas/detalle/$id") { launchSingleTop = true } }, onUserActivity = identity::userActivity,
                                             onNext = checklists::next, onPrevious = checklists::previous, management = true,
-                                            onAssign = { id -> nav.navigate("empresa/plantillas/detalle/$id/asignar") { launchSingleTop = true } })
+                                            onAssign = { id -> nav.navigate("empresa/plantillas/detalle/$id/asignar") { launchSingleTop = true } },
+                                            onVersions = { id -> nav.navigate("empresa/plantillas/detalle/$id/versiones") { launchSingleTop = true } })
                                     }
                                 }
                             }
@@ -537,7 +556,8 @@ fun App(
                                 taskContent = {
                                     Column(Modifier.fillMaxSize()) {
                                         BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
-                                        DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f))
+                                        DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f),
+                                            onCleaningPhotos = { execution -> openCleaningPhotos(execution) })
                                     }
                                 },
                                 secondaryContent = if (studySurvey) ({
@@ -586,7 +606,8 @@ fun App(
                                             }
                                         })
                                 }) else if (daily && destination != WorkspaceDestination.Tasks) ({
-                                    DailyOperationsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations,sourceSiteId=alertSource?.locationId,sourceSiteName=alertSource?.locationName.orEmpty(),sourceReceiptId=alertSource?.sourceParentId)
+                                    DailyOperationsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations,sourceSiteId=alertSource?.locationId,sourceSiteName=alertSource?.locationName.orEmpty(),sourceReceiptId=alertSource?.sourceParentId,
+                                        shifts = shiftsVm, stock = stockVm, onCleaningPhotos = { execution -> openCleaningPhotos(execution) })
                                 }) else if (offline) ({
                                     ChecklistOfflineScreen(scopedOfflineState, runId,
                                         onOpen = { id -> nav.navigate("control/guardados/$id") { launchSingleTop = true } },
@@ -756,6 +777,11 @@ fun App(
         evidenceQuestion?.let { question ->
             ChecklistEvidenceHost(question, evidence, evidenceState) { evidence.close(); evidenceQuestion = null }
         }
+        cleaningPhotos?.let {
+            PrivateEvidenceHost("Fotos de la limpieza", evidence, evidenceState,
+                "El registro se conserva. La foto pendiente tendrá que seleccionarse de nuevo.",
+                onClose = { evidence.close(); cleaningPhotos = null })
+        }
         incidentEvidence?.let { target ->
             PrivateEvidenceHost(if (target.stage == pe.bpm.features.media.domain.EvidenceStage.BEFORE) "Fotos de la incidencia" else "Fotos de la corrección", evidence, evidenceState,
                 onClose = { evidence.close(); incidentEvidence = null; incidents.refresh() })
@@ -787,6 +813,7 @@ private const val CHECKLIST_HISTORY_DETAIL = "control/revisiones/{runId}"
 private const val SUPERVISION_DETAIL = "seguimiento/{runId}"
 
 private const val CHECKLIST_CATALOG = "control/plantillas"
+private const val TEMPLATE_VERSIONS = "empresa/plantillas/detalle/{templateId}/versiones"
 private const val ASSIGNMENT_DETAIL = "control/programacion/{assignmentId}"
 private const val ASSIGNMENT_CREATE = "empresa/plantillas/detalle/{templateId}/asignar"
 private const val ASSIGNMENT_MANAGEMENT = "empresa/controles-programados"
@@ -816,6 +843,7 @@ private const val TRAINING_ACHIEVEMENTS = "aprender-logros"
 private const val TRAINING_PATHS = "aprender-rutas"
 private const val VERIFY_CERTIFICATE = "verificar/{codigo}"
 
+private val Int.hours get() = kotlin.time.Duration.parse("PT${this}H")
 private const val ALERT_INBOX="avisos"
 private const val ALERT_RULES="empresa/avisos"
 private const val REPORTS = "reportes"

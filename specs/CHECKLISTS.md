@@ -392,3 +392,33 @@ fallos se detallan en [OFFLINE.md](OFFLINE.md).
 La opción «Solicitar una foto cuando no cumpla» está disponible para cumplimiento
 y mediciones. `evidenceCounts` se consulta y conserva como proyección del servidor;
 no es parte del cuerpo de escritura de respuestas. Ver [MEDIA.md](MEDIA.md).
+
+## Turnos y versiones de plantilla
+
+Contrato: «Programación por turno y versiones de plantilla (V13)» de `Backend-operations-plus/specs/CHECKLISTS.md`.
+
+**Programar por turno.** El formulario de programación (`ChecklistAssignmentFormViewModel`) ofrece, con frecuencia
+`DAILY` y sede elegida, «Todo el día» o un turno activo de la sede (`RemoteChecklistShiftReader`, lectura propia para no
+depender de `features/operations`). Un turno exige frecuencia diaria y sin hora de referencia (`AssignmentInputRules`);
+cambiar de sede o de frecuencia descarta el turno. `AssignmentInput.shiftId` viaja solo si existe y se guarda en el
+borrador local. Las listas y el detalle muestran la versión de plantilla, el turno y su estado (`ShiftState`:
+Abierto, Cerrado, Próximo). Con turno, `periodStartsAt/EndsAt` y `run` corresponden a la ocurrencia elegida por el
+servidor, de modo que cada turno tiene su pendiente del día.
+
+**Errores de inicio.** `SHIFT_OUT_OF_HOURS` (422) → `RunFailure.SHIFT_OUT_OF_HOURS` («el turno no está abierto ahora»);
+`TEMPLATE_VERSION_OUTDATED` (409) → `RunFailure.TEMPLATE_OUTDATED` (actualizar catálogo y reiniciar). La UI avisa pero no
+bloquea el inicio cuando el estado listado es Cerrado o Próximo: el reloj del servidor decide. La revisión
+(`ChecklistRun`) conserva `shiftId`, `shiftName` y `templateVersionNumber`; las revisiones antiguas se siguen guardando,
+enviando y consultando con su versión aunque esté archivada.
+
+**Versiones.** Ruta `empresa/plantillas/detalle/{templateId}/versiones` (botón «Editar preguntas y ver versiones» en el
+detalle de gestión). `ChecklistVersionsViewModel` carga la versión vigente y el historial (más nueva primero), abre una
+versión archivada en lectura y permite a ADMIN editar: copia las preguntas con UUID nuevos (el backend exige UUID
+únicos incluso frente a versiones previas), reutiliza `QuestionEditor`, pide nota de cambio opcional (500) y revisa
+antes de publicar. `PublishChecklistVersion` rechaza sin llamar al servidor: base distinta de la vigente, UUID
+repetidos, rangos inválidos y «sin cambios». `versionId` es estable por intento: ante un resultado incierto se
+reintenta el mismo cuerpo (idempotente). `VERSION_CONFLICT` (409) bloquea la publicación y exige «Recargar y empezar de
+nuevo» (los cambios no se fusionan); `RESOURCE_CONFLICT` renueva `versionId` y los UUID de preguntas. El proxy
+`checklists-proxy.mjs` acepta `/checklists/{id}/versions[/{versionId}]` y proyecta resúmenes y plantillas.
+
+Pendiente: el editor de versiones no guarda borrador local.

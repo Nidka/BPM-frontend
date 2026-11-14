@@ -22,6 +22,9 @@ data class AssignmentFormState(
     val fields: Map<String, String> = emptyMap(),
     val localStatus: DraftSaveStatus = DraftSaveStatus.IDLE,
     val saved: ChecklistAssignment? = null,
+    val shifts: List<ChecklistShiftOption> = emptyList(),
+    val shiftsLoading: Boolean = false,
+    val shiftsFailed: Boolean = false,
 ) {
     val editable
         get() =
@@ -40,6 +43,7 @@ data class AssignmentFormState(
 class ChecklistAssignmentFormViewModel(
     private val create: CreateChecklistAssignment,
     private val drafts: ManageAssignmentDraft,
+    private val loadShifts: suspend (String, String) -> ShiftOptionsResult = { _, _ -> ShiftOptionsResult.Success(emptyList()) },
     private val newId: () -> String,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(AssignmentFormState())
@@ -99,16 +103,51 @@ class ChecklistAssignmentFormViewModel(
                         localStatus =
                             if (draft != null) DraftSaveStatus.SAVED else DraftSaveStatus.IDLE,
                     )
+                val restored = mutable.value.input
+                if (restored != null && restored.locationId.isNotEmpty() && restored.frequency == ChecklistFrequency.DAILY)
+                    fetchShifts(org, restored.locationId)
             }
     }
 
-    fun location(id: String, name: String) {
-        if (!mutable.value.editable) return
-        mutable.value = mutable.value.copy(locationName = name)
-        edit { it.copy(locationId = id) }
+    private var shiftJob: Job? = null
+
+    private fun fetchShifts(org: String, locationId: String) {
+        shiftJob?.cancel()
+        mutable.value = mutable.value.copy(shiftsLoading = true, shiftsFailed = false)
+        shiftJob =
+            viewModelScope.launch {
+                val result = loadShifts(org, locationId)
+                currentCoroutineContext().ensureActive()
+                mutable.value =
+                    when (result) {
+                        is ShiftOptionsResult.Success -> mutable.value.copy(shifts = result.shifts, shiftsLoading = false)
+                        is ShiftOptionsResult.Failure -> mutable.value.copy(shifts = emptyList(), shiftsLoading = false, shiftsFailed = true)
+                    }
+                // Un turno guardado que ya no está activo se descarta para no enviar un turno inválido.
+                val input = mutable.value.input
+                if (result is ShiftOptionsResult.Success && input?.shiftId != null && result.shifts.none { it.id == input.shiftId }) shift(null)
+            }
     }
 
-    fun frequency(value: ChecklistFrequency) = edit { it.copy(frequency = value) }
+    /** Elige un turno (o día completo con null); un turno implica frecuencia diaria sin hora. */
+    fun shift(id: String?) = edit { it.copy(shiftId = id, dueTime = if (id != null) "" else it.dueTime) }
+
+    fun location(id: String, name: String) {
+        if (!mutable.value.editable) return
+        mutable.value = mutable.value.copy(locationName = name, shifts = emptyList())
+        // Los turnos son de la sede: al cambiarla se descarta el turno elegido.
+        edit { it.copy(locationId = id, shiftId = null) }
+        val org = mutable.value.organizationId
+        if (org != null && mutable.value.input?.frequency == ChecklistFrequency.DAILY) fetchShifts(org, id)
+    }
+
+    fun frequency(value: ChecklistFrequency) {
+        edit { it.copy(frequency = value, shiftId = if (value == ChecklistFrequency.DAILY) it.shiftId else null) }
+        val s = mutable.value
+        val org = s.organizationId
+        val location = s.input?.locationId.orEmpty()
+        if (org != null && value == ChecklistFrequency.DAILY && location.isNotEmpty() && s.shifts.isEmpty() && !s.shiftsLoading) fetchShifts(org, location)
+    }
 
     fun dueTime(value: String) = edit { it.copy(dueTime = value.take(32)) }
 

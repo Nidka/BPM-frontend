@@ -82,6 +82,7 @@ fun OperationsForm.command(resource: OperationsResource, siteId: String?): Opera
                     v("observation"),
                     f.id,
                     f.createdAt,
+                    v("shiftId").ifEmpty { null },
                 )
             )
         OperationsResource.LOTS -> error("Solo lectura")

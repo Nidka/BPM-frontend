@@ -9,6 +9,8 @@ const text = (value, max) => typeof value === 'string' && value.length <= max;
 const date = value => text(value, 40) && Number.isFinite(Date.parse(value));
 const time = value => typeof value === 'string' && /^(?:|(?:[01][0-9]|2[0-3]):[0-5][0-9])$/.test(value);
 const frequencies = ['ONCE', 'DAILY', 'WEEKLY', 'MONTHLY'];
+const shiftStates = ['', 'OPEN', 'CLOSED', 'UPCOMING'];
+const clock = value => typeof value === 'string' && /^(?:|(?:[01][0-9]|2[0-3]):[0-5][0-9])$/.test(value);
 const error = (code, message) => JSON.stringify({ errors: [{ code, message, fields: {} }] });
 
 function assignedRun(value) {
@@ -25,12 +27,16 @@ function assignment(value, { id, period, active } = {}) {
       !text(value.templateName, 180) || !value.templateName.trim() || !text(value.locationName, 160) || !value.locationName.trim() ||
       !text(value.timezone, 100) || !value.timezone || !frequencies.includes(value.frequency) || !time(value.dueTime) || !date(value.createdAt) ||
       period && !date(value.periodStartsAt) || value.periodStartsAt != null && !date(value.periodStartsAt) ||
+      value.templateVersionNumber != null && (!Number.isInteger(value.templateVersionNumber) || value.templateVersionNumber < 1) ||
+      value.shiftId != null && value.shiftId !== '' && !identifier(value.shiftId) || !text(value.shiftName ?? '', 60) || !clock(value.shiftStartTime ?? '') || !clock(value.shiftEndTime ?? '') ||
+      !shiftStates.includes(value.shiftState ?? '') || Boolean(value.shiftId) !== Boolean(value.shiftState) ||
       value.periodEndsAt != null && (!date(value.periodEndsAt) || !date(value.periodStartsAt) || Date.parse(value.periodEndsAt) <= Date.parse(value.periodStartsAt)))
     throw new Error('Programación inválida');
   return { id: value.id, templateId: value.templateId, templateVersionId: value.templateVersionId, templateName: value.templateName,
     locationId: value.locationId, locationName: value.locationName, timezone: value.timezone, frequency: value.frequency,
     dueTime: value.dueTime, active: value.active, createdAt: value.createdAt, periodStartsAt: value.periodStartsAt ?? null,
-    periodEndsAt: value.periodEndsAt ?? null, run: value.run == null ? null : assignedRun(value.run) };
+    periodEndsAt: value.periodEndsAt ?? null, templateVersionNumber: value.templateVersionNumber ?? 0, shiftId: value.shiftId ?? '', shiftName: value.shiftName ?? '',
+    shiftStartTime: value.shiftStartTime ?? '', shiftEndTime: value.shiftEndTime ?? '', shiftState: value.shiftState ?? '', run: value.run == null ? null : assignedRun(value.run) };
 }
 
 /** Lista cerrada de operaciones; los permisos y períodos se resuelven únicamente en el backend. */
@@ -59,10 +65,11 @@ export async function proxyChecklistAssignment(request, url, upstream, send, res
       return send(415, error('UNSUPPORTED_MEDIA_TYPE', 'Envía una solicitud JSON.'));
     try {
       input = await readPayload(request, 4096);
-      const fields = action ? [] : ['id', 'templateId', 'locationId', 'frequency', 'dueTime'];
+      const fields = action ? [] : ['id', 'templateId', 'locationId', 'frequency', 'dueTime', 'shiftId'];
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !fields.includes(key)))
         throw new Error('Campos no permitidos');
-      if (!action && (!['id', 'templateId', 'locationId'].every(key => identifier(input[key])) || !frequencies.includes(input.frequency) || !time(input.dueTime ?? '')))
+      if (!action && (!['id', 'templateId', 'locationId'].every(key => identifier(input[key])) || !frequencies.includes(input.frequency) || !time(input.dueTime ?? '') ||
+          input.shiftId !== undefined && (!identifier(input.shiftId) || input.frequency !== 'DAILY' || input.dueTime)))
         throw new Error('Programación inválida');
       body = JSON.stringify(input); headers['Content-Type'] = 'application/json';
     } catch { return send(400, error('INVALID_REQUEST', 'Revisa los datos de la programación.')); }
@@ -82,7 +89,7 @@ export async function proxyChecklistAssignment(request, url, upstream, send, res
       }
       const value = assignment(payload.data, { id: id || input.id, period: method === 'GET', active: action ? false : undefined });
       if (input && !action && (value.templateId !== input.templateId || value.locationId !== input.locationId ||
-          value.frequency !== input.frequency || value.dueTime !== (input.dueTime ?? '') || !value.active)) throw new Error('Confirmación distinta');
+          value.frequency !== input.frequency || value.dueTime !== (input.dueTime ?? '') || (value.shiftId ?? '') !== (input.shiftId ?? '') || !value.active)) throw new Error('Confirmación distinta');
       return send(200, JSON.stringify({ data: value }));
     }
     const failures = {

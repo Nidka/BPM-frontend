@@ -27,6 +27,7 @@ import pe.bpm.features.checklists.data.RemoteChecklistHistoryRepository
 import pe.bpm.features.checklists.presentation.ChecklistHistoryViewModel
 import pe.bpm.features.checklists.data.RemoteChecklistRunRepository
 import pe.bpm.features.checklists.data.RemoteChecklistAssignmentRepository
+import pe.bpm.features.checklists.data.RemoteChecklistShiftReader
 import pe.bpm.features.checklists.data.LocalChecklistAssignmentDraftRepository
 import pe.bpm.features.checklists.presentation.ChecklistAssignmentsViewModel
 import pe.bpm.features.checklists.presentation.ChecklistAssignmentFormViewModel
@@ -131,7 +132,18 @@ class AppGraph(
         LoadChecklistAssignment(assignmentRepository), DeactivateChecklistAssignment(assignmentRepository))
     @OptIn(ExperimentalUuidApi::class)
     fun checklistAssignmentFormViewModel() = ChecklistAssignmentFormViewModel(
-        CreateChecklistAssignment(assignmentRepository, assignmentRepository), assignmentDrafts) { Uuid.random().toString() }
+        CreateChecklistAssignment(assignmentRepository, assignmentRepository), assignmentDrafts,
+        { org, location -> checklistShiftReader.shifts(org, location) }) { Uuid.random().toString() }
+    private val checklistShiftReader = RemoteChecklistShiftReader(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    private val versionRepository = pe.bpm.features.checklists.data.RemoteChecklistVersionRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
+    fun checklistVersionsViewModel() = pe.bpm.features.checklists.presentation.ChecklistVersionsViewModel(
+        LoadChecklistTemplate(checklistRepository), LoadChecklistVersions(versionRepository), LoadChecklistVersion(versionRepository),
+        PublishChecklistVersion(versionRepository)) { Uuid.random().toString() }
     @OptIn(ExperimentalUuidApi::class)
     fun checklistRunViewModel() = ChecklistRunViewModel(LoadChecklistRun(runRepository), StartChecklistRun(runRepository),
         SaveChecklistRun(runRepository), SubmitChecklistRun(runRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, runDrafts)
@@ -141,8 +153,21 @@ class AppGraph(
         token = identityRepository::validSessionToken)
     private val operationsDrafts = ManageOperationsDraft(LocalOperationsDraftRepository(draftStorage, config.apiBaseUrl))
     @OptIn(ExperimentalUuidApi::class)
+    private val shiftsRepository = pe.bpm.features.operations.data.RemoteShiftsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    private val manageShifts = pe.bpm.features.operations.domain.ManageShifts(shiftsRepository)
+    private val stockRepository = pe.bpm.features.operations.data.RemoteStockRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    @OptIn(ExperimentalUuidApi::class)
     fun operationsViewModel() = OperationsViewModel(ManageOperations(operationsRepository, operationsRepository), operationsDrafts,
-        { Uuid.random().toString() }, { Clock.System.now().toString() })
+        { Uuid.random().toString() }, { Clock.System.now().toString() }, { org, site, role -> manageShifts.list(org, site, role, false) })
+    @OptIn(ExperimentalUuidApi::class)
+    fun shiftsViewModel() = pe.bpm.features.operations.presentation.ShiftsViewModel(manageShifts) { Uuid.random().toString() }
+    @OptIn(ExperimentalUuidApi::class)
+    fun stockMovementsViewModel() = pe.bpm.features.operations.presentation.StockMovementsViewModel(
+        pe.bpm.features.operations.domain.ManageStock(stockRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
 
 
     private val incidentsRepository = pe.bpm.features.incidents.data.RemoteIncidentsRepository(httpClient, config,

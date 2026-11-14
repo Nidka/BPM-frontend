@@ -33,6 +33,7 @@ fun ChecklistCatalogScreen(
     management: Boolean = false,
     onStart: ((String) -> Unit)? = null,
     onAssign: ((String) -> Unit)? = null,
+    onVersions: ((String) -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (templateId == null && !management) BpmIntroCard("Cada criterio cuenta.",
@@ -41,7 +42,7 @@ fun ChecklistCatalogScreen(
             when {
                 state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
                 state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
-                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null)
+                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
                 else -> Text("Cargando plantilla…")
             }
             return@Column
@@ -97,10 +98,11 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSele
 
 /** Consulta de una versión publicada; la raíz coordina su ruta y el regreso al catálogo. */
 @Composable
-private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> Unit)?, onAssign: ((String) -> Unit)?) {
+private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> Unit)?, onAssign: ((String) -> Unit)?, onVersions: ((String) -> Unit)? = null) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (onStart != null) RaisedButton("Preparar revisión", { onStart(template.id) })
         if (onAssign != null) RaisedButton("Programar en una sede", { onAssign(template.id) }, Modifier.fillMaxWidth())
+        if (onVersions != null) BpmSecondaryButton(onClick = { onVersions(template.id) }) { Text("Editar preguntas y ver versiones") }
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
             Text("DETALLE DEL CONTROL", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(template.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,

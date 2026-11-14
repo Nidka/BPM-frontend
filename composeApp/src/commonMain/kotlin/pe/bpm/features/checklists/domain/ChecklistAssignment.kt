@@ -35,6 +35,14 @@ data class ChecklistAssignment(
     val periodStartsAt: String? = null,
     val periodEndsAt: String? = null,
     val run: AssignedChecklistRun? = null,
+    /** Número de la versión de plantilla vigente al programar; 0 en servidores anteriores. */
+    val templateVersionNumber: Int = 0,
+    val shiftId: String = "",
+    val shiftName: String = "",
+    val shiftStartTime: String = "",
+    val shiftEndTime: String = "",
+    /** Nulo cuando la programación es de día completo. */
+    val shiftState: ShiftState? = null,
 )
 
 data class AssignmentInput(
@@ -43,6 +51,8 @@ data class AssignmentInput(
     val locationId: String = "",
     val frequency: ChecklistFrequency? = null,
     val dueTime: String = "",
+    /** Solo con frecuencia diaria; el servidor valida que el turno sea de la sede. */
+    val shiftId: String? = null,
 )
 
 enum class AssignmentFailure {
@@ -105,6 +115,12 @@ object AssignmentInputRules {
             put("locationId", "Selecciona la sede donde se realizará el control.")
         if (input.frequency == null) put("frequency", "Selecciona cuándo se repetirá el control.")
         time.error(input.dueTime)?.let { put("dueTime", it) }
+        if (input.shiftId != null) {
+            if (input.frequency != ChecklistFrequency.DAILY)
+                put("frequency", "Un control por turno se repite cada día.")
+            if (input.dueTime.isNotEmpty())
+                put("dueTime", "Con un turno no se indica hora de referencia.")
+        }
     }
 }
 
@@ -131,7 +147,8 @@ fun ChecklistAssignment.matches(input: AssignmentInput) =
         templateId == input.templateId &&
         locationId == input.locationId &&
         frequency == input.frequency &&
-        dueTime == input.dueTime
+        dueTime == input.dueTime &&
+        (shiftId.ifEmpty { null }) == input.shiftId
 
 class DeactivateChecklistAssignment(private val writer: ChecklistAssignmentWriter) {
     suspend operator fun invoke(org: String, id: String) = writer.deactivate(org, id)

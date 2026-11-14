@@ -58,74 +58,8 @@ class RemoteOperationsRepository(
             OperationsResult.Failure(OperationsFailure.CONNECTION)
         }
 
-    private suspend fun failure(response: HttpResponse, access: String): OperationsResult.Failure {
-        if (response.status.value == 401) onSessionRejected(access)
-        val reason =
-            when (response.status.value) {
-                400 -> OperationsFailure.INVALID
-                401 -> OperationsFailure.SESSION
-                403 -> OperationsFailure.DENIED
-                404 -> OperationsFailure.NOT_FOUND
-                409 -> OperationsFailure.CONFLICT
-                422 -> OperationsFailure.INVALID
-                429 -> OperationsFailure.RATE_LIMITED
-                else -> OperationsFailure.UNAVAILABLE
-            }
-        val fields =
-            if (reason == OperationsFailure.INVALID) {
-                val body =
-                    try {
-                        response.body<ErrorEnvelope>()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        null
-                    }
-                val allowed =
-                    setOf(
-                        "name",
-                        "taxId",
-                        "contactName",
-                        "contactPhone",
-                        "contactEmail",
-                        "address",
-                        "category",
-                        "unit",
-                        "requiresTemperature",
-                        "minimumTemperature",
-                        "maximumTemperature",
-                        "rowVersion",
-                        "locationId",
-                        "supplierId",
-                        "receivedAt",
-                        "documentReference",
-                        "notes",
-                        "items",
-                        "area",
-                        "task",
-                        "instructions",
-                        "productName",
-                        "frequency",
-                        "dueTime",
-                        "cleaningPlanId",
-                        "executedAt",
-                        "result",
-                        "observation",
-                        "clientCreatedAt",
-                    )
-                val itemField =
-                    Regex(
-                        """items\.(?:[0-9]|[1-4][0-9])\.(?:productId|batchCode|expirationDate|quantity|temperatureCelsius|decision|rejectionReason|packagingCondition|storageLocation|label)"""
-                    )
-                body
-                    ?.errors
-                    .orEmpty()
-                    .flatMap { it.fields.keys }
-                    .filter { it in allowed || itemField.matches(it) }
-                    .associateWith { "Revisa este campo y vuelve a intentar." }
-            } else emptyMap()
-        return OperationsResult.Failure(reason, fields)
-    }
+    private suspend fun failure(response: HttpResponse, access: String): OperationsResult.Failure =
+        operationsFailure(response, access, onSessionRejected)
 
     override suspend fun authorize(
         org: String,
@@ -383,11 +317,6 @@ class RemoteOperationsRepository(
 
 @Serializable
 private data class Envelope<T>(val data: T, val pagination: PageMetadata = PageMetadata())
-
-@Serializable private data class ErrorEnvelope(val errors: List<ErrorItem> = emptyList())
-
-@Serializable
-private data class ErrorItem(val code: String = "", val fields: Map<String, String> = emptyMap())
 
 /** Las marcas ISO equivalentes se comparan como instantes; el cuerpo duradero nunca se modifica. */
 private fun comparablePayload(value: JsonElement): JsonElement =

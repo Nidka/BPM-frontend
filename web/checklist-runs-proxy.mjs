@@ -24,7 +24,9 @@ function run(value, org, id) {
   if (!evidenceCounts || typeof evidenceCounts !== 'object' || Array.isArray(evidenceCounts) ||
       Object.keys(evidenceCounts).length > 100 || Object.entries(evidenceCounts).some(([item, count]) =>
         !value.items.some(question => question.id === item) || !Number.isInteger(count) || count < 0 || count > 3)) throw new Error('Fotos inválidas');
-  return { id: value.id, organizationId: org, assignmentId: value.assignmentId ?? '', locationId: value.locationId, templateVersionId: value.templateVersionId, performedBy: value.performedBy,
+  if (value.shiftId != null && value.shiftId !== '' && !identifier(value.shiftId) || !text(value.shiftName ?? '', 60) ||
+      value.templateVersionNumber != null && (!Number.isInteger(value.templateVersionNumber) || value.templateVersionNumber < 1)) throw new Error('Turno inválido');
+  return { id: value.id, organizationId: org, assignmentId: value.assignmentId ?? '', shiftId: value.shiftId ?? '', shiftName: value.shiftName ?? '', templateVersionNumber: value.templateVersionNumber ?? 0, locationId: value.locationId, templateVersionId: value.templateVersionId, performedBy: value.performedBy,
     templateName: value.templateName ?? '', locationName: value.locationName ?? '', createdAt: value.createdAt ?? '', submittedAt: value.submittedAt ?? null, performedByName: value.performedByName ?? '',
     status: value.status, rowVersion: value.rowVersion, evidenceCounts, items: value.items.map(publicItem), answers: value.answers.map(answer), compliancePercent: value.compliancePercent ?? null };
 }
@@ -87,10 +89,14 @@ export async function proxyChecklistRun(request, url, upstream, send, response) 
     const failures = { 400: ['INVALID_REQUEST', 'Revisa los datos.'], 401: ['UNAUTHENTICATED', 'Inicia sesión nuevamente.'], 403: ['ACCESS_DENIED', 'No tienes permiso para este control.'],
       404: ['NOT_FOUND', 'El control no está disponible.'], 409: ['VERSION_CONFLICT', 'El control cambió. Revisa la versión guardada antes de continuar.'],
       422: ['VALIDATION_ERROR', 'Revisa las respuestas y los campos obligatorios.'], 429: ['RATE_LIMITED', 'Espera un momento antes de reintentar.'] };
+    if (result.status === 422) {
+      const payload = await readPayload(result.body);
+      if (payload?.errors?.[0]?.code === 'SHIFT_OUT_OF_HOURS') return send(422, error('SHIFT_OUT_OF_HOURS', 'El turno de este control no está abierto ahora. Inícialo dentro del horario del turno.'));
+    }
     if (result.status === 409) {
       const payload = await readPayload(result.body);
       const code = payload?.errors?.[0]?.code;
-      const messages = { ASSIGNMENT_REQUIRED: 'Abre el control programado de esta sede.', ASSIGNMENT_ALREADY_STARTED: 'El control de este período ya está iniciado. Consulta su revisión.' };
+      const messages = { TEMPLATE_VERSION_OUTDATED: 'La plantilla tiene una versión nueva. Actualiza el catálogo y vuelve a iniciar.', ASSIGNMENT_REQUIRED: 'Abre el control programado de esta sede.', ASSIGNMENT_ALREADY_STARTED: 'El control de este período ya está iniciado. Consulta su revisión.' };
       if (Object.hasOwn(messages, code)) return send(409, error(code, messages[code]));
     }
     const failure = failures[result.status];

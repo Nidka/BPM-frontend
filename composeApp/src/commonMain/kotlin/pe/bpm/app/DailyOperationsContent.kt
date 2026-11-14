@@ -8,8 +8,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
+import pe.bpm.features.operations.domain.CleaningExecution
+import pe.bpm.features.operations.domain.ShiftAccess
+import pe.bpm.features.operations.domain.StockAccess
 import pe.bpm.features.operations.presentation.OperationsScreen
 import pe.bpm.features.operations.presentation.OperationsViewModel
+import pe.bpm.features.operations.presentation.ShiftsScreen
+import pe.bpm.features.operations.presentation.ShiftsViewModel
+import pe.bpm.features.operations.presentation.StockMovementsScreen
+import pe.bpm.features.operations.presentation.StockMovementsViewModel
 import pe.bpm.features.workspace.presentation.WorkspaceState
 import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 
@@ -23,6 +30,9 @@ internal fun DailyOperationsContent(
     operations: OperationsViewModel,
     modifier: Modifier = Modifier,
  sourceSiteId:String?=null,sourceSiteName:String="",sourceReceiptId:String?=null,
+    shifts: ShiftsViewModel? = null,
+    stock: StockMovementsViewModel? = null,
+    onCleaningPhotos: ((CleaningExecution) -> Unit)? = null,
 ) {
     val org = workspace.workspace?.organization?.id ?: return
     var siteId by rememberSaveable(userId, org) { mutableStateOf<String?>(sourceSiteId) }
@@ -34,6 +44,18 @@ internal fun DailyOperationsContent(
         if(sourceReceiptId!=null && siteId==sourceSiteId) operations.receiptDetail(sourceReceiptId)
     }
     DisposableEffect(operations, userId, org) { onDispose { operations.reset() } }
+    // Secciones adicionales: turnos (todos menos WORKER) y movimientos de stock (supervisión y CHEF).
+    val showShifts = shifts != null && role != "WORKER" && ShiftAccess.canRead(role)
+    val showStock = stock != null && StockAccess.canView(role)
+    var section by rememberSaveable(userId, org) { mutableStateOf("daily") }
+    LaunchedEffect(userId, org, role, siteId, showShifts, showStock) {
+        if (showShifts) shifts?.open(userId, org, role, siteId)
+        if (showStock) stock?.open(userId, org, role, siteId)
+    }
+    DisposableEffect(shifts, stock, userId, org) { onDispose { shifts?.reset(); stock?.reset() } }
+    val stockState = stock?.state?.collectAsStateWithLifecycle()?.value
+    // Un movimiento confirmado cambia el saldo: se vuelve a consultar el stock PEPS.
+    LaunchedEffect(stockState?.saved?.input?.id) { if (stockState?.saved != null) operations.refresh() }
     LaunchedEffect(state.resource, state.siteId) {
         if (state.resource.needsSite && siteId == null) choosingSite = true
     }
@@ -67,13 +89,27 @@ internal fun DailyOperationsContent(
             ) {
                 Text(if (siteId == null) "Elegir sede" else "Cambiar sede")
             }
-            if (
+            if ((showShifts || showStock) && state.form == null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(section == "daily", { section = "daily" }, label = { Text("Operación") })
+                    if (showStock) FilterChip(section == "stock", { section = "stock" }, label = { Text("Consumos y descartes") })
+                    if (showShifts) FilterChip(section == "shifts", { section = "shifts" }, label = { Text("Turnos") })
+                }
+            }
+            if (section == "stock" && showStock && state.form == null) StockMovementsScreen(stock!!, Modifier.weight(1f))
+            else if (section == "shifts" && showShifts && state.form == null) ShiftsScreen(shifts!!, Modifier.weight(1f))
+            else if (
                 state.userId == userId &&
                     state.organizationId == org &&
                     state.role == role &&
                     state.siteId == siteId
             )
-                OperationsScreen(operations, Modifier.weight(1f))
+                OperationsScreen(
+                    operations,
+                    Modifier.weight(1f),
+                    onLotMovement = if (showStock && stock != null) { lot -> stock.start(lot); section = "stock" } else null,
+                    onCleaningPhotos = onCleaningPhotos,
+                )
             else LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }

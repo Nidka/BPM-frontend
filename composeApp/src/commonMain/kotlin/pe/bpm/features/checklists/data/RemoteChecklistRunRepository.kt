@@ -56,11 +56,12 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
             } else {
                 if (response.status.value == 401) onSessionRejected(access)
                 RunResult.Failure(when (response.status.value) {
-                    400, 422 -> RunFailure.INVALID
+                    422 -> if (runCode(response) == "SHIFT_OUT_OF_HOURS") RunFailure.SHIFT_OUT_OF_HOURS else RunFailure.INVALID
+                    400 -> RunFailure.INVALID
                     401 -> RunFailure.SESSION
                     403 -> RunFailure.DENIED
                     404 -> RunFailure.NOT_FOUND
-                    409 -> when(response.body<RunErrorsDto>().errors.firstOrNull()?.code){"ASSIGNMENT_REQUIRED"->RunFailure.ASSIGNMENT_REQUIRED;"ASSIGNMENT_ALREADY_STARTED"->RunFailure.ASSIGNMENT_STARTED;else->RunFailure.CONFLICT}
+                    409 -> when(response.body<RunErrorsDto>().errors.firstOrNull()?.code){"ASSIGNMENT_REQUIRED"->RunFailure.ASSIGNMENT_REQUIRED;"ASSIGNMENT_ALREADY_STARTED"->RunFailure.ASSIGNMENT_STARTED;"TEMPLATE_VERSION_OUTDATED"->RunFailure.TEMPLATE_OUTDATED;else->RunFailure.CONFLICT}
                     429 -> RunFailure.RATE_LIMITED
                     else -> RunFailure.UNAVAILABLE
                 })
@@ -73,6 +74,8 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         } catch (_: Throwable) { RunResult.Failure(RunFailure.CONNECTION) }
     }
 }
+/** Código de negocio del rechazo; un cuerpo ausente o ilegible no altera el motivo genérico. */
+private suspend fun runCode(response: HttpResponse): String = try { response.body<RunErrorsDto>().errors.firstOrNull()?.code.orEmpty() } catch (e: CancellationException) { throw e } catch (_: Exception) { "" }
 @Serializable private data class RunErrorsDto(val errors:List<RunErrorDto> = emptyList())
 @Serializable private data class RunErrorDto(val code:String="")
 @Serializable private data class StartRunDto(val id: String, val locationId: String, val templateVersionId: String, val clientOperationId: String, val clientCreatedAt: String,val assignmentId:String="")
@@ -83,7 +86,8 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
 }
 @Serializable private data class RunEnvelopeDto(val data: RunDto)
 @Serializable internal data class RunDto(val id: String, val organizationId: String, val locationId: String, val templateVersionId: String,
-    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",val assignmentId:String="", val evidenceCounts: Map<String, Int> = emptyMap()) {
+    val performedBy: String, val status: String, val rowVersion: Int, val items: List<ItemDto>, val answers: List<AnswerDto>, val compliancePercent: Double? = null, val templateName: String = "", val locationName: String = "", val createdAt: String = "", val submittedAt: String? = null, val performedByName: String = "",val assignmentId:String="", val evidenceCounts: Map<String, Int> = emptyMap(),
+    val shiftId: String = "", val shiftName: String = "", val templateVersionNumber: Int = 0) {
     fun domain(): ChecklistRun {
         require(listOf(id, organizationId, locationId, templateVersionId, performedBy).all { it.isNotBlank() })
         require(templateName.length <= 180 && locationName.length <= 200)
@@ -98,10 +102,10 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
         require(compliancePercent == null || compliancePercent.isFinite() && compliancePercent in 0.0..100.0)
         require(status != "SUBMITTED" || compliancePercent != null)
         require(assignmentId.isEmpty()||assignmentId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
-        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId,evidenceCounts)
+        return ChecklistRun(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion, questions, values, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId,evidenceCounts, shiftId, shiftName, templateVersionNumber)
     }
 }
 
 internal fun ChecklistAnswer.dto() = AnswerDto(itemId, complianceResult, textValue, numericValue, observation)
 internal fun ChecklistRun.dto() = RunDto(id, organizationId, locationId, templateVersionId, performedBy, status, rowVersion,
-    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId,evidenceCounts)
+    items.map { it.dto() }, answers.map { it.dto() }, compliancePercent, templateName, locationName, createdAt, submittedAt, performedByName,assignmentId,evidenceCounts, shiftId, shiftName, templateVersionNumber)
