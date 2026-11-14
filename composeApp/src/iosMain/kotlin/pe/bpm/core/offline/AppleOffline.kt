@@ -68,7 +68,7 @@ class ApplePrivateFileStore : PrivateFileStore {
         val base = NSFileManager.defaultManager.URLForDirectory(NSApplicationSupportDirectory, NSUserDomainMask, null, true, null)!!
         val directory = base.URLByAppendingPathComponent("bpm-offline-files-v1", true)!!
         check(NSFileManager.defaultManager.createDirectoryAtURL(directory, true, null, null))
-        check(directory.setResourceValue(NSNumber(value = true), NSURLIsExcludedFromBackupKey, null))
+        check(directory.setResourceValue(NSNumber.numberWithBool(true), NSURLIsExcludedFromBackupKey, null))
         return directory
     }
     private fun url(ref: String): NSURL {
