@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 
 class PersistentUsageEventQueueTest {
     private fun item(n: Int, user: String = "user-1", org: String = "org1") = QueuedUsageEvent(user, org,
-        UsageEvent("event-$n", "session", UsageEventType.MODULE_VISIT, UsageModule.ALERTS, "2026-01-01T00:00:%02dZ".format(n), null))
+        UsageEvent("event-$n", "session", UsageEventType.MODULE_VISIT, UsageModule.ALERTS, "2026-01-01T00:00:${n.toString().padStart(2, '0')}Z", null))
 
     @Test fun eventsSurviveRestartAndKeepOrder() = runTest {
         val h = OfflineHarness(); h.login()

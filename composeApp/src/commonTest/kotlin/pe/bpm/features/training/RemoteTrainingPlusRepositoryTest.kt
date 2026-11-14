@@ -138,8 +138,9 @@ class RemoteTrainingPlusRepositoryTest {
     }
 
     @Test fun myAssignmentsRejectInventedStatesAndDuplicatedCourses() = runTest {
-        val item = """{"assignmentId":"$ASSIGNMENT_ID","course":{"id":"$COURSE_ID","code":"M-01","title":"Higiene"},"assignedAt":"$STAMP","status":"%s","progressStatus":"NOT_STARTED"}"""
-        for (payload in listOf("""{"data":{"items":[${item.format("RARO")}]}}""", """{"data":{"items":[${item.format("PENDING")},${item.format("PENDING")}]}}""")) {
+        // String.format no existe en Kotlin/Native: se arma el JSON con una función.
+        fun item(status: String) = """{"assignmentId":"$ASSIGNMENT_ID","course":{"id":"$COURSE_ID","code":"M-01","title":"Higiene"},"assignedAt":"$STAMP","status":"$status","progressStatus":"NOT_STARTED"}"""
+        for (payload in listOf("""{"data":{"items":[${item("RARO")}]}}""", """{"data":{"items":[${item("PENDING")},${item("PENDING")}]}}""")) {
             assertEquals(TrainingResult.Failure(TrainingFailure.INVALID_RESPONSE), plus(MockEngine { respond(payload, HttpStatusCode.OK, json) }).myAssignments("org", null))
         }
     }
