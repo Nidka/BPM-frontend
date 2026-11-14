@@ -22,6 +22,7 @@ class OperationsViewModel(
         { _, _, _ ->
             OperationsResult.Success(emptyList())
         },
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(OperationsState())
     val state = mutable.asStateFlow()
@@ -111,12 +112,23 @@ class OperationsViewModel(
         job =
             viewModelScope.launch {
                 val result =
-                    operations.list(
-                        org,
-                        s.siteId,
-                        s.role,
-                        s.resource,
-                        PageRequest(s.token, s.query),
+                    localFirst.read(
+                        isUsable = { it is OperationsResult.Success },
+                        onLocal = { local ->
+                            if (s.rows.isEmpty()) {
+                                val page = (local as OperationsResult.Success).value
+                                mutable.value = mutable.value.copy(rows = page.items, nextToken = page.nextToken)
+                            }
+                        },
+                        load = {
+                            operations.list(
+                                org,
+                                s.siteId,
+                                s.role,
+                                s.resource,
+                                PageRequest(s.token, s.query),
+                            )
+                        },
                     )
                 currentCoroutineContext().ensureActive()
                 when (result) {
@@ -731,7 +743,18 @@ class OperationsViewModel(
                                 failure = if (cleared) null else OperationsFailure.LOCAL,
                             )
                     }
-                    is OperationsResult.Failure -> {
+                    // Sin conexión: el registro quedó en la Outbox con su clave estable. Es un éxito local pendiente:
+                    // se retira el borrador, se cierra el formulario y la lista muestra «Pendiente de enviar».
+                    is OperationsResult.Failure -> if (result.reason == OperationsFailure.QUEUED) {
+                        val cleared = saveWriter.flush(null)
+                        currentCoroutineContext().ensureActive()
+                        if (!cleared) {
+                            mutable.value = mutable.value.copy(busy = false, failure = OperationsFailure.LOCAL)
+                            return@launch
+                        }
+                        finishForm()
+                        mutable.value = mutable.value.copy(notice = "Guardado en este dispositivo. Se enviará cuando recuperes la conexión.")
+                    } else {
                         if (hideIfAccessRejected(result.reason)) return@launch
                         val uncertain = !result.reason.definitive
                         mutable.value =

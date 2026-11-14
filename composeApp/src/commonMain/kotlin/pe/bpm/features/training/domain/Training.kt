@@ -11,7 +11,8 @@ data class TrainingCourseInfo(
 
 data class TrainingVersionInfo(val id: String, val versionNumber: Int, val passingScore: Int)
 
-data class LessonVideo(val mediaId: String, val mimeType: String, val sizeBytes: Long)
+/** [sha256] solo viene en el catálogo descargable; con él se verifica el archivo guardado. */
+data class LessonVideo(val mediaId: String, val mimeType: String, val sizeBytes: Long, val sha256: String? = null)
 
 /** Video externo de YouTube: el contrato solo entrega el identificador, nunca una URL. */
 data class ExternalVideo(val videoId: String) {
@@ -29,6 +30,8 @@ data class TrainingLesson(
     val video: LessonVideo?,
     /** Alternativa en línea al video privado; una lección tiene como máximo uno de los dos. */
     val externalVideo: ExternalVideo? = null,
+    /** false para videos de YouTube: solo se ven con conexión. */
+    val offlineAvailable: Boolean = true,
 )
 
 /** Pregunta de la vista de aprendizaje: por contrato nunca trae la respuesta ni la explicación. */
@@ -59,6 +62,8 @@ data class TrainingCourse(
     val questions: List<TrainingQuestion>,
     val progress: TrainingProgress,
     val certificate: TrainingCertificate?,
+    /** Instante (ms) en que se guardó esta copia local cuando no se pudo consultar al servidor; null si es reciente. */
+    val cachedAt: Long? = null,
 ) {
     /** Lección desde la cual se retoma: la última vista si sigue publicada o la primera (RF-11). */
     fun resumeLesson(): TrainingLesson? =
@@ -66,7 +71,7 @@ data class TrainingCourse(
 }
 
 /** URL firmada temporal de reproducción. Solo vive en memoria; nunca se guarda ni se registra. */
-data class VideoTicket(val url: String, val mimeType: String, val expiresAt: String)
+data class VideoTicket(val url: String, val mimeType: String, val expiresAt: String, val local: Boolean = false)
 
 /** Resultado de practicar en modo estudio: informativo, sin puntaje ni persistencia. */
 data class StudyFeedback(val correct: Boolean, val correctOption: Int, val explanation: String)
@@ -115,7 +120,9 @@ data class AttemptOutcome(
 enum class TrainingFailure {
     CONNECTION, SESSION, DENIED, NOT_FOUND, VERSION_OUTDATED, CONFLICT, DRAFT_CONFLICT, CODE_TAKEN,
     ANSWERS_INVALID, DRAFT_INCOMPLETE, INVALID, CONTENT_INVALID, TOO_LARGE, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE,
-    ASSIGNMENT_EXISTS, PATH_CONFLICT, PATH_ARCHIVED, COURSE_NOT_PUBLISHED;
+    ASSIGNMENT_EXISTS, PATH_CONFLICT, PATH_ARCHIVED, COURSE_NOT_PUBLISHED,
+    /** La operación quedó guardada en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+    QUEUED;
 
     /** Un reintento con el mismo cuerpo puede resolver el fallo sin riesgo de duplicar. */
     val retryable: Boolean

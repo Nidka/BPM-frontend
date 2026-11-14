@@ -20,6 +20,59 @@ import pe.bpm.core.designsystem.EmptyState
 /** true cuando hay red. Las pantallas que exigen servidor deshabilitan sus acciones y lo explican. */
 val LocalOnline = compositionLocalOf { true }
 
+/**
+ * true dentro de [ServerOnly]: las acciones principales (RaisedButton y BpmSecondaryButton) se deshabilitan sin
+ * conexión. Lo leen los botones del sistema de diseño; las pantallas no necesitan cambiar cada botón.
+ */
+val LocalServerOnlyActions = compositionLocalOf { false }
+
+/** true cuando una acción que requiere servidor debe estar deshabilitada por falta de conexión. */
+@Composable
+fun serverActionBlocked(): Boolean = LocalServerOnlyActions.current && !LocalOnline.current
+
+/**
+ * Envuelve una pantalla administrativa que solo funciona con servidor (crear organización, invitaciones, publicar,
+ * reportes, configuración, turnos…): sin conexión explica el motivo y deshabilita sus acciones principales.
+ */
+@Composable
+fun ServerOnly(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    CompositionLocalProvider(LocalServerOnlyActions provides true) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OfflineRequiredNotice()
+            content()
+        }
+    }
+}
+
+/** Cambios sin enviar de la cuenta activa; las pantallas lo leen para marcar registros «Pendiente de enviar». */
+val LocalPendingMarks = compositionLocalOf { PendingMarks() }
+
+/** Etiqueta «Pendiente de enviar» para el registro [entityId] si tiene cambios hechos sin conexión. */
+@Composable
+fun PendingBadge(entityId: String, modifier: Modifier = Modifier) {
+    val marks = LocalPendingMarks.current
+    if (marks.isPending(entityId)) {
+        Text(if (marks.all.any { it.entityId.equals(entityId, true) && it.needsReview }) "Necesita tu revisión" else "Pendiente de enviar",
+            modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.tertiary)
+    }
+}
+
+/**
+ * Sección «Pendiente de enviar» con lo registrado sin conexión para estos recursos (altas que todavía no
+ * existen en el servidor, como una recepción o una incidencia). No ocupa espacio si no hay nada.
+ */
+@Composable
+fun PendingOperationsNotice(vararg resources: String, modifier: Modifier = Modifier) {
+    val pending = LocalPendingMarks.current.forResource(*resources)
+    if (pending.isEmpty()) return
+    BpmCard(modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
+        Text("Pendiente de enviar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        pending.forEach { Text("• " + it.title + if (it.needsReview) " (necesita tu revisión)" else "", style = MaterialTheme.typography.bodyMedium) }
+        Text("Se enviará al recuperar la conexión.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 /** Motivo que se muestra junto a una acción deshabilitada por falta de conexión. */
 const val OFFLINE_REQUIRED_MESSAGE = "Esta acción necesita conexión a internet. Vuelve a intentarlo cuando estés en línea."
 

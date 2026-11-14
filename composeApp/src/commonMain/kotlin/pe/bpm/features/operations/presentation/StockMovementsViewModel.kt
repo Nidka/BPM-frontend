@@ -59,6 +59,8 @@ data class StockState(
     val fields: Map<String, String> = emptyMap(),
     val form: StockForm? = null,
     val saved: StockMovement? = null,
+    /** Aviso positivo, p. ej. «Guardado en este dispositivo; se enviará al conectarte». */
+    val notice: String? = null,
 ) {
     val canRecord get() = StockAccess.canRecord(role)
 }
@@ -200,7 +202,12 @@ class StockMovementsViewModel(
                         mutable.value = mutable.value.copy(busy = false, form = null, saved = result.value)
                         refresh()
                     }
-                    is OperationsResult.Failure -> {
+                    // Sin conexión: el movimiento quedó en la Outbox con su UUID estable (éxito local pendiente).
+                    is OperationsResult.Failure -> if (result.reason == OperationsFailure.QUEUED) {
+                        mutable.value = mutable.value.copy(busy = false, form = null, failure = null,
+                            notice = "Guardado en este dispositivo. Se enviará cuando recuperes la conexión.")
+                        refresh()
+                    } else {
                         val definitive = result.reason.definitive
                         mutable.value =
                             mutable.value.copy(

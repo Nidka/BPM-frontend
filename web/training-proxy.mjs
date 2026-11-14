@@ -17,8 +17,8 @@ async function readPayload(body, maximum = 4 * 1024 * 1024) {
 
 const idPattern = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
 const route = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/training/(?:(courses)(?:/(${idPattern})(?:/(draft|publish|progress|study/answers|attempts|lessons/(${idPattern})/video))?)?|videos/(?:(uploads)|(${idPattern})/(confirm)))$`);
-// Rutas ampliadas: asignaciones, insignias y rutas de aprendizaje (el catálogo offline no se expone aquí).
-const plusRoute = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/training/(me/assignments|me/achievements|assignments|achievements|paths)(?:/(${idPattern})(?:/(cancel|publish|archive))?)?$`);
+// Rutas ampliadas: asignaciones, insignias, rutas de aprendizaje y el catálogo descargable (con ETag).
+const plusRoute = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/training/(me/assignments|me/achievements|me/offline-catalog|assignments|achievements|paths)(?:/(${idPattern})(?:/(cancel|publish|archive))?)?$`);
 // Verificación pública: sin sesión; el código es base32 de 24 caracteres.
 const publicRoute = /^\/backend\/api\/v1\/public\/training-certificates\/([A-Z2-7]{24})$/;
 const uuid = value => typeof value === 'string' && new RegExp(`^${idPattern}$`).test(value) && value !== '00000000-0000-0000-0000-000000000000';
@@ -75,6 +75,13 @@ function lessonVideo(value) {
   need(object(value) && uuid(value.mediaId) && videoTypes.includes(value.mimeType) && integer(value.sizeBytes, 1, maxVideoBytes));
   return { mediaId: value.mediaId, mimeType: value.mimeType, sizeBytes: value.sizeBytes };
 }
+/** Video privado del catálogo descargable: además de la ficha lleva el SHA-256 con el que el cliente verifica el archivo. */
+function offlineVideo(value) {
+  if (value == null) return null;
+  need(object(value) && uuid(value.mediaId) && videoTypes.includes(value.mimeType) && integer(value.sizeBytes, 1, maxVideoBytes) &&
+    typeof value.sha256 === 'string' && /^[0-9a-fA-F]{64}$/.test(value.sha256));
+  return { mediaId: value.mediaId, mimeType: value.mimeType, sizeBytes: value.sizeBytes, sha256: value.sha256.toLowerCase() };
+}
 function externalVideo(value) {
   if (value == null) return null;
   need(object(value) && value.provider === 'YOUTUBE' && typeof value.videoId === 'string' && videoIdPattern.test(value.videoId));
@@ -103,6 +110,29 @@ function learningCourse(value, courseId) {
   });
   unique(questions);
   return { course, version: { id: value.version.id, versionNumber: value.version.versionNumber, passingScore: value.version.passingScore }, lessons, questions, progress: progress(value.progress), certificate: certificate(value.certificate) };
+}
+
+/** Un curso del catálogo offline: nunca incluye respuesta correcta, explicación, progreso ni URL. */
+function offlineCourse(value) {
+  need(object(value) && Array.isArray(value.lessons) && value.lessons.length <= 50 && Array.isArray(value.questions) && value.questions.length <= 100 && object(value.version));
+  const course = courseInfo(value.course);
+  need(uuid(value.version.id) && integer(value.version.versionNumber, 1, 1e9) && integer(value.version.passingScore, 0, 100));
+  const lessons = value.lessons.map(lesson => {
+    need(object(lesson) && uuid(lesson.id) && string(lesson.title, 200, 1) && string(lesson.content ?? '', 20000) && integer(lesson.displayOrder, 0, 1e6));
+    const external = externalVideo(lesson.externalVideo);
+    need(!(lesson.video && external) && (lesson.offlineAvailable === undefined || typeof lesson.offlineAvailable === 'boolean'));
+    return { id: lesson.id, title: lesson.title, content: lesson.content ?? '', displayOrder: lesson.displayOrder, video: offlineVideo(lesson.video), externalVideo: external,
+      offlineAvailable: external ? false : lesson.offlineAvailable ?? true };
+  });
+  unique(lessons);
+  const questions = value.questions.map(question => {
+    need(object(question) && uuid(question.id) && (question.lessonId == null || uuid(question.lessonId)) && string(question.questionText, 300, 1) &&
+      Array.isArray(question.options) && question.options.length >= 2 && question.options.length <= 6 && question.options.every(option => string(option, 300, 1)) && integer(question.displayOrder, 0, 1e6));
+    need(question.lessonId == null || lessons.some(lesson => same(lesson.id, question.lessonId)));
+    return { id: question.id, lessonId: question.lessonId ?? null, questionText: question.questionText, options: [...question.options], displayOrder: question.displayOrder };
+  });
+  unique(questions);
+  return { course, version: { id: value.version.id, versionNumber: value.version.versionNumber, passingScore: value.version.passingScore }, lessons, questions };
 }
 
 function adminItem(value, status) {
@@ -306,6 +336,7 @@ function plusOperation(match, method) {
   switch (resource) {
     case 'me/assignments': return !id && method === 'GET' ? { kind: 'myAssignments', list: 'myAssignments' } : null;
     case 'me/achievements': return !id && method === 'GET' ? { kind: 'myAchievements' } : null;
+    case 'me/offline-catalog': return !id && !action && method === 'GET' ? { kind: 'offlineCatalog' } : null;
     case 'assignments':
       if (!id) return pick({ GET: { kind: 'assignmentList', list: 'assignmentList' }, POST: { kind: 'assignmentCreate' } });
       return action === 'cancel' && method === 'POST' ? { kind: 'assignmentCancel' } : null;
@@ -396,6 +427,13 @@ export async function proxyTraining(request, url, upstream, send, response) {
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || authorization.length > 8192 || !/^Bearer [A-Za-z0-9._-]+$/.test(authorization)) return send(401, error('UNAUTHENTICATED', 'Inicia sesión para continuar.'));
   const headers = { Accept: 'application/json', Authorization: authorization };
+  // Catálogo descargable: solo se reenvía un If-None-Match con el formato exacto del ETag del contrato.
+  let ifNoneMatch;
+  if (op.kind === 'offlineCatalog' && request.headers['if-none-match'] !== undefined) {
+    ifNoneMatch = request.headers['if-none-match'];
+    if (typeof ifNoneMatch !== 'string' || !/^"[0-9A-Za-z]{16,128}"$/.test(ifNoneMatch)) return send(400, error('INVALID_REQUEST', 'Revisa los datos de la solicitud.'));
+    headers['If-None-Match'] = ifNoneMatch;
+  }
   let input, body;
   if (writing) {
     if (!originAllowed(request)) return send(403, error('ORIGIN_NOT_ALLOWED', 'Origen no permitido.'));
@@ -412,6 +450,12 @@ export async function proxyTraining(request, url, upstream, send, response) {
   try {
     result = await fetch(new URL(url.pathname.slice('/backend'.length) + query, upstream), { method: request.method, headers, body, redirect: 'error', cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(10000) });
     forwardSessionHeaders(result, response);
+    if (op.kind === 'offlineCatalog' && result.status === 304 && ifNoneMatch) {
+      // Sin cambios: 304 sin cuerpo y con el mismo ETag.
+      await result.body?.cancel().catch(() => {});
+      response?.setHeader('ETag', ifNoneMatch);
+      return send(304, undefined);
+    }
     if (!result.ok) {
       const failures = {
         400: ['INVALID_REQUEST', 'Revisa los datos de la solicitud.'], 401: ['UNAUTHENTICATED', 'Inicia sesión nuevamente.'],
@@ -504,6 +548,14 @@ export async function proxyTraining(request, url, upstream, send, response) {
         const items = data.items.map(myAssignment);
         need(new Set(items.map(item => item.course.id.toLowerCase())).size === items.length);
         return send(200, JSON.stringify({ data: { items }, pagination: publicPagination(payload.pagination) ?? { nextPageToken: '' } }));
+      }
+      case 'offlineCatalog': {
+        need(typeof data.etag === 'string' && /^[0-9A-Za-z]{16,128}$/.test(data.etag) && Array.isArray(data.courses) && data.courses.length <= 50);
+        const courses = data.courses.map(offlineCourse);
+        unique(courses.map(item => item.course));
+        projected = { etag: data.etag, generatedAt: stamp(data.generatedAt), courses };
+        response?.setHeader('ETag', '"' + data.etag + '"');
+        break;
       }
       case 'myAchievements': {
         need(object(data.totals) && Array.isArray(data.achievements) && data.achievements.length <= 200);

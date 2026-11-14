@@ -10,7 +10,9 @@ enum class ResearchFailure {
     CONNECTION, SESSION, DENIED, RESEARCH_DENIED, NOT_FOUND, CONSENT_REQUIRED, CONSENT_UNAVAILABLE, CONSENT_OUTDATED,
     SURVEY_UNAVAILABLE, VERSION_OUTDATED, ALREADY_SUBMITTED, CONFLICT, ANSWERS_INVALID, INVALID, INSTRUMENT_INCOMPLETE,
     DRAFT_CONFLICT, DRAFT_EXISTS, DRAFT_MISSING, CODE_TAKEN, VERSION_TAKEN, CAP_EXISTS, USER_NOT_FOUND, EXPORT_TOO_LARGE,
-    TOO_LARGE, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE;
+    TOO_LARGE, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE,
+    /** La entrega quedó guardada en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+    QUEUED;
 
     /** Un reintento con el mismo cuerpo puede resolver el fallo sin riesgo de duplicar. */
     val retryable: Boolean

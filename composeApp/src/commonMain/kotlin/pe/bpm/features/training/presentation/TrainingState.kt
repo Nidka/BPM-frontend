@@ -40,6 +40,8 @@ data class EvaluationState(
     val submitting: Boolean = false,
     val failure: TrainingFailure? = null,
     val outcome: AttemptOutcome? = null,
+    /** El intento quedó en el dispositivo: «Evaluación enviada: se calificará al conectarse». */
+    val queued: Boolean = false,
 )
 
 data class TrainingState(
@@ -58,6 +60,10 @@ data class TrainingState(
     val study: StudyState? = null,
     val evaluation: EvaluationState? = null,
     val notice: String? = null,
+    /** Descargas de video del dispositivo (espacio usado, límite y estado por video). */
+    val downloads: DownloadsState = DownloadsState(),
+    /** Evaluaciones de este curso enviadas desde el dispositivo, calificadas o por calificar. */
+    val attempts: List<AttemptRecord> = emptyList(),
 ) {
     val lesson: TrainingLesson? get() = course?.lessons?.firstOrNull { it.id == lessonId }
 
@@ -89,5 +95,6 @@ fun trainingFailureMessage(failure: TrainingFailure): String = when (failure) {
     TrainingFailure.PATH_CONFLICT -> "La ruta cambió en otro dispositivo. Recárgala para no perder cambios ajenos."
     TrainingFailure.PATH_ARCHIVED -> "La ruta está archivada y ya no admite cambios."
     TrainingFailure.COURSE_NOT_PUBLISHED -> "El curso debe estar publicado para esta operación."
+    TrainingFailure.QUEUED -> "Guardado en este dispositivo. Se enviará al recuperar la conexión."
     TrainingFailure.UNAVAILABLE, TrainingFailure.INVALID_RESPONSE -> "No pudimos confirmar la operación. Inténtalo de nuevo."
 }

@@ -37,6 +37,9 @@ class TrainingLearnerViewModel(
     private val loadAssignments: LoadMyAssignments,
     private val loadAchievements: LoadMyAchievements,
     private val loadPaths: LoadLearningPaths,
+    /** Descarga el catálogo offline (ETag/304) al abrir «Mis capacitaciones» para poder estudiar sin conexión. */
+    private val syncCatalog: (suspend (String) -> Unit)? = null,
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(LearnerState())
     val state: StateFlow<LearnerState> = mutable.asStateFlow()
@@ -63,6 +66,9 @@ class TrainingLearnerViewModel(
         reset()
         mutable.value = LearnerState(userId, organizationId, member)
         refreshAssignments()
+        syncCatalog?.let { sync ->
+            viewModelScope.launch { try { sync(organizationId) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { /* la copia local sigue vigente */ } }
+        }
     }
 
     // ---- Mis capacitaciones ------------------------------------------------------------------
@@ -73,7 +79,17 @@ class TrainingLearnerViewModel(
         if (!s.member) return
         mutable.value = s.copy(assignmentsLoading = true, assignmentsFailure = null)
         launchJob("assignments") { expected ->
-            val result = loadAssignments(org)
+            // Lectura local primero: se muestra lo guardado de inmediato y luego se actualiza desde el servidor.
+            val result = localFirst.read(
+                isUsable = { it is TrainingResult.Success },
+                onLocal = { local ->
+                    if (expected == generation && !mutable.value.assignmentsLoaded) {
+                        val page = (local as TrainingResult.Success).value
+                        mutable.value = mutable.value.copy(assignments = page.items, assignmentsLoaded = true, assignmentsNext = page.nextToken)
+                    }
+                },
+                load = { loadAssignments(org) },
+            )
             if (expected != generation) return@launchJob
             mutable.value = when (result) {
                 is TrainingResult.Success -> mutable.value.copy(assignmentsLoading = false, assignmentsLoaded = true, assignments = result.value.items, assignmentsNext = result.value.nextToken)

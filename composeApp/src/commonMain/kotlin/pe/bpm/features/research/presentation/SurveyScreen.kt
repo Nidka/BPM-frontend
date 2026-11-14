@@ -18,6 +18,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
+import pe.bpm.core.offline.LocalOnline
+import pe.bpm.core.offline.LocalPendingMarks
+import pe.bpm.core.offline.OfflineRequiredNotice
+import pe.bpm.core.offline.PendingOperationsNotice
 import pe.bpm.features.research.domain.*
 
 /** Encuesta del estudio para cualquier miembro: consentimiento y cuestionario CAP, sin puntajes ni respuestas correctas. */
@@ -55,6 +59,8 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
     Text("Encuesta del estudio", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     Text("Tu participación es voluntaria. Respondemos de forma anónima: usamos un código en lugar de tu nombre y no mostramos puntajes individuales.")
     val document = participation.consentDocument
+    val submissionPending = LocalPendingMarks.current.forResource("research").isNotEmpty()
+    PendingOperationsNotice("research")
     when {
         document == null -> EmptyState("Todavía no hay una encuesta", "El equipo de investigación aún no publicó el consentimiento informado. Vuelve más tarde.")
         !participation.consentValid -> {
@@ -65,6 +71,7 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
                 Text(if (participation.consent?.accepted == false) "Si cambias de opinión, puedes leer el consentimiento y aceptarlo de nuevo."
                 else "Lee el documento completo y decide si quieres participar. Podrás retirarte cuando quieras.")
                 RaisedButton("Leer el consentimiento", viewModel::showConsent, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+                if (!LocalOnline.current) Text(CONSENT_ONLINE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         participation.survey == null -> EmptyState("Encuesta no disponible", "Aceptaste participar, pero todavía no hay un cuestionario publicado. Te avisaremos cuando esté listo.")
@@ -82,7 +89,9 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
                     } else {
                         val resuming = state.moment == moment && state.answers.isNotEmpty()
                         Text("${participation.survey.questions.size} preguntas. Toma unos minutos y puedes pausar y volver mientras no cierres la pantalla.")
-                        RaisedButton(if (resuming) "Continuar" else "Responder", { viewModel.start(moment) }, Modifier.fillMaxWidth())
+                        RaisedButton(if (resuming) "Continuar" else "Responder", { viewModel.start(moment) }, Modifier.fillMaxWidth(), enabled = !submissionPending)
+                        if (submissionPending) Text("Tienes una encuesta pendiente de enviar. Se confirmará al recuperar la conexión.", style = MaterialTheme.typography.bodySmall)
+                        else if (!LocalOnline.current) Text("Puedes responder sin conexión: tus respuestas se guardan en este dispositivo y se envían al conectarte.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -99,21 +108,29 @@ private fun ConsentPanel(state: SurveyState, participation: Participation, viewM
     Text("Versión ${document.version} · Investigador responsable: ${document.responsibleInvestigator}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     BpmCard(Modifier.fillMaxWidth()) { Text(document.text) }
     if (state.consentBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+    val online = LocalOnline.current
+    if (!online) Text(CONSENT_ONLINE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     if (!participation.consentValid) {
         Text("Al aceptar confirmas que leíste el documento y que participas voluntariamente.")
-        RaisedButton("Acepto participar", viewModel::acceptConsent, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.consentBusy)
+        RaisedButton("Acepto participar", viewModel::acceptConsent, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.consentBusy && online)
+        OfflineRequiredNotice()
     } else if (state.confirmingRevoke) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
             Text("¿Retirar tu consentimiento?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text("Dejarás de participar y tus respuestas no se usarán en los resultados ni en las exportaciones.")
-            BpmSecondaryButton(onClick = viewModel::revokeConsent, enabled = !state.consentBusy) { Text("Sí, retirar mi consentimiento") }
+            BpmSecondaryButton(onClick = viewModel::revokeConsent, enabled = !state.consentBusy && online) { Text("Sí, retirar mi consentimiento") }
             BpmTextButton(onClick = viewModel::cancelRevoke) { Text("Mantener mi participación") }
         }
     } else {
         Text("Aceptaste este documento" + (participation.consent?.let { " el ${it.recordedAt.take(10)}" } ?: "") + ".", color = MaterialTheme.colorScheme.primary)
-        BpmSecondaryButton(onClick = viewModel::askRevoke, enabled = !state.consentBusy) { Text("Retirar mi consentimiento") }
+        BpmSecondaryButton(onClick = viewModel::askRevoke, enabled = !state.consentBusy && online) { Text("Retirar mi consentimiento") }
     }
 }
+
+private const val CONSENT_ONLINE_EXPLANATION =
+    "El consentimiento informado es un acto legal que debe quedar registrado en el servidor, por eso solo puede aceptarse o retirarse con conexión. " +
+        "Cuando ya aceptaste, puedes responder la encuesta sin conexión: tus respuestas se guardan en este dispositivo y se envían al conectarte."
 
 private fun dimensionTitle(dimension: Dimension) = when (dimension) {
     Dimension.KNOWLEDGE -> "Conocimientos"
@@ -163,7 +180,8 @@ private fun DonePanel(state: SurveyState, viewModel: SurveyViewModel) {
         Eyebrow("LISTO")
         Text("¡Gracias por participar!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        Text("Recibimos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"}. Tus respuestas se guardan de forma anónima y no se muestran puntajes individuales.")
+        if (state.completedQueued) Text("Guardamos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"} en este dispositivo. Se enviará y confirmará al recuperar la conexión; no necesitas responder otra vez.")
+        else Text("Recibimos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"}. Tus respuestas se guardan de forma anónima y no se muestran puntajes individuales.")
         RaisedButton("Volver a la encuesta", viewModel::dismissDone, Modifier.widthIn(max = 360.dp).fillMaxWidth())
     }
 }

@@ -37,7 +37,7 @@ internal fun TrainingCourseContent(userId: String, organizationId: String, cours
 internal fun TrainingAdminContent(userId: String, organizationId: String, canManage: Boolean, authoring: TrainingAuthoringViewModel, modifier: Modifier = Modifier) {
     LaunchedEffect(userId, organizationId, canManage) { authoring.open(userId, organizationId, canManage) }
     DisposableEffect(authoring, userId, organizationId) { onDispose { authoring.reset() } }
-    TrainingAdminScreen(authoring, modifier)
+    pe.bpm.core.offline.ServerOnly { TrainingAdminScreen(authoring, modifier) }
 }
 
 /** Selector paginado de personas: adapta la página de miembros del workspace sin acoplar funcionalidades. */

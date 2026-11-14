@@ -44,5 +44,17 @@ importador acepta `source`/`generalData` pero no los reenvía. El CSV se reenví
 - Resultados no admiten filtro por empresa en el contrato: el filtro de empresa aplica a necesidades y a la exportación.
 - Revocar y volver a aceptar depende de lo que permita el servidor para un participante `WITHDRAWN`.
 
+## Encuesta CAP sin conexión (fase 2)
+- El instrumento publicado y el consentimiento viajan en `GET research/participation`, que ahora se guarda en la caché local y se
+  lee primero de ahí (`SurveyViewModel` con `LocalFirstReader.Cached`).
+- **Consentimiento: solo con conexión.** Aceptar o retirar es un acto legal que el servidor debe registrar; sin red los botones se
+  deshabilitan y la pantalla lo explica («solo puede aceptarse o retirarse con conexión»). Una vez aceptado, responder no necesita red.
+- Las respuestas PRETEST/POSTTEST se guardan por la Outbox (`research/submissions`) con su `id` y `clientOperationId` estables;
+  `ResearchFailure.QUEUED` se muestra como «Guardamos tu encuesta en este dispositivo…» y la pantalla bloquea nuevas entregas
+  mientras haya una pendiente (`PendingOperationsNotice("research")`). Reintentar no crea otra operación.
+- Al sincronizar, un 409 `RESEARCH_SUBMISSION_EXISTS` cuenta como ENVIADA (el servidor ya tiene ese momento); otros 409 quedan en
+  «Necesita tu revisión». Investigación (resultados, instrumentos, exportación) agrupa sus acciones en `ServerOnly`.
+- Pruebas: `OfflineResearchTest` (encolado, consentimiento sin red, lectura guardada, 409 duplicado, lectura local primero).
+
 ## Pendiente
 Verificar en dispositivo el guardado del CSV (Android/iOS; sin SDK ni macOS aquí) y la accesibilidad con lector de pantalla.

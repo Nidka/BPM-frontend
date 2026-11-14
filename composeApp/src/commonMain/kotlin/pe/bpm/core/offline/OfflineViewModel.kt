@@ -26,8 +26,21 @@ data class PendingItem(
     val dependents: Int,
 )
 
+/**
+ * Un cambio hecho sin red que aún no llegó al servidor. Las listas y detalles lo usan para mostrar
+ * «Pendiente de enviar» en el registro afectado ([entityId]) o en una sección de la feature ([resource]).
+ */
+data class PendingMark(val entityId: String, val resource: String, val title: String, val needsReview: Boolean)
+
+/** Cambios sin enviar de la cuenta activa, consultables por registro o por recurso. */
+data class PendingMarks(val all: List<PendingMark> = emptyList()) {
+    fun isPending(entityId: String) = entityId.isNotBlank() && all.any { it.entityId.equals(entityId, ignoreCase = true) }
+    fun forResource(vararg resources: String) = all.filter { it.resource in resources }
+}
+
 data class OfflineUiState(
     val status: OfflineStatus = OfflineStatus(),
+    val marks: PendingMarks = PendingMarks(),
     val items: List<PendingItem> = emptyList(),
     val syncing: Boolean = false,
     val notice: String? = null,
@@ -41,10 +54,22 @@ fun OutboxOperation.title(): String = when (kind) {
         OfflineHttpPolicy.describe(payload.method, payload.path)
     }.getOrDefault("Cambio pendiente")
     PHOTO_KIND -> "Subir foto de evidencia"
+    TRAINING_DOWNLOAD_KIND -> "Descargar video"
     else -> "Cambio pendiente"
 }
 
 const val PHOTO_KIND = "MEDIA_PHOTO"
+/** Reservado: las descargas de videos no usan la Outbox, pero el título evita un texto genérico si aparecen. */
+const val TRAINING_DOWNLOAD_KIND = "TRAINING_DOWNLOAD"
+
+/** Marca de «pendiente» de una operación sin enviar; las enviadas no marcan nada. */
+internal fun OutboxOperation.toMark(): PendingMark? {
+    if (resolved) return null
+    val resource = if (kind == HttpOutboxHandler.KIND) runCatching {
+        OfflineHttpPolicy.resourceOf(Json.decodeFromString(HttpOperationPayload.serializer(), payload).path)
+    }.getOrDefault("") else if (kind == PHOTO_KIND) "media" else ""
+    return PendingMark(entityId, resource, title(), needsAttention)
+}
 
 /** Texto «hace X» para la última sincronización de los datos mostrados. */
 fun relativeAge(nowMillis: Long, thenMillis: Long): String {
@@ -62,7 +87,7 @@ class OfflineViewModel(private val runtime: OfflineRuntime) : ViewModel() {
     private val notice = MutableStateFlow<String?>(null)
 
     val state: StateFlow<OfflineUiState> = combine(runtime.status, runtime.outbox.operations, notice) { status, operations, message ->
-        OfflineUiState(status, operations.reversed().map { item(it, operations) }, status.syncing, message, runtime.clock())
+        OfflineUiState(status, PendingMarks(operations.mapNotNull { it.toMark() }), operations.reversed().map { item(it, operations) }, status.syncing, message, runtime.clock())
     }.stateIn(viewModelScope, SharingStarted.Eagerly, OfflineUiState())
 
     init { runtime.start(viewModelScope) }

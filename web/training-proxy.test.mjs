@@ -482,3 +482,43 @@ test('capacitación: la CSP permite el frame de youtube-nocookie y nada más', a
   assert.match(frames, /https:\/\/www\.youtube-nocookie\.com/);
   assert.doesNotMatch(frames, /\*/);
 });
+
+test('capacitación: el catálogo offline proyecta SHA-256, no expone respuestas y respeta If-None-Match', async t => {
+  const f = await fixture(t);
+  const sha = 'a'.repeat(64);
+  const etag = 'b'.repeat(64);
+  const external = { id: '30000000-0000-4000-8000-000000000002', title: 'YouTube', content: 'x', displayOrder: 2, video: null, externalVideo: { provider: 'YOUTUBE', videoId: 'dQw4w9WgXcQ' }, offlineAvailable: false };
+  const catalog = { etag, generatedAt: stamp, courses: [{
+    course, version: { id: versionId, versionNumber: 2, passingScore: 80 },
+    lessons: [{ ...lesson, video: { mediaId, mimeType: 'video/mp4', sizeBytes: 1234, sha256: sha }, offlineAvailable: true }, external],
+    questions: [{ ...question, correctOption: 1, explanation: 'secreto' }],
+  }] };
+  f.state.payload = { data: catalog };
+  const response = await f.get('/me/offline-catalog');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('etag'), `"${etag}"`);
+  const text = await response.text();
+  assert.ok(!text.includes('secreto') && !text.includes('correctOption'));
+  const body = JSON.parse(text).data;
+  assert.equal(body.courses[0].lessons[0].video.sha256, sha);
+  assert.equal(body.courses[0].lessons[1].offlineAvailable, false);
+  assert.equal(f.state.requests.at(-1).path, `/api/v1/organizations/${org}/training/me/offline-catalog`);
+
+  // Mismo ETag: 304 sin cuerpo; el If-None-Match solo se reenvía con el formato exacto del contrato.
+  f.state.status = 304;
+  const conditional = await fetch(`${f.base}/me/offline-catalog`, { headers: { ...headers, 'If-None-Match': `"${etag}"` } });
+  assert.equal(conditional.status, 304);
+  assert.equal(conditional.headers.get('etag'), `"${etag}"`);
+  assert.equal(await conditional.text(), '');
+  assert.equal(f.state.requests.at(-1).headers['if-none-match'], `"${etag}"`);
+  const bad = await fetch(`${f.base}/me/offline-catalog`, { headers: { ...headers, 'If-None-Match': 'x"; y' } });
+  assert.equal(bad.status, 400);
+});
+
+test('capacitación: el catálogo offline rechaza videos sin SHA-256 y métodos de escritura', async t => {
+  const f = await fixture(t);
+  f.state.payload = { data: { etag: 'c'.repeat(64), generatedAt: stamp, courses: [{
+    course, version: { id: versionId, versionNumber: 2, passingScore: 80 }, lessons: [{ ...lesson, offlineAvailable: true }], questions: [question] }] } };
+  assert.equal((await f.get('/me/offline-catalog')).status, 503);
+  assert.equal((await f.post('/me/offline-catalog', {})).status, 405);
+});

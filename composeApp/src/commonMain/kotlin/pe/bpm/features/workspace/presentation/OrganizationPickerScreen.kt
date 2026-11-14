@@ -36,7 +36,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Cambiar organización", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f).semantics { heading() })
-            if (canCreate && shortWindow) BpmTextButton(onClick = onCreate, enabled = !loading,
+            if (canCreate && shortWindow) BpmTextButton(onClick = onCreate, enabled = !loading && pe.bpm.core.offline.LocalOnline.current,
                 modifier = Modifier.semantics { contentDescription = "Crear organización" }) { Text("Crear") }
         }
         if (!shortWindow) Text("Elige el espacio de trabajo al que quieres entrar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -57,7 +57,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
         PageNavigation(page.number, page.previous.isNotEmpty(), page.nextToken.isNotEmpty(), loading || page.loading || page.errors.isNotEmpty(), onPrevious, onNext)
         if (canCreate && !shortWindow) {
             HorizontalDivider()
-            BpmSecondaryButton(onClick = onCreate, enabled = !loading, modifier = Modifier.heightIn(min = 48.dp)) { Text("Crear organización") }
+            BpmSecondaryButton(onClick = onCreate, enabled = !loading && pe.bpm.core.offline.LocalOnline.current, modifier = Modifier.heightIn(min = 48.dp)) { Text("Crear organización") }
         }
     }
     }

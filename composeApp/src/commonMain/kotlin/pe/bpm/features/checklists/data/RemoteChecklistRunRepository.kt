@@ -67,6 +67,7 @@ class RemoteChecklistRunRepository(private val client: HttpClient, private val c
                 })
             }
         } catch (e: CancellationException) { throw e
+        } catch (_: pe.bpm.core.offline.OfflineQueuedException) { RunResult.Failure(RunFailure.QUEUED)
         } catch (e: SessionAccessException) { RunResult.Failure(if (e.expired) RunFailure.SESSION else RunFailure.CONNECTION)
         } catch (_: SerializationException) { RunResult.Failure(RunFailure.INVALID_RESPONSE)
         } catch (_: JsonConvertException) { RunResult.Failure(RunFailure.INVALID_RESPONSE)

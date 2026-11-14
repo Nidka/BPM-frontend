@@ -17,6 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
+import pe.bpm.core.offline.LocalOnline
+import pe.bpm.core.offline.PendingBadge
+import pe.bpm.core.offline.relativeAge
 import pe.bpm.features.training.domain.*
 
 /** Aprender: detalle del curso, lección con video, modo estudio y modo evaluación. */
@@ -42,7 +45,7 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier) 
         }
         val course = state.course ?: return@Column
         when (state.screen) {
-            TrainingPane.OVERVIEW -> CourseOverview(course, state.canPersist, viewModel)
+            TrainingPane.OVERVIEW -> CourseOverview(course, state, viewModel)
             TrainingPane.LESSON -> state.lesson?.let { LessonViewer(state, course, it, viewModel) }
             TrainingPane.STUDY -> state.study?.let { StudyPractice(it, viewModel) }
             TrainingPane.EVALUATION -> state.evaluation?.let { EvaluationPanel(state, course, it, viewModel) }
@@ -57,8 +60,14 @@ internal fun progressLabel(status: ProgressStatus) = when (status) {
 }
 
 @Composable
-private fun CourseOverview(course: TrainingCourse, canPersist: Boolean, viewModel: TrainingViewModel) {
+private fun CourseOverview(course: TrainingCourse, state: TrainingState, viewModel: TrainingViewModel) {
+    val canPersist = state.canPersist
     val info = course.course
+    course.cachedAt?.let { cachedAt ->
+        Text("Estás viendo la copia guardada en este dispositivo (actualizada ${relativeAge(kotlin.time.Clock.System.now().toEpochMilliseconds(), cachedAt)}). El avance y las evaluaciones se enviarán al recuperar la conexión.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+    }
+    PendingBadge(info.id)
     Text(info.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     if (info.description.isNotBlank()) Text(info.description)
     Text("${info.code} · ${info.estimatedDurationMinutes} min · versión ${course.version.versionNumber}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -77,10 +86,16 @@ private fun CourseOverview(course: TrainingCourse, canPersist: Boolean, viewMode
         BpmCard(cardModifier) {
             Eyebrow("LECCIÓN ${course.lessons.indexOf(lesson) + 1}" + if (lesson.id == course.progress.lastLessonId) " · ÚLTIMA QUE VISTE" else "")
             Text(lesson.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            if (lesson.video != null || lesson.externalVideo != null) Text("Incluye video", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (lesson.video != null || lesson.externalVideo != null) Text(
+                when {
+                    lesson.externalVideo != null -> "Incluye video de YouTube · Requiere conexión"
+                    state.downloads.downloaded(lesson.video!!.mediaId) -> "Incluye video · Guardado en este dispositivo"
+                    else -> "Incluye video"
+                }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BpmSecondaryButton(onClick = { viewModel.selectLesson(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Abrir lección") }
         }
     }
+    DownloadsCard(course, state, viewModel)
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow("MODO ESTUDIO · SIN CALIFICACIÓN")
         Text("Repasa y practica", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -97,6 +112,78 @@ private fun CourseOverview(course: TrainingCourse, canPersist: Boolean, viewMode
         BpmSecondaryButton(onClick = { viewModel.startEvaluation(AttemptType.DIAGNOSTIC) }, enabled = course.questions.isNotEmpty(), modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Evaluación diagnóstica") }
         RaisedButton("Evaluación final", { viewModel.startEvaluation(AttemptType.FINAL) }, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = course.questions.isNotEmpty())
     }
+    AttemptsHistory(state.attempts, course.version.passingScore)
+}
+
+/** Evaluaciones enviadas desde este dispositivo: por calificar (sin conexión) o con la calificación del servidor. */
+@Composable
+private fun AttemptsHistory(attempts: List<AttemptRecord>, passingScore: Int) {
+    if (attempts.isEmpty()) return
+    BpmCard(Modifier.fillMaxWidth()) {
+        Eyebrow("EVALUACIONES ENVIADAS")
+        attempts.take(5).forEach { record ->
+            val kind = when (record.type) { AttemptType.FINAL -> "Evaluación final"; AttemptType.MODULE -> "Evaluación de lección"; else -> "Evaluación diagnóstica" }
+            val result = record.result
+            Text(if (result == null) "$kind: enviada, se calificará al conectarse" else "$kind: ${result.score} de 100 · ${if (result.passed) "Aprobado" else "No aprobado (mínimo $passingScore)"}",
+                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+    }
+}
+
+/** «Descargar para ver sin conexión»: videos privados verificados, espacio usado y límite configurable. */
+@Composable
+private fun DownloadsCard(course: TrainingCourse, state: TrainingState, viewModel: TrainingViewModel) {
+    val downloads = state.downloads
+    val videos = course.lessons.filter { it.video != null }
+    val external = course.lessons.count { it.externalVideo != null }
+    if (videos.isEmpty() && external == 0) return
+    val online = LocalOnline.current
+    BpmCard(Modifier.fillMaxWidth()) {
+        Eyebrow("VER SIN CONEXIÓN")
+        if (!downloads.supported) {
+            Text("En este navegador los videos no se guardan para verlos sin conexión. Usa la aplicación móvil para descargarlos. El texto de las lecciones sí está disponible sin conexión.",
+                style = MaterialTheme.typography.bodyMedium)
+        } else if (videos.isNotEmpty()) {
+            val total = videos.sumOf { it.video!!.sizeBytes }
+            val done = videos.count { it.offlineAvailable && downloads.downloaded(it.video!!.mediaId) }
+            val busy = downloads.activeCourseId == course.course.id
+            Text("${done} de ${videos.size} videos guardados · ${formatBytes(total)} en total", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            if (busy) {
+                val progress = videos.mapNotNull { downloads.of(it.video!!.mediaId) }.sumOf { it.downloadedBytes }
+                LinearProgressIndicator(progress = { if (total > 0) (progress.toFloat() / total).coerceIn(0f, 1f) else 0f }, modifier = Modifier.fillMaxWidth())
+                Text("Descargando… ${formatBytes(progress)} de ${formatBytes(total)}", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                BpmTextButton(onClick = viewModel::cancelDownload) { Text("Pausar descarga") }
+            } else if (done < videos.size) {
+                BpmSecondaryButton(onClick = viewModel::downloadCourse, enabled = online, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
+                    Text(if (downloads.videos.values.any { it.status == VideoDownloadStatus.PAUSED }) "Reanudar descarga" else "Descargar para ver sin conexión")
+                }
+                if (!online) Text("Necesitas conexión para descargar.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            videos.mapNotNull { downloads.of(it.video!!.mediaId)?.issue }.firstOrNull()?.let { issue ->
+                Text(downloadIssueMessage(issue, downloads.limitBytes), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            }
+            if (done > 0) BpmTextButton(onClick = viewModel::deleteCourseDownloads) { Text("Borrar descargas de este curso") }
+        }
+        if (external > 0) Text("$external lección(es) usan video de YouTube: requieren conexión y no se pueden descargar.", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (downloads.supported) {
+            Text("Espacio usado por descargas: ${formatBytes(downloads.usedBytes)} de ${formatBytes(downloads.limitBytes)}", style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TrainingDownloads.LIMIT_CHOICES.forEach { choice ->
+                    BpmTextButton(onClick = { viewModel.setDownloadLimit(choice) }) { Text((if (choice == downloads.limitBytes) "✓ " else "") + formatBytes(choice)) }
+                }
+            }
+            if (downloads.usedBytes > 0) BpmTextButton(onClick = viewModel::deleteAllDownloads) { Text("Borrar todas las descargas") }
+        }
+    }
+}
+
+internal fun downloadIssueMessage(issue: DownloadIssue, limit: Long) = when (issue) {
+    DownloadIssue.NETWORK -> "La descarga se interrumpió. Lo ya guardado se conserva: pulsa Reanudar cuando tengas conexión."
+    DownloadIssue.CORRUPT -> "El video descargado no coincide con el original y se descartó. Vuelve a intentarlo."
+    DownloadIssue.LIMIT -> "No hay espacio dentro del límite de ${formatBytes(limit)}. Borra descargas o aumenta el límite."
+    DownloadIssue.UNSUPPORTED -> "Este dispositivo no permite guardar videos."
+    DownloadIssue.TICKET -> "No pudimos obtener el video. Revisa tu conexión y vuelve a intentarlo."
 }
 
 @Composable
@@ -126,7 +213,15 @@ private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: T
     }
     if (lesson.video != null) {
         when (val video = state.video) {
-            VideoState.Idle -> BpmSecondaryButton(onClick = viewModel::loadVideo, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Ver video de la lección") }
+            VideoState.Idle -> {
+                val saved = state.downloads.downloaded(lesson.video.mediaId)
+                val online = LocalOnline.current
+                BpmSecondaryButton(onClick = viewModel::loadVideo, enabled = online || saved, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
+                    Text(if (saved) "Ver video (guardado en este dispositivo)" else "Ver video de la lección")
+                }
+                if (!online && !saved) Text("Este video necesita conexión. Descárgalo desde el curso para verlo sin conexión; mientras tanto puedes leer el texto de la lección.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             VideoState.Loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Preparando el video…") }
             is VideoState.Ready -> {
                 LessonVideoPlayer(video.ticket.url, video.ticket.mimeType, viewModel::onVideoError, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
@@ -189,7 +284,11 @@ private fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
     }
     if (study.checking) LinearProgressIndicator(Modifier.fillMaxWidth())
     study.failure?.let { failure ->
-        Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        Text(if (failure == TrainingFailure.CONNECTION) "Necesita conexión para revisar la respuesta. Puedes seguir leyendo las lecciones o pasar a la siguiente pregunta."
+        else trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        if (failure == TrainingFailure.CONNECTION) BpmSecondaryButton(onClick = viewModel::skipStudyQuestion, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
+            Text(if (study.index == study.questions.lastIndex) "Terminar práctica sin revisar" else "Seguir sin revisar")
+        }
     }
     study.feedback?.let { feedback ->
         BpmCard(Modifier.fillMaxWidth(), tint = if (feedback.correct) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
@@ -212,6 +311,16 @@ private fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalua
     Eyebrow("$label · SE CALIFICA")
     val outcome = evaluation.outcome
     if (outcome != null) { EvaluationResult(course, outcome, viewModel); return }
+    if (evaluation.queued) {
+        BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
+            Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Evaluación enviada: se calificará al conectarse", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Tus respuestas están guardadas en este dispositivo. El servidor las calificará cuando recuperes la conexión y verás el resultado en el curso.")
+            }
+            RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+        }
+        return
+    }
     Text("Responde todas las preguntas", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     Text("Aprobar requiere ${course.version.passingScore} puntos. Respondidas: ${evaluation.answers.size} de ${questions.size}.")
     if (evaluation.type == AttemptType.MODULE) Text("Esta evaluación solo mide esta lección: no completa el curso ni emite constancia, pero suma puntos de experiencia.", style = MaterialTheme.typography.bodySmall)

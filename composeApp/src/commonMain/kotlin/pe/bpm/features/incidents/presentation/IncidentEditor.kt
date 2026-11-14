@@ -27,6 +27,8 @@ internal constructor(
     private val now: () -> String,
     private val saved: (IncidentSaved) -> Unit,
     private val accessRejected: (IncidentsFailure) -> Unit,
+    /** Se llama cuando el envío quedó guardado en el dispositivo (sin conexión) y se enviará al sincronizar. */
+    private val queued: () -> Unit = {},
 ) {
     private val mutable = MutableStateFlow(IncidentEditorState())
     val state = mutable.asStateFlow()
@@ -273,7 +275,20 @@ internal constructor(
                         mutable.value = IncidentEditorState()
                         saved(result.value)
                     }
-                    is IncidentsResult.Failure -> fail(result.reason, expected)
+                    // Sin conexión: el envío quedó en la Outbox con su clave estable. Es un éxito local pendiente:
+                    // se retira el borrador, se cierra el formulario y la lista muestra «Pendiente de enviar».
+                    is IncidentsResult.Failure ->
+                        if (result.reason == IncidentsFailure.QUEUED) {
+                            if (expected != generation) return@launch
+                            if (writer?.flush(null) != true) {
+                                mutable.value = mutable.value.copy(busy = false, failure = IncidentsFailure.LOCAL)
+                                return@launch
+                            }
+                            if (expected != generation) return@launch
+                            held = null
+                            mutable.value = IncidentEditorState()
+                            queued()
+                        } else fail(result.reason, expected)
                 }
             }
     }

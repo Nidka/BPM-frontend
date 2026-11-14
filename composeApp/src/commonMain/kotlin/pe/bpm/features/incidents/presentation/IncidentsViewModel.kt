@@ -13,6 +13,7 @@ class IncidentsViewModel(
     private val manage: ManageIncidents,
     private val newId: () -> String,
     private val now: () -> String,
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(IncidentsState())
     val state = mutable.asStateFlow()
@@ -30,6 +31,12 @@ class IncidentsViewModel(
                 }
             },
             ::reject,
+            queued = {
+                mutable.value =
+                    mutable.value.copy(
+                        notice = "Guardado en este dispositivo. Se enviará cuando recuperes la conexión."
+                    )
+            },
         )
     private var job: Job? = null
     private var pickerJob: Job? = null
@@ -212,11 +219,25 @@ class IncidentsViewModel(
                 } else {
                     when (
                         val r =
-                            manage.incidents(
-                                org,
-                                site,
-                                s.status,
-                                PageRequest(s.incidents.token, s.incidents.query),
+                            localFirst.read(
+                                isUsable = { it is IncidentsResult.Success },
+                                onLocal = { local ->
+                                    if (expected == generation && s.incidents.rows.isEmpty()) {
+                                        val page = (local as IncidentsResult.Success).value
+                                        mutable.value =
+                                            mutable.value.copy(
+                                                incidents = s.incidents.copy(rows = page.items, next = page.nextToken)
+                                            )
+                                    }
+                                },
+                                load = {
+                                    manage.incidents(
+                                        org,
+                                        site,
+                                        s.status,
+                                        PageRequest(s.incidents.token, s.incidents.query),
+                                    )
+                                },
                             )
                     ) {
                         is IncidentsResult.Success ->

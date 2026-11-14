@@ -37,14 +37,15 @@ object Sha256 {
         return calculo.hex()
     }
 
-    private class Calculo {
+    /** Cálculo incremental: permite verificar archivos grandes por bloques sin cargarlos en memoria. */
+    class Calculo {
         private val h = intArrayOf(0x6a09e667, 0xbb67ae85.toInt(), 0x3c6ef372, 0xa54ff53a.toInt(), 0x510e527f, 0x9b05688c.toInt(), 0x1f83d9ab, 0x5be0cd19)
         private val block = ByteArray(64)
         private var filled = 0
         private var total = 0L
         private val w = IntArray(64)
 
-        fun update(data: ByteArray, start: Int, count: Int) {
+        fun update(data: ByteArray, start: Int = 0, count: Int = data.size) {
             total += count
             var index = start
             val end = start + count

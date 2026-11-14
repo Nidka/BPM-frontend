@@ -167,6 +167,7 @@ internal fun failureText(failure: OperationsFailure) =
             "El lote no tiene saldo suficiente. Actualiza el saldo y corrige la cantidad."
         OperationsFailure.LOT_EXPIRED ->
             "El lote está vencido y no se puede consumir. Registra un descarte por vencimiento."
+        OperationsFailure.QUEUED -> "Guardado en este dispositivo. Se enviará cuando recuperes la conexión."
     }
 
 internal fun displayDate(value: String?) =

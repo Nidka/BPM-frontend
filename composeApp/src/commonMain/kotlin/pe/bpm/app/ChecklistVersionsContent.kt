@@ -24,7 +24,7 @@ internal fun ChecklistVersionsContent(
     LaunchedEffect(state.published?.versionId) { if (state.published != null) catalog.refresh() }
     val scoped = state.takeIf { it.userId == userId && it.organizationId == organizationId && it.templateId == templateId }
         ?: pe.bpm.features.checklists.presentation.ChecklistVersionsState(loading = true)
-    ChecklistVersionsScreen(
+    pe.bpm.core.offline.ServerOnly { ChecklistVersionsScreen(
         scoped,
         onStartEdit = viewModel::startEdit,
         onView = viewModel::view,
@@ -43,5 +43,5 @@ internal fun ChecklistVersionsContent(
         onNext = viewModel::next,
         onPrevious = viewModel::previousPage,
         canEdit = canEdit,
-    )
+    ) }
 }

@@ -45,6 +45,7 @@ fun AlertsScreen(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
           Text(a.title, style = MaterialTheme.typography.titleLarge)
           Text(alertStatusLabel(a))
+          pe.bpm.core.offline.PendingBadge(a.id)
           Text(a.message)
           Text(
             "${alertTypeLabel(a.type)} · ${displayDateTime(a.createdAt)}",
@@ -113,6 +114,7 @@ fun AlertsScreen(
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(row.title, style = MaterialTheme.typography.titleMedium)
             Text(alertStatusLabel(row))
+            pe.bpm.core.offline.PendingBadge(row.id)
             Text(row.message)
             if (row.locationName.isNotBlank()) Text(row.locationName)
             Text(displayDateTime(row.createdAt), style = MaterialTheme.typography.bodySmall)
@@ -179,4 +181,5 @@ internal fun alertFailureText(reason: AlertsFailure) =
       "No pudimos verificar la respuesta del servidor. El cambio todavía no está confirmado."
     AlertsFailure.RATE_LIMITED -> "Hay muchas solicitudes. Espera un momento y reintenta."
     AlertsFailure.LOCAL -> "No pudimos guardar la copia local. Reintenta antes de salir o enviar."
+    AlertsFailure.QUEUED -> "Guardado en este dispositivo. Se enviará al recuperar la conexión."
   }

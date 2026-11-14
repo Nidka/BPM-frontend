@@ -26,6 +26,8 @@ data class OperationsState(
     val localStatus: DraftSaveStatus = DraftSaveStatus.IDLE,
     val saved: OperationsEntry? = null,
     val detail: OperationsEntry? = null,
+    /** Aviso positivo, p. ej. «Guardado en este dispositivo; se enviará al conectarte». */
+    val notice: String? = null,
     val picker: OperationsResource? = null,
     val pickerRows: List<OperationsEntry> = emptyList(),
     val pickerQuery: String = "",

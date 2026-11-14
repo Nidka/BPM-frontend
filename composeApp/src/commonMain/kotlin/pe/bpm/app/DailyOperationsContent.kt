@@ -97,7 +97,7 @@ internal fun DailyOperationsContent(
                 }
             }
             if (section == "stock" && showStock && state.form == null) StockMovementsScreen(stock!!, Modifier.weight(1f))
-            else if (section == "shifts" && showShifts && state.form == null) ShiftsScreen(shifts!!, Modifier.weight(1f))
+            else if (section == "shifts" && showShifts && state.form == null) pe.bpm.core.offline.ServerOnly(Modifier.weight(1f)) { ShiftsScreen(shifts!!, Modifier.weight(1f)) }
             else if (
                 state.userId == userId &&
                     state.organizationId == org &&

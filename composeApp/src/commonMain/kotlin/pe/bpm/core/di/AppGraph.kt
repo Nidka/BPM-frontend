@@ -101,6 +101,7 @@ class AppGraph(
 ) : AutoCloseable {
     // Offline-first: el motor HTTP guarda lecturas y difiere escrituras; la Outbox las envía al volver la red.
     private val offlineRuntime = OfflineRuntime(offline)
+    private val localFirst = pe.bpm.core.offline.LocalFirstReader.Cached
     private val platformEngine = if (httpClientOverride == null) platformHttpEngine() else null
     private val offlineEngine = platformEngine?.let { OfflineHttpEngine(it, offlineRuntime.http, config.apiBaseUrl) }
     private val httpClient: HttpClient = httpClientOverride ?: createHttpClient(offlineEngine!!)
@@ -117,9 +118,15 @@ class AppGraph(
     private val identityRepository = RemoteIdentityRepository(
         FirebaseIdentityDataSource(httpClient, config), BpmIdentityDataSource(httpClient, config),
         config.apiBaseUrl, googleAuth, sessionStore, offline = RuntimeOfflineIdentity(offlineRuntime, config.apiBaseUrl))
+    /** Datos de capacitación del dispositivo: catálogo, avance, estudio y evaluaciones enviadas. */
+    private val trainingStore = pe.bpm.features.training.data.TrainingOfflineStore(offlineRuntime.store, offlineRuntime.clock)
+    /** Tareas de larga duración (descarga de videos) que siguen aunque se cambie de pantalla. */
+    private val appScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
     init {
         offlineRuntime.register(HttpOutboxHandler.KIND, HttpOutboxHandler(replayClient, config.apiBaseUrl,
-            identityRepository::validSessionToken, identityRepository::rejectSession, offlineRuntime.store))
+            identityRepository::validSessionToken, identityRepository::rejectSession, offlineRuntime.store,
+            // Al sincronizar, el servidor devuelve la calificación de una evaluación hecha sin conexión: se guarda aquí.
+            onResponse = { path, _, status, response -> trainingStore.onSynced(path, status, response) }))
         // Cierre de sesión explícito: también se borran los borradores heredados del dispositivo.
         offlineRuntime.onWipe { draftStorage.clearAll() }
     }
@@ -135,7 +142,7 @@ class AppGraph(
     @OptIn(ExperimentalUuidApi::class)
     fun checklistTemplateEditorViewModel() = ChecklistTemplateEditorViewModel(PublishChecklistTemplate(templatePublisher), templateDrafts) { Uuid.random().toString() }
 
-    fun checklistCatalogViewModel() = ChecklistCatalogViewModel(LoadChecklistCatalog(checklistRepository), LoadChecklistTemplate(checklistRepository))
+    fun checklistCatalogViewModel() = ChecklistCatalogViewModel(LoadChecklistCatalog(checklistRepository), LoadChecklistTemplate(checklistRepository), localFirst = localFirst)
 
     private val runRepository = RemoteChecklistRunRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
@@ -176,7 +183,7 @@ class AppGraph(
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
     fun checklistAssignmentsViewModel() = ChecklistAssignmentsViewModel(LoadChecklistAssignments(assignmentRepository),
-        LoadChecklistAssignment(assignmentRepository), DeactivateChecklistAssignment(assignmentRepository))
+        LoadChecklistAssignment(assignmentRepository), DeactivateChecklistAssignment(assignmentRepository), localFirst = localFirst)
     @OptIn(ExperimentalUuidApi::class)
     fun checklistAssignmentFormViewModel() = ChecklistAssignmentFormViewModel(
         CreateChecklistAssignment(assignmentRepository, assignmentRepository), assignmentDrafts,
@@ -209,7 +216,7 @@ class AppGraph(
         token = identityRepository::validSessionToken)
     @OptIn(ExperimentalUuidApi::class)
     fun operationsViewModel() = OperationsViewModel(ManageOperations(operationsRepository, operationsRepository), operationsDrafts,
-        { Uuid.random().toString() }, { Clock.System.now().toString() }, { org, site, role -> manageShifts.list(org, site, role, false) })
+        { Uuid.random().toString() }, { Clock.System.now().toString() }, { org, site, role -> manageShifts.list(org, site, role, false) }, localFirst = localFirst)
     @OptIn(ExperimentalUuidApi::class)
     fun shiftsViewModel() = pe.bpm.features.operations.presentation.ShiftsViewModel(manageShifts) { Uuid.random().toString() }
     @OptIn(ExperimentalUuidApi::class)
@@ -224,18 +231,28 @@ class AppGraph(
     @OptIn(ExperimentalUuidApi::class)
     fun incidentsViewModel() = pe.bpm.features.incidents.presentation.IncidentsViewModel(
         pe.bpm.features.incidents.domain.ManageIncidents(incidentsRepository, incidentsRepository, incidentDrafts),
-        { Uuid.random().toString() }, { Clock.System.now().toString() })
+        { Uuid.random().toString() }, { Clock.System.now().toString() }, localFirst = localFirst)
 
     // Academia: API autorizada y cliente separado para subir videos directo a R2 (sin token BPM).
     private val trainingObjects = createObjectStorageClient()
     private val trainingRepository = pe.bpm.features.training.data.RemoteTrainingRepository(httpClient, trainingObjects, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    /** Aprender con o sin red: catálogo guardado, avance y evaluaciones por la Outbox, estudio con lo ya visto. */
+    private val offlineTrainingRepository = pe.bpm.features.training.data.OfflineTrainingRepository(trainingRepository, trainingStore)
+    private val trainingCatalog = pe.bpm.features.training.data.OfflineTrainingCatalog(trainingRepository, trainingStore)
+    private val syncTrainingCatalog = pe.bpm.features.training.domain.SyncOfflineCatalog(trainingCatalog)
+    private val trainingDownloads = pe.bpm.features.training.data.OfflineTrainingDownloads(offline.files,
+        pe.bpm.core.offline.VerifiedDownloader(trainingObjects, offline.files), trainingRepository, offlineRuntime.store, appScope)
+    private val trainingAttempts = object : pe.bpm.features.training.domain.TrainingAttemptLedger {
+        override fun observe(courseId: String) = trainingStore.observeAttempts(courseId)
+    }
     @OptIn(ExperimentalUuidApi::class)
     fun trainingViewModel() = pe.bpm.features.training.presentation.TrainingViewModel(
-        pe.bpm.features.training.domain.LoadTrainingCourse(trainingRepository), pe.bpm.features.training.domain.RequestLessonVideo(trainingRepository),
-        pe.bpm.features.training.domain.SaveLessonProgress(trainingRepository), pe.bpm.features.training.domain.CheckStudyAnswer(trainingRepository),
-        pe.bpm.features.training.domain.SubmitTrainingAttempt(trainingRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
+        pe.bpm.features.training.domain.LoadTrainingCourse(offlineTrainingRepository), pe.bpm.features.training.domain.RequestLessonVideo(offlineTrainingRepository),
+        pe.bpm.features.training.domain.SaveLessonProgress(offlineTrainingRepository), pe.bpm.features.training.domain.CheckStudyAnswer(offlineTrainingRepository),
+        pe.bpm.features.training.domain.SubmitTrainingAttempt(offlineTrainingRepository), { Uuid.random().toString() }, { Clock.System.now().toString() },
+        downloads = trainingDownloads, attempts = trainingAttempts, syncCatalog = { org -> syncTrainingCatalog(org) })
     @OptIn(ExperimentalUuidApi::class)
     fun trainingAuthoringViewModel() = pe.bpm.features.training.presentation.TrainingAuthoringViewModel(
         pe.bpm.features.training.domain.ListAdminCourses(trainingRepository), pe.bpm.features.training.domain.CreateTrainingCourse(trainingRepository),
@@ -268,7 +285,7 @@ class AppGraph(
     @OptIn(ExperimentalUuidApi::class)
     fun surveyViewModel() = pe.bpm.features.research.presentation.SurveyViewModel(
         pe.bpm.features.research.domain.LoadParticipation(researchRepository), pe.bpm.features.research.domain.RecordConsent(researchRepository),
-        pe.bpm.features.research.domain.SubmitSurvey(researchRepository), { Uuid.random().toString() }, { Clock.System.now().toString() })
+        pe.bpm.features.research.domain.SubmitSurvey(researchRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, localFirst)
     fun researchViewModel() = pe.bpm.features.research.presentation.ResearchViewModel(
         pe.bpm.features.research.domain.LoadResearchAccess(researchRepository), pe.bpm.features.research.domain.ManageAccessGrants(researchRepository),
         pe.bpm.features.research.domain.ManageConsentDocuments(researchRepository), pe.bpm.features.research.domain.ManageInstruments(researchRepository),
@@ -279,7 +296,7 @@ class AppGraph(
         token = identityRepository::validSessionToken)
     fun trainingLearnerViewModel() = pe.bpm.features.training.presentation.TrainingLearnerViewModel(
         pe.bpm.features.training.domain.LoadMyAssignments(trainingPlusRepository), pe.bpm.features.training.domain.LoadMyAchievements(trainingPlusRepository),
-        pe.bpm.features.training.domain.LoadLearningPaths(trainingPlusRepository))
+        pe.bpm.features.training.domain.LoadLearningPaths(trainingPlusRepository), syncCatalog = { org -> syncTrainingCatalog(org) }, localFirst = localFirst)
     @OptIn(ExperimentalUuidApi::class)
     fun trainingAssignmentAdminViewModel() = pe.bpm.features.training.presentation.TrainingAssignmentAdminViewModel(
         pe.bpm.features.training.domain.ListTrainingAssignments(trainingPlusRepository), pe.bpm.features.training.domain.CreateTrainingAssignment(trainingPlusRepository),
@@ -298,7 +315,7 @@ class AppGraph(
     private val alertDrafts = pe.bpm.features.alerts.data.LocalAlertRuleDraftRepository(draftStorage,config.apiBaseUrl)
     @OptIn(ExperimentalUuidApi::class)
     fun alertsViewModel() = pe.bpm.features.alerts.presentation.AlertsViewModel(
-        pe.bpm.features.alerts.domain.ManageAlerts(alertsRepository,alertsRepository,alertDrafts)) { Uuid.random().toString() }
+        pe.bpm.features.alerts.domain.ManageAlerts(alertsRepository,alertsRepository,alertDrafts), localFirst = localFirst) { Uuid.random().toString() }
 
     private val notificationDevicesRepository=pe.bpm.features.notifications.data.RemoteNotificationDevicesRepository(httpClient,config,
         onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,token=identityRepository::validSessionToken)
@@ -330,7 +347,7 @@ class AppGraph(
 
     fun workspaceViewModel() = WorkspaceViewModel(LoadOrganizations(workspaceRepository),
         LoadWorkspace(workspaceRepository), CreateOrganization(workspaceRepository),
-        CreateLocation(workspaceRepository), AddMember(workspaceRepository), LoadWorkspacePage(workspaceRepository))
+        CreateLocation(workspaceRepository), AddMember(workspaceRepository), LoadWorkspacePage(workspaceRepository), localFirst = localFirst)
 
     fun offlineViewModel() = OfflineViewModel(offlineRuntime)
 
@@ -359,6 +376,7 @@ class AppGraph(
     override fun close() {
         identityRepository.close()
         objectClient.close()
+        appScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         trainingObjects.close()
         httpClient.close()
         if (platformEngine != null) replayClient.close()

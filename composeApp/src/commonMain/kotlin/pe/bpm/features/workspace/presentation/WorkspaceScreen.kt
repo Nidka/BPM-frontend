@@ -93,8 +93,10 @@ internal fun WorkspaceScreen(
                     contentAlignment = Alignment.TopCenter) { secondaryContent() }
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
                     contentAlignment = Alignment.TopCenter) {
+                    pe.bpm.core.offline.ServerOnly {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
                         onSubmitForm, formDraft, onFormRetryAccount, onFormSelectAccount, onFormEdit, onFormDiscard, onFormRetry, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
+                    }
                 } else if (choosingOrganization) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
                     contentAlignment = Alignment.TopCenter) {
                     OrganizationPickerScreen(state.organizations, state.selected, state.loading, errors = state.errors,

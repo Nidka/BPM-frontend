@@ -326,7 +326,7 @@ fun App(
     // Cerrar sesión borra los datos del dispositivo: con cambios sin enviar se pide confirmación.
     fun requestLogout() { if (offlineUi.status.pending > 0 || offlineUi.status.attention > 0) confirmLogout = true else performLogout() }
 
-    CompositionLocalProvider(LocalOnline provides offlineUi.status.online) {
+    CompositionLocalProvider(LocalOnline provides offlineUi.status.online, pe.bpm.core.offline.LocalPendingMarks provides offlineUi.marks) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
         banner = { if (profile != null) OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow) }) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
@@ -506,10 +506,10 @@ fun App(
                             val scopedAssignments = assignmentState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                 ?: ChecklistAssignmentsState(loading = true, detailLoading = true)
                             val assignmentContent: (@Composable () -> Unit)? = when {
-                                editingAssignment -> ({ ChecklistAssignmentFormContent(profile.id, templateId, workspaceState, assignmentFormState, assignmentForm,
+                                editingAssignment -> ({ pe.bpm.core.offline.ServerOnly { ChecklistAssignmentFormContent(profile.id, templateId, workspaceState, assignmentFormState, assignmentForm,
                                     checklistState, checklists, workspace,
                                     onSaved = { assignments.refresh(); nav.navigate(ASSIGNMENT_MANAGEMENT) { popUpTo(ASSIGNMENT_CREATE) { inclusive = true }; launchSingleTop = true } },
-                                    onDiscard = { navigateBack(TEMPLATE_MANAGEMENT) }) })
+                                    onDiscard = { navigateBack(TEMPLATE_MANAGEMENT) }) } })
                                 viewingAssignment -> ({ ChecklistAssignmentDetailContent(profile.id, workspaceState.selected.orEmpty(), assignmentId, managingAssignments,
                                     scopedAssignments, assignments, runState, runs, checklistState, checklists, ::openAssignedRun,
                                     onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(ASSIGNMENT_DETAIL) { inclusive = true }; launchSingleTop = true } }) })
@@ -519,7 +519,7 @@ fun App(
                                 else -> null
                             }
                             val managementContent: (@Composable () -> Unit)? = if (!managingTemplates) null else {
-                                {
+                                { pe.bpm.core.offline.ServerOnly {
                                     if (route == TEMPLATE_VERSIONS) {
                                         ChecklistVersionsContent(profile.id, workspaceState.selected.orEmpty(), templateId,
                                             workspaceState.workspace?.canManage == true, versionsVm, checklists)
@@ -553,7 +553,7 @@ fun App(
                                             onAssign = { id -> nav.navigate("empresa/plantillas/detalle/$id/asignar") { launchSingleTop = true } },
                                             onVersions = { id -> nav.navigate("empresa/plantillas/detalle/$id/versiones") { launchSingleTop = true } })
                                     }
-                                }
+                                } }
                             }
                             LaunchedEffect(viewingHistory, runId, historyState.userId, historyState.organizationId) {
                                 if (viewingHistory && historyState.userId == profile.id && historyState.organizationId == workspaceState.selected) history.select(runId)
@@ -593,7 +593,7 @@ fun App(
                                 secondaryContent = if (studySurvey) ({
                                     SurveyContent(profile.id, workspaceState.selected.orEmpty(), survey)
                                 }) else if (researching) ({
-                                    ResearchContent(profile.id, research)
+                                    pe.bpm.core.offline.ServerOnly { ResearchContent(profile.id, research) }
                                 }) else if (learningCourse) ({
                                     if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training)
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
@@ -607,15 +607,15 @@ fun App(
                                     TrainingLearnerContent(profile.id, workspaceState.selected.orEmpty(), profile.platformRole != "SUPER_ADMIN", route == TRAINING_PATHS, trainingLearner,
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } })
                                 }) else if (managingTraining) ({
-                                    TrainingPlusAdminContent(workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState, workspace,
+                                    pe.bpm.core.offline.ServerOnly { TrainingPlusAdminContent(workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState, workspace,
                                         trainingAssignments, trainingPaths, trainingAchievements, tabsLocked = trainingAuthoringState.editor != null || trainingAuthoringState.creating != null) {
                                         TrainingAdminContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, trainingAuthoring)
-                                    }
+                                    } }
                                 }) else if(alertRoute) ({
-                                    if(managingAlerts) pe.bpm.features.alerts.presentation.AlertRulesScreen(alerts,modifier=Modifier.widthIn(max=960.dp),
+                                    if(managingAlerts) pe.bpm.core.offline.ServerOnly { pe.bpm.features.alerts.presentation.AlertRulesScreen(alerts,modifier=Modifier.widthIn(max=960.dp),
                                         locationSelector={selected,onSelect,enabled->
                                             AlertScopeSelector(workspaceState,workspace,selected,alertEditorState.form?.locationName.orEmpty(),if(alertEditorState.form!=null) "Toda la empresa" else "Empresa y todas las sedes",enabled,onSelect)
-                                        })
+                                        }) }
                                     else pe.bpm.features.alerts.presentation.AlertsScreen(alerts,modifier=Modifier.widthIn(max=960.dp),pushControls={pe.bpm.features.notifications.presentation.PushOptInPanel(notificationDevices)},onOpenSource={notice->
                                         if(notice.sourceAvailable) when(notice.sourceType){
                                             "CHECKLIST_ASSIGNMENT"->nav.navigate("control/programacion/${notice.sourceId}"){launchSingleTop=true}
@@ -625,8 +625,10 @@ fun App(
                                         }
                                     })
                                 }) else if (reportsRoute) ({
+                                    pe.bpm.core.offline.ServerOnly {
                                     ReportsContent(profile.id, workspaceState.selected.orEmpty(), reportRole,
                                         workspaceState.workspace?.locations.orEmpty().map { pe.bpm.features.reports.presentation.ReportLocationOption(it.id, it.name) }, reportsView, reportsAdmin)
+                                    }
                                 }) else if (incidentRoute) ({
                                     IncidentsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, incidents,
                                         onEvidence = { incidentId, actionId, stage, writable ->

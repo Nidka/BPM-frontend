@@ -5,6 +5,9 @@ import io.ktor.client.engine.HttpClientEngineBase
 import io.ktor.client.engine.HttpClientEngineCapability
 import io.ktor.client.engine.HttpClientEngineConfig
 import io.ktor.client.engine.callContext
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.Headers
@@ -19,6 +22,8 @@ import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.toByteArray
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +32,15 @@ import kotlinx.serialization.json.Json
 
 /** Cabecera sintética que indica que la respuesta salió de la caché local, con su marca de tiempo (ms). */
 const val OFFLINE_CACHE_HEADER = "X-BPM-Offline-Cache"
+
+/**
+ * Cabecera interna que pide leer SOLO de la caché local (lectura local primero). La añade el plugin
+ * [LocalFirstPlugin] cuando la llamada corre dentro de [LocalFirst]; el motor la retira y nunca llega a la red.
+ */
+const val CACHE_ONLY_HEADER = "X-BPM-Cache-Only"
+
+/** No hay copia local de la lectura pedida con [CACHE_ONLY_HEADER]. */
+class OfflineCacheMissException : IOException("Sin copia local")
 
 /** Error que reciben los repositorios cuando una escritura quedó registrada para enviarse después. */
 class OfflineQueuedException(val operationId: String) : IOException("Operación guardada para enviar con conexión")
@@ -77,6 +91,9 @@ class OfflineHttpEngine(
         if (scope == null || !full.startsWith(apiBase + OfflineHttpPolicy.API_PREFIX)) return delegate.execute(data)
         val method = data.method.value
         val path = full.removePrefix(apiBase)
+        if (data.headers[CACHE_ONLY_HEADER] != null) {
+            return if (OfflineHttpPolicy.cacheableRead(method, path)) cached(path) ?: throw OfflineCacheMissException() else throw OfflineCacheMissException()
+        }
         return when {
             OfflineHttpPolicy.cacheableRead(method, path) -> read(data, path)
             else -> {
@@ -91,7 +108,9 @@ class OfflineHttpEngine(
         val response = try {
             delegate.execute(data)
         } catch (cancelled: CancellationException) {
-            throw cancelled
+            // Un tiempo de espera agotado llega como cancelación de la llamada: se atiende desde la caché.
+            if (!isTimeout(cancelled)) throw cancelled
+            return withContext(NonCancellable) { cached(path) } ?: throw cancelled
         } catch (error: Throwable) {
             return cached(path) ?: throw error
         }
@@ -123,13 +142,15 @@ class OfflineHttpEngine(
     private suspend fun write(data: HttpRequestData, method: String, path: String, body: String): HttpResponseData {
         val organization = OfflineHttpPolicy.organizationOf(path)
         val key = OfflineHttpPolicy.idempotencyKey(data.headers["Idempotency-Key"], method, path, body)
-            ?: return delegate.execute(data)
+            ?: if (OfflineHttpPolicy.generatesKey(method, path)) runtime.newId() else return delegate.execute(data)
         val entity = OfflineHttpPolicy.entityOf(path, body)
         if (!runtime.connectivity.online.value || runtime.outbox.hasUnsentForEntity(entity)) throw queue(data, method, path, body, organization, entity, key)
         val response = try {
             delegate.execute(data)
         } catch (cancelled: CancellationException) {
-            throw cancelled
+            // El tiempo de espera agotado no es una cancelación del usuario: la escritura se registra para enviarla después.
+            if (!isTimeout(cancelled)) throw cancelled
+            throw withContext(NonCancellable) { queue(data, method, path, body, organization, entity, key) }
         } catch (_: Throwable) {
             throw queue(data, method, path, body, organization, entity, key)
         }
@@ -163,6 +184,17 @@ class OfflineHttpEngine(
         const val CACHE_COLLECTION = "http-cache"
         const val MAX_CACHED_BYTES = 400_000
     }
+}
+
+/** true si el error (o su causa) es un tiempo de espera de conexión, de socket o de la solicitud completa. */
+internal fun isTimeout(error: Throwable): Boolean {
+    var cause: Throwable? = error
+    var depth = 0
+    while (cause != null && depth++ < 6) {
+        if (cause is HttpRequestTimeoutException || cause is ConnectTimeoutException || cause is SocketTimeoutException) return true
+        cause = cause.cause
+    }
+    return false
 }
 
 /** Una escritura confirmada deja obsoletas las lecturas del mismo recurso: se retiran de la caché. */

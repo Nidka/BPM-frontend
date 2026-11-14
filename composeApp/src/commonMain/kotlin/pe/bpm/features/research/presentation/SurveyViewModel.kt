@@ -32,6 +32,8 @@ data class SurveyState(
     val confirmingRevoke: Boolean = false,
     val showMissing: Boolean = false,
     val completedMoment: SurveyMoment? = null,
+    /** La entrega se guardó sin conexión y el servidor la confirmará al sincronizar. */
+    val completedQueued: Boolean = false,
     val notice: String? = null,
 ) {
     val survey: Survey? get() = participation?.survey
@@ -51,6 +53,7 @@ class SurveyViewModel(
     private val submitSurvey: SubmitSurvey,
     private val newId: () -> String,
     private val now: () -> String,
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(SurveyState())
     val state: StateFlow<SurveyState> = mutable.asStateFlow()
@@ -84,7 +87,15 @@ class SurveyViewModel(
         val expected = ++generation
         mutable.value = mutable.value.copy(loading = true, failure = null)
         loadJob = viewModelScope.launch {
-            val result = loadParticipation(org)
+            // Lectura local primero: el consentimiento y el instrumento guardados se muestran de inmediato.
+            val result = localFirst.read(
+                isUsable = { it is ResearchResult.Success },
+                onLocal = { local ->
+                    if (expected == generation && mutable.value.participation == null)
+                        mutable.value = withParticipation(mutable.value.copy(loading = false, failure = null), (local as ResearchResult.Success).value)
+                },
+                load = { loadParticipation(org) },
+            )
             if (expected != generation) return@launch
             mutable.value = when (result) {
                 is ResearchResult.Success -> withParticipation(mutable.value.copy(loading = false, failure = null), result.value)
@@ -218,9 +229,13 @@ class SurveyViewModel(
                     val record = SubmissionRecord(result.value.moment, result.value.instrumentVersionId, result.value.submittedAt)
                     val updated = current.participation?.let { it.copy(submissions = it.submissions + record) }
                     mutable.value = current.copy(submitting = false, pending = null, answers = emptyMap(), moment = null, index = 0,
-                        participation = updated, screen = SurveyPane.DONE, completedMoment = result.value.moment, failure = null)
+                        participation = updated, screen = SurveyPane.DONE, completedMoment = result.value.moment, completedQueued = false, failure = null)
                 }
-                is ResearchResult.Failure -> onSubmitFailure(current, result.reason)
+                // Sin conexión: la entrega queda en la Outbox con el mismo UUID y se envía al sincronizar.
+                is ResearchResult.Failure -> if (result.reason == ResearchFailure.QUEUED) {
+                    mutable.value = current.copy(submitting = false, pending = null, answers = emptyMap(), moment = null, index = 0,
+                        screen = SurveyPane.DONE, completedMoment = submission.moment, completedQueued = true, failure = null)
+                } else onSubmitFailure(current, result.reason)
             }
         }
     }
@@ -246,7 +261,7 @@ class SurveyViewModel(
         load()
     }
 
-    fun dismissDone() { mutable.value = mutable.value.copy(screen = SurveyPane.OVERVIEW, completedMoment = null) }
+    fun dismissDone() { mutable.value = mutable.value.copy(screen = SurveyPane.OVERVIEW, completedMoment = null, completedQueued = false) }
 
     /** Devuelve `true` si el regreso se resolvió dentro de la encuesta; `false` para salir de la sección. */
     fun back(): Boolean {
@@ -287,5 +302,6 @@ fun researchFailureMessage(failure: ResearchFailure): String = when (failure) {
     ResearchFailure.EXPORT_TOO_LARGE -> "Hay demasiadas respuestas para exportar de una vez. Filtra por empresa."
     ResearchFailure.TOO_LARGE -> "El archivo supera el tamaño permitido."
     ResearchFailure.RATE_LIMITED -> "Espera un momento antes de reintentar."
+    ResearchFailure.QUEUED -> "Guardado en este dispositivo. Se enviará al recuperar la conexión."
     ResearchFailure.UNAVAILABLE, ResearchFailure.INVALID_RESPONSE -> "No pudimos confirmar la operación. Inténtalo de nuevo."
 }

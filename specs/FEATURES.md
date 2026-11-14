@@ -47,7 +47,8 @@ El cliente jamás determina roles/permisos definitivos ni reactiva cuentas inact
 
 Operación diaria y sus permisos se detallan en [OPERATIONS.md](OPERATIONS.md).
 
-Offline-first (fase 1): base local, Outbox, motor de sincronización, caché de lecturas, inicio sin
-conexión y fotos pendientes. Diseño completo, estados y límites en [OFFLINE.md](OFFLINE.md).
-Capacitación (catálogo con ETag, videos), encuesta CAP y registro de uso quedan para la fase 2 sobre
-los mismos puertos (`LocalStore`, `Outbox`, `CachedResource`, `PersistentUsageEventQueue`).
+Offline-first (fases 1 y 2): base local, Outbox, motor de sincronización, caché de lecturas, inicio sin
+conexión y fotos pendientes (fase 1); capacitación sin conexión (catálogo con ETag, avance, estudio, evaluaciones calificadas al
+sincronizar, descarga verificada de videos), encuesta CAP sin conexión, lectura local primero, marcas «Pendiente de enviar»,
+timeouts encolados y `ServerOnly` en las acciones administrativas (fase 2). Diseño, estados y límites en [OFFLINE.md](OFFLINE.md);
+detalle por módulo en [TRAINING.md](TRAINING.md) y [RESEARCH.md](RESEARCH.md).

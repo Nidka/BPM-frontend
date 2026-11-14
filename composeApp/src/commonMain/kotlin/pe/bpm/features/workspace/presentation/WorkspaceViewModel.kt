@@ -22,6 +22,7 @@ class WorkspaceViewModel(
     private val addMember: AddMember,
     private val loadPage: LoadWorkspacePage,
     private val freshness: DataFreshness = DataFreshness(),
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(WorkspaceState())
     val state = mutable.asStateFlow()
@@ -57,7 +58,17 @@ class WorkspaceViewModel(
 
     private suspend fun reload() {
         mutable.value = mutable.value.copy(loading = true, errors = emptyList(), workspace = null, organizations = emptyList(), pages = emptyMap())
-        val result = loadOrganizations()
+        val result = localFirst.read(
+            isUsable = { it is Result.Success },
+            onLocal = { local ->
+                if (mutable.value.organizations.isEmpty()) {
+                    val cached = (local as Result.Success).value
+                    mutable.value = mutable.value.copy(organizations = cached.items,
+                        canChooseOrganization = cached.items.size > 1 || cached.nextToken.isNotEmpty())
+                }
+            },
+            load = { loadOrganizations() },
+        )
         // Una solicitud cancelada no puede restaurar una sesión o empresa anterior.
         currentCoroutineContext().ensureActive()
         when (result) {
@@ -80,7 +91,18 @@ class WorkspaceViewModel(
     }
 
     private suspend fun read(id: String) {
-        val result = loadWorkspace(id)
+        // Lectura local primero: el panel guardado aparece de inmediato y luego se actualiza desde el servidor.
+        val result = localFirst.read(
+            isUsable = { it is Result.Success },
+            onLocal = { local ->
+                if (mutable.value.workspace == null && mutable.value.selected == id) {
+                    val cached = (local as Result.Success).value
+                    mutable.value = mutable.value.copy(workspace = cached, loading = false,
+                        pages = WorkspaceResource.entries.associateWith { WorkspacePageState(nextToken = cached.nextPageTokens[it.path].orEmpty()) })
+                }
+            },
+            load = { loadWorkspace(id) },
+        )
         // Una solicitud cancelada no puede restaurar una sesión o empresa anterior.
         currentCoroutineContext().ensureActive()
         when (result) {

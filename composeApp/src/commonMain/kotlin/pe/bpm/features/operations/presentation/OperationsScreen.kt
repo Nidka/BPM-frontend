@@ -51,6 +51,8 @@ fun OperationsScreen(
             }
         }
         state.failure?.let { Text(failureText(it), color = MaterialTheme.colorScheme.error) }
+        state.notice?.let { Text(it) }
+        pe.bpm.core.offline.PendingOperationsNotice("supply-receipts", "cleaning-executions")
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         when {
             state.picker != null -> OperationsPicker(state, viewModel)

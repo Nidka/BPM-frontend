@@ -44,6 +44,9 @@ class RemoteOperationsRepository(
             block(access)
         } catch (e: CancellationException) {
             throw e
+        } catch (_: pe.bpm.core.offline.OfflineQueuedException) {
+            // La escritura quedó en la Outbox: éxito local pendiente, no un fallo de conexión.
+            OperationsResult.Failure(OperationsFailure.QUEUED)
         } catch (e: SessionAccessException) {
             OperationsResult.Failure(
                 if (e.expired) OperationsFailure.SESSION else OperationsFailure.CONNECTION

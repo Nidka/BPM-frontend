@@ -22,6 +22,8 @@ fun StockMovementsScreen(viewModel: StockMovementsViewModel, modifier: Modifier 
     ) {
         Text("Consumos y descartes", style = MaterialTheme.typography.headlineSmall)
         state.failure?.let { Text(stockFailureText(it), color = MaterialTheme.colorScheme.error) }
+        state.notice?.let { Text(it) }
+        pe.bpm.core.offline.PendingOperationsNotice("stock-movements")
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         val form = state.form
         if (state.siteId == null) {

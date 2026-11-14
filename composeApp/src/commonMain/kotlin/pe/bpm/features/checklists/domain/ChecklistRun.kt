@@ -18,7 +18,9 @@ data class ChecklistAnswer(val itemId: String, val complianceResult: String = ""
     val numericValue: Double? = null, val observation: String = "")
 data class StartChecklistInput(val id: String, val locationId: String, val templateVersionId: String,
     val clientOperationId: String, val clientCreatedAt: String, val assignmentId: String = "")
-enum class RunFailure { SESSION, DENIED, NOT_FOUND, INVALID, CONFLICT, ASSIGNMENT_REQUIRED, ASSIGNMENT_STARTED, SHIFT_OUT_OF_HOURS, TEMPLATE_OUTDATED, RATE_LIMITED, CONNECTION, UNAVAILABLE, INVALID_RESPONSE }
+enum class RunFailure { SESSION, DENIED, NOT_FOUND, INVALID, CONFLICT, ASSIGNMENT_REQUIRED, ASSIGNMENT_STARTED, SHIFT_OUT_OF_HOURS, TEMPLATE_OUTDATED, RATE_LIMITED, CONNECTION, UNAVAILABLE, INVALID_RESPONSE,
+    /** El cambio quedó guardado en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+    QUEUED }
 sealed interface RunResult {
     data class Success(val run: ChecklistRun) : RunResult
     data class Failure(val reason: RunFailure) : RunResult

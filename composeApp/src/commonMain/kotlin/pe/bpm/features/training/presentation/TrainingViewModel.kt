@@ -26,6 +26,12 @@ class TrainingViewModel(
     private val newId: () -> String,
     private val now: () -> String,
     private val clock: () -> Instant = { Clock.System.now() },
+    /** Videos descargados: si el archivo local existe, el reproductor lo usa en lugar de pedir una URL firmada. */
+    private val downloads: TrainingDownloads = NoTrainingDownloads,
+    /** Evaluaciones enviadas sin conexión y su calificación cuando el servidor la devuelve. */
+    private val attempts: TrainingAttemptLedger = NoTrainingAttemptLedger,
+    /** Sincroniza el catálogo offline en segundo plano al abrir un curso (ETag/304). */
+    private val syncCatalog: (suspend (String) -> Unit)? = null,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(TrainingState())
     val state: StateFlow<TrainingState> = mutable.asStateFlow()
@@ -35,10 +41,12 @@ class TrainingViewModel(
     private var progressJob: Job? = null
     private var studyJob: Job? = null
     private var submitJob: Job? = null
+    private var attemptsJob: Job? = null
+    private var downloadsJob: Job? = null
 
     private fun cancelAll() {
         generation++
-        listOf(loadJob, videoJob, progressJob, studyJob, submitJob).forEach { it?.cancel() }
+        listOf(loadJob, videoJob, progressJob, studyJob, submitJob, attemptsJob).forEach { it?.cancel() }
     }
 
     fun reset() {
@@ -51,8 +59,15 @@ class TrainingViewModel(
         val s = mutable.value
         if (s.userId == userId && s.organizationId == organizationId && s.courseId == courseId && s.canPersist == canPersist) return
         cancelAll()
-        mutable.value = TrainingState(userId, organizationId, courseId, canPersist = canPersist)
+        mutable.value = TrainingState(userId, organizationId, courseId, canPersist = canPersist, downloads = downloads.state.value)
         load()
+        val expected = generation
+        attemptsJob = viewModelScope.launch {
+            attempts.observe(courseId).collect { list -> if (expected == generation) mutable.value = mutable.value.copy(attempts = list) }
+        }
+        syncCatalog?.let { sync -> viewModelScope.launch { try { sync(organizationId) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { /* la copia local sigue vigente */ } } }
+        viewModelScope.launch { downloads.refresh() }
+        if (downloadsJob == null) downloadsJob = viewModelScope.launch { downloads.state.collect { d -> mutable.value = mutable.value.copy(downloads = d) } }
     }
 
     fun refresh() = load()
@@ -143,6 +158,11 @@ class TrainingViewModel(
         val expected = generation
         mutable.value = s.copy(video = VideoState.Loading)
         videoJob = viewModelScope.launch {
+            // Un video descargado y verificado se reproduce desde el archivo local, sin red.
+            lesson.video?.let { video -> downloads.localVideo(video) }?.let { local ->
+                if (expected == generation && mutable.value.lessonId == lesson.id) mutable.value = mutable.value.copy(video = VideoState.Ready(local))
+                return@launch
+            }
             val result = requestVideo(org, course.course.id, lesson.id)
             if (expected != generation || mutable.value.lessonId != lesson.id) return@launch
             mutable.value = mutable.value.copy(video = when (result) {
@@ -155,10 +175,37 @@ class TrainingViewModel(
     /** El reproductor falló: si la URL venció se pide otra; en otro caso se ofrece reintentar. */
     fun onVideoError() {
         val video = mutable.value.video as? VideoState.Ready ?: return
+        if (video.ticket.local) {
+            // El archivo guardado no se pudo reproducir: se elimina y se vuelve a pedir el video en línea.
+            val mediaId = mutable.value.lesson?.video?.mediaId
+            viewModelScope.launch { mediaId?.let { downloads.delete(it) }; loadVideo() }
+            return
+        }
         val expiry = runCatching { Instant.parse(video.ticket.expiresAt) }.getOrNull()
         if (expiry == null || clock() >= expiry) loadVideo()
         else mutable.value = mutable.value.copy(video = VideoState.Failed(TrainingFailure.UNAVAILABLE))
     }
+
+    // ---- Descargas para ver sin conexión -------------------------------------------------------
+
+    /** Descarga los videos privados del curso; los de YouTube siguen requiriendo conexión. */
+    fun downloadCourse() {
+        val s = mutable.value
+        val org = s.organizationId ?: return
+        val course = s.course ?: return
+        downloads.download(org, course)
+    }
+
+    fun cancelDownload() = downloads.cancel()
+
+    fun deleteCourseDownloads() {
+        val course = mutable.value.course ?: return
+        viewModelScope.launch { downloads.deleteCourse(course) }
+    }
+
+    fun deleteAllDownloads() { viewModelScope.launch { downloads.deleteAll() } }
+
+    fun setDownloadLimit(bytes: Long) { viewModelScope.launch { downloads.setLimit(bytes) } }
 
     fun closeVideo() { videoJob?.cancel(); mutable.value = mutable.value.copy(video = VideoState.Idle) }
 
@@ -198,6 +245,13 @@ class TrainingViewModel(
                 is TrainingResult.Failure -> active.copy(checking = false, selected = null, failure = result.reason)
             })
         }
+    }
+
+    /** Sin conexión y sin retroalimentación guardada: deja pasar la pregunta para seguir leyendo o practicando. */
+    fun skipStudyQuestion() {
+        val study = mutable.value.study ?: return
+        if (study.checking) return
+        mutable.value = mutable.value.copy(study = study.copy(index = study.index + 1, selected = null, feedback = null, failure = null))
     }
 
     /** Permite volver a intentar la misma pregunta. */
@@ -243,7 +297,7 @@ class TrainingViewModel(
         val s = mutable.value
         val evaluation = s.evaluation ?: return
         val question = s.evaluationQuestions.firstOrNull { it.id == questionId } ?: return
-        if (evaluation.pending != null || evaluation.submitting || evaluation.outcome != null || option !in question.options.indices) return
+        if (evaluation.pending != null || evaluation.submitting || evaluation.outcome != null || evaluation.queued || option !in question.options.indices) return
         mutable.value = s.copy(evaluation = evaluation.copy(answers = evaluation.answers + (questionId to option), failure = null))
     }
 
@@ -251,7 +305,7 @@ class TrainingViewModel(
         val s = mutable.value
         val evaluation = s.evaluation ?: return false
         val total = s.evaluationQuestions.size
-        return evaluation.outcome == null && !evaluation.submitting && (evaluation.pending != null || total > 0 && evaluation.answers.size == total)
+        return evaluation.outcome == null && !evaluation.queued && !evaluation.submitting && (evaluation.pending != null || total > 0 && evaluation.answers.size == total)
     }
 
     /** Envía el intento. Si ya existe uno pendiente (fallo de red previo), reenvía el MISMO cuerpo. */
@@ -260,7 +314,7 @@ class TrainingViewModel(
         val org = s.organizationId ?: return
         val course = s.course ?: return
         val evaluation = s.evaluation ?: return
-        if (evaluation.submitting || evaluation.outcome != null) return
+        if (evaluation.submitting || evaluation.outcome != null || evaluation.queued) return
         val attempt = evaluation.pending ?: submitAttempt.prepare(course, evaluation.type, evaluation.answers, newId, evaluation.startedAt, now(), evaluation.lessonId)
         if (attempt == null) {
             mutable.value = s.copy(evaluation = evaluation.copy(failure = TrainingFailure.ANSWERS_INVALID))
@@ -279,6 +333,8 @@ class TrainingViewModel(
                     course = current.course?.copy(progress = result.value.progress, certificate = result.value.certificate ?: current.course.certificate),
                     evaluation = active.copy(pending = null, submitting = false, outcome = result.value))
                 is TrainingResult.Failure -> when {
+                    // Sin conexión: el intento quedó guardado y el servidor lo calificará al sincronizar.
+                    result.reason == TrainingFailure.QUEUED -> mutable.value = current.copy(evaluation = active.copy(pending = null, submitting = false, queued = true, failure = null))
                     // La versión cambió: se recarga el curso y se reinicia el intento con preguntas vigentes.
                     result.reason == TrainingFailure.VERSION_OUTDATED -> {
                         mutable.value = current.copy(evaluation = active.copy(pending = null, submitting = false, failure = result.reason))

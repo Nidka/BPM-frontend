@@ -32,6 +32,12 @@ class HttpOutboxHandler(
     private val token: suspend () -> String?,
     private val onSessionRejected: (String) -> Unit = {},
     private val store: LocalStore? = null,
+    /**
+     * Se llama con la respuesta correcta de una operación enviada (ruta, cuerpo enviado, estado y cuerpo
+     * recibido). Sirve para guardar resultados que el servidor calcula, como la calificación de una
+     * evaluación. Un fallo aquí nunca cambia el resultado del envío.
+     */
+    private val onResponse: suspend (path: String, requestBody: String, status: Int, responseBody: String) -> Unit = { _, _, _, _ -> },
 ) : OutboxHandler {
     override suspend fun send(operation: OutboxOperation): SendOutcome {
         val payload = try {
@@ -50,7 +56,7 @@ class HttpOutboxHandler(
                 if (!OfflineHttpPolicy.safeApiPath(payload.refreshVersionFrom)) return SendOutcome.Rejected("La operación guardada no es válida.", 0)
                 val current = client.request(apiBase + payload.refreshVersionFrom) { bearerAuth(access) }
                 if (current.status.value == 401) onSessionRejected(access)
-                if (!current.status.isSuccess()) return classify(current)
+                if (!current.status.isSuccess()) return classify(current, payload.refreshVersionFrom)
                 val version = try {
                     (Json.parseToJsonElement(current.bodyAsText()) as JsonObject)["data"]!!.jsonObject["rowVersion"]!!.jsonPrimitive.content.toLong()
                 } catch (_: Exception) { return SendOutcome.Retry("No se pudo leer la versión actual del registro.") }
@@ -69,7 +75,11 @@ class HttpOutboxHandler(
                 }
             }
             if (response.status.value == 401) onSessionRejected(access)
-            classify(response)
+            if (response.status.isSuccess()) {
+                try { onResponse(payload.path, body, response.status.value, response.bodyAsText()) }
+                catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* mejor esfuerzo */ }
+                SendOutcome.Sent(response.status.value)
+            } else classify(response, payload.path)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: SessionAccessException) {
@@ -86,12 +96,17 @@ class HttpOutboxHandler(
         OfflineCacheInvalidation.invalidate(target, payload.path)
     }
 
-    private suspend fun classify(response: HttpResponse): SendOutcome {
+    private suspend fun classify(response: HttpResponse, path: String = ""): SendOutcome {
         val status = response.status.value
         if (response.status.isSuccess()) return SendOutcome.Sent(status)
         return when {
             status == 401 -> SendOutcome.Retry("Falta renovar la sesión.", 401, network = true, countAttempt = false)
-            status == 409 -> SendOutcome.Conflict(CONFLICT_MESSAGE, status)
+            status == 409 -> when (errorCode(response)) {
+                // Entrega repetida del mismo momento: el servidor ya la tiene, cuenta como enviada.
+                "RESEARCH_SUBMISSION_EXISTS" -> if (path.endsWith("/research/submissions")) SendOutcome.Sent(status) else SendOutcome.Conflict(CONFLICT_MESSAGE, status)
+                "TRAINING_VERSION_OUTDATED" -> SendOutcome.Conflict("El curso se actualizó mientras estabas sin conexión. Descarta esta evaluación y respóndela de nuevo.", status)
+                else -> SendOutcome.Conflict(CONFLICT_MESSAGE, status)
+            }
             status == 408 || status == 425 -> SendOutcome.Retry("El servidor tardó demasiado.", status)
             status == 429 -> SendOutcome.Retry("El servidor pidió esperar un momento.", status,
                 retryAfterMs = response.headers["Retry-After"]?.toLongOrNull()?.takeIf { it in 0..900 }?.times(1000))
@@ -101,6 +116,11 @@ class HttpOutboxHandler(
             else -> SendOutcome.Rejected(rejectionMessage(response), status)
         }
     }
+
+    private suspend fun errorCode(response: HttpResponse): String = try {
+        (Json.parseToJsonElement(response.bodyAsText()) as? JsonObject)?.get("errors")?.jsonArray?.firstOrNull()
+            ?.jsonObject?.get("code")?.jsonPrimitive?.contentOrNull.orEmpty()
+    } catch (_: Exception) { "" }
 
     /** Solo se usa el código de negocio conocido; nunca se muestra texto interno del servidor. */
     private suspend fun rejectionMessage(response: HttpResponse): String {

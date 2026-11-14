@@ -35,6 +35,7 @@ class ChecklistAssignmentsViewModel(
     private val deactivate: DeactivateChecklistAssignment,
     private val freshness: DataFreshness = DataFreshness(),
     private val now: () -> Instant = { Clock.System.now() },
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(ChecklistAssignmentsState())
     val state = mutable.asStateFlow()
@@ -89,7 +90,17 @@ class ChecklistAssignmentsViewModel(
         job =
             viewModelScope.launch {
                 if (debounce) delay(300)
-                val result = load(org, PageRequest(page.token, page.query))
+                val result =
+                    localFirst.read(
+                        isUsable = { it is AssignmentPageResult.Success },
+                        onLocal = { local ->
+                            if (mutable.value.items.isEmpty()) {
+                                val cached = local as AssignmentPageResult.Success
+                                mutable.value = mutable.value.copy(items = cached.items, nextToken = cached.nextToken)
+                            }
+                        },
+                        load = { load(org, PageRequest(page.token, page.query)) },
+                    )
                 currentCoroutineContext().ensureActive()
                 mutable.value =
                     when (result) {

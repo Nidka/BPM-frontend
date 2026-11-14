@@ -308,6 +308,9 @@ private suspend inline fun <T> guarded(block: () -> T): ResearchResult<T> =
         throw cancelled
     } catch (error: TransportFailure) {
         ResearchResult.Failure(error.reason)
+    } catch (_: pe.bpm.core.offline.OfflineQueuedException) {
+        // La entrega quedó en la Outbox con su UUID estable: éxito local pendiente, no un fallo de conexión.
+        ResearchResult.Failure(ResearchFailure.QUEUED)
     } catch (error: SessionAccessException) {
         ResearchResult.Failure(if (error.expired) ResearchFailure.SESSION else ResearchFailure.CONNECTION)
     } catch (_: SerializationException) {

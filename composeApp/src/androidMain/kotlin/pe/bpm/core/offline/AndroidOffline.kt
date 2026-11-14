@@ -70,12 +70,16 @@ class AndroidConnectivityMonitor(context: Context) : ConnectivityMonitor {
     }
 }
 
-/** Fotos pendientes en archivos privados sin copia de seguridad; el nombre es un identificador local. */
+/** Fotos pendientes y videos descargados en archivos privados sin copia de seguridad; el nombre es un identificador local. */
 class AndroidPrivateFileStore(private val directory: File) : PrivateFileStore {
     override val durable = true
     private fun file(ref: String): File {
-        require(ref.matches(Regex("[A-Za-z0-9_-]{1,100}")))
+        require(ref.matches(PRIVATE_FILE_REF))
         return File(directory, ref)
+    }
+    private fun part(ref: String): File {
+        require(ref.matches(PRIVATE_FILE_REF))
+        return File(directory, "$ref.part")
     }
     override suspend fun save(ref: String, bytes: ByteArray) = withContext(Dispatchers.IO) {
         check(directory.isDirectory || directory.mkdirs())
@@ -85,8 +89,40 @@ class AndroidPrivateFileStore(private val directory: File) : PrivateFileStore {
         check(temporary.renameTo(target))
     }
     override suspend fun read(ref: String) = withContext(Dispatchers.IO) { file(ref).takeIf { it.isFile }?.readBytes() }
-    override suspend fun delete(ref: String) { withContext(Dispatchers.IO) { file(ref).delete() } }
+    override suspend fun delete(ref: String) { withContext(Dispatchers.IO) { file(ref).delete(); part(ref).delete() } }
     override suspend fun deleteAll() { withContext(Dispatchers.IO) { directory.deleteRecursively() } }
+
+    override val supportsStreaming get() = true
+    override suspend fun list(): List<StoredFileInfo> = withContext(Dispatchers.IO) {
+        directory.listFiles().orEmpty().filter { it.isFile && !it.name.endsWith(".tmp") }.map {
+            if (it.name.endsWith(".part")) StoredFileInfo(it.name.removeSuffix(".part"), it.length(), true)
+            else StoredFileInfo(it.name, it.length(), false)
+        }
+    }
+    override suspend fun partialSize(ref: String) = withContext(Dispatchers.IO) { part(ref).takeIf { it.isFile }?.length() ?: 0L }
+    override suspend fun appendPart(ref: String, bytes: ByteArray, length: Int) = withContext(Dispatchers.IO) {
+        check(directory.isDirectory || directory.mkdirs())
+        java.io.FileOutputStream(part(ref), true).use { it.write(bytes, 0, length) }
+    }
+    override suspend fun readPart(ref: String, offset: Long, buffer: ByteArray): Int = withContext(Dispatchers.IO) {
+        val source = part(ref)
+        if (!source.isFile) return@withContext -1
+        java.io.RandomAccessFile(source, "r").use { it.seek(offset); it.read(buffer) }
+    }
+    override suspend fun commitPart(ref: String) = withContext(Dispatchers.IO) {
+        val target = file(ref)
+        target.delete()
+        check(part(ref).renameTo(target))
+        Unit
+    }
+    override suspend fun discardPart(ref: String) { withContext(Dispatchers.IO) { part(ref).delete() } }
+    override suspend fun truncatePart(ref: String, length: Long) = withContext(Dispatchers.IO) {
+        val source = part(ref)
+        if (!source.isFile) return@withContext
+        if (length <= 0) source.delete() else if (length < source.length()) java.io.RandomAccessFile(source, "rw").use { it.setLength(length) }
+    }
+    override suspend fun size(ref: String) = withContext(Dispatchers.IO) { file(ref).takeIf { it.isFile }?.length() }
+    override suspend fun localUri(ref: String) = withContext(Dispatchers.IO) { file(ref).takeIf { it.isFile }?.let { "file://" + it.absolutePath } }
 }
 
 /** Trabajo único con restricción de red y backoff exponencial: envía la Outbox con la app cerrada. */

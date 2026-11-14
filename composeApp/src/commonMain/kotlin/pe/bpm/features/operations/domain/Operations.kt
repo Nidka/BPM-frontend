@@ -207,6 +207,8 @@ enum class OperationsFailure {
     INSUFFICIENT_STOCK,
     /** El lote está vencido y no admite consumo. */
     LOT_EXPIRED,
+    /** El registro quedó guardado en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+    QUEUED,
 }
 
 /** Rechazos que cierran la operación: el cuerpo enviado no volverá a reintentarse tal cual. */

@@ -8,24 +8,6 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-/** Archivos privados de la aplicación (fotos pendientes). Nunca contiene URL firmadas. */
-interface PrivateFileStore {
-    /** false cuando el host no puede conservar archivos entre reinicios (p. ej. navegador). */
-    val durable: Boolean
-    suspend fun save(ref: String, bytes: ByteArray)
-    suspend fun read(ref: String): ByteArray?
-    suspend fun delete(ref: String)
-    suspend fun deleteAll()
-}
-
-class InMemoryPrivateFileStore(override val durable: Boolean = false) : PrivateFileStore {
-    private val files = HashMap<String, ByteArray>()
-    override suspend fun save(ref: String, bytes: ByteArray) { files[ref] = bytes }
-    override suspend fun read(ref: String) = files[ref]
-    override suspend fun delete(ref: String) { files.remove(ref) }
-    override suspend fun deleteAll() = files.clear()
-}
-
 /** Planificador de envío en segundo plano (WorkManager en Android). */
 interface BackgroundSyncScheduler {
     /** Programa un trabajo único con restricción de red; es idempotente. */

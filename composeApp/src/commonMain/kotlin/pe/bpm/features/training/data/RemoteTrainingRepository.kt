@@ -75,6 +75,39 @@ class RemoteTrainingRepository(
         api<Envelope<AttemptOutcomeDto>>(org, "courses/${trainingId(courseId)}/attempts", HttpMethod.Post, body).data.domain(attempt)
     }
 
+    // ---- Catálogo descargable ----------------------------------------------------------------
+
+    /**
+     * Pide el catálogo offline. Con [ifNoneMatch] (el etag guardado) un 304 devuelve [CatalogFetch.NotModified]
+     * sin cuerpo; una respuesta 200 se valida curso por curso antes de guardarse.
+     */
+    internal suspend fun fetchCatalog(org: String, ifNoneMatch: String?): TrainingResult<CatalogFetch> = guarded {
+        require(Regex("[A-Za-z0-9_-]{1,64}").matches(org))
+        val access = token()?.takeIf { it.isNotBlank() } ?: throw TransportFailure(TrainingFailure.SESSION)
+        currentCoroutineContext().ensureActive()
+        val response = client.request("${config.apiBaseUrl}/api/v1/organizations/$org/training/me/offline-catalog") {
+            method = HttpMethod.Get
+            bearerAuth(access)
+            ifNoneMatch?.let { header(HttpHeaders.IfNoneMatch, "\"$it\"") }
+        }
+        onSessionResponse(response)
+        currentCoroutineContext().ensureActive()
+        if (response.status == HttpStatusCode.NotModified) return@guarded CatalogFetch.NotModified
+        if (!response.status.isSuccess()) {
+            if (response.status.value == 401) onSessionRejected(access)
+            throw TransportFailure(failureFor(response.status.value, ""))
+        }
+        val dto = response.body<Envelope<OfflineCatalogDto>>().data
+        require(Regex("[0-9A-Za-z]{16,128}").matches(dto.etag) && dto.courses.size <= 50)
+        val courses = dto.courses.map { element ->
+            val course = lenientJson.decodeFromJsonElement(OfflineCourseDto.serializer(), element)
+            course.domain()
+            course.course.id to element.toString()
+        }
+        require(courses.map { it.first.lowercase() }.distinct().size == courses.size)
+        CatalogFetch.Fresh(dto.etag, dto.generatedAt, courses)
+    }
+
     // ---- Autoría -----------------------------------------------------------------------------
 
     override suspend fun courses(org: String, status: CourseStatus?): TrainingResult<List<AdminCourse>> = guarded {
@@ -280,6 +313,9 @@ internal suspend inline fun <T> guarded(block: () -> T): TrainingResult<T> =
         throw cancelled
     } catch (error: TransportFailure) {
         TrainingResult.Failure(error.reason)
+    } catch (_: pe.bpm.core.offline.OfflineQueuedException) {
+        // La escritura quedó en la Outbox: éxito local pendiente, no un fallo de conexión.
+        TrainingResult.Failure(TrainingFailure.QUEUED)
     } catch (error: SessionAccessException) {
         TrainingResult.Failure(if (error.expired) TrainingFailure.SESSION else TrainingFailure.CONNECTION)
     } catch (_: SerializationException) {

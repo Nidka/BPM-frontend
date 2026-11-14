@@ -21,7 +21,7 @@ internal fun AccountsManagementContent(userId: String, organizationId: String, c
         organization.open(organizationId, canManage)
     }
     DisposableEffect(userId, organizationId) { onDispose { team.reset(); invitations.reset(); organization.reset() } }
-    AccountsManagementScreen(team, invitations, organization, userId, modifier)
+    pe.bpm.core.offline.ServerOnly { AccountsManagementScreen(team, invitations, organization, userId, modifier) }
 }
 
 @Composable
@@ -38,5 +38,5 @@ internal fun InvitationAcceptContent(userId: String, token: String?, accept: Inv
     LaunchedEffect(userId, token) { accept.openWithLink(token) }
     LaunchedEffect(state.accepted) { if (state.accepted != null) onAccepted() }
     DisposableEffect(userId) { onDispose { accept.reset() } }
-    InvitationAcceptScreen(accept, onContinue, modifier)
+    pe.bpm.core.offline.ServerOnly { InvitationAcceptScreen(accept, onContinue, modifier) }
 }

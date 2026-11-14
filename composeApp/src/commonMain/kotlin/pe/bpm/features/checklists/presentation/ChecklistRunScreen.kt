@@ -94,6 +94,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
 }
 internal val complianceLabels = linkedMapOf("COMPLIANT" to "Cumple", "NON_COMPLIANT" to "No cumple", "NOT_APPLICABLE" to "No aplica")
 internal fun runFailureMessage(reason: RunFailure) = when (reason) {
+    RunFailure.QUEUED -> "Guardado en este dispositivo. Se enviará al recuperar la conexión; no necesitas repetirlo."
     RunFailure.SESSION -> "Tu sesión terminó. Inicia sesión de nuevo."
     RunFailure.DENIED -> "Tu cuenta no tiene permiso para consultar o modificar este control."
     RunFailure.NOT_FOUND -> "Este control o su sede ya no están disponibles."

@@ -15,14 +15,20 @@ object OfflineHttpPolicy {
     private val cacheableReads = setOf(
         "workspace", "locations", "members", "checklists", "checklist-runs", "checklist-assignments", "shifts",
         "products", "suppliers", "supply-receipts", "storage-lots", "cleaning-plans", "cleaning-executions",
-        "stock-movements", "incidents", "incident-catalog", "alerts",
+        "stock-movements", "incidents", "incident-catalog", "alerts", "training", "research",
     )
 
     /** Escrituras que se registran en la Outbox cuando no hay red. */
-    private val queueableWrites = setOf("checklist-runs", "supply-receipts", "cleaning-executions", "stock-movements", "incidents", "alerts")
+    private val queueableWrites = setOf(
+        "checklist-runs", "supply-receipts", "cleaning-executions", "stock-movements", "incidents", "alerts", "training", "research",
+    )
+    private val trainingWrite = Regex("^courses/($ID)/(progress|attempts)$")
 
     /** Ruta sin consulta ni fragmento. */
     fun pathOf(fullPath: String) = fullPath.substringBefore('?').substringBefore('#')
+
+    /** Recurso bajo la empresa («incidents», «alerts»…); vacío si la ruta no es de empresa. */
+    fun resourceOf(path: String): String = orgPath.matchEntire(pathOf(path))?.groupValues?.get(2).orEmpty()
 
     fun organizationOf(path: String): String = orgPath.matchEntire(pathOf(path))?.groupValues?.get(1).orEmpty()
 
@@ -33,6 +39,10 @@ object OfflineHttpPolicy {
         val match = orgPath.matchEntire(clean) ?: return false
         val rest = match.groupValues[3]
         if (rest.contains("evidence") || rest.contains("export") || rest.contains("certificate")) return false
+        // El catálogo descargable tiene su propia caché con ETag y los videos viajan por URL firmada.
+        if (match.groupValues[2] == "training" && (rest.contains("offline-catalog") || rest.contains("video") || rest.endsWith("/draft"))) return false
+        // Investigación: solo lo que necesita el participante; los análisis y exportaciones requieren servidor.
+        if (match.groupValues[2] == "research" && rest != "participation") return false
         return match.groupValues[2] in cacheableReads
     }
 
@@ -48,6 +58,9 @@ object OfflineHttpPolicy {
         if (resource !in queueableWrites || rest.contains("evidence")) return false
         // Alertas: solo marcar como leída o atendida; las reglas son administración.
         if (resource == "alerts") return Regex("^$ID/(view|attend)$").matches(rest)
+        // Capacitación: solo avance (PUT) y evaluaciones (POST); el consentimiento se acepta con red.
+        if (resource == "training") return trainingWrite.matches(rest) && (method.uppercase() == "PUT") == rest.endsWith("/progress")
+        if (resource == "research") return rest == "submissions" && method.uppercase() == "POST"
         return true
     }
 
@@ -55,7 +68,8 @@ object OfflineHttpPolicy {
     fun entityOf(path: String, body: String): String {
         val match = orgPath.matchEntire(pathOf(path)) ?: return ""
         val first = match.groupValues[3].substringBefore('/')
-        if (first.isNotEmpty()) return first
+        if (match.groupValues[2] == "training") trainingWrite.matchEntire(match.groupValues[3])?.let { return it.groupValues[1] }
+        if (first.isNotEmpty() && match.groupValues[2] != "research") return first
         return try {
             (Json.parseToJsonElement(body) as? JsonObject)?.get("id")?.jsonPrimitive?.contentOrNull.orEmpty()
         } catch (_: Exception) { "" }
@@ -76,6 +90,12 @@ object OfflineHttpPolicy {
         return null
     }
 
+    /** Escrituras sin clave propia a las que se les asigna una al encolarlas (cada envío es una operación distinta). */
+    fun generatesKey(method: String, path: String): Boolean {
+        val match = orgPath.matchEntire(pathOf(path)) ?: return false
+        return method.uppercase() == "PUT" && match.groupValues[2] == "training" && match.groupValues[3].endsWith("/progress")
+    }
+
     /** Texto para la pantalla de cambios pendientes; nunca incluye datos del cuerpo. */
     fun describe(method: String, path: String): String {
         val match = orgPath.matchEntire(pathOf(path)) ?: return "Cambio pendiente"
@@ -90,6 +110,8 @@ object OfflineHttpPolicy {
             "cleaning-executions" -> "Registrar limpieza"
             "stock-movements" -> "Registrar movimiento de stock"
             "incidents" -> if (rest.contains("actions")) "Registrar acción correctiva" else "Registrar incidencia"
+            "training" -> if (rest.endsWith("/attempts")) "Enviar evaluación (se calificará al conectarse)" else "Guardar avance del curso"
+            "research" -> "Enviar encuesta del estudio"
             "alerts" -> if (rest.endsWith("/attend")) "Marcar alerta como atendida" else "Marcar alerta como leída"
             else -> "Cambio pendiente"
         }

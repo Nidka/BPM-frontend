@@ -147,7 +147,7 @@ cubre el proxy. No hay pruebas de los reproductores nativos ni de R2 real: requi
 
 Contrato: sección «Asignaciones, rutas, insignias y evaluación por módulo» de `Backend/specs/TRAINING.md` (requiere
 `V11__training_assignments_paths.sql`; no implica despliegue). El catálogo offline (`me/offline-catalog`) y las descargas
-de video **no** se implementan aquí: son de otra entrega.
+de video se describen en la sección «Capacitación sin conexión (fase 2)».
 
 ### Pantallas y flujos
 
@@ -200,3 +200,33 @@ cookies, devuelve únicamente los campos públicos y reduce 404/429/5xx a errore
 `RemoteTrainingPlusRepositoryTest` (DTO, `externalVideo`, `achievements`) y `web/training-proxy.test.mjs`. Sin verificar en dispositivo:
 `ExternalLessonVideo` de Android (WebView) e iOS (WKWebView) y el resto del código nativo (sin Android SDK ni macOS); el embed de
 YouTube puede rechazar la reproducción si el origen no envía referrer (por eso el botón de respaldo).
+
+## Capacitación sin conexión (fase 2)
+
+Contrato: «Catálogo descargable offline» de `Backend/specs/TRAINING.md` (`GET /training/me/offline-catalog`).
+
+- **Catálogo.** Al abrir «Mis capacitaciones» o un curso se sincroniza el catálogo (`OfflineTrainingCatalog`) con
+  `If-None-Match: "<etag>"`. 200: se valida cada curso (sin respuestas) y se guarda por curso en `LocalStore` (`training-catalog`,
+  etag en `training-catalog-meta`); 304: se conserva y solo se renueva la marca. Un catálogo inválido no reemplaza al guardado.
+  `course()` lee del servidor y, sin conexión, cae al curso del catálogo con `cachedAt` (aviso «copia guardada»).
+- **Avance.** `PUT progress` va por la Outbox con clave generada y entidad = curso. Sin red, `OfflineTrainingRepository` guarda el
+  avance local (`training-progress`) y responde éxito; el gancho `onSynced` lo retira cuando el servidor lo recibe.
+- **Modo estudio.** Con red se guarda la retroalimentación vista (`training-study`: opción correcta y explicación, nunca antes de
+  consultarla). Sin red y sin copia: «Necesita conexión para revisar la respuesta» y «Seguir sin revisar» (`skipStudyQuestion`).
+- **Evaluaciones (FINAL, DIAGNOSTIC y MODULE).** `POST attempts` se encola con su `clientOperationId`; la pantalla muestra
+  «Evaluación enviada: se calificará al conectarse» y bloquea las respuestas. El cliente nunca califica: al sincronizar, el gancho
+  guarda `score/passed` del servidor en `training-attempts` y actualiza el avance; el curso lista «Evaluaciones enviadas»
+  (por calificar o con resultado). Un 409 `TRAINING_VERSION_OUTDATED` queda como conflicto con mensaje propio.
+- **Descargas.** «Descargar para ver sin conexión» por curso (`OfflineTrainingDownloads`): solo videos R2 con `sha256` en el
+  catálogo; pide `POST .../video` justo antes de cada intento, transfiere por bloques a `PrivateFileStore`, verifica y reanuda.
+  Muestra espacio usado y límite (512 MB, 1, **2 GB** por defecto, 5 GB; se guarda en `training-download-limit`); si lo que falta
+  supera el límite avisa y no empieza. Se puede borrar por curso o todo. El reproductor usa `file://` si el archivo verificado existe;
+  si no se reproduce, se borra y se pide el video en línea. YouTube queda «Requiere conexión» (`offlineAvailable=false`).
+- **Web.** Catálogo y avance sobre IndexedDB (misma API que el resto de la base). Los videos no se descargan: la tarjeta explica que
+  el navegador no guarda archivos y remite a la app móvil; el texto de las lecciones sí está disponible.
+- **Proxy.** `web/training-proxy.mjs` expone `GET me/offline-catalog`: valida cada curso, exige `sha256` de 64 hex en los videos,
+  no pasa respuestas ni URL, reenvía solo un `If-None-Match` con formato exacto y devuelve 304 sin cuerpo con `ETag`.
+- **Pruebas.** `OfflineTrainingTest` (catálogo ETag/304, fallback, avance, estudio, intento encolado y calificado al sincronizar,
+  descarga verificada/corrupta/límite), `VerifiedDownloaderTest` (SHA correcto, corrupto, reanudación, `Range` ignorado),
+  `TrainingViewModelOfflineTest`, `web/training-proxy.test.mjs`.
+- **Pendiente.** Reproducir `file://` y escribir con `NSFileHandle` en dispositivo; descargas en segundo plano con la app cerrada.
