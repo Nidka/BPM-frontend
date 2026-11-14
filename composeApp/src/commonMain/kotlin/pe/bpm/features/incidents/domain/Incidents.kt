@@ -109,6 +109,8 @@ enum class IncidentsFailure {
     INVALID_RESPONSE,
     RATE_LIMITED,
     LOCAL,
+    /** El registro quedó guardado en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+    QUEUED,
 }
 
 sealed interface IncidentsResult<out T> {

@@ -32,6 +32,8 @@ fun IncidentsScreen(
             style = MaterialTheme.typography.headlineSmall,
         )
         s.failure?.let { Text(incidentFailureText(it), color = MaterialTheme.colorScheme.error) }
+        s.notice?.let { Text(it) }
+        pe.bpm.core.offline.PendingOperationsNotice("incidents")
         if (s.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         when {
             s.siteId == null -> Text("Selecciona una sede para consultar y reportar incidencias.")
@@ -162,6 +164,7 @@ fun IncidentsScreen(
                         BpmCard(Modifier.fillMaxWidth()) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(value.name, style = MaterialTheme.typography.titleMedium)
+                                pe.bpm.core.offline.PendingBadge(value.id)
                                 Text(
                                     "${incidentStatusLabel(value.status.name)} · ${value.area} · Riesgo ${incidentRiskLabel(value.riskLevel)}"
                                 )
@@ -260,6 +263,7 @@ private fun IncidentDetailContent(
     val d = s.detail ?: return
     val i = d.summary
     Text(i.name, style = MaterialTheme.typography.titleLarge)
+    pe.bpm.core.offline.PendingBadge(i.id)
     Text(
         "${incidentStatusLabel(i.status.name)} · ${i.area} · Riesgo ${incidentRiskLabel(i.riskLevel)}"
     )
@@ -386,4 +390,5 @@ internal fun incidentFailureText(v: IncidentsFailure) =
         IncidentsFailure.INVALID_RESPONSE ->
             "No pudimos verificar la respuesta del servidor. Conservamos el envío pendiente."
         IncidentsFailure.UNAVAILABLE -> "El servicio no está disponible. Puedes reintentar."
+        IncidentsFailure.QUEUED -> "Guardado en este dispositivo. Se enviará al recuperar la conexión."
     }

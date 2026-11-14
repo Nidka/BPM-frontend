@@ -22,7 +22,7 @@ object WorkspaceInputRules {
         contactName.error(input.contactName)?.let { put("contactName", it) }
         contactEmail.error(input.contactEmail)?.let { put("contactEmail", it) }
         contactPhone.error(input.contactPhone)?.let { put("contactPhone", it) }
-        if (input.businessType !in setOf("RESTAURANT", "CAFETERIA", "CATERING", "RELATED_SERVICE")) put("businessType", "Selecciona un tipo de establecimiento.")
+        if (input.businessType !in setOf("RESTAURANT", "CAFETERIA", "CATERING", "OTHER_FOOD_SERVICE")) put("businessType", "Selecciona un tipo de establecimiento.")
     }
 
     fun location(input: Location): Map<String, String> = buildMap {

@@ -34,6 +34,7 @@ data class MediaEvidenceState(
     val incidentId: String? = null,
     val actionId: String? = null,
     val stage: EvidenceStage? = null,
+    val cleaningExecutionId: String? = null,
 ) {
     val confirmedCount: Int
         get() = files.count { it.status == EvidenceStatus.AVAILABLE }
@@ -41,7 +42,11 @@ data class MediaEvidenceState(
     val context: EvidenceContext?
         get() =
             organizationId?.let { org ->
-                if (incidentId != null)
+                if (cleaningExecutionId != null)
+                    EvidenceContext(org, cleaningExecutionId = cleaningExecutionId).takeIf {
+                        it.valid()
+                    }
+                else if (incidentId != null)
                     EvidenceContext(
                             org,
                             incidentId = incidentId,
@@ -121,6 +126,24 @@ class MediaEvidenceViewModel(
                 incidentId = incidentId,
                 actionId = actionId,
                 stage = stage,
+                canEdit = canEdit,
+                revision = revision,
+            )
+        if (context.valid()) refresh() else fail(MediaFailure.INVALID)
+    }
+
+    /** Fotos de una ejecución de limpieza; el servidor limita al responsable y a 24 horas. */
+    fun openCleaning(user: String, org: String, executionId: String, canEdit: Boolean) {
+        val context = EvidenceContext(org, cleaningExecutionId = executionId)
+        val current = mutable.value
+        if (current.userId == user && current.context == context && current.canEdit == canEdit)
+            return
+        reset()
+        mutable.value =
+            MediaEvidenceState(
+                userId = user,
+                organizationId = org,
+                cleaningExecutionId = executionId,
                 canEdit = canEdit,
                 revision = revision,
             )

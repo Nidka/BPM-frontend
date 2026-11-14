@@ -8,12 +8,14 @@ mínimo según IDENTITY.md, sin asignar permisos sobre organizaciones.
 |---|---|---|
 | Base y despliegue | core/, web/, CI, Railway | Mantener configuración y contratos |
 | Identidad | features/identity | Login/registro/recuperación y Google web/Android listos; usuario confirmó Google en celular. iOS con SDK/adaptador y configuración pública: pendiente prueba real y validación adicional de almacenamiento seguro en dispositivos |
-| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; siguiente edición y bajas |
-| Checklists | features/checklists | Catálogo, autoría y ejecución en línea con revisión, versión e idempotencia; recuperación local y reintentos duraderos; historial paginado, separación ejecución/supervisión y programación por sede/frecuencia implementados; cola múltiple para revisiones preparadas implementada; siguientes: inicio sin red, archivos y trabajo en segundo plano |
-| Evidencias | features/media | Selección, vista previa privada, PUT firmado y confirmación implementados para controles; fotos de limpieza e incidencias pendientes |
-| Operación diaria | features/operations | Catálogos, criterio térmico, recepciones, consulta PEPS y limpieza implementados; activar V5 en backend antes de desplegar. Fotos de limpieza, movimientos de stock, turnos y cola offline nueva pendientes |
-| Academia | nueva features/training | Catálogo, progreso local y evaluaciones |
+| Organización activa | features/workspace | Altas de empresa/sede/miembro y tenant autorizado listos; edición, bajas, invitaciones, dispositivos y tipo de establecimiento en `features/accounts` (ver ACCOUNTS.md; requiere V12 del backend) |
+| Checklists | features/checklists | Catálogo, autoría y ejecución en línea con revisión, versión e idempotencia; recuperación local y reintentos duraderos; historial paginado, separación ejecución/supervisión y programación por sede/frecuencia implementados; cola múltiple para revisiones preparadas implementada; programación por turno y versiones de plantilla (V13) implementadas; siguientes: inicio sin red, archivos y trabajo en segundo plano |
+| Evidencias | features/media | Selección, vista previa privada, PUT firmado y confirmación implementados para controles; fotos de controles, incidencias y limpieza implementadas |
+| Operación diaria | features/operations | Catálogos, criterio térmico, recepciones, consulta PEPS y limpieza implementados; activar V5 en backend antes de desplegar. Turnos por sede, consumos y descartes de stock, limpieza PER_SHIFT y fotos de limpieza implementados localmente (V13); cola offline nueva pendiente |
+| Academia | features/training | Detalle de curso, lecciones con texto y video (ExoPlayer, AVPlayer, <video> web), retoma desde la última lección, modo estudio sin calificación, evaluación DIAGNOSTIC/FINAL idempotente con constancia y autoría ADMIN con subida de video a R2 implementados localmente; ver TRAINING.md. Requiere el backend de Academia antes de activar la UI; subida de videos de más de 100 MiB desde el cliente y pruebas en dispositivo pendientes. Ampliación `training-plus`: «Mis capacitaciones» (asignaciones con estado y fecha límite), asignación/cancelación ADMIN, logros y XP, rutas de aprendizaje, evaluación por módulo, video de YouTube y verificación pública `/verificar/{codigo}`; requiere V11 del backend (sin catálogo offline ni descargas) |
+| Estudio CAP | features/research | Encuesta del participante (consentimiento informado, PRETEST/POSTTEST una pregunta por pantalla, envío idempotente, sin puntajes) y sección de investigación (consentimiento, cuestionarios, resultados por empresa, CSV anonimizado, necesidades RF-50, concesiones SUPER_ADMIN) implementadas localmente; ver RESEARCH.md. Requiere el backend V9; guardado del CSV en Android/iOS sin verificar en dispositivo |
 | Incidencias | features/incidents | Catálogo versionado, reporte por sede, asignación, corrección, fotos e historial implementados; activar V6 antes del despliegue. Constancia y notificaciones en módulos posteriores |
+| Reportes y uso | features/reports, features/usage | Panel de indicadores en Inicio, cumplimiento por día/sede, resumen, exportación CSV, avance de capacitación, configuración, constancias con verificación pública web y registro de uso por lotes implementados; ver REPORTS.md. Requiere backend V10. Persistencia offline del registro de uso y pruebas Android/iOS del guardado de archivos pendientes |
 
 Cada responsable debe entregar domain, data, presentation, pruebas y su contrato
 actualizado. Se crean carpetas al implementar el primer recorrido, no antes.
@@ -35,7 +37,7 @@ La API disponible se documenta en:
 https://bpm-service-production.up.railway.app/docs/
 
 Ver `WORKSPACE.md` para el rediseño y `CHECKLISTS.md` para catálogo/detalle.
-Aprender conserva su catálogo de base; Control consulta preguntas de versiones
+Aprender conserva su catálogo de base (cada curso abre el detalle de Academia); Control consulta preguntas de versiones
 publicadas y permite ejecutar controles en línea. Lecciones, incidencias y el resto del contrato
 offline del piloto siguen pendientes. OFFLINE.md delimita la recuperación local actual.
 
@@ -44,3 +46,9 @@ cliente completa el registro mínimo por /auth/register solo con email verificad
 El cliente jamás determina roles/permisos definitivos ni reactiva cuentas inactivas.
 
 Operación diaria y sus permisos se detallan en [OPERATIONS.md](OPERATIONS.md).
+
+Offline-first (fases 1 y 2): base local, Outbox, motor de sincronización, caché de lecturas, inicio sin
+conexión y fotos pendientes (fase 1); capacitación sin conexión (catálogo con ETag, avance, estudio, evaluaciones calificadas al
+sincronizar, descarga verificada de videos), encuesta CAP sin conexión, lectura local primero, marcas «Pendiente de enviar»,
+timeouts encolados y `ServerOnly` en las acciones administrativas (fase 2). Diseño, estados y límites en [OFFLINE.md](OFFLINE.md);
+detalle por módulo en [TRAINING.md](TRAINING.md) y [RESEARCH.md](RESEARCH.md).

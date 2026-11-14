@@ -177,7 +177,7 @@ class SyncOfflineChecklists(
 
     private suspend fun failed(owner: DraftOwner, entry: OfflineChecklist, reason: RunFailure) =
         update(owner, entry.run.id, entry.upload!!.saveKey) { current -> current.copy(
-            status = if (reason in setOf(RunFailure.CONNECTION, RunFailure.UNAVAILABLE, RunFailure.RATE_LIMITED, RunFailure.SESSION)) OfflineRunStatus.PENDING else OfflineRunStatus.ATTENTION,
+            status = if (reason in setOf(RunFailure.CONNECTION, RunFailure.QUEUED, RunFailure.UNAVAILABLE, RunFailure.RATE_LIMITED, RunFailure.SESSION)) OfflineRunStatus.PENDING else OfflineRunStatus.ATTENTION,
             failure = reason, attempts = current.attempts + 1,
         ) }
 }

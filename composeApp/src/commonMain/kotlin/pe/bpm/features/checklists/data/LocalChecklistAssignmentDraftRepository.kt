@@ -48,6 +48,7 @@ class LocalChecklistAssignmentDraftRepository(
                     v.dueTime,
                     value.pending,
                     value.locationName,
+                    v.shiftId,
                 ),
             )
         }
@@ -63,6 +64,7 @@ private data class AssignmentDraftDto(
     val dueTime: String,
     val pending: Boolean,
     val locationName: String = "",
+    val shiftId: String? = null,
 ) {
     fun domain(): AssignmentDraft {
         require(
@@ -78,6 +80,7 @@ private data class AssignmentDraftDto(
                 locationId,
                 frequency?.let(ChecklistFrequency::valueOf),
                 dueTime,
+                shiftId?.takeIf { it.length in 1..64 },
             ),
             pending,
             locationName,

@@ -82,6 +82,8 @@ enum class AlertsFailure {
   INVALID_RESPONSE,
   RATE_LIMITED,
   LOCAL,
+  /** El cambio quedó guardado en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+  QUEUED,
 }
 
 sealed interface AlertsResult<out T> {

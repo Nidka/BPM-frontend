@@ -3,6 +3,7 @@ package pe.bpm.features.identity.data
 import io.ktor.http.isSuccess
 import io.ktor.client.HttpClient
 import io.ktor.client.statement.HttpResponse
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
@@ -13,6 +14,8 @@ import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 import pe.bpm.core.config.AppConfig
 import pe.bpm.core.network.SessionAccessException
+import pe.bpm.core.offline.OfflineIdentityBinding
+import pe.bpm.core.offline.RuntimeOfflineIdentity
 import pe.bpm.features.identity.domain.*
 
 class RemoteIdentityRepository internal constructor(
@@ -22,17 +25,22 @@ class RemoteIdentityRepository internal constructor(
     private val googleAuth: GoogleAuthProvider = platformGoogleAuthProvider(),
     private val sessionStore: SessionStore = EphemeralSessionStore(),
     private val nowSeconds: () -> Long = { Clock.System.now().epochSeconds },
+    /** Datos locales offline-first; null en pruebas y hosts sin base local. */
+    private val offline: OfflineIdentityBinding? = null,
 ) : IdentityRepository {
     /** Entrada de integración para pruebas HTTP y clientes existentes; AppGraph inyecta las fuentes explícitas. */
     constructor(client: HttpClient, config: AppConfig, googleAuth: GoogleAuthProvider = platformGoogleAuthProvider(),
-        sessionStore: SessionStore = EphemeralSessionStore(), nowSeconds: () -> Long = { Clock.System.now().epochSeconds }) :
-        this(FirebaseIdentityDataSource(client, config), BpmIdentityDataSource(client, config), config.apiBaseUrl, googleAuth, sessionStore, nowSeconds)
+        sessionStore: SessionStore = EphemeralSessionStore(), nowSeconds: () -> Long = { Clock.System.now().epochSeconds },
+        offline: OfflineIdentityBinding? = null) :
+        this(FirebaseIdentityDataSource(client, config), BpmIdentityDataSource(client, config), config.apiBaseUrl, googleAuth, sessionStore, nowSeconds, offline)
 
     // Solo memoria. No usar almacenamiento del navegador ni guardar la contraseña.
     private var idToken: String? = null
     private var refreshToken: String? = null
     private var sessionUid: String? = null
     private var expiresAt: Long = 0
+    /** Sesión abierta sin conexión con el último perfil verificado; el token se renueva al volver la red. */
+    private var offlineMode = false
     private var generation: Long = 0
     private val refreshMutex = Mutex()
     private val invalidations = MutableSharedFlow<IdentityError>(extraBufferCapacity = 1)
@@ -85,6 +93,8 @@ class RemoteIdentityRepository internal constructor(
         val serverSessions = window.value != null
         // Borrar las credenciales locales antes de suspender; las respuestas tardías no deben restaurarlas.
         signOut()
+        // Cierre explícito: se eliminan base local y archivos (la interfaz ya pidió confirmar los pendientes).
+        try { offline?.wipe() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* se reintenta al entrar con otra cuenta */ }
         if (token == null || !serverSessions) return IdentityResult.Success(Unit)
         return profiles.logout(token)
     }
@@ -101,8 +111,9 @@ class RemoteIdentityRepository internal constructor(
 
     /** Renueva el token con una única operación concurrente desde los adaptadores conectados en AppGraph. */
     suspend fun validSessionToken(): String? = refreshMutex.withLock {
-        val token = idToken ?: return@withLock null
-        if (nowSeconds() < expiresAt - 60) return@withLock token
+        val token = idToken
+        if (token == null && !(offlineMode && refreshToken != null)) return@withLock null
+        if (token != null && nowSeconds() < expiresAt - 60) return@withLock token
         val refresh = refreshToken ?: run { invalidateSession(); throw SessionAccessException(true) }
         val attempt = generation
         val credential = try { renew(refresh) } catch (error: IdentityDataException) {
@@ -115,6 +126,7 @@ class RemoteIdentityRepository internal constructor(
         idToken = credential.idToken
         refreshToken = credential.refreshToken
         expiresAt = nowSeconds() + credential.expiresIn.toLong()
+        offlineMode = false
         credential.idToken
     }
 
@@ -136,8 +148,13 @@ class RemoteIdentityRepository internal constructor(
         if (stored.origin != apiOrigin || stored.uid.isBlank() || stored.refreshToken.isBlank()) {
             sessionStore.clear(); return@identityOperation identityFailure("UNAUTHENTICATED")
         }
+        try { offline?.activate(stored.uid) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* sin base local se opera en línea */ }
         refreshMutex.withLock {
-            val credential = renew(stored.refreshToken)
+            val credential = try { renew(stored.refreshToken) } catch (error: IdentityDataException) {
+                // Sin red (no un rechazo del servidor): abrir con el último perfil verificado en este dispositivo.
+                if (error.failure.errors.all { it.permitsRestoreRetry }) offlineSession(stored)?.let { return@withLock it }
+                throw error
+            }
             currentCoroutineContext().ensureActive()
             if (attempt != generation) return@withLock identityFailure("UNAUTHENTICATED")
             if (credential.uid != stored.uid) { signOut(); return@withLock identityFailure("INVALID_RESPONSE") }
@@ -145,7 +162,10 @@ class RemoteIdentityRepository internal constructor(
             val profile = fetchProfile(credential.idToken)
             currentCoroutineContext().ensureActive()
             if (attempt != generation) return@withLock identityFailure("UNAUTHENTICATED")
+            if (profile is IdentityResult.Failure && profile.errors.all { it.permitsRestoreRetry }) offlineSession(stored)?.let { return@withLock it }
             if (profile is IdentityResult.Success && profile.value.id == stored.uid) {
+                rememberProfile(profile.value)
+                offlineMode = false
                 idToken = credential.idToken
                 refreshToken = credential.refreshToken
                 sessionUid = credential.uid
@@ -157,6 +177,23 @@ class RemoteIdentityRepository internal constructor(
                 if (profile is IdentityResult.Success) identityFailure("INVALID_RESPONSE") else profile
             }
         }
+    }
+
+    /** Perfil verificado por el servidor más reciente de este dispositivo, si no superó el máximo permitido. */
+    private suspend fun cachedProfile(uid: String): Profile? {
+        val record = try { offline?.loadProfile() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null } ?: return null
+        if (nowSeconds() * 1000 - record.updatedAt > RuntimeOfflineIdentity.OFFLINE_SESSION_MAX_AGE_MS) return null
+        return try { Json.decodeFromString<CachedProfile>(record.json).domain().takeIf { it.id == uid } } catch (_: Exception) { null }
+    }
+
+    private suspend fun offlineSession(stored: StoredSession): IdentityResult<Profile>? {
+        val profile = cachedProfile(stored.uid) ?: return null
+        sessionUid = stored.uid; refreshToken = stored.refreshToken; idToken = null; expiresAt = 0; offlineMode = true
+        return IdentityResult.Success(profile)
+    }
+
+    private suspend fun rememberProfile(profile: Profile) {
+        try { offline?.saveProfile(Json.encodeToString(CachedProfile.of(profile))) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* la caché es opcional */ }
     }
 
     private fun persist(uid: String, refresh: String) {
@@ -183,7 +220,7 @@ class RemoteIdentityRepository internal constructor(
     /** Liberar el grafo conserva la credencial móvil de renovación; cerrar sesión explícitamente la elimina. */
     fun close() {
         generation++
-        idToken = null; refreshToken = null; sessionUid = null
+        idToken = null; refreshToken = null; sessionUid = null; offlineMode = false
         window.value = null; lastActivitySent = null
         clearPendingVerification()
         googleAuth.clear()
@@ -241,6 +278,10 @@ class RemoteIdentityRepository internal constructor(
         }
         if (profile is IdentityResult.Success) {
             if (profile.value.id != uid) return identityFailure("INVALID_RESPONSE")
+            // Otra cuenta en el mismo dispositivo: se borran los datos de la anterior antes de continuar.
+            try { offline?.activate(uid) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* sin base local se opera en línea */ }
+            rememberProfile(profile.value)
+            offlineMode = false
             persist(uid, refresh)
             idToken = token
             refreshToken = refresh.takeIf { it.isNotBlank() }
@@ -253,18 +294,27 @@ class RemoteIdentityRepository internal constructor(
 
     override suspend fun currentProfile(): IdentityResult<Profile> = identityOperation {
         val attempt = generation
-        val token = validSessionToken() ?: return@identityOperation identityFailure("UNAUTHENTICATED")
+        val uid = sessionUid
+        val token = try { validSessionToken() } catch (error: SessionAccessException) {
+            // Sin conexión (no una sesión vencida): se conserva el último perfil verificado.
+            if (!error.expired && uid != null) cachedProfile(uid)?.let { return@identityOperation IdentityResult.Success(it) }
+            throw error
+        } ?: return@identityOperation identityFailure("UNAUTHENTICATED")
         val result = fetchProfile(token)
         currentCoroutineContext().ensureActive()
         if (attempt != generation) return@identityOperation identityFailure("UNAUTHENTICATED")
         if (result is IdentityResult.Success && result.value.id != sessionUid) { invalidateSession(); return@identityOperation identityFailure("INVALID_RESPONSE") }
         if (result is IdentityResult.Failure) result.errors.firstOrNull { it.deniesSession }?.let(::invalidateSession)
+        if (result is IdentityResult.Success) rememberProfile(result.value)
+        if (result is IdentityResult.Failure && uid != null && result.errors.all { it.permitsRestoreRetry }) cachedProfile(uid)?.let { return@identityOperation IdentityResult.Success(it) }
         result
     }
 
     override fun signOut() {
         close()
         sessionStore.clear()
+        // Los datos locales quedan ocultos; solo el cierre explícito o un cambio de cuenta los borra.
+        offline?.deactivate()
     }
 
     override suspend fun register(name: String, email: String, password: String): IdentityResult<Unit> {
@@ -355,3 +405,13 @@ class RemoteIdentityRepository internal constructor(
 }
 
 @Serializable private class StoredSession(val origin: String, val uid: String, val refreshToken: String)
+
+/** Perfil verificado guardado para abrir sin conexión; no contiene tokens ni credenciales. */
+@Serializable private class CachedProfile(val id: String, val email: String, val displayName: String,
+    val organizations: List<CachedOrganization>, val platformRole: String) {
+    fun domain() = Profile(id, email, displayName, organizations.map { Organization(it.id, it.name, it.role) }, platformRole)
+    companion object {
+        fun of(p: Profile) = CachedProfile(p.id, p.email, p.displayName, p.organizations.map { CachedOrganization(it.id, it.name, it.role) }, p.platformRole)
+    }
+}
+@Serializable private class CachedOrganization(val id: String, val name: String, val role: String)

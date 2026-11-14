@@ -50,8 +50,11 @@ data class AlertsState(
 )
 
 /** Bandeja personal y reglas independientes; ninguna respuesta antigua restaura otro contexto. */
-class AlertsViewModel(private val manage: ManageAlerts, private val newId: () -> String) :
-  ViewModel() {
+class AlertsViewModel(
+  private val manage: ManageAlerts,
+  private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
+  private val newId: () -> String,
+) : ViewModel() {
   private val mutable = MutableStateFlow(AlertsState())
   val state = mutable.asStateFlow()
   val editor =
@@ -313,7 +316,18 @@ class AlertsViewModel(private val manage: ManageAlerts, private val newId: () ->
     mutable.value = s.copy(loading = true, failure = null)
     listJob =
       viewModelScope.launch {
-        val r = manage.inbox(org, s.filter, PageRequest(s.inbox.token, s.inbox.query))
+        // Lectura local primero: el buzón guardado se muestra de inmediato y luego se actualiza.
+        val r =
+          localFirst.read(
+            isUsable = { it is AlertsResult.Success },
+            onLocal = { local ->
+              if (valid(expected) && rev == listRevision && !mutable.value.inboxLoaded) {
+                val page = (local as AlertsResult.Success).value
+                mutable.value = mutable.value.copy(inboxLoaded = true, inbox = s.inbox.copy(rows = page.items, next = page.nextToken))
+              }
+            },
+            load = { manage.inbox(org, s.filter, PageRequest(s.inbox.token, s.inbox.query)) },
+          )
         if (!valid(expected) || rev != listRevision) return@launch
         when (r) {
           is AlertsResult.Failure -> failure(r.reason, false)
@@ -440,6 +454,24 @@ class AlertsViewModel(private val manage: ManageAlerts, private val newId: () ->
             refreshCount()
           }
           is AlertsResult.Failure -> {
+            if (r.reason == AlertsFailure.QUEUED) {
+              // Sin conexión: el cambio quedó guardado y se ve ya aplicado, con la marca «Pendiente de enviar».
+              val local = kotlin.time.Clock.System.now().toString()
+              val updated =
+                when (action) {
+                  AlertAction.VIEW -> a.copy(viewedAt = a.viewedAt ?: local)
+                  AlertAction.ATTEND -> a.copy(viewedAt = a.viewedAt ?: local, attendedAt = local)
+                }
+              mutable.value =
+                mutable.value.copy(
+                  detail = updated,
+                  actionBusy = false,
+                  pendingAction = null,
+                  actionFailure = null,
+                  inbox = mutable.value.inbox.copy(rows = mutable.value.inbox.rows.map { if (it.id == updated.id) updated else it }),
+                )
+              return@launch
+            }
             if (r.reason in setOf(AlertsFailure.SESSION, AlertsFailure.DENIED)) {
               failure(r.reason, false)
               return@launch

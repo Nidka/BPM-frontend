@@ -48,6 +48,8 @@ enum class CleaningFrequency {
     DAILY,
     WEEKLY,
     MONTHLY,
+    /** Se ejecuta una vez por turno; al registrar la limpieza el turno es obligatorio. */
+    PER_SHIFT,
 }
 
 enum class CleaningResult {
@@ -143,9 +145,12 @@ data class StorageLot(
     val receivedAt: String,
     val storageLocation: String,
     val label: String,
+    /** Saldo actual tras consumos y descartes. */
     val quantityAvailable: String,
     val status: String,
     val expired: Boolean,
+    /** Cantidad aceptada en la recepción; vacía en servidores anteriores. */
+    val receivedQuantity: String = "",
 )
 
 data class CleaningPlan(
@@ -169,6 +174,7 @@ data class CleaningExecutionInput(
     val observation: String = "",
     val clientOperationId: String,
     val clientCreatedAt: String,
+    val shiftId: String? = null,
 )
 
 data class CleaningExecution(
@@ -178,6 +184,7 @@ data class CleaningExecution(
     val responsibleUserId: String,
     val responsibleName: String,
     val createdAt: String,
+    val shiftName: String = "",
 )
 
 enum class OperationsFailure {
@@ -192,7 +199,32 @@ enum class OperationsFailure {
     INVALID_PAGE,
     RATE_LIMITED,
     LOCAL,
+    /** El turno tiene controles programados activos. */
+    SHIFT_IN_USE,
+    /** El turno elegido no está abierto en este momento. */
+    SHIFT_OUT_OF_HOURS,
+    /** El lote no tiene saldo suficiente. */
+    INSUFFICIENT_STOCK,
+    /** El lote está vencido y no admite consumo. */
+    LOT_EXPIRED,
+    /** El registro quedó guardado en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
+    QUEUED,
 }
+
+/** Rechazos que cierran la operación: el cuerpo enviado no volverá a reintentarse tal cual. */
+val OperationsFailure.definitive: Boolean
+    get() =
+        this in
+            setOf(
+                OperationsFailure.INVALID,
+                OperationsFailure.DENIED,
+                OperationsFailure.NOT_FOUND,
+                OperationsFailure.CONFLICT,
+                OperationsFailure.SHIFT_IN_USE,
+                OperationsFailure.SHIFT_OUT_OF_HOURS,
+                OperationsFailure.INSUFFICIENT_STOCK,
+                OperationsFailure.LOT_EXPIRED,
+            )
 
 sealed interface OperationsResult<out T> {
     data class Success<T>(val value: T) : OperationsResult<T>

@@ -16,7 +16,14 @@ import pe.bpm.features.operations.domain.*
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun OperationsScreen(viewModel: OperationsViewModel, modifier: Modifier = Modifier) {
+fun OperationsScreen(
+    viewModel: OperationsViewModel,
+    modifier: Modifier = Modifier,
+    /** Acción del CHEF sobre un lote (registrar consumo o descarte); la raíz la conecta. */
+    onLotMovement: ((StorageLot) -> Unit)? = null,
+    /** Fotos de una ejecución de limpieza propia (ejecución, ¿se puede editar?). */
+    onCleaningPhotos: ((CleaningExecution) -> Unit)? = null,
+) {
     val state by viewModel.state.collectAsState()
     Column(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -44,6 +51,8 @@ fun OperationsScreen(viewModel: OperationsViewModel, modifier: Modifier = Modifi
             }
         }
         state.failure?.let { Text(failureText(it), color = MaterialTheme.colorScheme.error) }
+        state.notice?.let { Text(it) }
+        pe.bpm.core.offline.PendingOperationsNotice("supply-receipts", "cleaning-executions")
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         when {
             state.picker != null -> OperationsPicker(state, viewModel)
@@ -107,6 +116,19 @@ fun OperationsScreen(viewModel: OperationsViewModel, modifier: Modifier = Modifi
                                 BpmSecondaryButton({ viewModel.detail(entry) }) {
                                     Text("Ver detalle")
                                 }
+                                if (
+                                    entry is OperationsEntry.LotEntry &&
+                                        onLotMovement != null &&
+                                        state.role == "CHEF" &&
+                                        StockRules.available(entry.value)
+                                )
+                                    BpmTextButton({ onLotMovement(entry.value) }) {
+                                        Text("Registrar consumo o descarte")
+                                    }
+                                if (entry is OperationsEntry.ExecutionEntry && onCleaningPhotos != null)
+                                    BpmTextButton({ onCleaningPhotos(entry.value) }) {
+                                        Text("Fotos de la limpieza")
+                                    }
                                 if (
                                     entry is OperationsEntry.ProductEntry &&
                                         OperationsAccess.canCreate(

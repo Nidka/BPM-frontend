@@ -6,6 +6,9 @@ interface DraftStorage {
     suspend fun write(key: String, value: String)
     suspend fun remove(key: String)
 
+    /** Borra todos los documentos del dispositivo (cierre de sesión explícito). Sin soporte, no hace nada. */
+    suspend fun clearAll() = Unit
+
     /** Reemplazo condicional atómico: evita perder cambios entre escritores o pestañas. */
     suspend fun compareAndSet(key: String, expected: String?, value: String): Boolean =
         error("El almacenamiento no admite actualizaciones atómicas")

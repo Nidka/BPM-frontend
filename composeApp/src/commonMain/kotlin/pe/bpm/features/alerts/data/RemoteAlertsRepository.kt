@@ -222,6 +222,9 @@ private suspend inline fun <T> guarded(block: () -> T): AlertsResult<T> =
     throw e
   } catch (e: TransportFailure) {
     AlertsResult.Failure(e.reason)
+  } catch (_: pe.bpm.core.offline.OfflineQueuedException) {
+    // La escritura quedó en la Outbox: éxito local pendiente, no un fallo de conexión.
+    AlertsResult.Failure(AlertsFailure.QUEUED)
   } catch (e: SessionAccessException) {
     AlertsResult.Failure(if (e.expired) AlertsFailure.SESSION else AlertsFailure.CONNECTION)
   } catch (_: SerializationException) {

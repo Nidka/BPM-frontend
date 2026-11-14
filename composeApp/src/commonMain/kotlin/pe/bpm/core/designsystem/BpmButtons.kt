@@ -21,10 +21,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import pe.bpm.core.offline.serverActionBlocked
 
 /** Acción secundaria: borde de 2 dp y relieve de 3 dp (`.secondary` en playful.css). */
 @Composable
 fun BpmSecondaryButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit) =
+    BpmSecondaryButtonImpl(onClick, modifier, enabled && !serverActionBlocked(), content)
+
+@Composable
+private fun BpmSecondaryButtonImpl(onClick: () -> Unit, modifier: Modifier, enabled: Boolean,
     content: @Composable RowScope.() -> Unit) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()

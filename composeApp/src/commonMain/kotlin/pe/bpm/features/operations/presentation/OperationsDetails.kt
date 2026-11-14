@@ -42,19 +42,19 @@ internal fun OperationDetails(entry: OperationsEntry) {
         is OperationsEntry.LotEntry ->
             with(entry.value) {
                 Text(
-                    "Lote: $batchCode\nRecepción: ${displayDateTime(receivedAt)}\nVencimiento: ${displayDate(expirationDate)}\nUbicación: $storageLocation\nEtiqueta: ${label.ifEmpty{"Sin etiqueta"}}\nEstado: ${lotStatus(status)}"
+                    "Lote: $batchCode\nCantidad recibida: ${receivedQuantity.ifEmpty{"Sin información"}} $unit\nSaldo actual: $quantityAvailable $unit\nRecepción: ${displayDateTime(receivedAt)}\nVencimiento: ${displayDate(expirationDate)}\nUbicación: $storageLocation\nEtiqueta: ${label.ifEmpty{"Sin etiqueta"}}\nEstado: ${lotStatus(status)}"
                 )
             }
         is OperationsEntry.PlanEntry ->
             with(entry.value) {
                 Text(
-                    "Instrucciones: ${instructions.ifEmpty{"Sin instrucciones adicionales"}}\nProducto: ${productName.ifEmpty{"Sin producto indicado"}}\nHora: ${dueTime.ifEmpty{"Sin hora"}}\n${if(active)"Activo" else "Inactivo"}"
+                    "Instrucciones: ${instructions.ifEmpty{"Sin instrucciones adicionales"}}\nFrecuencia: ${frequencyLabel(frequency)}\nProducto: ${productName.ifEmpty{"Sin producto indicado"}}\nHora: ${dueTime.ifEmpty{"Sin hora"}}\n${if(active)"Activo" else "Inactivo"}"
                 )
             }
         is OperationsEntry.ExecutionEntry ->
             with(entry.value) {
                 Text(
-                    "Responsable: ${responsibleName.ifEmpty{"Responsable registrado"}}\nEjecutado: ${displayDateTime(input.executedAt)}\nConfirmado: ${displayDateTime(createdAt)}\nObservación: ${input.observation.ifEmpty{"Sin observaciones"}}"
+                    "Responsable: ${responsibleName.ifEmpty{"Responsable registrado"}}\nTurno: ${shiftName.ifEmpty{"Sin turno"}}\nEjecutado: ${displayDateTime(input.executedAt)}\nConfirmado: ${displayDateTime(createdAt)}\nObservación: ${input.observation.ifEmpty{"Sin observaciones"}}"
                 )
             }
     }
@@ -81,7 +81,7 @@ internal fun OperationsEntry.subtitle(): String =
         is OperationsEntry.ReceiptEntry ->
             "${displayDateTime(value.input.receivedAt)} · ${value.items.size} productos"
         is OperationsEntry.LotEntry ->
-            "${value.quantityAvailable} ${value.unit} · ${if(value.expired)"Vencido" else "Vencimiento: ${displayDate(value.expirationDate)}"}"
+            "Saldo ${value.quantityAvailable}${if(value.receivedQuantity.isEmpty()) "" else " de ${value.receivedQuantity}"} ${value.unit} · ${if(value.expired)"Vencido" else "Vencimiento: ${displayDate(value.expirationDate)}"}"
         is OperationsEntry.PlanEntry ->
             "${frequencyLabel(value.frequency)} · ${if(value.active)"Activo" else "Inactivo"}"
         is OperationsEntry.ExecutionEntry ->
@@ -107,6 +107,7 @@ internal fun frequencyLabel(v: CleaningFrequency) =
         CleaningFrequency.DAILY -> "Diaria"
         CleaningFrequency.WEEKLY -> "Semanal"
         CleaningFrequency.MONTHLY -> "Mensual"
+        CleaningFrequency.PER_SHIFT -> "Por turno"
     }
 
 internal fun fieldLabel(key: String) =
@@ -133,6 +134,8 @@ internal fun fieldLabel(key: String) =
         "observation" -> "Observación"
         "result" -> "Resultado"
         "frequency" -> "Frecuencia"
+        "shiftId" -> "Turno"
+        "shiftName" -> "Turno"
         "supplierName" -> "Proveedor"
         "planName" -> "Plan"
         else -> key
@@ -156,6 +159,15 @@ internal fun failureText(failure: OperationsFailure) =
             "No se pudo proteger el borrador en este dispositivo. Reintenta el guardado."
         OperationsFailure.UNAVAILABLE ->
             "El servicio no está disponible. Reintenta para comprobar el mismo registro."
+        OperationsFailure.SHIFT_IN_USE ->
+            "Hay controles programados activos en este turno. Desactívalos primero."
+        OperationsFailure.SHIFT_OUT_OF_HOURS ->
+            "El turno elegido no está abierto ahora. Elige el turno en curso o registra la limpieza dentro de su horario."
+        OperationsFailure.INSUFFICIENT_STOCK ->
+            "El lote no tiene saldo suficiente. Actualiza el saldo y corrige la cantidad."
+        OperationsFailure.LOT_EXPIRED ->
+            "El lote está vencido y no se puede consumir. Registra un descarte por vencimiento."
+        OperationsFailure.QUEUED -> "Guardado en este dispositivo. Se enviará cuando recuperes la conexión."
     }
 
 internal fun displayDate(value: String?) =

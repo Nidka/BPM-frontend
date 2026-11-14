@@ -31,7 +31,8 @@ data class ChecklistCatalogState(
 }
 
 class ChecklistCatalogViewModel(private val loadCatalog: LoadChecklistCatalog, private val loadTemplate: LoadChecklistTemplate,
-    private val freshness: DataFreshness = DataFreshness()) : ViewModel() {
+    private val freshness: DataFreshness = DataFreshness(),
+    private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct) : ViewModel() {
     private val mutable = MutableStateFlow(ChecklistCatalogState())
     val state = mutable.asStateFlow()
     private var job: Job? = null
@@ -73,7 +74,16 @@ class ChecklistCatalogViewModel(private val loadCatalog: LoadChecklistCatalog, p
             query = page.query, token = page.token, previous = page.previous)
         job = viewModelScope.launch {
             if (debounce) delay(300)
-            val result = loadCatalog(organizationId, PageRequest(page.token, page.query))
+            val result = localFirst.read(
+                isUsable = { it is ChecklistCatalogResult.Success },
+                onLocal = { local ->
+                    if (mutable.value.templates.isEmpty()) {
+                        val cached = local as ChecklistCatalogResult.Success
+                        mutable.value = mutable.value.copy(templates = cached.templates, nextToken = cached.nextToken)
+                    }
+                },
+                load = { loadCatalog(organizationId, PageRequest(page.token, page.query)) },
+            )
             currentCoroutineContext().ensureActive()
             if (result is ChecklistCatalogResult.Success) freshness.loaded()
             mutable.value = when (result) {

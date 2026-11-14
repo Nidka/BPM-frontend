@@ -26,6 +26,8 @@ data class OperationsState(
     val localStatus: DraftSaveStatus = DraftSaveStatus.IDLE,
     val saved: OperationsEntry? = null,
     val detail: OperationsEntry? = null,
+    /** Aviso positivo, p. ej. «Guardado en este dispositivo; se enviará al conectarte». */
+    val notice: String? = null,
     val picker: OperationsResource? = null,
     val pickerRows: List<OperationsEntry> = emptyList(),
     val pickerQuery: String = "",
@@ -36,6 +38,8 @@ data class OperationsState(
     val pickerLoading: Boolean = false,
     val products: List<Product> = emptyList(),
     val selectedPlan: CleaningPlan? = null,
+    val shifts: List<Shift> = emptyList(),
+    val shiftsFailed: Boolean = false,
 ) {
     val editable
         get() =

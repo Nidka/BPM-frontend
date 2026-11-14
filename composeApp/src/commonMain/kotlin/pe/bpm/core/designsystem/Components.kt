@@ -49,7 +49,10 @@ object BpmBrand {
         }
     }
 }
-@Composable fun RaisedButton(label:String,onClick:()->Unit,modifier:Modifier=Modifier,enabled:Boolean=true){
+@Composable fun RaisedButton(label:String,onClick:()->Unit,modifier:Modifier=Modifier,enabled:Boolean=true) =
+    RaisedButtonImpl(label, onClick, modifier, enabled && !pe.bpm.core.offline.serverActionBlocked())
+
+@Composable private fun RaisedButtonImpl(label:String,onClick:()->Unit,modifier:Modifier,enabled:Boolean){
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     val focused by interactions.collectIsFocusedAsState()

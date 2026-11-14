@@ -64,6 +64,7 @@ class RemoteChecklistAssignmentRepository(
                 input.locationId,
                 input.frequency?.name.orEmpty(),
                 input.dueTime,
+                input.shiftId,
             ),
             input,
         )
@@ -153,10 +154,11 @@ class RemoteChecklistAssignmentRepository(
                         .body<AssignmentErrorsDto>()
                         .errors
                         .flatMap { it.fields.keys }
-                        .filter { it in setOf("locationId", "frequency", "dueTime") }
+                        .filter { it in setOf("locationId", "frequency", "dueTime", "shiftId") }
                         .associateWith {
                             when (it) {
                                 "locationId" -> "Selecciona una sede disponible."
+                                "shiftId" -> "Elige un turno activo de la sede."
                                 "frequency" -> "Selecciona una frecuencia válida."
                                 else -> "Usa una hora como 08:30."
                             }
@@ -173,6 +175,7 @@ private class AssignmentRequestFailure(
     val fields: Map<String, String> = emptyMap(),
 ) : Exception()
 
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable
 private data class CreateAssignmentDto(
     val id: String,
@@ -180,6 +183,9 @@ private data class CreateAssignmentDto(
     val locationId: String,
     val frequency: String,
     val dueTime: String,
+    /** Se omite sin turno para no enviar un nulo. */
+    @kotlinx.serialization.EncodeDefault(kotlinx.serialization.EncodeDefault.Mode.NEVER)
+    val shiftId: String? = null,
 )
 
 @Serializable
@@ -238,6 +244,12 @@ private data class AssignmentDto(
     val periodStartsAt: String? = null,
     val periodEndsAt: String? = null,
     val run: AssignedRunDto? = null,
+    val templateVersionNumber: Int = 0,
+    val shiftId: String = "",
+    val shiftName: String = "",
+    val shiftStartTime: String = "",
+    val shiftEndTime: String = "",
+    val shiftState: String = "",
 ) {
     fun domain(requirePeriod: Boolean): ChecklistAssignment {
         require(
@@ -258,6 +270,10 @@ private data class AssignmentDto(
         periodStartsAt?.let(Instant::parse)
         periodEndsAt?.let(Instant::parse)
         require(!requirePeriod || periodStartsAt != null)
+        require(templateVersionNumber >= 0 && shiftName.length <= 60)
+        require(shiftId.isEmpty() || shiftId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+        // El estado del turno solo existe junto con el turno.
+        require((shiftId.isEmpty()) == shiftState.isEmpty())
         require(
             periodEndsAt == null ||
                 periodStartsAt != null &&
@@ -278,6 +294,12 @@ private data class AssignmentDto(
             periodStartsAt,
             periodEndsAt,
             run?.domain(),
+            templateVersionNumber,
+            shiftId,
+            shiftName,
+            shiftStartTime,
+            shiftEndTime,
+            shiftState.takeIf { it.isNotEmpty() }?.let(ShiftState::valueOf),
         )
     }
 }

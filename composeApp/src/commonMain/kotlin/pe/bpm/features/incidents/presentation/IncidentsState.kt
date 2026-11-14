@@ -21,6 +21,8 @@ enum class IncidentPicker {
 }
 
 data class IncidentsState(
+    /** Aviso positivo, p. ej. «Guardado en este dispositivo; se enviará al conectarte». */
+    val notice: String? = null,
     val userId: String? = null,
     val organizationId: String? = null,
     val siteId: String? = null,

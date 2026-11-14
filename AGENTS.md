@@ -17,7 +17,7 @@ Para UI, tenant y formularios de empresa/equipo leer también `specs/WORKSPACE.m
 - Ninguna clave PostgreSQL, cuenta de servicio Firebase ni credencial R2 va al cliente.
 - Login confirma /me; no simular éxito ni persistir contraseña/token en el navegador.
 - Toda operación empresarial futura valida tenant/permisos en el backend.
-- Los borradores siguen specs/OFFLINE.md: hay recuperación local y cola para controles preparados; inicio offline, archivos y trabajo de fondo siguen pendientes.
+- Offline-first fase 1 (specs/OFFLINE.md, sección «Offline-first»): las features dependen de los puertos de `core/offline` (LocalStore, Outbox, SyncEngine, ConnectivityMonitor), nunca del driver. Toda escritura de negocio diferible lleva UUID e Idempotency-Key; no persistir tokens ni URL firmadas. Fase 2: las ViewModels de lectura reciben un `LocalFirstReader` (lo local primero y luego el servidor); una escritura encolada llega como `QUEUED` y se trata como éxito local pendiente (aviso + `PendingBadge`/`PendingOperationsNotice`), nunca como error de conexión; las pantallas administrativas que requieren servidor van dentro de `ServerOnly`. Los archivos grandes (videos) se escriben por bloques en `PrivateFileStore` y se verifican con SHA-256 (`VerifiedDownloader`); el servidor califica, el cliente nunca. Detalle en specs/OFFLINE.md, TRAINING.md y RESEARCH.md.
 - Verificar `./gradlew :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug`
   y `node --test web/server.test.mjs`; en macOS, compilar el framework iOS.
 - El repositorio contiene exclusivamente Software/Frontend.
@@ -27,5 +27,17 @@ Estado de operación diaria e incidencias: leer `specs/OPERATIONS.md` y
 localmente; su activación depende de V5/V6 y despliegue del backend antes de la UI.
 No confundir compilación o aceptación aislada con publicación en Railway.
 
+Academia BPM (lecciones con video, modo estudio sin calificación, evaluaciones y autoría): leer specs/TRAINING.md.
+Está implementada localmente; su UI depende del backend de Academia. El reproductor Android/iOS
+y los selectores de video nativos no se compilan sin Android SDK/macOS: verificarlos en esos entornos.
+
+Ampliación de Academia (asignaciones, logros, rutas, evaluación por módulo, video de YouTube y verificación pública): ver la última sección de specs/TRAINING.md; requiere V11 del backend.
+
 Alertas/reglas y registro de notificaciones Android: leer specs/ALERTS.md.
 La activación necesita V7, API y worker antes del frontend; no implica despliegue.
+
+Cuentas (edición de miembros/sedes/organización, invitaciones, dispositivos propios, tipo de establecimiento): leer specs/ACCOUNTS.md.
+Requiere V12 del backend antes de activar la UI; no implica despliegue.
+Estudio CAP (consentimiento, encuesta pre/post e investigación): leer specs/RESEARCH.md. Requiere el backend V9.
+Reportes, constancias y registro de uso (RF-09/16/17/27/28/29/30/39): leer specs/REPORTS.md.
+Requiere el backend con V10; el guardado de CSV en Android/iOS no se compila sin SDK/macOS.

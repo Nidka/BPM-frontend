@@ -16,7 +16,8 @@ test('el servidor arranca con los archivos declarados para el contenedor de prod
   try {
     const dockerfile = await readFile(join(repository, 'Dockerfile'), 'utf8');
     const runtime = dockerfile.split(/^FROM /m).at(-1);
-    for (const line of runtime.split('\n').filter(value => value.startsWith('COPY '))) {
+    // Acepta CRLF: en Windows la copia de trabajo puede convertir los finales de línea.
+    for (const line of runtime.split(/\r?\n/).filter(value => value.startsWith('COPY '))) {
       if (line.includes('--from=')) continue;
       const paths = line.split(/\s+/).slice(1).filter(value => !value.startsWith('--'));
       const target = paths.pop();

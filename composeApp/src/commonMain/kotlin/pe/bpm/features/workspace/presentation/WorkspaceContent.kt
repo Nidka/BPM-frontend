@@ -59,12 +59,14 @@ import pe.bpm.features.workspace.domain.*
         if (action != null) BpmSecondaryButton(onClick = onAction) { Text("+ $action") }
     }
 }
-@Composable internal fun Entries(entries: List<Entry>, title: String, empty: String) {
+/** [onOpen] conecta cada entrada con su detalle (por ejemplo, el curso de Academia); sin él solo se listan. */
+@Composable internal fun Entries(entries: List<Entry>, title: String, empty: String, onOpen: ((String) -> Unit)? = null) {
     if (entries.isEmpty()) EmptyState(title, empty)
     BpmCardGrid(entries, minCardWidth = 320.dp, maxColumns = 3) { entry, cardModifier -> BpmCard(cardModifier) {
         Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (entry.detail.isNotBlank()) Text(entry.detail)
         Eyebrow(when (entry.status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" })
+        if (onOpen != null) BpmSecondaryButton(onClick = { onOpen(entry.id) }, modifier = Modifier.fillMaxWidth()) { Text("Abrir curso") }
     } }
 }
 @Composable internal fun Errors(errors: List<WorkspaceError>) {

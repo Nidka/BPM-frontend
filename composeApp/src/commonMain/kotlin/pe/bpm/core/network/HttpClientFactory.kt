@@ -17,6 +17,9 @@ fun createHttpClient(engine: HttpClientEngine = platformHttpEngine()): HttpClien
             connectTimeoutMillis = 8_000
             socketTimeoutMillis = 12_000
         }
+        // Después de HttpTimeout (los interceptores de envío más recientes se ejecutan primero): ve su excepción
+        // y repite las lecturas contra la caché local.
+        install(pe.bpm.core.offline.LocalFirstPlugin)
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
         }

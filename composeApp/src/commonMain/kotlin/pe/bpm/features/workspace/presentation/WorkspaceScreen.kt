@@ -30,6 +30,11 @@ internal fun WorkspaceScreen(
     onManageTemplates: () -> Unit,
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
+    onTraining: () -> Unit = {},
+    onAccounts: () -> Unit = {}, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
+    homeContent: (@Composable () -> Unit)? = null,
+    onOpenCourse: ((String) -> Unit)? = null,
+    learnHeader: (@Composable () -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -88,8 +93,10 @@ internal fun WorkspaceScreen(
                     contentAlignment = Alignment.TopCenter) { secondaryContent() }
                 else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
                     contentAlignment = Alignment.TopCenter) {
+                    pe.bpm.core.offline.ServerOnly {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
                         onSubmitForm, formDraft, onFormRetryAccount, onFormSelectAccount, onFormEdit, onFormDiscard, onFormRetry, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
+                    }
                 } else if (choosingOrganization) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
                     contentAlignment = Alignment.TopCenter) {
                     OrganizationPickerScreen(state.organizations, state.selected, state.loading, errors = state.errors,
@@ -124,6 +131,8 @@ internal fun WorkspaceScreen(
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                             sessionMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                             if (WorkspaceDestination.Learn in available) BpmSecondaryButton(onClick = { navigate(WorkspaceDestination.Learn) }) { Text("Mi aprendizaje") }
+                            BpmSecondaryButton(onClick = onDevices) { Text("Mis dispositivos") }
+                            BpmSecondaryButton(onClick = onAcceptInvitation) { Text("Aceptar una invitación") }
                             HorizontalDivider()
                             BpmTextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
                                 BpmIcon(BpmSymbol.Logout)
@@ -146,7 +155,7 @@ internal fun WorkspaceScreen(
                     else workspace?.let { current -> when (section) {
                         WorkspaceDestination.Tasks -> Unit
                         WorkspaceDestination.Account -> Unit
-                        WorkspaceDestination.Home -> Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) })
+                        WorkspaceDestination.Home -> { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
                         WorkspaceDestination.Company -> {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
@@ -160,6 +169,8 @@ internal fun WorkspaceScreen(
                                 { m -> ActionCard(m, "Operación diaria", "Configura proveedores, productos y planes de limpieza; consulta los registros de tus sedes.", "Gestionar insumos y limpieza", onDailyOperations) },
                                 { m -> ActionCard(m, "Reglas de avisos", "Elige cuándo avisar a las personas responsables de tus sedes.", "Configurar avisos", onAlertRules) },
                                 { m -> IncidentEntryCard(onIncidents, m) },
+                                { m -> ActionCard(m, "Cuentas y equipo", "Edita roles y sedes, desactiva o reactiva personas, invita por correo y actualiza los datos de la organización y de cada sede.", "Gestionar cuentas", onAccounts) },
+                                { m -> ActionCard(m, "Academia BPM", "Prepara cursos con lecciones, video y preguntas; publícalos para que tu equipo aprenda y se evalúe.", "Gestionar Academia", onTraining) },
                             )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -174,6 +185,7 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Team -> {
                             SectionHeading("Personas que hacen la diferencia", if (current.canManage) "Agregar persona" else null) { open(WorkspaceFormKind.Member) }
+                            if (current.canManage) BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")
                             else {
                                 WorkspacePagedList(WorkspaceResource.Members, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -189,8 +201,9 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Learn -> {
                             BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
+                            learnHeader?.invoke()
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
-                            Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.")
+                            Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse)
                             }
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
