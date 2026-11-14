@@ -170,6 +170,26 @@ class AppGraph(
         pe.bpm.features.training.domain.LoadTrainingDraft(trainingRepository), pe.bpm.features.training.domain.SaveTrainingDraft(trainingRepository),
         pe.bpm.features.training.domain.PublishTrainingCourse(trainingRepository), pe.bpm.features.training.domain.UploadLessonVideo(trainingRepository)) { Uuid.random().toString() }
 
+    // Cuentas: miembros, invitaciones, organización/sedes y dispositivos propios.
+    private val accountsRepository = pe.bpm.features.accounts.data.RemoteAccountsRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    fun teamViewModel() = pe.bpm.features.accounts.presentation.TeamViewModel(
+        pe.bpm.features.accounts.domain.ListAccountMembers(accountsRepository), pe.bpm.features.accounts.domain.LoadActiveLocations(accountsRepository),
+        pe.bpm.features.accounts.domain.UpdateAccountMember(accountsRepository), pe.bpm.features.accounts.domain.SetMemberActive(accountsRepository),
+        pe.bpm.features.accounts.domain.TransferAdministration(accountsRepository))
+    fun organizationAccountViewModel() = pe.bpm.features.accounts.presentation.OrganizationViewModel(
+        pe.bpm.features.accounts.domain.LoadOrganizationAccount(accountsRepository), pe.bpm.features.accounts.domain.UpdateOrganizationAccount(accountsRepository),
+        pe.bpm.features.accounts.domain.ListAccountLocations(accountsRepository), pe.bpm.features.accounts.domain.UpdateAccountLocation(accountsRepository))
+    @OptIn(ExperimentalUuidApi::class)
+    fun invitationsViewModel() = pe.bpm.features.accounts.presentation.InvitationsViewModel(
+        pe.bpm.features.accounts.domain.ListInvitations(accountsRepository), pe.bpm.features.accounts.domain.LoadActiveLocations(accountsRepository),
+        pe.bpm.features.accounts.domain.InviteMember(accountsRepository), pe.bpm.features.accounts.domain.ResendInvitation(accountsRepository),
+        pe.bpm.features.accounts.domain.RevokeInvitation(accountsRepository), { Uuid.random().toString() }, { Clock.System.now() })
+    fun invitationAcceptViewModel() = pe.bpm.features.accounts.presentation.InvitationAcceptViewModel(pe.bpm.features.accounts.domain.AcceptInvitation(accountsRepository))
+    fun devicesViewModel() = pe.bpm.features.accounts.presentation.DevicesViewModel(
+        pe.bpm.features.accounts.domain.ListMyDevices(accountsRepository), pe.bpm.features.accounts.domain.RevokeMyDevice(accountsRepository))
+
     private val alertsRepository = pe.bpm.features.alerts.data.RemoteAlertsRepository(httpClient,config,
         onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,
         token=identityRepository::validSessionToken)

@@ -22,7 +22,7 @@ class LocalWorkspaceFormDraftRepository(private val storage: DraftStorage, priva
     val role: String, val business: String, val locations: List<String>) {
     fun domain(): WorkspaceFormDraft {
         require(id.isNotBlank() && locations.size <= 100 && listOf(name, trade, tax, contactName, address, district, phone, email).all { it.length <= 2000 })
-        require(role in setOf("ADMIN", "CHEF", "WORKER") && business in setOf("RESTAURANT", "CAFETERIA", "CATERING", "RELATED_SERVICE"))
-        return WorkspaceFormDraft(id, name, trade, tax, contactName, address, district, phone, email, role, business, locations.toSet())
+        require(role in setOf("ADMIN", "CHEF", "WORKER") && business in setOf("", "RESTAURANT", "CAFETERIA", "CATERING", "OTHER_FOOD_SERVICE", "RELATED_SERVICE"))
+        return WorkspaceFormDraft(id, name, trade, tax, contactName, address, district, phone, email, role, if (business == "RELATED_SERVICE") "OTHER_FOOD_SERVICE" else business, locations.toSet())
     }
 }
