@@ -16,7 +16,6 @@ import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSData
 import platform.Foundation.NSDataWritingAtomic
 import platform.Foundation.NSDataWritingFileProtectionComplete
-import platform.Foundation.NSFileHandle
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileProtectionComplete
 import platform.Foundation.NSFileProtectionKey
@@ -69,7 +68,7 @@ class ApplePrivateFileStore : PrivateFileStore {
         val base = NSFileManager.defaultManager.URLForDirectory(NSApplicationSupportDirectory, NSUserDomainMask, null, true, null)!!
         val directory = base.URLByAppendingPathComponent("bpm-offline-files-v1", true)!!
         check(NSFileManager.defaultManager.createDirectoryAtURL(directory, true, null, null))
-        check(directory.setResourceValue(NSNumber.numberWithBool(true), NSURLIsExcludedFromBackupKey, null))
+        check(directory.setResourceValue(NSNumber(value = true), NSURLIsExcludedFromBackupKey, null))
         return directory
     }
     private fun url(ref: String): NSURL {
@@ -122,21 +121,25 @@ class ApplePrivateFileStore : PrivateFileStore {
         if (!exists(target)) {
             check(manager.createFileAtPath(target.path!!, data, mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionComplete)))
         } else {
-            val handle = checkNotNull(NSFileHandle.fileHandleForWritingAtPath(target.path!!))
-            handle.seekToEndOfFile()
-            handle.writeData(data)
-            handle.closeFile()
+            val previous = NSData.dataWithContentsOfURL(target)
+            val previousBytes = previous?.bytes?.readBytes(previous.length.toInt()) ?: ByteArray(0)
+            val merged = ByteArray(previousBytes.size + length)
+            previousBytes.copyInto(merged)
+            bytes.copyInto(merged, destinationOffset = previousBytes.size, endIndex = length)
+            val mergedData = bytesToData(merged, merged.size)
+            check(mergedData.writeToURL(target, NSDataWritingAtomic or NSDataWritingFileProtectionComplete, null))
         }
     }
     override suspend fun readPart(ref: String, offset: Long, buffer: ByteArray): Int = withContext(Dispatchers.Default) {
         val target = partUrl(ref)
         if (!exists(target)) return@withContext -1
-        val handle = NSFileHandle.fileHandleForReadingAtPath(target.path!!) ?: return@withContext -1
-        handle.seekToFileOffset(offset.toULong())
-        val data = handle.readDataOfLength(buffer.size.toULong())
-        handle.closeFile()
-        val count = data.length.toInt()
-        if (count == 0) -1 else { data.bytes!!.readBytes(count).copyInto(buffer); count }
+        val data = NSData.dataWithContentsOfURL(target) ?: return@withContext -1
+        val content = data.bytes!!.readBytes(data.length.toInt())
+        val start = offset.toInt().coerceAtLeast(0)
+        if (start >= content.size) return@withContext -1
+        val count = minOf(buffer.size, content.size - start)
+        content.copyInto(buffer, endIndex = start + count, startIndex = start)
+        count
     }
     override suspend fun commitPart(ref: String) = withContext(Dispatchers.Default) {
         val final = url(ref)
@@ -152,9 +155,11 @@ class ApplePrivateFileStore : PrivateFileStore {
         val target = partUrl(ref)
         if (!exists(target)) return@withContext
         if (length <= 0) { manager.removeItemAtURL(target, null); return@withContext }
-        val handle = NSFileHandle.fileHandleForWritingAtPath(target.path!!) ?: return@withContext
-        handle.truncateFileAtOffset(length.toULong())
-        handle.closeFile()
+        val data = NSData.dataWithContentsOfURL(target) ?: return@withContext
+        val keep = minOf(length.toInt(), data.length.toInt())
+        val truncated = data.bytes!!.readBytes(keep)
+        val truncatedData = bytesToData(truncated, truncated.size)
+        check(truncatedData.writeToURL(target, NSDataWritingAtomic or NSDataWritingFileProtectionComplete, null))
     }
     override suspend fun size(ref: String): Long? = withContext(Dispatchers.Default) { url(ref).let { if (exists(it)) length(it) else null } }
     override suspend fun localUri(ref: String): String? = withContext(Dispatchers.Default) { url(ref).let { if (exists(it)) it.absoluteString else null } }

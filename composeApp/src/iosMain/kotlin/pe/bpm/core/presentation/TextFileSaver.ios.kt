@@ -28,8 +28,6 @@ actual fun rememberTextFileSaver(): TextFileSaver {
                     return
                 }
                 val sheet = UIActivityViewController(activityItems = listOf(NSURL.fileURLWithPath(path)), applicationActivities = null)
-                // En iPad la hoja es un popover y necesita un ancla.
-                sheet.popoverPresentationController?.sourceView = host.view
                 sheet.completionWithItemsHandler = { _, completed, _, error ->
                     // El archivo temporal se borra al terminar, haya sido compartido o no.
                     NSFileManager.defaultManager.removeItemAtPath(path, null)

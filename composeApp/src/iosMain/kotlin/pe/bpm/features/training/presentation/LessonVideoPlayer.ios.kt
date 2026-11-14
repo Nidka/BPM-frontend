@@ -36,7 +36,7 @@ actual fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit,
     LaunchedEffect(controller) {
         while (true) {
             delay(1_000)
-            val status = controller.player?.currentItem?.status
+            val status = (controller.player as? AVPlayer)?.currentItem?.status
             if (status == AVPlayerItemStatusFailed) { currentOnError.value(); break }
             if (status == AVPlayerItemStatusReadyToPlay) break
         }
@@ -45,7 +45,7 @@ actual fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit,
         factory = { controller },
         modifier = modifier,
         onRelease = { released ->
-            released.player?.pause()
+            (released.player as? AVPlayer)?.pause()
             released.player = null
         },
     )
