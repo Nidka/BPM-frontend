@@ -35,3 +35,14 @@ actual fun rememberLessonVideoPicker(maxBytes: Int, onResult: (VideoSelection) -
     val callback = rememberUpdatedState(onResult)
     return remember { { callback.value(VideoSelection.Failed(VideoSelectionFailure.UNAVAILABLE)) } }
 }
+
+/** JVM (pruebas): el video de YouTube se abre en el navegador del sistema. */
+@Composable
+actual fun ExternalLessonVideo(embedUrl: String, watchUrl: String, modifier: Modifier) {
+    Column(modifier) {
+        Text("El video de YouTube se abre en el navegador. Requiere conexión.", Modifier.padding(bottom = 8.dp))
+        BpmSecondaryButton(onClick = {
+            try { if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop().browse(java.net.URI(watchUrl)) } catch (_: Exception) { }
+        }) { Text("Abrir video en el navegador") }
+    }
+}

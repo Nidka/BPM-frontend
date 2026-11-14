@@ -24,3 +24,13 @@ expect fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit,
  */
 @Composable
 expect fun rememberLessonVideoPicker(maxBytes: Int, onResult: (VideoSelection) -> Unit): () -> Unit
+
+/**
+ * Reproductor embebido de un video de YouTube de la lección; [embedUrl] siempre es
+ * `https://www.youtube-nocookie.com/embed/{videoId}`. Requiere conexión. [watchUrl] es la
+ * alternativa para abrir en el navegador. Web: iframe superpuesto (CSP con frame-src mínimo);
+ * Android: WebView con JavaScript solo para ese dominio y sin archivos; iOS: WKWebView;
+ * JVM (pruebas): abre el navegador.
+ */
+@Composable
+expect fun ExternalLessonVideo(embedUrl: String, watchUrl: String, modifier: Modifier = Modifier)

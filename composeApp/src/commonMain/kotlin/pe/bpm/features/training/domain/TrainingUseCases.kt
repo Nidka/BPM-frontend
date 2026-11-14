@@ -38,13 +38,22 @@ class SubmitTrainingAttempt(private val repository: TrainingRepository) {
         newId: () -> String,
         startedAt: String,
         now: String,
+        lessonId: String? = null,
     ): AttemptSubmission? {
-        val ids = course.questions.map { it.id }
+        // MODULE evalúa solo las preguntas de su lección; los demás tipos no admiten lección.
+        if ((type == AttemptType.MODULE) != (lessonId != null)) return null
+        if (lessonId != null && course.lessons.none { it.id == lessonId }) return null
+        val questions = evaluationQuestions(course, lessonId)
+        val ids = questions.map { it.id }
         if (ids.isEmpty() || answers.keys != ids.toSet()) return null
-        if (course.questions.any { answers[it.id] !in it.options.indices }) return null
+        if (questions.any { answers[it.id] !in it.options.indices }) return null
         return AttemptSubmission(newId(), newId(), course.version.id, type, startedAt, now,
-            course.questions.map { AttemptAnswer(it.id, answers.getValue(it.id)) })
+            questions.map { AttemptAnswer(it.id, answers.getValue(it.id)) }, lessonId)
     }
+
+    /** Preguntas que entran en la evaluación: las de la lección (módulo) o todas las del curso. */
+    fun evaluationQuestions(course: TrainingCourse, lessonId: String?): List<TrainingQuestion> =
+        if (lessonId == null) course.questions else course.questions.filter { it.lessonId == lessonId }
 
     suspend operator fun invoke(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome> =
         repository.submitAttempt(org, courseId, attempt)

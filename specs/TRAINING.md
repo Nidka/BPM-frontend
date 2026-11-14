@@ -142,3 +142,61 @@ cubre el proxy. No hay pruebas de los reproductores nativos ni de R2 real: requi
 - El cuerpo del borrador se limita a 1 MiB (el cliente valida ~900 KB) y las opciones repetidas se rechazan (también en el proxy).
 - `POST videos/{id}/confirm` se repite (idempotente) con espera creciente (2, 4, 8, 16, 32 s) ante timeout o 5xx hasta ver `AVAILABLE` o `FAILED`.
 - Códigos de dominio nuevos (`TRAINING_*_NOT_FOUND`, `TRAINING_VIDEO_CONFLICT/NOT_READY/INVALID`, `STORAGE_UNAVAILABLE`) se traducen a mensajes en español; el replay de un intento devuelve 200 con el resultado original.
+
+## Ampliación: asignaciones, logros, rutas, módulos, YouTube y verificación pública
+
+Contrato: sección «Asignaciones, rutas, insignias y evaluación por módulo» de `Backend/specs/TRAINING.md` (requiere
+`V11__training_assignments_paths.sql`; no implica despliegue). El catálogo offline (`me/offline-catalog`) y las descargas
+de video **no** se implementan aquí: son de otra entrega.
+
+### Pantallas y flujos
+
+| Quién | Dónde | Qué |
+|---|---|---|
+| CHEF/WORKER | Aprender (cabecera) | «Mis capacitaciones»: asignaciones con estado (Pendiente, En curso, Completada, Vencida), fecha límite y botón Empezar/Continuar; paginación «Ver más» |
+| CHEF/WORKER | `aprender-logros` | «Mis logros»: XP total (cursos, lecciones, insignias) e insignias obtenidas/por lograr |
+| Todos los roles de aprendizaje | `aprender-rutas` | Rutas publicadas con avance (%) y detalle con curso siguiente; «Volver» cierra el detalle |
+| ADMIN | Empresa › Academia (pestañas) | Cursos · Asignaciones (alta a persona, rol con sede opcional o sede; curso publicado; fecha límite `AAAA-MM-DD` opcional; lista con filtros de estado y curso, paginada, cancelar) · Rutas (crear/editar con `rowVersion`, subir/bajar cursos, publicar, archivar) · Logros (editar nombre, descripción, puntos, umbral y vigencia) |
+| Público | `/verificar/{codigo}` | Consulta una constancia sin sesión; muestra válida/revocada, curso, versión, fecha, organización y titular abreviado |
+
+- **Evaluación por módulo** (`attemptType: MODULE` + `lessonId`): botón «Evaluar esta lección» en cada lección con
+  preguntas (solo miembros). Solo se responden las preguntas de la lección; mismas garantías de idempotencia y reintento que el
+  intento normal; **no** completa el curso ni emite constancia. El XP de módulo lo calcula el servidor y se ve en «Mis logros».
+- **Insignias nuevas**: el intento devuelve `achievements`; el resultado muestra una celebración breve (aparece sin animación con
+  «reducir movimiento») y se anuncia a lectores de pantalla.
+- **Asignaciones**: el `id` lo genera el cliente al primer envío y se conserva en reintentos idénticos; cualquier edición lo renueva
+  (evita `IDEMPOTENCY_CONFLICT`). La fecha límite se envía como `AAAA-MM-DDT23:59:00Z` (fin de día en hora universal; el contrato
+  exige futura y hasta 5 años). El aviso al destinatario lo genera el worker de alertas (no es instantáneo).
+- **Rutas**: 409 `TRAINING_PATH_CONFLICT` conserva la copia local y ofrece «Recargar ruta»; publicar exige guardar antes.
+- **Selectores de persona y sede**: los aporta la raíz de la app (`app/TrainingContent.kt`) con las páginas de miembros y sedes del
+  workspace; el `id` de miembro se usa como `userId` (supuesto: coincide con el UID de la cuenta).
+
+### Video de YouTube
+
+`lesson.externalVideo = {provider: YOUTUBE, videoId}`; la app arma `https://www.youtube-nocookie.com/embed/{videoId}` y muestra
+«Requiere conexión» más «Abrir video en el navegador» (`LocalUriHandler`). `ExternalLessonVideo` es `expect/actual`:
+
+| Plataforma | Implementación |
+|---|---|
+| Web | `<iframe>` superpuesto (mismo mecanismo que el `<video>`), `sandbox`, `referrerpolicy=strict-origin-when-cross-origin`; la CSP de `web/server.mjs` añade solo `frame-src https://www.youtube-nocookie.com` |
+| Android | `WebView` con JavaScript, sin acceso a archivos ni contenido; `shouldOverrideUrlLoading` bloquea todo lo que no sea `https://www.youtube-nocookie.com` |
+| iOS | `WKWebView` con `WKNavigationDelegate` que cancela cualquier otro destino |
+| JVM | abre el navegador del sistema |
+
+En el editor ADMIN cada lección acepta pegar un enlace de YouTube (`YouTubeLinks.idFromUrl`: watch, youtu.be, shorts y embed) **o**
+subir un video; son excluyentes (elegir uno retira el otro). Solo viaja el `videoId`.
+
+### Proxy web
+
+`web/training-proxy.mjs` valida además las rutas `me/assignments`, `me/achievements`, `assignments[/{id}/cancel]`, `achievements[/{id}]`,
+`paths[/{id}[/publish|archive]]` (cuerpos exactos, filtros `status/courseId/pageSize/pageToken` sin repetidos, proyección de
+respuestas y `pagination`), `attemptType MODULE` con `lessonId`, `achievements` del intento y `externalVideo`. La verificación
+`/backend/api/v1/public/training-certificates/{código de 24 caracteres base32}` es solo GET, sin consulta, **sin** `Authorization` ni
+cookies, devuelve únicamente los campos públicos y reduce 404/429/5xx a errores sanitizados.
+
+### Pruebas y pendientes
+
+`TrainingPlusDomainTest`, `TrainingPlusViewModelTest` (asignaciones, MODULE, rutas con 409, logros, verificación),
+`RemoteTrainingPlusRepositoryTest` (DTO, `externalVideo`, `achievements`) y `web/training-proxy.test.mjs`. Sin verificar en dispositivo:
+`ExternalLessonVideo` de Android (WebView) e iOS (WKWebView) y el resto del código nativo (sin Android SDK ni macOS); el embed de
+YouTube puede rechazar la reproducción si el origen no envía referrer (por eso el botón de respaldo).

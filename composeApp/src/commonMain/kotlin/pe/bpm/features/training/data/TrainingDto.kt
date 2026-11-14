@@ -42,8 +42,17 @@ internal data class CourseInfoDto(
     }
 }
 
+/** Video de YouTube: solo `provider` y `videoId`; el servidor nunca entrega una URL. */
 @Serializable
-internal data class LessonDto(val id: String, val title: String, val content: String = "", val displayOrder: Int, val video: VideoDto? = null)
+internal data class ExternalVideoDto(val provider: String, val videoId: String) {
+    fun domain(): ExternalVideo {
+        require(provider == "YOUTUBE" && YouTubeLinks.isVideoId(videoId))
+        return ExternalVideo(videoId)
+    }
+}
+
+@Serializable
+internal data class LessonDto(val id: String, val title: String, val content: String = "", val displayOrder: Int, val video: VideoDto? = null, val externalVideo: ExternalVideoDto? = null)
 
 /** Vista de aprendizaje: este DTO no declara correctOption ni explanation, así que se ignoran si llegaran. */
 @Serializable
@@ -90,7 +99,10 @@ internal data class CourseDetailDto(
         trainingId(version.id)
         require(version.versionNumber >= 1 && version.passingScore in 0..100)
         require(lessons.size <= TrainingLimits.MAX_LESSONS && questions.size <= TrainingLimits.MAX_QUESTIONS)
-        val mappedLessons = lessons.map { TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.video?.domain()) }
+        val mappedLessons = lessons.map {
+            require(it.video == null || it.externalVideo == null)
+            TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.video?.domain(), it.externalVideo?.domain())
+        }
         require(mappedLessons.map { it.id }.distinct().size == mappedLessons.size)
         val lessonIds = mappedLessons.map { it.id }.toSet()
         val mappedQuestions = questions.map {
@@ -130,9 +142,11 @@ internal data class AttemptOutcomeDto(
     val results: List<ResultDto>,
     val progress: ProgressDto,
     val certificate: CertificateDto? = null,
+    val achievements: List<AchievementDto> = emptyList(),
 ) {
     fun domain(sent: AttemptSubmission): AttemptOutcome {
         require(attempt.id.equals(sent.id, ignoreCase = true) && AttemptType.valueOf(attempt.attemptType) == sent.attemptType)
+        require(achievements.size <= 50)
         require(attempt.score in 0..100 && results.size == sent.answers.size)
         Instant.parse(attempt.completedAt)
         val mapped = results.map { result ->
@@ -143,7 +157,7 @@ internal data class AttemptOutcomeDto(
         }
         require(mapped.map { it.questionId.lowercase() }.distinct().size == mapped.size)
         require(attempt.score == ((mapped.count { it.correct } * 100.0) / mapped.size + 0.5).toInt())
-        return AttemptOutcome(AttemptSummary(attempt.id, sent.attemptType, attempt.score, attempt.passed, attempt.completedAt), mapped, progress.domain(), certificate?.domain())
+        return AttemptOutcome(AttemptSummary(attempt.id, sent.attemptType, attempt.score, attempt.passed, attempt.completedAt), mapped, progress.domain(), certificate?.domain(), achievements.map { it.domain() })
     }
 }
 
@@ -159,7 +173,7 @@ internal data class AdminCourseDto(val id: String, val code: String, val title: 
 
 @Serializable internal data class AdminListDto(val items: List<AdminCourseDto>)
 
-@Serializable internal data class DraftLessonDto(val id: String, val title: String, val content: String = "", val displayOrder: Int, val videoMediaId: String? = null)
+@Serializable internal data class DraftLessonDto(val id: String, val title: String, val content: String = "", val displayOrder: Int, val videoMediaId: String? = null, val externalVideo: ExternalVideoDto? = null)
 
 @Serializable
 internal data class DraftQuestionDto(
@@ -187,7 +201,10 @@ internal data class DraftDto(
         require(rowVersion.isNotEmpty() && rowVersion.length <= 64)
         require(lessons.size <= TrainingLimits.MAX_LESSONS && questions.size <= TrainingLimits.MAX_QUESTIONS)
         return TrainingDraft(info, version.id, version.versionNumber, version.passingScore, rowVersion,
-            lessons.map { DraftLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.videoMediaId?.let(::trainingId)) }.sortedBy { it.displayOrder },
+            lessons.map {
+                require(it.videoMediaId == null || it.externalVideo == null)
+                DraftLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.videoMediaId?.let(::trainingId), it.externalVideo?.domain()?.videoId)
+            }.sortedBy { it.displayOrder },
             questions.map {
                 trainingId(it.id)
                 require(it.options.size in TrainingLimits.MIN_OPTIONS..TrainingLimits.MAX_OPTIONS && it.correctOption in it.options.indices)

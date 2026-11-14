@@ -33,6 +33,8 @@ data class StudyState(
 data class EvaluationState(
     val type: AttemptType,
     val startedAt: String,
+    /** Solo para [AttemptType.MODULE]: lección cuyas preguntas se evalúan. */
+    val lessonId: String? = null,
     val answers: Map<String, Int> = emptyMap(),
     val pending: AttemptSubmission? = null,
     val submitting: Boolean = false,
@@ -58,6 +60,14 @@ data class TrainingState(
     val notice: String? = null,
 ) {
     val lesson: TrainingLesson? get() = course?.lessons?.firstOrNull { it.id == lessonId }
+
+    /** Preguntas de la evaluación en curso: las de la lección (módulo) o todas las del curso. */
+    val evaluationQuestions: List<TrainingQuestion>
+        get() {
+            val c = course ?: return emptyList()
+            val lesson = evaluation?.lessonId
+            return if (lesson == null) c.questions else c.questions.filter { it.lessonId == lesson }
+        }
 }
 
 fun trainingFailureMessage(failure: TrainingFailure): String = when (failure) {
@@ -75,5 +85,9 @@ fun trainingFailureMessage(failure: TrainingFailure): String = when (failure) {
     TrainingFailure.CONTENT_INVALID -> "El video no se pudo validar. Elige un MP4 o WebM válido."
     TrainingFailure.TOO_LARGE -> "El archivo supera el tamaño permitido."
     TrainingFailure.RATE_LIMITED -> "Espera un momento antes de reintentar."
+    TrainingFailure.ASSIGNMENT_EXISTS -> "Ya hay una asignación activa de este curso para ese destinatario."
+    TrainingFailure.PATH_CONFLICT -> "La ruta cambió en otro dispositivo. Recárgala para no perder cambios ajenos."
+    TrainingFailure.PATH_ARCHIVED -> "La ruta está archivada y ya no admite cambios."
+    TrainingFailure.COURSE_NOT_PUBLISHED -> "El curso debe estar publicado para esta operación."
     TrainingFailure.UNAVAILABLE, TrainingFailure.INVALID_RESPONSE -> "No pudimos confirmar la operación. Inténtalo de nuevo."
 }

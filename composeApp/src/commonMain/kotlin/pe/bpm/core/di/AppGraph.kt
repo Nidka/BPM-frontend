@@ -201,6 +201,24 @@ class AppGraph(
         pe.bpm.features.research.domain.LoadResearchAccess(researchRepository), pe.bpm.features.research.domain.ManageAccessGrants(researchRepository),
         pe.bpm.features.research.domain.ManageConsentDocuments(researchRepository), pe.bpm.features.research.domain.ManageInstruments(researchRepository),
         pe.bpm.features.research.data.JsonInstrumentImportParser(), pe.bpm.features.research.domain.AnalyzeResearch(researchRepository)) { Clock.System.now().toString() }
+    // Academia ampliada: asignaciones, insignias, rutas y verificación pública.
+    private val trainingPlusRepository = pe.bpm.features.training.data.RemoteTrainingPlusRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    fun trainingLearnerViewModel() = pe.bpm.features.training.presentation.TrainingLearnerViewModel(
+        pe.bpm.features.training.domain.LoadMyAssignments(trainingPlusRepository), pe.bpm.features.training.domain.LoadMyAchievements(trainingPlusRepository),
+        pe.bpm.features.training.domain.LoadLearningPaths(trainingPlusRepository))
+    @OptIn(ExperimentalUuidApi::class)
+    fun trainingAssignmentAdminViewModel() = pe.bpm.features.training.presentation.TrainingAssignmentAdminViewModel(
+        pe.bpm.features.training.domain.ListTrainingAssignments(trainingPlusRepository), pe.bpm.features.training.domain.CreateTrainingAssignment(trainingPlusRepository),
+        pe.bpm.features.training.domain.CancelTrainingAssignment(trainingPlusRepository), pe.bpm.features.training.domain.ListAdminCourses(trainingRepository), { Uuid.random().toString() })
+    fun trainingAchievementAdminViewModel() = pe.bpm.features.training.presentation.TrainingAchievementAdminViewModel(
+        pe.bpm.features.training.domain.ListTrainingAchievements(trainingPlusRepository), pe.bpm.features.training.domain.UpdateTrainingAchievement(trainingPlusRepository))
+    @OptIn(ExperimentalUuidApi::class)
+    fun learningPathAdminViewModel() = pe.bpm.features.training.presentation.LearningPathAdminViewModel(
+        pe.bpm.features.training.domain.ManageLearningPaths(trainingPlusRepository), pe.bpm.features.training.domain.ListAdminCourses(trainingRepository)) { Uuid.random().toString() }
+    fun certificateVerificationViewModel() = pe.bpm.features.training.presentation.CertificateVerificationViewModel(
+        pe.bpm.features.training.domain.VerifyTrainingCertificate(trainingPlusRepository))
 
     private val alertsRepository = pe.bpm.features.alerts.data.RemoteAlertsRepository(httpClient,config,
         onSessionRejected=identityRepository::rejectSession,onSessionResponse=identityRepository::observeSessionResponse,

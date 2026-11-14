@@ -98,7 +98,7 @@ export function createAppServer({
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     response.setHeader('Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com/firebasejs/13.0.0/ https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' https://*.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://*.r2.cloudflarestorage.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://" + firebaseAuthDomain + "; frame-src https://" + firebaseAuthDomain + "; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com/firebasejs/13.0.0/ https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' https://*.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://*.r2.cloudflarestorage.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://" + firebaseAuthDomain + "; frame-src https://" + firebaseAuthDomain + " https://www.youtube-nocookie.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     response.setHeader('Cache-Control', 'no-store');
     if (hstsEnabled) response.setHeader('Strict-Transport-Security', 'max-age=31536000');
     const send = (status, body, contentType = 'application/json; charset=utf-8') => {

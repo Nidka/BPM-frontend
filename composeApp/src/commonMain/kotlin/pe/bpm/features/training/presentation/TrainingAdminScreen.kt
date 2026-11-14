@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -153,7 +154,7 @@ private fun LessonVideoEditor(editor: DraftEditorState, lesson: DraftLesson, vie
     val pickVideo = rememberLessonVideoPicker(TrainingLimits.CLIENT_VIDEO_MAX_BYTES) { viewModel.attachVideo(lesson.id, it) }
     val uploadingHere = editor.uploadLessonId == lesson.id
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(if (lesson.videoMediaId != null) "Video adjunto" else "Sin video", fontWeight = FontWeight.Bold)
+        Text(if (lesson.videoMediaId != null) "Video adjunto" else if (lesson.externalVideoId != null) "Video de YouTube" else "Sin video", fontWeight = FontWeight.Bold)
         if (uploadingHere && editor.uploading) {
             LinearProgressIndicator(progress = { editor.uploadProgress }, modifier = Modifier.fillMaxWidth())
             Text("Subiendo video… ${(editor.uploadProgress * 100).toInt()} %", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -168,6 +169,7 @@ private fun LessonVideoEditor(editor: DraftEditorState, lesson: DraftLesson, vie
                 if (lesson.videoMediaId != null) BpmTextButton(onClick = { viewModel.removeVideo(lesson.id) }, enabled = !editor.busy) { Text("Quitar video") }
             }
             if (editor.uploadLessonId == null) editor.uploadFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            ExternalVideoField(lesson, !editor.busy, viewModel)
             Text("Hasta ${TrainingLimits.CLIENT_VIDEO_MAX_BYTES / (1024 * 1024)} MiB desde este dispositivo. El video se envía directo al almacenamiento privado y se valida antes de poder publicarse.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -206,4 +208,20 @@ private fun QuestionEditor(
             error = issue(DraftIssueKind.EXPLANATION, question.id), singleLine = false, minLines = 2, enabled = enabled)
         BpmTextButton(onClick = { viewModel.edit { TrainingDraftEdits.removeQuestion(it, question.id) } }, enabled = enabled) { Text("Eliminar pregunta") }
     }
+}
+
+/**
+ * Alternativa al video subido: pegar un enlace de YouTube. Son excluyentes: escribir un enlace
+ * retira el video subido y subir un video retira el enlace. Solo se guarda el identificador.
+ */
+@Composable
+private fun ExternalVideoField(lesson: DraftLesson, enabled: Boolean, viewModel: TrainingAuthoringViewModel) {
+    var text by androidx.compose.runtime.remember(lesson.id, lesson.videoMediaId) { androidx.compose.runtime.mutableStateOf(lesson.externalVideoId?.let { YouTubeLinks.watchUrl(it) }.orEmpty()) }
+    val invalid = text.isNotBlank() && YouTubeLinks.idFromUrl(text) == null
+    BpmTextField(text, { value ->
+        text = value
+        viewModel.edit { TrainingDraftEdits.setExternalVideo(it, lesson.id, if (value.isBlank()) null else YouTubeLinks.idFromUrl(value)) }
+    }, "Enlace de YouTube (en lugar de subir un video)", enabled = enabled,
+        error = if (invalid) "Pega un enlace válido de YouTube (youtube.com/watch, youtu.be, shorts o embed)." else null,
+        supportingText = "Se reproduce en línea: quien aprende necesita conexión. Quita el video subido si pegas un enlace.")
 }

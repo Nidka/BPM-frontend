@@ -18,12 +18,12 @@ const r2 = 'https://bucket.abc123.r2.cloudflarestorage.com/organizations/o/train
 const headers = { Authorization: 'Bearer test.token', 'Content-Type': 'application/json', Cookie: 'private-cookie', 'X-Role': 'ADMIN' };
 const progress = { status: 'IN_PROGRESS', lastLessonId: lessonId, bestScore: null, experiencePoints: 0, completedAt: null };
 const course = { id: courseId, code: 'M-01', title: 'Higiene de manos', description: 'Lavado correcto', estimatedDurationMinutes: 15 };
-const lesson = { id: lessonId, title: 'Paso a paso', content: 'Texto\nde la lección', displayOrder: 1, video: { mediaId, mimeType: 'video/mp4', sizeBytes: 1234 } };
+const lesson = { id: lessonId, title: 'Paso a paso', content: 'Texto\nde la lección', displayOrder: 1, video: { mediaId, mimeType: 'video/mp4', sizeBytes: 1234 }, externalVideo: null };
 const question = { id: questionId, lessonId, questionText: '¿Cuánto dura el lavado?', options: ['5 s', '20 s'], displayOrder: 1 };
 const learning = { course, version: { id: versionId, versionNumber: 2, passingScore: 80 }, lessons: [lesson], questions: [question], progress, certificate: null };
 const draft = {
   version: { id: versionId, versionNumber: 3, passingScore: 80, rowVersion: 'v7' },
-  lessons: [{ id: lessonId, title: 'Paso a paso', content: 'Texto', displayOrder: 1, videoMediaId: null }],
+  lessons: [{ id: lessonId, title: 'Paso a paso', content: 'Texto', displayOrder: 1, videoMediaId: null, externalVideo: null }],
   questions: [{ id: questionId, lessonId, questionText: '¿Cuánto dura?', options: ['5 s', '20 s'], correctOption: 1, explanation: 'Al menos 20 s', displayOrder: 1 }],
 };
 const attempt = {
@@ -275,4 +275,210 @@ test('capacitación: la CSP permite reproducir video solo desde el propio origen
   const csp = response.headers.get('content-security-policy');
   assert.match(csp.match(/media-src[^;]*/)[0], /'self' https:\/\/\*\.r2\.cloudflarestorage\.com/);
   assert.doesNotMatch(csp.match(/img-src[^;]*/)[0], /r2\.cloudflarestorage\.com/);
+});
+
+// ---- Asignaciones, insignias, rutas, MODULE, YouTube y verificación pública ----------------------
+
+const assignmentId = '90000000-0000-4000-8000-000000000001';
+const achievementId = 'a0000000-0000-4000-8000-000000000001';
+const pathId = 'b0000000-0000-4000-8000-000000000001';
+const locationId = 'c0000000-0000-4000-8000-000000000001';
+const achievementView = { id: achievementId, code: 'FIRST_COURSE', name: 'Primer curso', description: 'Completa un curso', points: 20, criterionType: 'COURSES_COMPLETED', criterionThreshold: 1, active: true, awardedAt: null };
+const assignmentView = {
+  id: assignmentId, course: { id: courseId, code: 'M-01', title: 'Higiene de manos' },
+  target: { type: 'USER', userId: 'uid-1', userName: 'Ana Pérez', role: null, locationId: null, locationName: null },
+  dueAt: '2099-12-31T23:59:00Z', status: 'ACTIVE', createdAt: stamp, cancelledAt: null,
+};
+const pathView = {
+  id: pathId, title: 'Inducción', description: 'Primeros pasos', status: 'DRAFT', rowVersion: '3', publishedAt: null,
+  courses: [{ courseId, code: 'M-01', title: 'Higiene de manos', position: 1, courseStatus: 'PUBLISHED', progressStatus: 'IN_PROGRESS' }],
+  progress: { status: 'IN_PROGRESS', completedCourses: 0, totalCourses: 1, percent: 0, nextCourseId: courseId },
+};
+
+test('capacitación: mis asignaciones se proyectan con paginación y filtros estrictos', async t => {
+  const { state, get } = await fixture(t);
+  const item = { assignmentId, course, dueAt: '2099-12-31T23:59:00Z', assignedAt: stamp, status: 'OVERDUE', progressStatus: 'IN_PROGRESS', bestScore: null, completedAt: null, interno: 'x' };
+  state.payload = { data: { items: [item] }, pagination: { nextPageToken: 'abc_-' } };
+  const response = await get('/me/assignments?pageSize=10&pageToken=abc_-');
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.data.items[0].status, 'OVERDUE');
+  assert.equal(body.data.items[0].interno, undefined);
+  assert.equal(body.pagination.nextPageToken, 'abc_-');
+  assert.equal(state.requests[0].path, `/api/v1/organizations/${org}/training/me/assignments?pageSize=10&pageToken=abc_-`);
+  for (const bad of ['?status=ACTIVE', '?pageSize=0', '?pageSize=101', '?pageSize=1&pageSize=2', '?pageToken=a%20b', '?otro=1']) assert.equal((await get('/me/assignments' + bad)).status, 400, bad);
+  state.payload = { data: { items: [{ ...item, status: 'RARO' }] } };
+  assert.equal((await get('/me/assignments')).status, 503);
+  state.payload = { data: { items: [item, item] } };
+  assert.equal((await get('/me/assignments')).status, 503);
+});
+
+test('capacitación: crear, listar y cancelar asignaciones', async t => {
+  const { state, get, post } = await fixture(t);
+  state.status = 201; state.payload = { data: { assignment: assignmentView } };
+  const input = { id: assignmentId, courseId, target: { type: 'USER', userId: 'uid-1' }, dueAt: '2099-12-31T23:59:00Z' };
+  let response = await post('/assignments', input);
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).data.assignment.target.userName, 'Ana Pérez');
+  assert.deepEqual(JSON.parse(state.requests[0].body), input);
+  state.status = 200;
+  const role = { id: assignmentId, courseId, target: { type: 'ROLE', role: 'CHEF', locationId }, dueAt: null };
+  state.payload = { data: { assignment: { ...assignmentView, target: { type: 'ROLE', role: 'CHEF', locationId, locationName: 'Sede' }, dueAt: null } } };
+  assert.equal((await post('/assignments', role)).status, 200);
+  for (const bad of [
+    { ...input, target: { type: 'USER', userId: 'uid-1', role: 'CHEF' } }, { ...input, target: { type: 'ROLE', role: 'DUEÑO' } },
+    { ...input, target: { type: 'LOCATION' } }, { ...input, extra: 1 }, { ...input, dueAt: 'mañana' }, { ...input, courseId: 'x' }, { ...input, target: { type: 'OTRO' } },
+  ]) assert.equal((await post('/assignments', bad)).status, 400);
+  state.payload = { data: { items: [assignmentView] }, pagination: { nextPageToken: '' } };
+  response = await get('/assignments?status=ACTIVE&courseId=' + courseId);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).data.items[0].id, assignmentId);
+  assert.equal((await get('/assignments?status=ACTIVE')).status, 200);
+  state.payload = { data: { items: [{ ...assignmentView, status: 'CANCELLED' }] } };
+  assert.equal((await get('/assignments?status=ACTIVE')).status, 503);
+  assert.equal((await get('/assignments?status=OTRO')).status, 400);
+  assert.equal((await get('/assignments?courseId=x')).status, 400);
+  state.payload = { data: { assignment: { ...assignmentView, status: 'CANCELLED', cancelledAt: stamp } } };
+  response = await post(`/assignments/${assignmentId}/cancel`);
+  assert.equal((await response.json()).data.assignment.status, 'CANCELLED');
+  assert.equal((await post(`/assignments/${assignmentId}/cancel`, { x: 1 })).status, 400);
+  state.payload = { data: { assignment: assignmentView } };
+  assert.equal((await post(`/assignments/${assignmentId}/cancel`)).status, 503);
+  state.status = 409; state.payload = { errors: [{ code: 'TRAINING_ASSIGNMENT_EXISTS', message: 'x' }] };
+  assert.equal((await (await post('/assignments', input)).json()).errors[0].code, 'TRAINING_ASSIGNMENT_EXISTS');
+  state.status = 422; state.payload = { errors: [{ code: 'TRAINING_COURSE_NOT_PUBLISHED', message: 'x' }] };
+  assert.equal((await (await post('/assignments', input)).json()).errors[0].code, 'TRAINING_COURSE_NOT_PUBLISHED');
+});
+
+test('capacitación: logros y XP, catálogo y edición de insignias', async t => {
+  const { state, get, put } = await fixture(t);
+  state.payload = { data: { totals: { experiencePoints: 95, courseExperiencePoints: 30, moduleExperiencePoints: 15, achievementPoints: 50 }, achievements: [achievementView] } };
+  const body = await (await get('/me/achievements')).json();
+  assert.equal(body.data.totals.experiencePoints, 95);
+  assert.equal(body.data.achievements[0].code, 'FIRST_COURSE');
+  assert.equal((await get('/me/achievements?x=1')).status, 400);
+  state.payload = { data: { items: [achievementView] } };
+  assert.equal((await (await get('/achievements')).json()).data.items.length, 1);
+  state.payload = { data: { achievement: { ...achievementView, name: 'Nuevo', points: 10 } } };
+  const edit = { name: 'Nuevo', description: '', points: 10, criterionThreshold: 2, active: false };
+  assert.equal((await (await put(`/achievements/${achievementId}`, edit)).json()).data.achievement.name, 'Nuevo');
+  for (const bad of [{ ...edit, points: 1001 }, { ...edit, criterionThreshold: 0 }, { ...edit, name: 'x' }, { ...edit, active: 'si' }, { ...edit, code: 'X' }, { name: 'Nuevo' }]) assert.equal((await put(`/achievements/${achievementId}`, bad)).status, 400);
+  state.payload = { data: { totals: { experiencePoints: -1, courseExperiencePoints: 0, moduleExperiencePoints: 0, achievementPoints: 0 }, achievements: [] } };
+  assert.equal((await get('/me/achievements')).status, 503);
+});
+
+test('capacitación: rutas de aprendizaje con rowVersion, publicación y archivo', async t => {
+  const { state, get, post, put } = await fixture(t);
+  state.status = 201; state.payload = { data: { path: pathView } };
+  const create = { id: pathId, title: 'Inducción', description: 'Primeros pasos', courseIds: [courseId] };
+  const response = await post('/paths', create);
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).data.path.rowVersion, '3');
+  state.status = 200;
+  assert.equal((await put(`/paths/${pathId}`, { title: 'Inducción', description: 'Primeros pasos', courseIds: [courseId], rowVersion: '3' })).status, 200);
+  assert.equal((await put(`/paths/${pathId}`, { title: 'Inducción', description: '', courseIds: [courseId] })).status, 400);
+  for (const bad of [{ ...create, courseIds: [courseId, courseId] }, { ...create, courseIds: ['x'] }, { ...create, title: 'x' }, { ...create, extra: 1 }]) assert.equal((await post('/paths', bad)).status, 400);
+  // La secuencia devuelta debe coincidir con la enviada.
+  state.payload = { data: { path: { ...pathView, courses: [] } } };
+  assert.equal((await post('/paths', create)).status, 503);
+  state.payload = { data: { path: { ...pathView, status: 'PUBLISHED' } } };
+  assert.equal((await post(`/paths/${pathId}/publish`)).status, 200);
+  assert.equal((await post(`/paths/${pathId}/archive`)).status, 503);
+  state.payload = { data: { path: { ...pathView, status: 'ARCHIVED' } } };
+  assert.equal((await post(`/paths/${pathId}/archive`)).status, 200);
+  state.payload = { data: { path: pathView } };
+  assert.equal((await (await get(`/paths/${pathId}`)).json()).data.path.progress.percent, 0);
+  state.payload = { data: { items: [pathView] }, pagination: { nextPageToken: 'x' } };
+  assert.equal((await get('/paths?status=DRAFT&pageSize=5')).status, 200);
+  state.payload = { data: { items: [{ ...pathView, status: 'PUBLISHED' }] } };
+  assert.equal((await get('/paths?status=DRAFT')).status, 503);
+  assert.equal((await get('/paths?status=OTRO')).status, 400);
+  assert.equal((await get(`/paths/${pathId}?x=1`)).status, 400);
+  state.status = 409; state.payload = { errors: [{ code: 'TRAINING_PATH_CONFLICT', message: 'x' }] };
+  assert.equal((await (await put(`/paths/${pathId}`, { title: 'Inducción', description: '', courseIds: [], rowVersion: '1' })).json()).errors[0].code, 'TRAINING_PATH_CONFLICT');
+  state.payload = { errors: [{ code: 'TRAINING_PATH_ARCHIVED', message: 'x' }] };
+  assert.equal((await (await post(`/paths/${pathId}/publish`)).json()).errors[0].code, 'TRAINING_PATH_ARCHIVED');
+  assert.equal((await post(`/paths/${pathId}/otra`)).status, 405);
+});
+
+test('capacitación: intento MODULE con lessonId y logros nuevos', async t => {
+  const { state, post } = await fixture(t);
+  const module = { ...attempt, attemptType: 'MODULE', lessonId, answers: [{ questionId, selectedOption: 1 }] };
+  state.status = 201;
+  state.payload = { data: {
+    attempt: { id: attemptId, attemptType: 'MODULE', score: 100, passed: true, completedAt: stamp },
+    results: [{ questionId, selectedOption: 1, correct: true, correctOption: 1, explanation: 'ok' }], progress, certificate: null,
+    achievements: [{ ...achievementView, code: 'PERFECT_SCORE', criterionType: 'PERFECT_SCORE', awardedAt: stamp, interno: 'x' }],
+  } };
+  const response = await post(`/courses/${courseId}/attempts`, module);
+  assert.equal(response.status, 201);
+  const body = await response.json();
+  assert.equal(body.data.achievements[0].awardedAt, stamp);
+  assert.equal(body.data.achievements[0].interno, undefined);
+  assert.equal(JSON.parse(state.requests[0].body).lessonId, lessonId);
+  // lessonId solo en MODULE y obligatorio en MODULE.
+  assert.equal((await post(`/courses/${courseId}/attempts`, { ...module, lessonId: undefined })).status, 400);
+  assert.equal((await post(`/courses/${courseId}/attempts`, { ...attempt, lessonId })).status, 400);
+  assert.equal((await post(`/courses/${courseId}/attempts`, { ...module, lessonId: 'x' })).status, 400);
+  // El backend anterior no devolvía achievements: se proyecta como vacío.
+  delete state.payload.data.achievements;
+  assert.deepEqual((await (await post(`/courses/${courseId}/attempts`, module)).json()).data.achievements, []);
+});
+
+test('capacitación: video externo de YouTube en aprendizaje y borrador, excluyente con el privado', async t => {
+  const { state, get, put } = await fixture(t);
+  const external = { provider: 'YOUTUBE', videoId: 'dQw4w9WgXcQ' };
+  state.payload = { data: { ...learning, lessons: [{ ...lesson, video: null, externalVideo: { ...external, url: 'https://x' } }] } };
+  const body = await (await get(`/courses/${courseId}`)).json();
+  assert.deepEqual(body.data.lessons[0].externalVideo, external);
+  for (const bad of [{ ...external, videoId: 'corto' }, { provider: 'VIMEO', videoId: 'dQw4w9WgXcQ' }, 'https://youtu.be/dQw4w9WgXcQ']) {
+    state.payload = { data: { ...learning, lessons: [{ ...lesson, video: null, externalVideo: bad }] } };
+    assert.equal((await get(`/courses/${courseId}`)).status, 503);
+  }
+  state.payload = { data: { ...learning, lessons: [{ ...lesson, externalVideo: external }] } };
+  assert.equal((await get(`/courses/${courseId}`)).status, 503);
+  const lessons = [{ id: lessonId, title: 'Paso', content: '', displayOrder: 1, videoMediaId: null, externalVideo: external }];
+  state.payload = { data: { ...draft, lessons } };
+  assert.deepEqual((await (await put(`/courses/${courseId}/draft`, { ...draft, lessons })).json()).data.lessons[0].externalVideo, external);
+  assert.equal((await put(`/courses/${courseId}/draft`, { ...draft, lessons: [{ ...lessons[0], videoMediaId: mediaId }] })).status, 400);
+  assert.equal((await put(`/courses/${courseId}/draft`, { ...draft, lessons: [{ ...lessons[0], externalVideo: { provider: 'YOUTUBE', videoId: 'x' } }] })).status, 400);
+});
+
+test('verificación pública: sin credenciales, solo campos públicos y errores sanitizados', async t => {
+  const { state, base } = await fixture(t);
+  const root = base.replace(`/organizations/${org}/training`, '/public/training-certificates');
+  const code = 'ABCDEFGHIJKLMNOPQRSTUVWX';
+  state.payload = { data: { status: 'VALID', courseTitle: 'Manos limpias', versionNumber: 2, issuedAt: stamp, organization: 'Restaurante Sol', holder: 'Ana P.', userId: 'privado', verificationCode: code } };
+  const response = await fetch(`${root}/${code}`, { headers: { Cookie: 'x=1' } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { data: { status: 'VALID', courseTitle: 'Manos limpias', versionNumber: 2, issuedAt: stamp, organization: 'Restaurante Sol', holder: 'Ana P.' } });
+  assert.equal(state.requests[0].path, `/api/v1/public/training-certificates/${code}`);
+  assert.equal(state.requests[0].headers.authorization, undefined);
+  assert.equal(state.requests[0].headers.cookie, undefined);
+  // Cualquier cabecera Authorization se rechaza: la consulta es anónima.
+  assert.equal((await fetch(`${root}/${code}`, { headers })).status, 400);
+  assert.equal((await fetch(`${root}/${code}?x=1`)).status, 400);
+  assert.equal((await fetch(`${root}/${code}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 405);
+  for (const bad of ['abc', 'abcdefghijklmnopqrstuvwx', 'ABCDEFGHIJKLMNOPQRSTUVW1', code + 'A']) assert.equal((await fetch(`${root}/${bad}`)).status, 404, bad);
+  state.payload = { data: { status: 'REVOKED', courseTitle: 'Manos limpias', versionNumber: 2, issuedAt: stamp, organization: 'Sol', holder: 'A.' } };
+  assert.equal((await (await fetch(`${root}/${code}`)).json()).data.status, 'REVOKED');
+  state.payload = { data: { status: 'OTRO', courseTitle: 'x', versionNumber: 2, issuedAt: stamp, organization: 'Sol', holder: 'A.' } };
+  assert.equal((await fetch(`${root}/${code}`)).status, 503);
+  state.status = 404; state.payload = { errors: [{ code: 'TRAINING_CERTIFICATE_NOT_FOUND', message: 'detalle privado' }] };
+  const missing = await fetch(`${root}/${code}`);
+  assert.equal(missing.status, 404);
+  assert.doesNotMatch(await missing.text(), /privado/);
+  state.status = 429;
+  assert.equal((await fetch(`${root}/${code}`)).status, 429);
+  state.status = 500;
+  assert.equal((await fetch(`${root}/${code}`)).status, 503);
+});
+
+test('capacitación: la CSP permite el frame de youtube-nocookie y nada más', async t => {
+  const { base } = await fixture(t);
+  const response = await fetch(base.replace('/backend/api/v1/organizations/' + org + '/training', '/healthz'));
+  const frames = response.headers.get('content-security-policy').match(/frame-src[^;]*/)[0];
+  assert.match(frames, /https:\/\/www\.youtube-nocookie\.com/);
+  assert.doesNotMatch(frames, /\*/);
 });

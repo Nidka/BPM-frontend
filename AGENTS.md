@@ -31,6 +31,8 @@ Academia BPM (lecciones con video, modo estudio sin calificación, evaluaciones 
 Está implementada localmente; su UI depende del backend de Academia. El reproductor Android/iOS
 y los selectores de video nativos no se compilan sin Android SDK/macOS: verificarlos en esos entornos.
 
+Ampliación de Academia (asignaciones, logros, rutas, evaluación por módulo, video de YouTube y verificación pública): ver la última sección de specs/TRAINING.md; requiere V11 del backend.
+
 Alertas/reglas y registro de notificaciones Android: leer specs/ALERTS.md.
 La activación necesita V7, API y worker antes del frontend; no implica despliegue.
 
