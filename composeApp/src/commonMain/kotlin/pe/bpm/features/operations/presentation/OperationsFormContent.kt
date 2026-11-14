@@ -158,7 +158,7 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
         } else if (state.resource == OperationsResource.EXECUTIONS)
             Text("Plan: ${form.values["planName"].orEmpty()}")
         form.values
-            .filterKeys { it !in setOf("supplierId", "cleaningPlanId") }
+            .filterKeys { it !in setOf("supplierId", "cleaningPlanId", "shiftId") }
             .forEach { (key, value) ->
                 if (value.isNotBlank()) Text("${fieldLabel(key)}: ${displayField(key,value)}")
             }
@@ -216,6 +216,31 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
             state.fields["cleaningPlanId"]?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
+            val perShift = state.selectedPlan?.frequency == CleaningFrequency.PER_SHIFT
+            Text(if (perShift) "Turno (obligatorio para este plan)" else "Turno (opcional)")
+            if (state.shiftsFailed)
+                Text(
+                    "No pudimos cargar los turnos de la sede. Vuelve a abrir el formulario para reintentar.",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            else if (state.shifts.isEmpty())
+                Text(
+                    if (perShift) "La sede no tiene turnos activos. Pide a un administrador que los cree."
+                    else "La sede no tiene turnos activos."
+                )
+            Choices(
+                (if (perShift) emptyList() else listOf("" to "Sin turno")) +
+                    state.shifts.map {
+                        it.id to
+                            "${it.name} (${it.startTime}-${it.endTime})${if (it.openNow) " · abierto" else ""}"
+                    },
+                form.values["shiftId"].orEmpty(),
+                state.editable,
+            ) { id ->
+                vm.field("shiftId", id)
+                vm.field("shiftName", state.shifts.firstOrNull { it.id == id }?.name.orEmpty())
+            }
+            state.fields["shiftId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Text("Resultado")
             Choices(
                 CleaningResult.entries.map { it.name to resultLabel(it) },
@@ -227,6 +252,11 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
         }
         if (state.resource == OperationsResource.PLANS) {
             Text("Frecuencia")
+            if (form.values["frequency"] == "PER_SHIFT")
+                Text(
+                    "El plan se cumple una vez en cada turno de la sede; quien lo ejecute deberá elegir el turno.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             Choices(
                 CleaningFrequency.entries.map { it.name to frequencyLabel(it) },
                 form.values["frequency"] ?: "DAILY",

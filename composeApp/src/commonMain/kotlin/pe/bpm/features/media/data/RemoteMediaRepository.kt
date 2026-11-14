@@ -34,6 +34,9 @@ class RemoteMediaRepository(
         val dto =
             api<ListEnvelope>(
                     context,
+                    if (context.cleaningExecutionId != null)
+                        "cleaning-executions/${context.cleaningExecutionId}/evidence"
+                    else
                     when (context.stage) {
                         EvidenceStage.BEFORE -> "incidents/${context.incidentId}/evidence/BEFORE"
                         EvidenceStage.AFTER ->
@@ -90,7 +93,9 @@ class RemoteMediaRepository(
             require(sha256.matches(Regex("[0-9a-f]{64}")))
             val body = buildJsonObject {
                 put("id", input.id)
-                if (context.incidentId == null) {
+                if (context.cleaningExecutionId != null) {
+                    put("cleaningExecutionId", context.cleaningExecutionId)
+                } else if (context.incidentId == null) {
                     put("runId", context.runId)
                     put("itemId", context.itemId)
                 } else {
@@ -411,9 +416,11 @@ private data class FileDto(
     val incidentId: String? = null,
     val actionId: String? = null,
     val stage: String? = null,
+    val cleaningExecutionId: String? = null,
 ) {
     fun domain(context: EvidenceContext): EvidenceFile {
         require(
+            cleaningExecutionId == context.cleaningExecutionId &&
             id.isEvidenceId() &&
                 runId == context.runId &&
                 itemId == context.itemId &&
@@ -443,6 +450,7 @@ private data class FileDto(
             incidentId,
             actionId,
             stage?.let(EvidenceStage::valueOf),
+            cleaningExecutionId,
         )
     }
 }

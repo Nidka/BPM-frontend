@@ -134,7 +134,7 @@ import pe.bpm.core.domain.DecimalInput
     }
 }
 
-@Composable private fun QuestionEditor(input: TemplateQuestionInput, index: Int, count: Int, fields: Map<String, String>, navigation: BpmFormNavigation,
+@Composable internal fun QuestionEditor(input: TemplateQuestionInput, index: Int, count: Int, fields: Map<String, String>, navigation: BpmFormNavigation,
     onChange: ((TemplateQuestionInput) -> TemplateQuestionInput) -> Unit,
     onType: (ChecklistResponseType) -> Unit, onMove: (Int) -> Unit, onRemove: () -> Unit) {
     val prefix = "items.${input.id}"

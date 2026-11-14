@@ -101,6 +101,8 @@ internal fun runFailureMessage(reason: RunFailure) = when (reason) {
     RunFailure.CONFLICT -> "La versión del control cambió."
     RunFailure.ASSIGNMENT_REQUIRED -> "Esta sede tiene un control programado. Ábrelo desde Control para registrar la revisión correspondiente."
     RunFailure.ASSIGNMENT_STARTED -> "Ya se inició el control de este período. Consulta Control para retomarlo o ver su resultado."
+    RunFailure.SHIFT_OUT_OF_HOURS -> "El turno de este control no está abierto ahora. Inicia la revisión dentro del horario del turno."
+    RunFailure.TEMPLATE_OUTDATED -> "La plantilla tiene una versión nueva. Actualiza el catálogo o la programación y vuelve a iniciar."
     RunFailure.RATE_LIMITED -> "Espera un momento antes de volver a intentarlo."
     else -> "No pudimos confirmar los datos del control. Comprueba tu conexión y vuelve a intentarlo."
 }

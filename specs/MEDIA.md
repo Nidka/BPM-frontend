@@ -75,3 +75,12 @@ cancelación de cierre y confirmación recuperada sin repetir PUT. Se corrigió 
 pérdida del contexto al alternar hoja y diálogo y se evitó una confirmación
 anidada que ocultaba los controles al árbol accesible. Estas pruebas usan datos
 y servicios ficticios; R2 y dispositivos reales requieren aceptación separada.
+
+## Fotos de limpieza
+
+`EvidenceContext(organizationId, cleaningExecutionId = …)` es un destino más, excluyente con control e incidencia.
+`MediaEvidenceViewModel.openCleaning(user, org, executionId, canEdit)` lista y gestiona hasta 3 fotos por ejecución con el
+mismo flujo privado (reserva con `cleaningExecutionId`, PUT firmado, confirmación, vista previa y retiro).
+`canEdit` solo es verdadero para el responsable (CHEF/WORKER) dentro de las 24 h siguientes a `createdAt`; después es
+solo lectura. La lista llega en `GET /cleaning-executions/{id}/evidence` y `media-proxy.mjs` valida que cada archivo
+pertenezca a esa ejecución (`runId`/`itemId` vacíos). Contrato: sección «Fotos de limpieza» de `MEDIA.md` del backend.

@@ -82,3 +82,44 @@ de permisos negativos y anchos 320/390/768/1440. Volver desde selección y revis
 conservó el formulario. La sesión Firebase fue una identidad ficticia solo en el
 arnés de prueba; no se registraron cuentas reales. La compilación iOS no sustituye
 una prueba en dispositivo físico.
+
+## Turnos, movimientos de stock y limpieza por turno
+
+Contrato: sección «Turnos por sede, movimientos de stock y limpieza por turno (V13)» de
+`Backend-operations-plus/specs/OPERATIONS.md`. Requiere V13 en el backend antes de activar la UI.
+
+**Turnos** (`ShiftsViewModel`, `ShiftsScreen`, `RemoteShiftsRepository`). Vive dentro de la operación diaria:
+`DailyOperationsContent` muestra, junto a la sede elegida, las secciones *Operación*, *Consumos y descartes* y *Turnos*
+(los WORKER solo ven *Operación*). ADMIN/SUPER_ADMIN crean, editan y desactivan; CHEF solo consulta. Las horas son las de
+la sede (`HH:mm`, cruce de medianoche si el fin es menor que el inicio). `ShiftRules` anticipa horas inválidas, nombre
+repetido y solapes con turnos activos (reloj circular de 24 h, fin excluyente) pero el servidor decide. Un turno
+desactivado no se reactiva. `SHIFT_IN_USE` (409) se muestra como «desactiva primero los controles programados».
+Cada intento usa una `Idempotency-Key` propia; si el resultado es incierto la clave se conserva y el formulario queda
+bloqueado hasta comprobar el mismo turno.
+
+**Movimientos de stock** (`StockMovementsViewModel`, `StockMovementsScreen`, `RemoteStockRepository`). El CHEF abre el
+formulario desde un lote de *Stock PEPS* («Registrar consumo o descarte»). Consumo sin motivo; descarte con motivo
+(vencido, deteriorado, contaminación u otro con nota obligatoria). La cantidad es una cadena decimal exacta (hasta 3
+decimales, comparada en milésimas, nunca `Double`). `StockRules` anticipa saldo insuficiente, lote vencido (sugiere
+descartar) y lote agotado. `id` y `clientOperationId` son el mismo UUID estable del formulario: se reutiliza en cada
+reintento incierto (`CONNECTION`, `UNAVAILABLE`, respuesta no interpretable, límite de solicitudes) y se renueva solo
+tras un rechazo definitivo. `INSUFFICIENT_STOCK` pide actualizar el saldo; `LOT_EXPIRED` ofrece «Registrar descarte por
+vencido» conservando la cantidad. El historial se filtra por sede, lote y tipo con cursor. Tras registrar se vuelve a
+consultar el stock PEPS. Lotes y PEPS muestran saldo actual y cantidad recibida (`receivedQuantity`, vacía en servidores
+anteriores).
+
+**Limpieza por turno.** `CleaningFrequency.PER_SHIFT` («Por turno»). El plan admite hora de referencia como el resto
+(el dominio Go solo valida el formato). Al ejecutar, el formulario carga los turnos activos de la sede
+(`loadShifts` inyectado) y el turno es obligatorio si el plan es `PER_SHIFT`; opcional en los demás. `SHIFT_OUT_OF_HOURS`
+(422) se trata como rechazo definitivo con un mensaje claro y marca `shiftId`. La ejecución muestra `shiftName`.
+
+**Fotos de limpieza.** Cada ejecución propia ofrece «Fotos de la limpieza» (hasta 3). La UI solo permite editar al
+responsable (CHEF/WORKER) durante las 24 h posteriores a `createdAt`; después queda de solo lectura. El servidor
+reevalúa permisos y ventana. Ver [MEDIA.md](MEDIA.md).
+
+Errores de negocio nuevos en `OperationsFailure`: `SHIFT_IN_USE`, `SHIFT_OUT_OF_HOURS`, `INSUFFICIENT_STOCK`,
+`LOT_EXPIRED`; `OperationsFailure.definitive` separa los rechazos que cierran la operación de los inciertos.
+
+Pendientes: los formularios de stock y turnos no se guardan como borrador duradero (un cierre de la app durante un
+envío incierto pierde la clave; el servidor mantiene la idempotencia por `id`, pero el cliente generaría otro UUID); no
+hay cola offline para movimientos.

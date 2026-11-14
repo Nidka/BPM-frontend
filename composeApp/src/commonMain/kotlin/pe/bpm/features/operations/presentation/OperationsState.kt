@@ -36,6 +36,8 @@ data class OperationsState(
     val pickerLoading: Boolean = false,
     val products: List<Product> = emptyList(),
     val selectedPlan: CleaningPlan? = null,
+    val shifts: List<Shift> = emptyList(),
+    val shiftsFailed: Boolean = false,
 ) {
     val editable
         get() =

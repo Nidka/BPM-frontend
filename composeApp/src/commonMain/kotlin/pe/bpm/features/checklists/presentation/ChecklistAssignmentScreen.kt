@@ -69,6 +69,7 @@ fun ChecklistAssignmentsScreen(
                         )
                         Text(v.locationName)
                         Text(frequencyLabel(v.frequency))
+                        AssignmentShiftInfo(v)
                         if (v.dueTime.isNotEmpty())
                             Text(
                                 "Hora de referencia en la sede: ${v.dueTime}",
@@ -160,6 +161,7 @@ fun ChecklistAssignmentDetailScreen(
         Text(value.locationName, fontWeight = FontWeight.SemiBold)
         Text(frequencyLabel(value.frequency))
         Text(frequencyExplanation(value.frequency))
+        AssignmentShiftInfo(value)
         if (value.dueTime.isNotEmpty()) Text("Hora de referencia en la sede: ${value.dueTime}")
         val run = value.run
         when {
@@ -210,6 +212,10 @@ fun ChecklistAssignmentFormScreen(
     onLocation: (String, String) -> Unit,
     onFrequency: (ChecklistFrequency) -> Unit,
     onTime: (String) -> Unit,
+    shifts: List<ChecklistShiftOption> = emptyList(),
+    shiftsLoading: Boolean = false,
+    shiftsFailed: Boolean = false,
+    onShift: (String?) -> Unit = {},
     onSave: () -> Unit,
     onProtect: () -> Unit,
     onRetryOpen: () -> Unit,
@@ -284,7 +290,28 @@ fun ChecklistAssignmentFormScreen(
             }
         }
         state.fields["frequency"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        BpmTextField(
+        if (input.frequency == ChecklistFrequency.DAILY && input.locationId.isNotEmpty()) {
+            Text("¿Para un turno específico?", fontWeight = FontWeight.Bold)
+            when {
+                shiftsLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                shiftsFailed -> Text("No pudimos cargar los turnos de la sede. Vuelve a elegir la sede para reintentar.", color = MaterialTheme.colorScheme.error)
+                else -> Column(Modifier.selectableGroup()) {
+                    BpmChoiceRow("Todo el día (sin turno)", input.shiftId == null, state.editable) { onShift(null) }
+                    shifts.forEach { shift ->
+                        BpmChoiceRow(
+                            "${shift.name} (${shift.startTime}-${shift.endTime})",
+                            input.shiftId == shift.id,
+                            state.editable,
+                            supportingText = if (shift.openNow) "Abierto ahora" else null,
+                        ) { onShift(shift.id) }
+                    }
+                    if (shifts.isEmpty()) Text("La sede no tiene turnos activos; la programación será de día completo.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Text("Con un turno, la revisión solo puede iniciarse mientras el turno está abierto, y cada turno tiene su propia revisión del día.", style = MaterialTheme.typography.bodySmall)
+            state.fields["shiftId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        }
+        if (input.shiftId == null) BpmTextField(
             input.dueTime,
             onTime,
             "Hora de referencia (opcional)",
@@ -320,6 +347,33 @@ fun ChecklistAssignmentFormScreen(
         }
     }
 }
+
+/** Turno, estado del turno y versión de plantilla de una programación. */
+@Composable
+internal fun AssignmentShiftInfo(value: ChecklistAssignment) {
+    if (value.templateVersionNumber > 0)
+        Text("Plantilla versión ${value.templateVersionNumber}", style = MaterialTheme.typography.bodySmall)
+    if (value.shiftId.isNotEmpty()) {
+        Text(
+            "Turno ${value.shiftName} (${value.shiftStartTime}-${value.shiftEndTime}) · ${shiftStateLabel(value.shiftState)}",
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (value.shiftState != ShiftState.OPEN && value.active)
+            Text(
+                if (value.shiftState == ShiftState.CLOSED) "El turno de hoy ya terminó; la revisión solo se inicia con el turno abierto."
+                else "El turno todavía no empieza; la revisión se inicia cuando abra.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+    }
+}
+
+internal fun shiftStateLabel(state: ShiftState?) =
+    when (state) {
+        ShiftState.OPEN -> "Abierto"
+        ShiftState.CLOSED -> "Cerrado"
+        ShiftState.UPCOMING -> "Próximo"
+        null -> ""
+    }
 
 internal fun frequencyLabel(value: ChecklistFrequency) =
     when (value) {

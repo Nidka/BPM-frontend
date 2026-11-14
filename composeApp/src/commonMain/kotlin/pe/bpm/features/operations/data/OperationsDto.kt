@@ -284,6 +284,7 @@ internal data class LotDto(
     val quantityAvailable: String,
     val status: String,
     val expired: Boolean,
+    val receivedQuantity: String = "",
 ) {
     fun domain() =
         StorageLot(
@@ -301,8 +302,10 @@ internal data class LotDto(
                 quantityAvailable,
                 status,
                 expired,
+                receivedQuantity,
             )
             .also {
+                require(receivedQuantity.isEmpty() || QuantityInput.normalize(receivedQuantity) != null)
                 listOf(id, locationId, receiptItemId, productId).forEach(::validId)
                 validInstant(receivedAt)
                 require(
@@ -381,6 +384,8 @@ internal data class ExecutionDto(
     val responsibleUserId: String,
     val responsibleName: String,
     val createdAt: String,
+    val shiftId: String? = null,
+    val shiftName: String = "",
 ) {
     fun domain(): CleaningExecution {
         val input =
@@ -393,7 +398,10 @@ internal data class ExecutionDto(
                 observation,
                 clientOperationId,
                 clientCreatedAt,
+                shiftId?.takeIf { it.isNotEmpty() },
             )
+        shiftId?.takeIf { it.isNotEmpty() }?.let(::validId)
+        require(shiftName.operationCharacterCount() <= 60)
         validId(id)
         validId(clientOperationId)
         validInstant(clientCreatedAt)
@@ -406,10 +414,19 @@ internal data class ExecutionDto(
                 responsibleUserId.isNotBlank() &&
                 responsibleUserId.length <= 128
         )
-        return CleaningExecution(input, area, task, responsibleUserId, responsibleName, createdAt)
+        return CleaningExecution(
+            input,
+            area,
+            task,
+            responsibleUserId,
+            responsibleName,
+            createdAt,
+            shiftName,
+        )
     }
 }
 
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable
 internal data class ExecutionRequest(
     val id: String,
@@ -420,6 +437,9 @@ internal data class ExecutionRequest(
     val observation: String,
     val clientOperationId: String,
     val clientCreatedAt: String,
+    /** Se omite sin turno para no enviar un nulo que el servidor no espera. */
+    @kotlinx.serialization.EncodeDefault(kotlinx.serialization.EncodeDefault.Mode.NEVER)
+    val shiftId: String? = null,
 )
 
 internal fun CleaningExecutionInput.request() =
@@ -432,4 +452,5 @@ internal fun CleaningExecutionInput.request() =
         observation,
         clientOperationId,
         clientCreatedAt,
+        shiftId?.takeIf { it.isNotEmpty() },
     )
