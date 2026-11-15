@@ -333,7 +333,7 @@ fun App(
 
     CompositionLocalProvider(LocalOnline provides offlineUi.status.online, pe.bpm.core.offline.LocalPendingMarks provides offlineUi.marks) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
-        banner = { if (profile != null) OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow) }) {
+        banner = { if (profile != null) Column { OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow); pe.bpm.core.offline.OtherAccountNotice(offlineUi) } }) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
             if (!supportsNativeModalWindows() && (evidenceQuestion != null || incidentEvidence != null || cleaningPhotos != null)) Modifier.clearAndSetSemantics { } else Modifier),
             enterTransition = { EnterTransition.None },

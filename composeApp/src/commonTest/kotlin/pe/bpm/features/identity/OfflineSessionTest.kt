@@ -111,7 +111,8 @@ class OfflineSessionTest {
 
     @Test fun explicitLogoutWipesLocalDataAndOtherAccountsStartClean() = runTest {
         val (rig, client) = signedInRig()
-        rig.h.enqueue("key-pending-001")
+        // El cierre explícito solo ocurre sin cambios por enviar (la interfaz lo exige).
+        rig.h.enqueue("key-pending-001"); rig.h.runtime.syncNow()
         val repository = repo(rig, client)
         repository.endSession()
         assertEquals(emptyList(), rig.h.database.scopes())
@@ -129,7 +130,7 @@ class OfflineSessionTest {
         client.close()
     }
 
-    @Test fun signingInAsAnotherAccountDeletesThePreviousAccountsData() = runTest {
+    @Test fun signingInAsAnotherAccountKeepsThePreviousAccountsPendingDataHidden() = runTest {
         val (rig, client) = signedInRig()
         rig.h.enqueue("key-pending-003")
         val other = client(rig, """{"idToken":"t2","refreshToken":"r2","localId":"uid-2","expiresIn":"3600"}""", renewed,
@@ -137,7 +138,8 @@ class OfflineSessionTest {
         assertIs<IdentityResult.Success<Profile>>(repo(rig, other).signIn("c@d.com", "password"))
         assertEquals(OfflineScope(config.apiBaseUrl, "uid-2").id, rig.h.runtime.active.current!!.id)
         assertEquals(0, rig.h.runtime.outbox.snapshot().size)
-        assertTrue(rig.h.database.scopes().none { it == OfflineScope(config.apiBaseUrl, "uid-1").id })
+        // La partición de la cuenta anterior sigue ahí (tiene un cambio sin enviar) pero la nueva no la ve.
+        assertTrue(rig.h.database.scopes().any { it == OfflineScope(config.apiBaseUrl, "uid-1").id })
         client.close(); other.close()
     }
 }

@@ -181,6 +181,18 @@ private fun PendingCard(item: PendingItem, now: Long, onRetry: (String) -> Unit,
     }
 }
 
+/** Aviso discreto de cambios sin enviar de otra persona que usó este celular. */
+@Composable
+fun OtherAccountNotice(state: OfflineUiState, modifier: Modifier = Modifier) {
+    if (state.otherPending.isEmpty()) return
+    Surface(modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }, color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            state.otherPending.forEach { Text(it.notice(), style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+
 /**
  * Cierre de sesión en un celular compartido. Con cambios por enviar no deja salir y pide conectarse y
  * sincronizar; solo los cambios en conflicto o rechazados se descartan de forma explícita, con confirmación.

@@ -45,7 +45,7 @@ servidor justo antes de enviar.
 
 Si hubo una sesión válida, la app abre sin red con el último perfil verificado (máximo 14 días); al
 volver la red se renueva el token y se revalida en /me. Un rechazo del servidor nunca se rescata con
-la caché. El primer inicio siempre requiere red. Cierre de sesión explícito o cambio de cuenta borran
+la caché. El primer inicio siempre requiere red. Cierre de sesión explícito o cambio de cuenta borran (salvo particiones con pendientes, ver «Celular compartido»)
 base, archivos personales y borradores; vencimiento de sesión solo oculta. Cierre de sesión con pendientes: ver «Celular compartido».
 Las acciones que requieren servidor se agrupan en `ServerOnly` (fase 2): sin conexión muestran
 `OfflineRequiredNotice` y `RaisedButton`/`BpmSecondaryButton` se deshabilitan solos (`LocalServerOnlyActions`).
@@ -118,7 +118,24 @@ personal de lo que es del dispositivo.
   «Descartar y cerrar sesión» (confirmación que dice cuántas se pierden). `OfflineViewModel.discardAll` vuelve a evaluar antes de
   salir: si apareció algo por enviar, no cierra.
 
-El vencimiento de sesión no borra nada (solo oculta). Riesgo conocido: si tras un vencimiento entra otra cuenta, `activate()` borra los datos de la anterior (comportamiento previo, sin el bloqueo del cierre explícito).
+El vencimiento de sesión no borra nada (solo oculta).
+
+### Cambio de cuenta con pendientes (celular compartido)
+La base local está particionada por cuenta (origen + usuario). Al iniciar sesión con otra cuenta o al cerrar sesión de forma explícita:
+
+- La partición de otra cuenta **se conserva intacta** mientras tenga cambios sin enviar (PENDING, SENDING, CONFLICT o REJECTED) y
+  hayan pasado como máximo **30 días** desde su última actividad (`OfflinePolicy.OTHER_ACCOUNT_RETENTION_MS`, medido con el
+  `updatedAt`/`clientCreatedAt` más reciente de sus operaciones sin resolver). Pasado ese plazo se borra; si no tiene nada
+  pendiente se borra de inmediato (`OfflineRuntime.activate`/`wipe` → `prunePartitions`).
+- La cuenta nueva nunca ve ni envía esos datos: `LocalStore`, `Outbox` y el motor de envío trabajan solo con la partición activa.
+- Cuando la cuenta anterior vuelve a entrar en el dispositivo, su cola se reanuda y se sincroniza con sus mismas claves.
+- Los archivos personales (fotos pendientes) no están separados por cuenta: solo se borran cuando ninguna partición se conserva.
+- Al iniciar sesión, si hay pendientes de otra cuenta se muestra un aviso discreto con el recuento y el correo enmascarado:
+  «Hay N cambios sin enviar de otra persona (ka•••@gmail.com). Se enviarán cuando esa persona vuelva a entrar»
+  (`OfflineRuntime.otherPending`, `OtherAccountNotice`). No incluye otros datos personales.
+- El cierre de sesión explícito con pendientes de la cuenta activa sigue bloqueado (ver arriba).
+- Android: `OfflineSyncWorker` restaura solo la sesión guardada y envía únicamente la partición de esa cuenta; sin sesión activa
+  termina sin enviar nada (`AppGraph.syncInBackground`).
 
 ### Videos descargados (almacén del dispositivo)
 - `OfflinePlatform.videos` es un `PrivateFileStore` aparte (Android `noBackupFilesDir/device-videos`, iOS `bpm-device-videos-v1`

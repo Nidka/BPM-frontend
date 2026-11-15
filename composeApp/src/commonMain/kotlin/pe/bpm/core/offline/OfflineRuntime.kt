@@ -4,6 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -81,25 +84,67 @@ class OfflineRuntime(
         platform.connectivity.online, outbox.pendingCount, outbox.attentionCount, engine.state, http.staleSince,
     ) { online, pending, attention, sync, stale -> OfflineStatus(online, pending, attention, sync.running, sync.lastSuccessAt, stale) }
 
-    /** Fija la cuenta activa. Si el dispositivo guardaba datos de otra cuenta, se borran antes. */
+    /**
+     * Fija la cuenta activa. La base está particionada por cuenta: la partición de otra cuenta se conserva
+     * intacta mientras tenga cambios sin enviar (pendientes, en envío, en conflicto o rechazados) y no haya
+     * pasado [OfflinePolicy.OTHER_ACCOUNT_RETENTION_MS] desde su última actividad; las demás se borran. La cuenta
+     * nueva nunca ve ni envía la cola de otra: el motor trabaja solo con la partición activa.
+     */
     suspend fun activate(scope: OfflineScope) {
-        val others = platform.database.scopes().filter { it != scope.id }
-        if (others.isNotEmpty()) {
-            others.forEach { platform.database.clear(it) }
-            platform.files.deleteAll()
-        }
+        val hadOthers = platform.database.scopes().any { it != scope.id }
+        val retained = prunePartitions(except = scope.id)
+        // Los archivos personales (fotos pendientes) no están separados por cuenta: solo se borran si nada se conserva.
+        if (hadOthers && !retained) platform.files.deleteAll()
         active.set(scope)
         changes.notifyChanged()
     }
 
+    /**
+     * Borra las particiones sin cambios pendientes o vencidas (distintas de [except]) y devuelve true si se
+     * conserva alguna con cambios sin enviar.
+     */
+    private suspend fun prunePartitions(except: String?): Boolean {
+        var retained = false
+        for (id in platform.database.scopes().filter { it != except }) {
+            val unresolved = platform.database.operations(id).filter { !it.resolved }
+            val lastActivity = unresolved.maxOfOrNull { maxOf(it.updatedAt, it.clientCreatedAt) }
+            if (lastActivity != null && clock() - lastActivity <= OfflinePolicy.OTHER_ACCOUNT_RETENTION_MS) retained = true
+            else platform.database.clear(id)
+        }
+        return retained
+    }
+
+    /**
+     * Cambios sin enviar de otras cuentas guardados en este dispositivo (nunca se envían con la cuenta activa).
+     * Solo expone el recuento y el correo enmascarado.
+     */
+    suspend fun otherAccountsPending(): List<OtherAccountPending> {
+        val current = active.current?.id
+        return platform.database.scopes().filter { it != current }.mapNotNull { id ->
+            val unresolved = platform.database.operations(id).filter { !it.resolved }
+            if (unresolved.isEmpty()) return@mapNotNull null
+            val email = platform.database.getRecord(id, RuntimeOfflineIdentity.PROFILE_COLLECTION, RuntimeOfflineIdentity.PROFILE_KEY)
+                ?.let { runCatching { Json.parseToJsonElement(it.json).jsonObject["email"]?.jsonPrimitive?.content }.getOrNull() }
+            OtherAccountPending(unresolved.size, email?.let(::maskEmail))
+        }
+    }
+
+    /** Cambios sin enviar de otras cuentas, reevaluados cuando cambia la cuenta activa o la base. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val otherPending: Flow<List<OtherAccountPending>> =
+        combine(active.flow, changes.flow) { _, _ -> }.mapLatest { otherAccountsPending() }.distinctUntilChanged()
+
     /** Oculta los datos sin borrarlos (sesión vencida): la misma cuenta los recupera al volver a entrar. */
     fun deactivate() { active.set(null); changes.notifyChanged() }
 
-    /** Cierre de sesión explícito o cambio de usuario: elimina base local y archivos. */
+    /**
+     * Cierre de sesión explícito: elimina los datos personales de este dispositivo. La interfaz solo llega aquí sin
+     * cambios por enviar; las particiones de otras cuentas con cambios sin enviar se conservan (ver [activate]).
+     */
     suspend fun wipe() {
         active.set(null)
-        platform.database.clearAll()
-        platform.files.deleteAll()
+        val retained = prunePartitions(except = null)
+        if (!retained) platform.files.deleteAll()
         platform.scheduler.cancel()
         wipeHooks.forEach { hook -> try { hook() } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { /* mejor esfuerzo */ } }
         changes.notifyChanged()
@@ -144,6 +189,28 @@ class OfflineRuntime(
         @OptIn(ExperimentalUuidApi::class)
         fun randomId(): String = Uuid.random().toString()
     }
+}
+
+/** Límites de conservación de datos de otras cuentas en un celular compartido. */
+object OfflinePolicy {
+    /** Una partición con cambios sin enviar de otra cuenta se conserva como máximo 30 días desde su última actividad. */
+    const val OTHER_ACCOUNT_RETENTION_MS = 30L * 24 * 60 * 60 * 1000
+}
+
+/** Cambios sin enviar de otra cuenta del dispositivo; [maskedEmail] es nulo si no se conoce su perfil. */
+data class OtherAccountPending(val count: Int, val maskedEmail: String?) {
+    /** Aviso discreto, sin datos personales salvo el correo enmascarado. */
+    fun notice(): String =
+        "Hay $count ${if (count == 1) "cambio" else "cambios"} sin enviar de otra persona" +
+            (maskedEmail?.let { " ($it)" } ?: "") + ". Se enviarán cuando esa persona vuelva a entrar"
+}
+
+/** `katherine@gmail.com` pasa a `ka•••@gmail.com`: dos letras del usuario (una si es corto) y el dominio. */
+fun maskEmail(email: String): String {
+    val local = email.substringBefore('@')
+    val domain = email.substringAfter('@', "")
+    if (domain.isEmpty()) return "•••"
+    return local.take(if (local.length > 2) 2 else 1) + "•••@" + domain
 }
 
 /** Puente entre el flujo de sesión y los datos locales; identidad no conoce el almacenamiento. */

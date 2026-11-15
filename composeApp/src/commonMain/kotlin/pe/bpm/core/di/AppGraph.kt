@@ -362,6 +362,8 @@ class AppGraph(
             val restored = identityRepository.restoreSession()
             if (restored is IdentityResult.Failure) return if (restored.errors.all { it.permitsRestoreRetry }) BackgroundSyncResult.RETRY else BackgroundSyncResult.DONE
         }
+        // Solo se envía la partición de la cuenta con sesión activa; sin sesión no se envía nada.
+        if (offlineRuntime.active.current == null) return BackgroundSyncResult.DONE
         offlineRuntime.syncNow()
         val remaining = offlineRuntime.outbox.snapshot().any { it.status == OutboxStatus.PENDING && !it.exhausted }
         return if (remaining) BackgroundSyncResult.RETRY else BackgroundSyncResult.DONE

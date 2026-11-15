@@ -47,6 +47,8 @@ data class OfflineUiState(
     val now: Long = 0,
     /** Qué puede hacer la persona al cerrar sesión según lo que queda en la Outbox. */
     val logout: LogoutGate = LogoutGate.Clear,
+    /** Cambios sin enviar de otras cuentas de este dispositivo; no se envían con la cuenta activa. */
+    val otherPending: List<OtherAccountPending> = emptyList(),
 )
 
 /** Título comprensible de una operación; los tipos nuevos agregan el suyo aquí. */
@@ -88,9 +90,9 @@ fun relativeAge(nowMillis: Long, thenMillis: Long): String {
 class OfflineViewModel(private val runtime: OfflineRuntime) : ViewModel() {
     private val notice = MutableStateFlow<String?>(null)
 
-    val state: StateFlow<OfflineUiState> = combine(runtime.status, runtime.outbox.operations, notice) { status, operations, message ->
+    val state: StateFlow<OfflineUiState> = combine(runtime.status, runtime.outbox.operations, notice, runtime.otherPending) { status, operations, message, other ->
         OfflineUiState(status, PendingMarks(operations.mapNotNull { it.toMark() }), operations.reversed().map { item(it, operations) }, status.syncing, message, runtime.clock(),
-            LogoutPolicy.evaluate(operations))
+            LogoutPolicy.evaluate(operations), other)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, OfflineUiState())
 
     init { runtime.start(viewModelScope) }

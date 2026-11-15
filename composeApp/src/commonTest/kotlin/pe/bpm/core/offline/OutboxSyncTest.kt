@@ -149,16 +149,21 @@ class OutboxSyncTest {
         assertEquals(0, restarted.runtime.outbox.pendingCount.first())
     }
 
-    @Test fun otherUsersNeverSeeOperationsAndWipeRemovesEverything() = runTest {
+    @Test fun otherUsersNeverSeeOperationsAndWipeRemovesEverythingWithoutPendingChanges() = runTest {
         val h = OfflineHarness(); h.login("user-1")
         h.enqueue("key-u1-0000001")
         h.runtime.store.put("c", "k", "{}")
         h.runtime.platform.files.save("f1", byteArrayOf(1))
         h.runtime.activate(OfflineScope("https://api.test", "user-2"))
-        // Cambiar de usuario borra lo del anterior.
+        // Cambiar de usuario no muestra lo del anterior, pero conserva su partición mientras tenga pendientes.
         assertEquals(0, h.runtime.outbox.snapshot().size)
-        assertNull(h.runtime.platform.files.read("f1"))
-        h.enqueue("key-u2-0000001")
+        assertNull(h.runtime.store.get("c", "k"))
+        assertEquals(1L, h.runtime.platform.files.size("f1"))
+        h.runtime.syncNow()
+        assertEquals(emptyList(), h.server.calls)
+        // Con la cuenta anterior sin pendientes, el cierre explícito lo borra todo.
+        h.runtime.activate(OfflineScope("https://api.test", "user-1"))
+        h.runtime.syncNow()
         h.runtime.wipe()
         assertEquals(emptyList(), h.database.scopes())
         assertEquals(0, h.runtime.outbox.snapshot().size)
