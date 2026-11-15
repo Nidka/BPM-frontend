@@ -233,7 +233,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
             BpmCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(value.displayName)
-                    Text(if (value.role == "CHEF") "Chef" else "Colaborador")
+                    Text(when (value.role) { "ADMIN" -> "Administrador"; "CHEF" -> "Chef"; else -> "Colaborador" })
                     BpmSecondaryButton({ vm.select(value) }, enabled = !loading) {
                         Text("Seleccionar responsable")
                     }
@@ -292,11 +292,12 @@ private fun IncidentDetailContent(
                 Text(action.description)
                 Text("Plazo: ${displayDateTime(action.dueAt)}")
                 Text("Estado de la acción: ${incidentStatusLabel(action.status)}")
+                if (action.selfValidated) Eyebrow("Autovalidada")
                 action.resolutionNote
                     ?.takeIf { it.isNotBlank() }
                     ?.let { Text("Corrección realizada: $it") }
                 val writable =
-                    s.role in setOf("CHEF", "WORKER") &&
+                    IncidentsAccess.canAttend(s.role) &&
                         action.responsibleUserId == s.userId &&
                         i.status == IncidentStatus.IN_PROGRESS &&
                         action.status == "IN_PROGRESS"
@@ -327,14 +328,10 @@ private fun IncidentDetailContent(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        d.allowedActions
-            .filterNot {
-                i.status == IncidentStatus.VERIFIED ||
-                    it == IncidentActionType.VERIFY &&
-                        d.actions.any { a -> a.responsibleUserId == s.userId }
-            }
+        IncidentsAccess.visibleActions(d.allowedActions, i.status, d.actions, s.userId)
             .forEach { type ->
-                RaisedButton(incidentActionLabel(type), { vm.action(type) }, enabled = !s.loading)
+                val self = type == IncidentActionType.VERIFY && IncidentsAccess.isSelfVerification(d.actions, s.userId)
+                RaisedButton(if (self) "Validar sin otro validador" else incidentActionLabel(type), { vm.action(type) }, enabled = !s.loading)
             }
     }
     BpmSecondaryButton(vm::history) { Text("Consultar historial") }

@@ -68,7 +68,7 @@ class ListInvitations(private val repository: AccountsRepository) {
 
 class InviteMember(private val repository: AccountsRepository) {
     /** [id] lo genera el cliente: repetirlo con el mismo contenido no duplica la invitación. */
-    suspend operator fun invoke(organizationId: String, id: String, email: String, role: MemberRole, locationIds: List<String>): AccountsResult<Invitation> {
+    suspend operator fun invoke(organizationId: String, id: String, email: String, role: MemberRole, locationIds: List<String>): AccountsResult<SharedInvitation> {
         val fields = AccountsRules.invitation(email, role, locationIds)
         if (fields.isNotEmpty()) return invalid(fields)
         return repository.invite(organizationId, id, email.trim(), role, if (role == MemberRole.ADMIN) emptyList() else locationIds)
@@ -76,7 +76,7 @@ class InviteMember(private val repository: AccountsRepository) {
 }
 
 class ResendInvitation(private val repository: AccountsRepository) {
-    suspend operator fun invoke(organizationId: String, invitation: Invitation): AccountsResult<Invitation> =
+    suspend operator fun invoke(organizationId: String, invitation: Invitation): AccountsResult<SharedInvitation> =
         if (!AccountsRules.canResend(invitation.status)) AccountsResult.Failure(AccountFailure.INVITATION_NOT_PENDING)
         else repository.resendInvitation(organizationId, invitation.id)
 }

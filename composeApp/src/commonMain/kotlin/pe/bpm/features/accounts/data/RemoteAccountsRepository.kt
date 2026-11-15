@@ -82,11 +82,11 @@ class RemoteAccountsRepository(
     }
 
     override suspend fun invite(organizationId: String, id: String, email: String, role: MemberRole, locationIds: List<String>) = guarded {
-        call<InvitationDto, Invitation>(HttpMethod.Post, "${org(organizationId)}/invitations", InvitationBody(id, email, role.name, locationIds)) { it.domain() }
+        call<InvitationDto, SharedInvitation>(HttpMethod.Post, "${org(organizationId)}/invitations", InvitationBody(id, email, role.name, locationIds)) { it.shared() }
     }
 
     override suspend fun resendInvitation(organizationId: String, id: String) = guarded {
-        call<InvitationDto, Invitation>(HttpMethod.Post, "${org(organizationId)}/invitations/${safe(id)}/resend") { it.domain() }
+        call<InvitationDto, SharedInvitation>(HttpMethod.Post, "${org(organizationId)}/invitations/${safe(id)}/resend") { it.shared() }
     }
 
     override suspend fun revokeInvitation(organizationId: String, id: String) = guarded {
@@ -212,7 +212,19 @@ private fun ids(values: List<String>): List<String> {
 }
 @Serializable private data class TransferDto(val newAdmin: MemberDto, val formerAdmin: MemberDto? = null)
 @Serializable private data class InvitationDto(val id: String, val email: String, val role: String, val locationIds: List<String> = emptyList(),
-    val status: String, val expiresAt: String, val lastSentAt: String, val createdAt: String, val sendCount: Int = 0, val rowVersion: Long) {
+    val status: String, val expiresAt: String, val lastSentAt: String, val createdAt: String, val sendCount: Int = 0, val rowVersion: Long,
+    /** Solo llegan al crear y reenviar; la lista nunca los trae y aquí se ignoran. */
+    val acceptUrl: String? = null, val token: String? = null) {
+    /** Invitación con su enlace; si no hay URL configurada se exige el código de 43 caracteres. */
+    fun shared(): SharedInvitation {
+        val share = when {
+            acceptUrl != null -> InvitationShare.Link(acceptUrl.also { require(AccountsRules.acceptLink(it)) })
+            token != null -> InvitationShare.Code(AccountsRules.invitationToken(token) ?: throw IllegalArgumentException("Código inválido"))
+            else -> throw IllegalArgumentException("Falta el enlace de la invitación")
+        }
+        return SharedInvitation(domain(), share)
+    }
+
     fun domain(): Invitation {
         require(rowVersion >= 1 && sendCount >= 0)
         instant(expiresAt); instant(lastSentAt); instant(createdAt)

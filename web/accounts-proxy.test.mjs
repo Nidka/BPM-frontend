@@ -88,10 +88,13 @@ test('organización y sede: PATCH exacto con tipo de establecimiento y estado', 
   assert.equal(state.requests.length, 2);
 });
 
-test('invitaciones: crear, listar con filtros cerrados, reenviar, revocar; el token nunca sale', async t => {
+const link = 'https://bpm.example/cuenta/invitacion?token=' + token;
+const invite = { id: 'i1', email: 'a@example.com', role: 'WORKER', locationIds: ['l1'] };
+
+test('invitaciones: crear, listar con filtros cerrados, reenviar, revocar; el token solo sale al crear y reenviar', async t => {
   const { state, call } = await fixture(t);
-  state.payload = { data: invitation };
-  const created = await call('POST', '/organizations/o1/invitations', { id: 'i1', email: 'a@example.com', role: 'WORKER', locationIds: ['l1'] });
+  state.payload = { data: { ...invitation, acceptUrl: link } };
+  const created = await call('POST', '/organizations/o1/invitations', invite);
   assert.equal(created.status, 200);
   assert.equal(JSON.stringify(await created.json()).includes('SECRETTOKEN'), false);
   assert.equal((await call('POST', '/organizations/o1/invitations', { id: 'i1', email: 'no-es-correo', role: 'WORKER', locationIds: [] })).status, 400);
@@ -101,12 +104,53 @@ test('invitaciones: crear, listar con filtros cerrados, reenviar, revocar; el to
   assert.equal((await listed.json()).pagination.nextPageToken, 'abc_1');
   assert.equal(state.requests.at(-1).path, '/api/v1/organizations/o1/invitations?status=EXPIRED&pageSize=25&query=ana');
   for (const bad of ['?status=OTHER', '?evil=1', '?pageSize=1000', '?status=PENDING&status=EXPIRED']) assert.equal((await call('GET', '/organizations/o1/invitations' + bad)).status, 400);
+  state.payload = { data: { ...invitation, acceptUrl: link } };
+  assert.equal((await call('POST', '/organizations/o1/invitations/i1/resend', '')).status, 200);
   state.payload = { data: invitation };
-  for (const action of ['resend', 'revoke']) assert.equal((await call('POST', `/organizations/o1/invitations/i1/${action}`, '')).status, 200);
+  assert.equal((await call('POST', '/organizations/o1/invitations/i1/revoke', '')).status, 200);
+  state.payload = { data: { ...invitation, acceptUrl: link } };
   assert.equal((await call('POST', '/organizations/o1/invitations/i1/resend', { x: 1 })).status, 400);
   state.status = 429; state.payload = { errors: [{ code: 'INVITATION_RESEND_TOO_SOON' }] };
   const wait = await call('POST', '/organizations/o1/invitations/i1/resend', '');
   assert.equal(wait.status, 429); assert.equal((await wait.json()).errors[0].code, 'INVITATION_RESEND_TOO_SOON');
+});
+
+test('invitaciones: acceptUrl o token solo en crear y reenviar, con formato validado', async t => {
+  const { state, call } = await fixture(t);
+  const base = { ...invitation, token: undefined };
+  // Con enlace: se entrega acceptUrl y nunca un token aparte.
+  state.payload = { data: { ...base, acceptUrl: link, token } };
+  for (const [path, body] of [['/organizations/o1/invitations', invite], ['/organizations/o1/invitations/i1/resend', '']]) {
+    const response = await call('POST', path, body); assert.equal(response.status, 200);
+    const data = (await response.json()).data;
+    assert.equal(data.acceptUrl, link); assert.equal('token' in data, false); assert.equal(data.email, 'a@example.com');
+  }
+  // Sin URL configurada: acceptUrl null y el código.
+  state.payload = { data: { ...base, acceptUrl: null, token } };
+  for (const [path, body] of [['/organizations/o1/invitations', invite], ['/organizations/o1/invitations/i1/resend', '']]) {
+    const data = (await (await call('POST', path, body)).json()).data;
+    assert.equal(data.acceptUrl, null); assert.equal(data.token, token);
+  }
+  state.payload = { data: { ...base, token } };
+  assert.equal((await (await call('POST', '/organizations/o1/invitations', invite)).json()).data.token, token);
+  // Formato inválido: no se entrega nada.
+  for (const bad of ['javascript:alert(1)', 'http://evil.example/cuenta/invitacion?token=' + token, 'https://u:p@bpm.example/cuenta/invitacion?token=' + token,
+    'https://bpm.example/otra?token=' + token, 'https://bpm.example/cuenta/invitacion?token=corto', 'https://bpm.example/cuenta/invitacion?token=' + token + '&x=1',
+    'https://bpm.example/cuenta/invitacion?token=' + token + '#x', 'https://bpm.example/cuenta/invitacion?token=' + token + ' ', 42]) {
+    state.payload = { data: { ...base, acceptUrl: bad } };
+    assert.equal((await call('POST', '/organizations/o1/invitations', invite)).status, 503, String(bad));
+  }
+  state.payload = { data: { ...base, acceptUrl: null, token: 'corto' } };
+  assert.equal((await call('POST', '/organizations/o1/invitations/i1/resend', '')).status, 503);
+  state.payload = { data: { ...base, acceptUrl: 'http://localhost:8080/cuenta/invitacion?token=' + token } };
+  assert.equal((await call('POST', '/organizations/o1/invitations', invite)).status, 200);
+  // Listas y revocación nunca proyectan el enlace ni el código.
+  state.payload = { data: [{ ...base, acceptUrl: link, token }], pagination: { nextPageToken: '' } };
+  const listed = JSON.stringify(await (await call('GET', '/organizations/o1/invitations')).json());
+  assert.equal(listed.includes(token) || listed.includes('acceptUrl'), false);
+  state.payload = { data: { ...base, acceptUrl: link, token } };
+  const revoked = JSON.stringify(await (await call('POST', '/organizations/o1/invitations/i1/revoke', '')).json());
+  assert.equal(revoked.includes(token) || revoked.includes('acceptUrl'), false);
 });
 
 test('aceptar invitación: token de 43 caracteres, errores de dominio y sin eco del token', async t => {

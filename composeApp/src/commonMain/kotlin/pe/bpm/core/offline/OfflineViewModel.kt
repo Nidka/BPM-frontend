@@ -45,6 +45,8 @@ data class OfflineUiState(
     val syncing: Boolean = false,
     val notice: String? = null,
     val now: Long = 0,
+    /** Qué puede hacer la persona al cerrar sesión según lo que queda en la Outbox. */
+    val logout: LogoutGate = LogoutGate.Clear,
 )
 
 /** Título comprensible de una operación; los tipos nuevos agregan el suyo aquí. */
@@ -87,7 +89,8 @@ class OfflineViewModel(private val runtime: OfflineRuntime) : ViewModel() {
     private val notice = MutableStateFlow<String?>(null)
 
     val state: StateFlow<OfflineUiState> = combine(runtime.status, runtime.outbox.operations, notice) { status, operations, message ->
-        OfflineUiState(status, PendingMarks(operations.mapNotNull { it.toMark() }), operations.reversed().map { item(it, operations) }, status.syncing, message, runtime.clock())
+        OfflineUiState(status, PendingMarks(operations.mapNotNull { it.toMark() }), operations.reversed().map { item(it, operations) }, status.syncing, message, runtime.clock(),
+            LogoutPolicy.evaluate(operations))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, OfflineUiState())
 
     init { runtime.start(viewModelScope) }
@@ -134,5 +137,14 @@ class OfflineViewModel(private val runtime: OfflineRuntime) : ViewModel() {
 
     fun retry(id: String) { viewModelScope.launch { runtime.outbox.retry(id); runtime.syncNow() } }
     fun discard(id: String) { viewModelScope.launch { runtime.outbox.discard(id) } }
+
+    /** Descarta de forma explícita los cambios en conflicto o rechazados antes de cerrar sesión y luego ejecuta [then]. */
+    fun discardAll(ids: List<String>, then: () -> Unit) {
+        viewModelScope.launch {
+            ids.forEach { runtime.outbox.discard(it) }
+            // Si mientras tanto apareció algo por enviar, no se cierra sesión.
+            if (LogoutPolicy.evaluate(runtime.outbox.snapshot()) == LogoutGate.Clear) then()
+        }
+    }
     fun dismissNotice() { notice.value = null }
 }

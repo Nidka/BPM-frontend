@@ -5,6 +5,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import pe.bpm.core.presentation.ShareResult
+import pe.bpm.core.presentation.rememberTextSharer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,6 +32,7 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
     LaunchedEffect(waiting) { while (waiting) { delay(1000); viewModel.tick() } }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         AccountMessages(state.failure, state.notice)
+        state.share?.let { InvitationSharePanel(it, state.organizationName, viewModel::closeShare) }
         if (state.form != null) InviteFormCard(state.form!!, state, viewModel)
         else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.busy)
         state.revoking?.let { invitation ->
@@ -49,6 +59,37 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Panel con el enlace (o el código) de la invitación recién enviada y las tres formas de compartirlo.
+ * El valor vive solo en memoria: al cerrar el panel desaparece y, si se pierde, se reenvía la invitación.
+ */
+@Composable
+internal fun InvitationSharePanel(share: ShareState, organizationName: String, onClose: () -> Unit) {
+    val sharer = rememberTextSharer()
+    val uriHandler = LocalUriHandler.current
+    var feedback by remember(share) { mutableStateOf<String?>(null) }
+    val isLink = share.share is InvitationShare.Link
+    BpmCard(Modifier.fillMaxWidth()) {
+        Text(if (share.resent) "Invitación reenviada" else "Invitación lista para compartir", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(if (isLink) "Enlace de invitación" else "Código de invitación", style = MaterialTheme.typography.labelLarge)
+        Text(share.share.value, style = MaterialTheme.typography.bodyMedium)
+        Text(InvitationSharing.notice(share.email), style = MaterialTheme.typography.bodySmall)
+        if (!isLink) Text("En Mi cuenta, elige «Aceptar una invitación» y pega este código.", style = MaterialTheme.typography.bodySmall)
+        BpmSecondaryButton(onClick = { sharer.copy(share.share.value) { feedback = if (it == ShareResult.COPIED) (if (isLink) "Enlace copiado." else "Código copiado.") else "No pudimos copiarlo. Selecciónalo y cópialo a mano." } },
+            modifier = Modifier.fillMaxWidth()) { Text(if (isLink) "Copiar enlace" else "Copiar código") }
+        BpmSecondaryButton(onClick = { runCatching { uriHandler.openUri(share.whatsappUrl(organizationName)) }.onFailure { feedback = "No pudimos abrir WhatsApp." } },
+            modifier = Modifier.fillMaxWidth()) { Text("Enviar por WhatsApp") }
+        BpmSecondaryButton(onClick = { sharer.share("Invitación a BPM", share.message(organizationName)) { feedback = when (it) {
+            ShareResult.SHARED, ShareResult.CANCELLED -> null
+            ShareResult.COPIED -> "Tu navegador no puede compartir; copiamos el mensaje."
+            ShareResult.FAILED -> "No pudimos abrir la hoja de compartir."
+        } } }, modifier = Modifier.fillMaxWidth()) { Text("Compartir") }
+        feedback?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+        Text("No guardamos el enlace en este dispositivo ni aparece en la lista. Si lo pierdes, reenvía la invitación.", style = MaterialTheme.typography.bodySmall)
+        BpmTextButton(onClick = onClose) { Text("Listo, cerrar") }
     }
 }
 

@@ -180,3 +180,48 @@ private fun PendingCard(item: PendingItem, now: Long, onRetry: (String) -> Unit,
         }
     }
 }
+
+/**
+ * Cierre de sesión en un celular compartido. Con cambios por enviar no deja salir y pide conectarse y
+ * sincronizar; solo los cambios en conflicto o rechazados se descartan de forma explícita, con confirmación.
+ * Si no queda nada pendiente (por ejemplo, tras sincronizar), ofrece cerrar sesión y borrar los datos personales.
+ */
+@Composable
+fun LogoutDialog(
+    state: OfflineUiState, online: Boolean, onSync: () -> Unit, onOpenPending: () -> Unit,
+    onLogout: () -> Unit, onDiscardAndLogout: (List<String>) -> Unit, onDismiss: () -> Unit,
+) {
+    when (val gate = state.logout) {
+        is LogoutGate.Blocked -> AlertDialog(onDismissRequest = onDismiss,
+            title = { Text("No puedes cerrar sesión todavía") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+                    Text(LogoutPolicy.blockedMessage(gate.unsent))
+                    if (!online) Text("Ahora no hay conexión.", style = MaterialTheme.typography.bodySmall)
+                    state.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
+            },
+            confirmButton = { BpmTextButton(onSync, enabled = online && !state.syncing) { Text(if (state.syncing) "Enviando…" else "Sincronizar ahora") } },
+            dismissButton = {
+                Row {
+                    BpmTextButton(onOpenPending) { Text("Ver pendientes") }
+                    BpmTextButton(onDismiss) { Text("Seguir aquí") }
+                }
+            })
+        is LogoutGate.NeedsDiscard -> AlertDialog(onDismissRequest = onDismiss,
+            title = { Text("Hay cambios que no se pueden enviar") },
+            text = {
+                val count = gate.operationIds.size
+                Text("${if (count == 1) "1 cambio quedó" else "$count cambios quedaron"} en conflicto o rechazado${if (count == 1) "" else "s"} y no se enviará" +
+                    "${if (count == 1) "" else "n"}.${if (gate.dependents > 0) " También se descartarán ${gate.dependents} cambios que dependen de ellos." else ""} " +
+                    "Si sigues, se descartan y se borran los datos personales de este dispositivo.")
+            },
+            confirmButton = { BpmTextButton({ onDiscardAndLogout(gate.operationIds) }) { Text("Descartar y cerrar sesión") } },
+            dismissButton = { BpmTextButton(onDismiss) { Text("Seguir aquí") } })
+        LogoutGate.Clear -> AlertDialog(onDismissRequest = onDismiss,
+            title = { Text("Cerrar sesión") },
+            text = { Text("No quedan cambios por enviar. Se borrarán los datos personales de este dispositivo; los videos descargados se conservan.") },
+            confirmButton = { BpmTextButton(onLogout) { Text("Cerrar sesión") } },
+            dismissButton = { BpmTextButton(onDismiss) { Text("Seguir aquí") } })
+    }
+}

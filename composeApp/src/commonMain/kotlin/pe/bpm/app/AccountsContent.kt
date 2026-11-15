@@ -14,10 +14,11 @@ import pe.bpm.features.accounts.presentation.*
  */
 @Composable
 internal fun AccountsManagementContent(userId: String, organizationId: String, canManage: Boolean, actorIsMember: Boolean,
-    team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, modifier: Modifier = Modifier) {
-    LaunchedEffect(userId, organizationId, canManage, actorIsMember) {
+    team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, modifier: Modifier = Modifier,
+    organizationName: String = "") {
+    LaunchedEffect(userId, organizationId, canManage, actorIsMember, organizationName) {
         team.open(organizationId, canManage, actorIsMember)
-        invitations.open(organizationId, canManage)
+        invitations.open(organizationId, canManage, organizationName)
         organization.open(organizationId, canManage)
     }
     DisposableEffect(userId, organizationId) { onDispose { team.reset(); invitations.reset(); organization.reset() } }

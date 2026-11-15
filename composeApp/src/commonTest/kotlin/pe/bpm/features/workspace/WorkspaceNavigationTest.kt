@@ -38,10 +38,10 @@ class WorkspaceNavigationTest {
         assertFalse(WorkspaceDestination.Company in chef)
     }
 
-    @Test fun organizationAdminSupervisesWithoutPerformingDailyReviews() {
+    @Test fun organizationAdminSupervisesAndAlsoPerformsDailyReviews() {
         val allowed = workspaceDestinations("ADMIN", false)
         assertTrue(WorkspaceDestination.Supervision in allowed)
-        assertFalse(WorkspaceDestination.Operations in allowed)
+        assertTrue(WorkspaceDestination.Operations in allowed)
         assertFalse(WorkspaceDestination.Learn in allowed)
         assertTrue(workspacePrimaryDestinations(allowed).size <= 5)
         assertTrue(WorkspaceDestination.Account in workspacePrimaryDestinations(allowed))

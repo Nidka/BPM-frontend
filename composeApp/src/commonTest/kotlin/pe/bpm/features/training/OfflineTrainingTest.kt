@@ -269,4 +269,106 @@ class OfflineTrainingTest {
         awaitIdle(downloads)
         assertTrue(fake.ticketCalls.isEmpty())
     }
+
+    // ---- Videos del dispositivo: sobreviven al cierre de sesión, solo se ven con el catálogo propio -------------
+
+    /** Almacén en memoria que ofrece URI, como el de archivos de Android o iOS. */
+    private class UriStore(private val inner: InMemoryPrivateFileStore = InMemoryPrivateFileStore(durable = true)) : PrivateFileStore by inner {
+        override suspend fun localUri(ref: String) = if (inner.size(ref) != null) "file:///vault/$ref" else null
+    }
+
+    private val ownVideo get() = LessonVideo(MEDIA_ID, "video/mp4", videoBytes.size.toLong(), videoSha)
+    private val vaultRef get() = OfflineTrainingDownloads.ref(MEDIA_ID, "video/mp4", videoSha)
+
+    private fun vaultDownloads(vault: PrivateFileStore, runtime: OfflineRuntime, catalog: () -> List<LessonVideo>, legacy: PrivateFileStore? = null): OfflineTrainingDownloads {
+        val client = HttpClient(MockEngine { respond(ByteReadChannel(videoBytes), HttpStatusCode.OK) }) { expectSuccess = false; install(io.ktor.client.plugins.HttpTimeout) }
+        return OfflineTrainingDownloads(vault, VerifiedDownloader(client, vault, chunkBytes = 1024, retryDelay = {}), FakeTrainingRepository(), runtime.store,
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default), catalog = { catalog() }, legacy = legacy)
+    }
+
+    private suspend fun activeRuntime(personal: PrivateFileStore, vault: PrivateFileStore, user: String = "user-1") =
+        OfflineRuntime(OfflinePlatform(files = personal, videos = vault), { 1L }, { "op" }).also { it.activate(OfflineScope(API, user)) }
+
+    @Test fun downloadedVideosSurviveLogoutButOnlyPlayWhenTheUsersOwnCatalogIncludesThem() = runTest {
+        val vault = UriStore()
+        val runtime = activeRuntime(InMemoryPrivateFileStore(durable = true), vault)
+        var catalog = listOf(ownVideo)
+        val downloads = vaultDownloads(vault, runtime, { catalog })
+        downloads.bind(ORG)
+        downloads.download(ORG, courseWithVideo())
+        awaitIdle(downloads)
+        assertEquals("file:///vault/$vaultRef", downloads.localVideo(ownVideo)?.url)
+        assertTrue(downloads.state.value.downloaded(MEDIA_ID))
+
+        // Cierre de sesión: se borran los datos personales, el video queda en el dispositivo.
+        downloads.unbind()
+        runtime.wipe()
+        assertEquals(videoBytes.size.toLong(), vault.size(vaultRef))
+        // Otra cuenta cuyo catálogo no incluye ese mediaId no lo ve ni lo reproduce.
+        runtime.activate(OfflineScope(API, "user-2"))
+        catalog = emptyList()
+        downloads.bind(ORG)
+        assertNull(downloads.localVideo(ownVideo))
+        assertFalse(downloads.state.value.downloaded(MEDIA_ID))
+        assertEquals(videoBytes.size.toLong(), downloads.state.value.usedBytes)
+        // Sin catálogo cargado (bind pendiente) tampoco se reproduce.
+        downloads.unbind()
+        assertNull(downloads.localVideo(ownVideo))
+        // Con el mismo mediaId pero otro SHA-256 en su catálogo, tampoco: es otro contenido.
+        catalog = listOf(ownVideo.copy(sha256 = "f".repeat(64)))
+        downloads.bind(ORG)
+        assertNull(downloads.localVideo(ownVideo.copy(sha256 = "f".repeat(64))))
+        // Una cuenta cuyo catálogo sí lo incluye lo reproduce sin volver a descargarlo.
+        catalog = listOf(ownVideo)
+        downloads.bind(ORG)
+        assertEquals("file:///vault/$vaultRef", downloads.localVideo(ownVideo)?.url)
+        assertTrue(downloads.state.value.downloaded(MEDIA_ID))
+    }
+
+    @Test fun deleteDownloadsEmptiesTheDeviceStoreIncludingOtherAccountsVideos() = runTest {
+        val vault = UriStore()
+        val runtime = activeRuntime(InMemoryPrivateFileStore(durable = true), vault)
+        vault.save("video-otro-0123456789abcdef.mp4", ByteArray(10))
+        val downloads = vaultDownloads(vault, runtime, { listOf(ownVideo) })
+        downloads.bind(ORG)
+        assertEquals(10L, downloads.state.value.usedBytes)
+        downloads.deleteAll()
+        assertTrue(vault.list().isEmpty())
+    }
+
+    @Test fun legacyDownloadsMoveToTheDeviceStoreWhenTheCatalogIdentifiesThem() = runTest {
+        val personal = InMemoryPrivateFileStore(durable = true)
+        val vault = InMemoryPrivateFileStore(durable = true)
+        val runtime = activeRuntime(personal, vault)
+        personal.save("video-$MEDIA_ID.mp4", videoBytes)
+        personal.save("video-sin-catalogo.mp4", ByteArray(7))
+        personal.save("foto-1.jpg", ByteArray(3))
+        val downloads = vaultDownloads(vault, runtime, { listOf(ownVideo) }, legacy = personal)
+        downloads.bind(ORG)
+        assertEquals(videoBytes.size.toLong(), vault.size(vaultRef))
+        assertNull(personal.size("video-$MEDIA_ID.mp4"))
+        // Lo que el catálogo no identifica se descarta; las fotos personales no se tocan.
+        assertNull(personal.size("video-sin-catalogo.mp4"))
+        assertEquals(3L, personal.size("foto-1.jpg"))
+        assertTrue(downloads.state.value.downloaded(MEDIA_ID))
+    }
+
+    @Test fun theSpaceLimitFreesVideosOutsideTheCatalogBeforeRefusingTheDownload() = runTest {
+        val vault = InMemoryPrivateFileStore(durable = true)
+        val runtime = activeRuntime(InMemoryPrivateFileStore(durable = true), vault)
+        vault.save("video-ajeno-fedcba9876543210.mp4", ByteArray(5_000))
+        val downloads = vaultDownloads(vault, runtime, { listOf(ownVideo) })
+        downloads.setLimit(6_000)
+        downloads.bind(ORG)
+        downloads.download(ORG, courseWithVideo())
+        awaitIdle(downloads)
+        assertTrue(downloads.state.value.downloaded(MEDIA_ID))
+        assertNull(vault.size("video-ajeno-fedcba9876543210.mp4"))
+        // Un video del propio catálogo nunca se borra solo por el límite: la descarga se rechaza.
+        downloads.setLimit(videoBytes.size - 1L)
+        downloads.download(ORG, courseWithVideo().let { it.copy(lessons = listOf(it.lessons[0].copy(video = LessonVideo("70000000-0000-4000-8000-000000000002", "video/mp4", videoBytes.size.toLong(), videoSha)), it.lessons[1])) })
+        awaitIdle(downloads)
+        assertNotNull(vault.size(vaultRef))
+    }
+
 }

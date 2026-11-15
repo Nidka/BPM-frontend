@@ -27,8 +27,8 @@ object OperationsAccess {
             OperationsResource.SUPPLIERS,
             OperationsResource.PRODUCTS,
             OperationsResource.PLANS -> role in setOf("ADMIN", "SUPER_ADMIN")
-            OperationsResource.RECEIPTS -> role == "CHEF"
-            OperationsResource.EXECUTIONS -> role in setOf("CHEF", "WORKER")
+            OperationsResource.RECEIPTS -> role in setOf("CHEF", "ADMIN")
+            OperationsResource.EXECUTIONS -> role in setOf("CHEF", "ADMIN", "WORKER")
             OperationsResource.LOTS -> false
         }
 }

@@ -62,6 +62,22 @@ object AccountsRules {
     /** El token de invitación tiene 43 caracteres base64url; se normaliza el texto pegado. */
     fun invitationToken(raw: String): String? = raw.trim().takeIf(tokenPattern::matches)
 
+    /**
+     * Enlace de aceptación devuelto al crear o reenviar: https (http solo en localhost para desarrollo), sin
+     * espacios ni credenciales y con un único `token` de 43 caracteres base64url.
+     */
+    fun acceptLink(url: String): Boolean {
+        if (url.length > 2048 || url.any { it <= ' ' || it == '' } || '#' in url) return false
+        val secure = url.startsWith("https://")
+        val local = listOf("http://localhost", "http://127.0.0.1").any { url.startsWith(it) }
+        if (!secure && !local) return false
+        val authority = url.substringAfter("://").substringBefore('/').substringBefore('?')
+        if ('@' in authority) return false
+        val query = url.substringAfter('?', "")
+        val params = query.split('&')
+        return params.size == 1 && params[0].startsWith("token=") && invitationToken(params[0].removePrefix("token=")) != null
+    }
+
     /** Extrae el token de un enlace pegado (`...?token=...`) o del propio token; nulo si no es válido. */
     fun tokenFromPaste(raw: String): String? {
         val text = raw.trim()

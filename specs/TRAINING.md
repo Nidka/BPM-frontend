@@ -220,13 +220,18 @@ Contrato: «Catálogo descargable offline» de `Backend/specs/TRAINING.md` (`GET
 - **Descargas.** «Descargar para ver sin conexión» por curso (`OfflineTrainingDownloads`): solo videos R2 con `sha256` en el
   catálogo; pide `POST .../video` justo antes de cada intento, transfiere por bloques a `PrivateFileStore`, verifica y reanuda.
   Muestra espacio usado y límite (512 MB, 1, **2 GB** por defecto, 5 GB; se guarda en `training-download-limit`); si lo que falta
-  supera el límite avisa y no empieza. Se puede borrar por curso o todo. El reproductor usa `file://` si el archivo verificado existe;
+  supera el límite avisa y no empieza (antes libera los videos que no son del catálogo de la cuenta). Se puede borrar por curso o con
+  «Borrar descargas» (todo el almacén del dispositivo). Los videos **ya no se borran al cerrar sesión**: viven en el almacén del dispositivo
+  (`OfflinePlatform.videos`), separado de los datos personales, con nombre `video-<mediaId>-<SHA-256>`. Solo se muestran y reproducen si el
+  catálogo ya cargado de la cuenta activa incluye ese `mediaId` con el mismo SHA-256 (`TrainingDownloads.bind`); las descargas del
+  formato anterior se migran al asociar el catálogo. Detalle en OFFLINE.md, «Celular compartido». El reproductor usa `file://` si el archivo verificado existe;
   si no se reproduce, se borra y se pide el video en línea. YouTube queda «Requiere conexión» (`offlineAvailable=false`).
 - **Web.** Catálogo y avance sobre IndexedDB (misma API que el resto de la base). Los videos no se descargan: la tarjeta explica que
   el navegador no guarda archivos y remite a la app móvil; el texto de las lecciones sí está disponible.
 - **Proxy.** `web/training-proxy.mjs` expone `GET me/offline-catalog`: valida cada curso, exige `sha256` de 64 hex en los videos,
   no pasa respuestas ni URL, reenvía solo un `If-None-Match` con formato exacto y devuelve 304 sin cuerpo con `ETag`.
 - **Pruebas.** `OfflineTrainingTest` (catálogo ETag/304, fallback, avance, estudio, intento encolado y calificado al sincronizar,
-  descarga verificada/corrupta/límite), `VerifiedDownloaderTest` (SHA correcto, corrupto, reanudación, `Range` ignorado),
+  descarga verificada/corrupta/límite, videos que sobreviven al cierre de sesión y no se reproducen fuera del catálogo propio,
+  migración y límite con videos ajenos), `VerifiedDownloaderTest` (SHA correcto, corrupto, reanudación, `Range` ignorado),
   `TrainingViewModelOfflineTest`, `web/training-proxy.test.mjs`.
 - **Pendiente.** Reproducir `file://` y escribir con `NSFileHandle` en dispositivo; descargas en segundo plano con la app cerrada.

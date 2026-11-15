@@ -35,6 +35,7 @@ object AndroidOffline {
         database = SqlOfflineDatabase(AndroidSqliteDriver(OfflineDb.Schema, app, "bpm-offline.db")),
         connectivity = AndroidConnectivityMonitor(app),
         files = AndroidPrivateFileStore(File(app.noBackupFilesDir, "offline-files")),
+        videos = AndroidPrivateFileStore(File(app.noBackupFilesDir, "device-videos")),
         scheduler = AndroidBackgroundSync(app),
     )
 }
@@ -123,6 +124,15 @@ class AndroidPrivateFileStore(private val directory: File) : PrivateFileStore {
     }
     override suspend fun size(ref: String) = withContext(Dispatchers.IO) { file(ref).takeIf { it.isFile }?.length() }
     override suspend fun localUri(ref: String) = withContext(Dispatchers.IO) { file(ref).takeIf { it.isFile }?.let { "file://" + it.absolutePath } }
+    override suspend fun moveTo(ref: String, target: PrivateFileStore, targetRef: String): Boolean = withContext(Dispatchers.IO) {
+        if (target !is AndroidPrivateFileStore || target === this) return@withContext false
+        val source = file(ref)
+        if (!source.isFile) return@withContext false
+        check(target.directory.isDirectory || target.directory.mkdirs())
+        val destination = target.file(targetRef)
+        destination.delete()
+        source.renameTo(destination)
+    }
 }
 
 /** Trabajo único con restricción de red y backoff exponencial: envía la Outbox con la app cerrada. */

@@ -104,3 +104,10 @@ fallos ni pruebas omitidas. Se comprobaron web, APK Android y framework de
 simulador iOS. La compilación no sustituye una prueba en móvil físico ni la
 aceptación del proveedor R2 real. La activación requiere backend con V6 antes
 de desplegar esta UI.
+
+## Validación por el responsable (autovalidación)
+
+El ADMIN miembro también atiende acciones asignadas. «Validar» ya no se oculta al responsable de la acción: se muestra como
+«Validar sin otro validador», con nota obligatoria. El backend solo lo permite cuando el responsable es la única persona elegible
+(sin otro ADMIN ni CHEF activo con acceso a la sede); si existe otra, responde 403/409 y la UI muestra «Otra persona de tu equipo debe
+validar esta corrección». Las acciones con `selfValidated: true` llevan la etiqueta «Autovalidada»; el proxy deja pasar ese booleano.

@@ -46,7 +46,7 @@ servidor justo antes de enviar.
 Si hubo una sesión válida, la app abre sin red con el último perfil verificado (máximo 14 días); al
 volver la red se renueva el token y se revalida en /me. Un rechazo del servidor nunca se rescata con
 la caché. El primer inicio siempre requiere red. Cierre de sesión explícito o cambio de cuenta borran
-base, archivos y borradores (con confirmación si hay pendientes); vencimiento de sesión solo oculta.
+base, archivos personales y borradores; vencimiento de sesión solo oculta. Cierre de sesión con pendientes: ver «Celular compartido».
 Las acciones que requieren servidor se agrupan en `ServerOnly` (fase 2): sin conexión muestran
 `OfflineRequiredNotice` y `RaisedButton`/`BpmSecondaryButton` se deshabilitan solos (`LocalServerOnlyActions`).
 
@@ -92,17 +92,52 @@ instalado después de `HttpTimeout`).
 seguridad; iOS `NSFileHandle` con protección completa; el navegador no admite archivos durables (`supported=false`).
 `VerifiedDownloader` transfiere en streaming (64 KiB), verifica tamaño y SHA-256 incremental, reanuda con `Range` (rehaciendo el
 hash de lo ya escrito), reinicia si el origen ignora `Range`, repite una sola vez una descarga corrupta y pide una URL nueva en
-cada intento (nunca se guarda). Se borra todo al cerrar sesión o cambiar de cuenta (`PrivateFileStore.deleteAll`).
+cada intento (nunca se guarda). Los videos viven en el almacén del dispositivo (`OfflinePlatform.videos`), no en el personal:
+cerrar sesión o cambiar de cuenta no los borra (ver «Celular compartido»).
 
 ### Registro de respuestas por Outbox
 `HttpOutboxHandler` acepta un gancho `onResponse` (calificaciones de evaluaciones) y trata un 409 `RESEARCH_SUBMISSION_EXISTS` en
 `research/submissions` como ENVIADA. `OfflineHttpPolicy` añade lecturas de `training` (salvo `offline-catalog`, videos y borradores) y
 `research/participation`, y escrituras `training/courses/{id}/progress` (clave generada), `.../attempts` y `research/submissions`.
 
+## Celular compartido
+
+Varias personas pueden usar el mismo celular, así que el cierre de sesión protege lo que aún no llegó al servidor y separa lo
+personal de lo que es del dispositivo.
+
+### Cierre de sesión con pendientes
+`LogoutPolicy` (`core/offline`) evalúa la Outbox de la cuenta activa y `OfflineUiState.logout` expone el resultado:
+
+- `Clear`: no queda nada sin enviar; «Cerrar sesión» borra los datos personales (base, archivos personales, borradores, trabajo en
+  segundo plano) como antes.
+- `Blocked(n)`: hay `n` operaciones PENDING o SENDING (también las que agotaron reintentos). La app **no deja salir** y muestra
+  «Tienes N cambios sin enviar. Conéctate y sincroniza antes de salir» con «Sincronizar ahora» (y «Ver pendientes» para
+  «Reintentar»). Cuando todo se envía, el mismo cuadro ofrece cerrar sesión. Los dependientes de una operación en conflicto o
+  rechazada esperan y no bloquean por sí solos: se descartan con ella.
+- `NeedsDiscard`: solo quedan operaciones en CONFLICTO o RECHAZADAS. Se pueden descartar de forma explícita con
+  «Descartar y cerrar sesión» (confirmación que dice cuántas se pierden). `OfflineViewModel.discardAll` vuelve a evaluar antes de
+  salir: si apareció algo por enviar, no cierra.
+
+El vencimiento de sesión no borra nada (solo oculta). Riesgo conocido: si tras un vencimiento entra otra cuenta, `activate()` borra los datos de la anterior (comportamiento previo, sin el bloqueo del cierre explícito).
+
+### Videos descargados (almacén del dispositivo)
+- `OfflinePlatform.videos` es un `PrivateFileStore` aparte (Android `noBackupFilesDir/device-videos`, iOS `bpm-device-videos-v1`
+  con protección completa y fuera de la copia de seguridad). `OfflineRuntime.wipe()` y `activate()` solo vacían `files`.
+- Cada archivo se llama `video-<mediaId>-<16 hex del SHA-256>.<ext>`: se identifica por contenido, no por cuenta.
+- Un usuario solo ve y reproduce un video local si **su propio catálogo, ya cargado** (`training-catalog`), incluye ese `mediaId`
+  con el mismo SHA-256 (`TrainingDownloads.bind`). Sin catálogo cargado, o con otro SHA-256, se usa la URL firmada o nada. El espacio
+  usado cuenta todo el dispositivo.
+- Se borra con «Borrar descargas» (vacía el almacén, también los videos de otras cuentas) y por el límite de espacio: antes de
+  rechazar una descarga se liberan los videos que no son del catálogo de la cuenta activa, los más grandes primero.
+- Migración: al asociar el catálogo, los `video-<mediaId>.<ext>` del almacén personal cuyo `mediaId` y tamaño coinciden con el
+  catálogo se mueven (`PrivateFileStore.moveTo`, sin cargarlos en memoria) al almacén de videos; los demás se descartan.
+- Web: los videos sin conexión siguen deshabilitados (no hay archivos durables; `supported=false`).
+
 ## Verificación manual pendiente
 
 Android/iOS no se compilaron en este entorno: revisar `AndroidOffline.kt`, `AppleOffline.kt`
-(NWPathMonitor y `NSFileHandle` sin verificar), el Worker y la reproducción de `file://` en dispositivo.
+(NWPathMonitor y `NSFileHandle` sin verificar), el Worker y la reproducción de `file://` en dispositivo. Del celular compartido:
+`moveTo` en Android/iOS (migración), la carpeta `device-videos` y que cerrar sesión conserve los videos.
 
 
 # Recuperación local y trabajo sin conexión

@@ -20,6 +20,12 @@ import pe.bpm.features.accounts.domain.*
 data class InviteForm(val id: String, val email: String = "", val role: MemberRole = MemberRole.WORKER,
     val locationIds: Set<String> = emptySet(), val fields: Map<String, String> = emptyMap())
 
+/** Panel para compartir la invitación creada o reenviada. */
+data class ShareState(val email: String, val share: InvitationShare, val resent: Boolean) {
+    fun message(organizationName: String) = InvitationSharing.message(organizationName, email, share)
+    fun whatsappUrl(organizationName: String) = InvitationSharing.whatsappUrl(message(organizationName))
+}
+
 data class InvitationsState(
     val organizationId: String? = null,
     val allowed: Boolean = false,
@@ -29,6 +35,9 @@ data class InvitationsState(
     val locations: List<AccountLocation> = emptyList(),
     val locationsFailure: AccountFailure? = null,
     val form: InviteForm? = null,
+    /** Enlace o código recién entregado; vive solo en memoria y se descarta al cerrar el panel. */
+    val share: ShareState? = null,
+    val organizationName: String = "",
     val revoking: Invitation? = null,
     val busy: Boolean = false,
     val failure: AccountFailure? = null,
@@ -53,9 +62,9 @@ class InvitationsViewModel(
     private var listJob: Job? = null
     private var actionJob: Job? = null
 
-    fun open(organizationId: String, allowed: Boolean) {
+    fun open(organizationId: String, allowed: Boolean, organizationName: String = "") {
         reset()
-        mutable.value = InvitationsState(organizationId = organizationId, allowed = allowed, now = clock())
+        mutable.value = InvitationsState(organizationId = organizationId, allowed = allowed, organizationName = organizationName, now = clock())
         if (!allowed) return
         fetch(mutable.value.page, null)
         viewModelScope.launch {
@@ -73,6 +82,8 @@ class InvitationsViewModel(
 
     fun reset() { listJob?.cancel(); actionJob?.cancel(); mutable.value = InvitationsState() }
     fun clearMessages() = mutable.update { it.copy(failure = null, notice = null) }
+    /** Descarta el enlace o código en memoria; si se pierde, se reenvía la invitación. */
+    fun closeShare() = mutable.update { it.copy(share = null) }
     /** La pantalla lo llama cada segundo mientras está visible. */
     fun tick() = mutable.update { it.copy(now = clock()) }
 
@@ -108,7 +119,7 @@ class InvitationsViewModel(
 
     // ---- Invitar -----------------------------------------------------------------------------
 
-    fun openForm() { val s = mutable.value; if (s.allowed && !s.busy) mutable.update { it.copy(form = InviteForm(newId()), revoking = null, failure = null, notice = null) } }
+    fun openForm() { val s = mutable.value; if (s.allowed && !s.busy) mutable.update { it.copy(form = InviteForm(newId()), share = null, revoking = null, failure = null, notice = null) } }
     fun cancelForm() { if (!mutable.value.busy) mutable.update { it.copy(form = null) } }
     private fun edit(change: (InviteForm) -> InviteForm) = mutable.update { s -> s.form?.let { s.copy(form = change(it).copy(id = newId(), fields = emptyMap())) } ?: s }
     fun editEmail(email: String) = edit { it.copy(email = email.take(320)) }
@@ -126,7 +137,7 @@ class InvitationsViewModel(
             currentCoroutineContext().ensureActive()
             when (result) {
                 is AccountsResult.Success -> {
-                    mutable.update { it.copy(busy = false, form = null, notice = "Enviamos la invitación a ${result.value.email}. Tiene 7 días de vigencia.") }
+                    mutable.update { it.copy(busy = false, form = null, share = ShareState(result.value.invitation.email, result.value.share, resent = false), notice = "Enviamos la invitación a ${result.value.invitation.email}. Tiene 7 días de vigencia.") }
                     refresh()
                 }
                 is AccountsResult.Failure ->
@@ -148,12 +159,12 @@ class InvitationsViewModel(
             mutable.update { it.copy(failure = AccountFailure.RESEND_TOO_SOON, notice = null, now = clock()) }
             return
         }
-        mutable.update { it.copy(busy = true, failure = null, notice = null) }
+        mutable.update { it.copy(busy = true, share = null, failure = null, notice = null) }
         actionJob = viewModelScope.launch {
             val result = resendInvitation(organization, invitation)
             currentCoroutineContext().ensureActive()
             when (result) {
-                is AccountsResult.Success -> { mutable.update { it.copy(busy = false, notice = "Reenviamos la invitación a ${result.value.email}. El enlace anterior dejó de servir.") }; refresh() }
+                is AccountsResult.Success -> { mutable.update { it.copy(busy = false, share = ShareState(result.value.invitation.email, result.value.share, resent = true), notice = "Reenviamos la invitación a ${result.value.invitation.email}. El enlace anterior dejó de servir.") }; refresh() }
                 is AccountsResult.Failure -> {
                     mutable.update { it.copy(busy = false, failure = result.reason) }
                     if (result.reason == AccountFailure.INVITATION_NOT_PENDING || result.reason == AccountFailure.NOT_FOUND || result.reason == AccountFailure.VERSION_CONFLICT) refresh()
@@ -162,7 +173,7 @@ class InvitationsViewModel(
         }
     }
 
-    fun askRevoke(invitation: Invitation) { val s = mutable.value; if (s.allowed && !s.busy) mutable.update { it.copy(revoking = invitation, form = null, failure = null, notice = null) } }
+    fun askRevoke(invitation: Invitation) { val s = mutable.value; if (s.allowed && !s.busy) mutable.update { it.copy(revoking = invitation, form = null, share = null, failure = null, notice = null) } }
     fun cancelRevoke() { if (!mutable.value.busy) mutable.update { it.copy(revoking = null) } }
     fun confirmRevoke() {
         val s = mutable.value

@@ -173,7 +173,7 @@ private fun DownloadsCard(course: TrainingCourse, state: TrainingState, viewMode
                     BpmTextButton(onClick = { viewModel.setDownloadLimit(choice) }) { Text((if (choice == downloads.limitBytes) "✓ " else "") + formatBytes(choice)) }
                 }
             }
-            if (downloads.usedBytes > 0) BpmTextButton(onClick = viewModel::deleteAllDownloads) { Text("Borrar todas las descargas") }
+            if (downloads.usedBytes > 0) BpmTextButton(onClick = viewModel::deleteAllDownloads) { Text("Borrar descargas") }
         }
     }
 }

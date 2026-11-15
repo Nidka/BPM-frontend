@@ -117,6 +117,7 @@ internal data class ActionDto(
     val resolvedAt: String? = null,
     val verifiedAt: String? = null,
     val verifiedBy: String? = null,
+    val selfValidated: Boolean = false,
 ) {
     fun domain() =
         CorrectiveAction(
@@ -130,6 +131,7 @@ internal data class ActionDto(
                 resolvedAt,
                 verifiedAt,
                 verifiedBy,
+                selfValidated,
             )
             .also {
                 incidentId(id)
@@ -220,7 +222,7 @@ internal data class AssigneeDto(val id: String, val displayName: String, val rol
     fun domain() =
         IncidentAssignee(id, displayName, role).also {
             incidentUserId(id)
-            require(role in setOf("CHEF", "WORKER"))
+            require(role in setOf("ADMIN", "CHEF", "WORKER"))
             incidentText(displayName, 200, 1)
         }
 }

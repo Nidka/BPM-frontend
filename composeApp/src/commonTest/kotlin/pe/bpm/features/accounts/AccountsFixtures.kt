@@ -13,6 +13,8 @@ fun member(id: String = "u1", role: MemberRole = MemberRole.CHEF, status: Record
 fun location(id: String = "l1", status: RecordStatus = RecordStatus.ACTIVE) = AccountLocation(id, "Sede $id", "Calle 1", "", "", "America/Lima", status, 1)
 fun invitation(id: String = "i1", status: InvitationStatus = InvitationStatus.PENDING, lastSent: String = STAMP) =
     Invitation(id, "$id@example.com", MemberRole.WORKER, listOf("l1"), status, "2026-11-17T12:00:00Z", lastSent, STAMP, 1, 1)
+const val ACCEPT_URL = "https://app.bpm.example/cuenta/invitacion?token=$TOKEN"
+fun shared(share: InvitationShare = InvitationShare.Link(ACCEPT_URL), id: String = "i1") = SharedInvitation(invitation(id), share)
 fun organization() = AccountOrganization("o1", "BPM SAC", "", "", BusinessType.RESTAURANT, "", "", "", 5)
 
 /** Repositorio de prueba: cada resultado es reemplazable y se registran las llamadas. */
@@ -24,8 +26,8 @@ class FakeAccountsRepository : AccountsRepository {
     var deactivate: AccountsResult<AccountMember> = AccountsResult.Success(member(status = RecordStatus.INACTIVE))
     var transfer: AccountsResult<AdminTransfer> = AccountsResult.Success(AdminTransfer(member(role = MemberRole.ADMIN), null))
     var invitations: AccountsResult<Page<Invitation>> = AccountsResult.Success(Page(listOf(invitation())))
-    var invite: AccountsResult<Invitation> = AccountsResult.Success(invitation())
-    var resend: AccountsResult<Invitation> = AccountsResult.Success(invitation())
+    var invite: AccountsResult<SharedInvitation> = AccountsResult.Success(shared())
+    var resend: AccountsResult<SharedInvitation> = AccountsResult.Success(shared())
     var accept: AccountsResult<AcceptedInvitation> = AccountsResult.Success(AcceptedInvitation("o1", MemberRole.CHEF, listOf("l1")))
     var devices: AccountsResult<Page<AccountDevice>> = AccountsResult.Success(Page(emptyList()))
     val inviteIds = mutableListOf<String>()
@@ -47,7 +49,7 @@ class FakeAccountsRepository : AccountsRepository {
         transferActor = actorRole to actorLocationIds; return transfer
     }
     override suspend fun invitations(organizationId: String, status: InvitationStatus?, request: PageRequest) = invitations
-    override suspend fun invite(organizationId: String, id: String, email: String, role: MemberRole, locationIds: List<String>): AccountsResult<Invitation> { inviteIds += id; return invite }
+    override suspend fun invite(organizationId: String, id: String, email: String, role: MemberRole, locationIds: List<String>): AccountsResult<SharedInvitation> { inviteIds += id; return invite }
     override suspend fun resendInvitation(organizationId: String, id: String) = resend.also { calls += "resend:$id" }
     override suspend fun revokeInvitation(organizationId: String, id: String) = AccountsResult.Success(invitation(status = InvitationStatus.REVOKED)).also { calls += "revoke:$id" }
     override suspend fun acceptInvitation(token: String): AccountsResult<AcceptedInvitation> { acceptedTokens += token; return accept }

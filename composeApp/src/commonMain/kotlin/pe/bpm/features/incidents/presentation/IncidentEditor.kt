@@ -99,11 +99,7 @@ internal constructor(
                             }
                             if (draft.pending == null) {
                                 val action = IncidentActionType.valueOf(draft.form.kind)
-                                if (
-                                    action !in d.allowedActions ||
-                                        (action == IncidentActionType.VERIFY &&
-                                            d.actions.any { it.responsibleUserId == owner.userId })
-                                ) {
+                                if (action !in d.allowedActions) {
                                     accessRejected(IncidentsFailure.DENIED)
                                     return
                                 }
@@ -138,11 +134,6 @@ internal constructor(
         if (kind !in setOf("CATALOG", "REPORT")) {
             val action = runCatching { IncidentActionType.valueOf(kind) }.getOrNull() ?: return
             if (detail == null || action !in detail.allowedActions) return
-            if (
-                action == IncidentActionType.VERIFY &&
-                    detail.actions.any { it.responsibleUserId == owner?.userId }
-            )
-                return
         }
         val values =
             when {

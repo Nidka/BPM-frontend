@@ -119,7 +119,7 @@ fun OperationsScreen(
                                 if (
                                     entry is OperationsEntry.LotEntry &&
                                         onLotMovement != null &&
-                                        state.role == "CHEF" &&
+                                        StockAccess.canRecord(state.role) &&
                                         StockRules.available(entry.value)
                                 )
                                     BpmTextButton({ onLotMovement(entry.value) }) {

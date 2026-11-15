@@ -88,6 +88,6 @@ class OperationsRulesTest {
         assertFalse(OperationsAccess.canRead("WORKER", OperationsResource.PRODUCTS))
         assertFalse(OperationsAccess.canCreate("WORKER", OperationsResource.RECEIPTS))
         assertTrue(OperationsAccess.canCreate("WORKER", OperationsResource.EXECUTIONS))
-        assertFalse(OperationsAccess.canCreate("ADMIN", OperationsResource.EXECUTIONS))
+        assertTrue(OperationsAccess.canCreate("ADMIN", OperationsResource.EXECUTIONS))
     }
 }

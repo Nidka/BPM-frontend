@@ -76,6 +76,13 @@ interface TrainingDownloads {
     val state: StateFlow<DownloadsState>
     /** Relee del almacén qué hay descargado (al abrir la pantalla). */
     suspend fun refresh()
+    /**
+     * Asocia el almacén de videos con la cuenta activa: carga su catálogo ya guardado, migra las descargas
+     * del formato anterior y muestra solo los videos que ese catálogo incluye.
+     */
+    suspend fun bind(org: String) = Unit
+    /** Desasocia la cuenta (cierre de sesión o cambio de organización); los archivos no se borran. */
+    suspend fun unbind() = Unit
     /** Inicia (o reanuda) la descarga de los videos privados del curso; vuelve de inmediato. */
     fun download(org: String, course: TrainingCourse)
     fun cancel()

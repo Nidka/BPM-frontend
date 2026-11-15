@@ -53,6 +53,7 @@ object AppleOffline {
         database = SqlOfflineDatabase(NativeSqliteDriver(OfflineDb.Schema, "bpm-offline.db")),
         connectivity = AppleConnectivityMonitor(),
         files = ApplePrivateFileStore(),
+        videos = ApplePrivateFileStore("bpm-device-videos-v1"),
     )
 }
 
@@ -70,11 +71,11 @@ class AppleConnectivityMonitor : ConnectivityMonitor {
 }
 
 /** Fotos pendientes y videos en Application Support, excluidos de copia de seguridad y con protección completa. */
-class ApplePrivateFileStore : PrivateFileStore {
+class ApplePrivateFileStore(private val folder: String = "bpm-offline-files-v1") : PrivateFileStore {
     override val durable = true
     private fun directory(): NSURL {
         val base = NSFileManager.defaultManager.URLForDirectory(NSApplicationSupportDirectory, NSUserDomainMask, null, true, null)!!
-        val directory = base.URLByAppendingPathComponent("bpm-offline-files-v1", true)!!
+        val directory = base.URLByAppendingPathComponent(folder, true)!!
         check(NSFileManager.defaultManager.createDirectoryAtURL(directory, true, null, null))
         check(directory.setResourceValue(NSNumber(bool = true), NSURLIsExcludedFromBackupKey, null))
         return directory
@@ -172,4 +173,12 @@ class ApplePrivateFileStore : PrivateFileStore {
     }
     override suspend fun size(ref: String): Long? = withContext(Dispatchers.Default) { url(ref).let { if (exists(it)) length(it) else null } }
     override suspend fun localUri(ref: String): String? = withContext(Dispatchers.Default) { url(ref).let { if (exists(it)) it.absoluteString else null } }
+    override suspend fun moveTo(ref: String, target: PrivateFileStore, targetRef: String): Boolean = withContext(Dispatchers.Default) {
+        if (target !is ApplePrivateFileStore || target === this) return@withContext false
+        val source = url(ref)
+        if (!exists(source)) return@withContext false
+        val destination = target.url(targetRef)
+        if (exists(destination)) manager.removeItemAtURL(destination, null)
+        manager.moveItemAtURL(source, destination, null)
+    }
 }

@@ -24,7 +24,13 @@ object NoBackgroundSync : BackgroundSyncScheduler {
 class OfflinePlatform(
     val database: OfflineDatabase = InMemoryOfflineDatabase(),
     val connectivity: ConnectivityMonitor = ManualConnectivityMonitor(true),
+    /** Archivos personales (fotos pendientes): se borran al cerrar sesión o cambiar de cuenta. */
     val files: PrivateFileStore = InMemoryPrivateFileStore(),
+    /**
+     * Videos de capacitación descargados: almacén del dispositivo, separado de los datos personales. Cerrar
+     * sesión no lo toca; se vacía con «Borrar descargas» o por el límite de espacio.
+     */
+    val videos: PrivateFileStore = InMemoryPrivateFileStore(),
     val scheduler: BackgroundSyncScheduler = NoBackgroundSync,
 )
 

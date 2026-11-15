@@ -6,8 +6,8 @@ import pe.bpm.features.incidents.domain.*
 
 class IncidentsRulesTest {
     @Test
-    fun administrativeRolesSuperviseWithoutReporting() {
-        assertFalse(IncidentsAccess.canReport("ADMIN"))
+    fun administratorMemberReportsButSuperAdminWithoutMembershipDoesNot() {
+        assertTrue(IncidentsAccess.canReport("ADMIN"))
         assertFalse(IncidentsAccess.canReport("SUPER_ADMIN"))
         assertTrue(IncidentsAccess.canReport("CHEF"))
         assertTrue(IncidentsAccess.canReport("WORKER"))

@@ -62,6 +62,8 @@ data class CorrectiveAction(
     val resolvedAt: String? = null,
     val verifiedAt: String? = null,
     val verifiedBy: String? = null,
+    /** El responsable validó su propia corrección por ser el único validador posible. */
+    val selfValidated: Boolean = false,
 )
 
 data class IncidentDetail(
@@ -94,7 +96,29 @@ object IncidentsAccess {
 
     fun canAuthor(role: String) = role in setOf("ADMIN", "SUPER_ADMIN")
 
-    fun canReport(role: String) = role in setOf("CHEF", "WORKER")
+    /** Reportan y atienden CHEF, WORKER y el ADMIN miembro; SUPER_ADMIN sin membresía no opera. */
+    fun canReport(role: String) = role in setOf("ADMIN", "CHEF", "WORKER")
+
+    fun canAttend(role: String) = canReport(role)
+
+    /**
+     * Acciones que se ofrecen en el detalle. El responsable de una acción también ve «Validar», rotulado
+     * «Validar sin otro validador» (ver [verifyLabel]): el servidor solo lo permite si no existe otra persona
+     * elegible, exige nota y marca la acción como autovalidada; si hay otra persona, responde 403/409.
+     */
+    fun visibleActions(
+        allowed: Collection<IncidentActionType>,
+        status: IncidentStatus,
+        actions: List<CorrectiveAction>,
+        userId: String?,
+    ): List<IncidentActionType> =
+        if (status == IncidentStatus.VERIFIED) emptyList() else allowed.toList()
+
+    /** Quien es responsable de la corrección valida «sin otro validador»; el resto, «Validar y cerrar». */
+    fun isSelfVerification(actions: List<CorrectiveAction>, userId: String?): Boolean =
+        userId != null && actions.any { it.responsibleUserId == userId }
+
+    const val SELF_VALIDATION_DENIED = "Otra persona de tu equipo debe validar esta corrección"
 }
 
 enum class IncidentsFailure {

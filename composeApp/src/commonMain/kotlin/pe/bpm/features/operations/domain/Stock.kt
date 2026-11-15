@@ -43,8 +43,8 @@ data class StockMovement(
 data class StockFilter(val lotId: String? = null, val type: StockMovementType? = null)
 
 object StockAccess {
-    /** Solo el CHEF de la sede registra; el historial lo ven supervisión y CHEF. */
-    fun canRecord(role: String) = role == "CHEF"
+    /** Registran el CHEF de su sede y el ADMIN miembro (todas las sedes); SUPER_ADMIN sin membresía no opera. */
+    fun canRecord(role: String) = role in setOf("CHEF", "ADMIN")
 
     fun canView(role: String) = role in setOf("SUPER_ADMIN", "ADMIN", "CHEF")
 }

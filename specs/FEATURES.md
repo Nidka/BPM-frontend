@@ -47,6 +47,12 @@ El cliente jamás determina roles/permisos definitivos ni reactiva cuentas inact
 
 Operación diaria y sus permisos se detallan en [OPERATIONS.md](OPERATIONS.md).
 
+El ADMIN con membresía también opera en todas las sedes activas de su empresa (controles con fotos, recepciones, consumos y descartes,
+limpieza con fotos, reportar y atender incidencias); el CHEF, solo en las suyas; SUPER_ADMIN sin membresía y quien no valida su propia
+corrección no cambian. En Inicio del ADMIN, junto al panel, aparece «Controles de hoy». Las invitaciones se comparten por enlace
+(copiar, WhatsApp, hoja nativa; ver [ACCOUNTS.md](ACCOUNTS.md)) y el celular compartido protege los cambios sin enviar y conserva los
+videos descargados al cerrar sesión (ver [OFFLINE.md](OFFLINE.md), «Celular compartido»).
+
 Offline-first (fases 1 y 2): base local, Outbox, motor de sincronización, caché de lecturas, inicio sin
 conexión y fotos pendientes (fase 1); capacitación sin conexión (catálogo con ETag, avance, estudio, evaluaciones calificadas al
 sincronizar, descarga verificada de videos), encuesta CAP sin conexión, lectura local primero, marcas «Pendiente de enviar»,
