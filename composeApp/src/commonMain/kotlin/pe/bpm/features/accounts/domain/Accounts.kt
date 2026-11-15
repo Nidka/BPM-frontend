@@ -47,6 +47,24 @@ data class Invitation(
     val expiresAt: String, val lastSentAt: String, val createdAt: String, val sendCount: Int, val rowVersion: Long,
 )
 
+/**
+ * Forma de compartir una invitación recién creada o reenviada. Existe solo en memoria: no se guarda
+ * en disco, no aparece en la lista y, si se pierde, se reenvía la invitación para obtener otra.
+ */
+sealed interface InvitationShare {
+    /** Texto que se copia o se comparte: el enlace o el código. */
+    val value: String
+
+    /** Enlace completo (`.../cuenta/invitacion?token=...`) devuelto por el servidor. */
+    data class Link(val url: String) : InvitationShare { override val value get() = url }
+
+    /** Código de 43 caracteres cuando el servidor no tiene URL de aceptación configurada. */
+    data class Code(val token: String) : InvitationShare { override val value get() = token }
+}
+
+/** Invitación creada o reenviada junto con su enlace o código; la lista de invitaciones nunca los trae. */
+data class SharedInvitation(val invitation: Invitation, val share: InvitationShare)
+
 data class AcceptedInvitation(val organizationId: String, val role: MemberRole, val locationIds: List<String>)
 
 enum class DevicePlatform(val label: String) { ANDROID("Android"), IOS("iPhone o iPad"), WEB("Navegador web") }

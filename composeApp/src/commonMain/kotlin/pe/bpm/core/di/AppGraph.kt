@@ -242,8 +242,10 @@ class AppGraph(
     private val offlineTrainingRepository = pe.bpm.features.training.data.OfflineTrainingRepository(trainingRepository, trainingStore)
     private val trainingCatalog = pe.bpm.features.training.data.OfflineTrainingCatalog(trainingRepository, trainingStore)
     private val syncTrainingCatalog = pe.bpm.features.training.domain.SyncOfflineCatalog(trainingCatalog)
-    private val trainingDownloads = pe.bpm.features.training.data.OfflineTrainingDownloads(offline.files,
-        pe.bpm.core.offline.VerifiedDownloader(trainingObjects, offline.files), trainingRepository, offlineRuntime.store, appScope)
+    // Los videos van al almacén del dispositivo (no se borra al cerrar sesión); el personal solo se usa para migrar descargas antiguas.
+    private val trainingDownloads = pe.bpm.features.training.data.OfflineTrainingDownloads(offline.videos,
+        pe.bpm.core.offline.VerifiedDownloader(trainingObjects, offline.videos), trainingRepository, offlineRuntime.store, appScope,
+        catalog = trainingStore::catalogVideos, legacy = offline.files)
     private val trainingAttempts = object : pe.bpm.features.training.domain.TrainingAttemptLedger {
         override fun observe(courseId: String) = trainingStore.observeAttempts(courseId)
     }
@@ -360,6 +362,8 @@ class AppGraph(
             val restored = identityRepository.restoreSession()
             if (restored is IdentityResult.Failure) return if (restored.errors.all { it.permitsRestoreRetry }) BackgroundSyncResult.RETRY else BackgroundSyncResult.DONE
         }
+        // Solo se envía la partición de la cuenta con sesión activa; sin sesión no se envía nada.
+        if (offlineRuntime.active.current == null) return BackgroundSyncResult.DONE
         offlineRuntime.syncNow()
         val remaining = offlineRuntime.outbox.snapshot().any { it.status == OutboxStatus.PENDING && !it.exhausted }
         return if (remaining) BackgroundSyncResult.RETRY else BackgroundSyncResult.DONE

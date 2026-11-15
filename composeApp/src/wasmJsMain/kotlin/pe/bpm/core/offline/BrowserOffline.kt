@@ -16,6 +16,8 @@ object BrowserOffline {
         database = DocumentOfflineDatabase(BrowserDraftStorage()),
         connectivity = BrowserConnectivityMonitor(),
         files = InMemoryPrivateFileStore(durable = false),
+        // Los videos sin conexión están deshabilitados en el navegador: sin archivos durables no hay descargas.
+        videos = InMemoryPrivateFileStore(durable = false),
     )
 }
 

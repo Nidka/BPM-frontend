@@ -54,6 +54,7 @@ function summary(value) {
 function action(value) {
   require(object(value) && ['PENDING', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED', 'CANCELLED'].includes(value.status));
   const output = { id: identifier(value, 'id'), responsibleUserId: actor(value, 'responsibleUserId'), responsibleName: text(value, 'responsibleName', 200, 1), description: text(value, 'description', 2000, 1), dueAt: stamp(value, 'dueAt'), status: value.status, resolutionNote: text(value, 'resolutionNote', 2000) };
+  if (value.selfValidated !== undefined) { require(typeof value.selfValidated === 'boolean'); output.selfValidated = value.selfValidated; }
   optionalStamp(value, 'resolvedAt', output); optionalStamp(value, 'verifiedAt', output);
   if (value.verifiedBy != null) output.verifiedBy = actor(value, 'verifiedBy');
   return output;
@@ -69,7 +70,7 @@ function event(value) {
   return { id: identifier(value, 'id'), operationId: identifier(value, 'operationId'), fromStatus: value.fromStatus, toStatus: value.toStatus, actorName: text(value, 'actorName', 200, 1), note: text(value, 'note', 2000), createdAt: stamp(value, 'createdAt') };
 }
 function assignee(value) {
-  require(object(value) && ['CHEF', 'WORKER'].includes(value.role));
+  require(object(value) && ['ADMIN', 'CHEF', 'WORKER'].includes(value.role));
   return { id: actor(value, 'id'), displayName: text(value, 'displayName', 200, 1), role: value.role };
 }
 function inputFor(value, resource, kind) {

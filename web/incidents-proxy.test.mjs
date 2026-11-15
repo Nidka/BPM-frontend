@@ -58,6 +58,14 @@ test('incidencias: listas, detalle, responsables e historial tienen DTO público
   assert.deepEqual(await (await get(`/incidents/${id}`)).json(), { data: detail });
   state.payload = { data: [{ id: 'firebase-worker', displayName: 'Trabajador', role: 'WORKER', email: 'private@example.com' }], pagination: { nextPageToken: '' } };
   assert.deepEqual(await (await get(`/incidents/${id}/assignees?query=Persona`)).json(), { data: [{ id: 'firebase-worker', displayName: 'Trabajador', role: 'WORKER' }], pagination: { nextPageToken: '' } });
+  // selfValidated pasa solo como booleano.
+  state.payload = { data: { ...detail, actions: [{ ...action, selfValidated: true }] } };
+  assert.equal((await (await get(`/incidents/${id}`)).json()).data.actions[0].selfValidated, true);
+  state.payload = { data: { ...detail, actions: [{ ...action, selfValidated: 'si' }] } };
+  assert.notEqual((await get(`/incidents/${id}`)).status, 200);
+  // El ADMIN miembro también puede ser responsable de una acción.
+  state.payload = { data: [{ id: 'firebase-admin', displayName: 'Admin', role: 'ADMIN', email: 'private@example.com' }], pagination: { nextPageToken: '' } };
+  assert.deepEqual(await (await get(`/incidents/${id}/assignees`)).json(), { data: [{ id: 'firebase-admin', displayName: 'Admin', role: 'ADMIN' }], pagination: { nextPageToken: '' } });
   const event = { id: operationId, operationId, fromStatus: 'OPEN', toStatus: 'ASSIGNED', actorName: 'Persona', note: '', createdAt: stamp };
   state.payload = { data: [{ ...event, requestHash: 'private', responseBody: 'private' }], pagination: { nextPageToken: '' } };
   assert.deepEqual(await (await get(`/incidents/${id}/history`)).json(), { data: [event], pagination: { nextPageToken: '' } });

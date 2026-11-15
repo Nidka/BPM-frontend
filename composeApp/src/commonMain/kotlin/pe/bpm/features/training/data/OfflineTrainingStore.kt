@@ -44,6 +44,10 @@ class TrainingOfflineStore(private val store: LocalStore, private val clock: () 
         return course.copy(progress = progress, cachedAt = syncedAt)
     }
 
+    /** Videos de los cursos del catálogo guardado de [org]; vacío si aún no se cargó el catálogo. */
+    suspend fun catalogVideos(org: String): List<LessonVideo> =
+        catalogMeta(org)?.courseIds.orEmpty().mapNotNull { cachedCourse(org, it) }.flatMap { course -> course.lessons.mapNotNull { it.video } }
+
     // ---- Avance ------------------------------------------------------------------------------
 
     suspend fun progress(courseId: String): TrainingProgress? =

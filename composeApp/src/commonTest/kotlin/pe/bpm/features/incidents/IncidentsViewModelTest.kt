@@ -265,7 +265,7 @@ class IncidentsViewModelTest {
         val f = Fake()
         val vm = vm(f)
         try {
-            for (role in listOf("ADMIN", "SUPER_ADMIN")) {
+            for (role in listOf("SUPER_ADMIN")) {
                 vm.reset()
                 vm.open("alice", "org", role, site, "America/Lima")
                 advanceUntilIdle()

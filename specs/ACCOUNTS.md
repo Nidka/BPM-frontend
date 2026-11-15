@@ -32,7 +32,26 @@ cambios pequeños en `features/workspace`.
   solo en el cuerpo y no se registra ni se guarda en disco. Tras aceptar se vuelve a consultar el perfil
   (`verifySession`) para recargar las membresías. `INVITATION_ACCEPT_URL` del backend debe apuntar a
   `https://<app>/cuenta/invitacion`; si la persona no tiene sesión, la ruta (con token) se conserva y se
-  retoma tras iniciar sesión.
+  retoma tras iniciar sesión. Si aún no tiene cuenta, la pantalla de acceso lo avisa («Tienes una invitación pendiente»): crea la
+  cuenta con el correo invitado, confirma el correo y la app vuelve a `cuenta/invitacion?token=` (`pendingRoute` no se borra en el
+  alta ni en la verificación; solo cerrar sesión lo reinicia).
+
+### Compartir la invitación por enlace
+`POST /organizations/{org}/invitations` y `.../invitations/{id}/resend` devuelven además `acceptUrl` (cadena o null) y, si es
+null, `token`. Solo esas dos respuestas los traen; la lista no. El cliente (`SharedInvitation`, `InvitationShare.Link|Code`) los lee
+sin guardarlos: no se escriben en disco, no salen en `Invitation` ni en la lista y desaparecen al cerrar el panel (`closeShare`),
+al abrir otra acción o al salir de la pantalla. Si se pierde, se reenvía (el enlace anterior deja de servir).
+
+Tras crear o reenviar aparece el panel `InvitationSharePanel` con el enlace (o el código) y tres botones:
+
+- **Copiar enlace** (o «Copiar código»): portapapeles del sistema (`TextSharer.copy`; Android lo marca como sensible, iOS lo limita a
+  este dispositivo y lo caduca a los 10 minutos).
+- **Enviar por WhatsApp**: abre `https://wa.me/?text=` con «Te invito a unirte a <empresa> en BPM. Crea tu cuenta con <correo> y
+  abre: <enlace>» codificado en porcentaje UTF-8 (`InvitationSharing`). Con código, el texto indica dónde pegarlo.
+- **Compartir**: hoja nativa en Android (`ACTION_SEND`) e iOS (`UIActivityViewController`) mediante `expect/actual` (`rememberTextSharer`);
+  en web `navigator.share` si existe y, si no, copia el mensaje.
+
+Aviso visible: «El enlace solo funciona para la cuenta con el correo <correo>, vale 7 días y se usa una vez».
 
 ## Concurrencia y errores
 
@@ -46,9 +65,13 @@ confirmación con un mensaje que indica transferir antes la administración. Los
 `web/accounts-proxy.mjs` (registrado en `web/server.mjs`) cubre `PATCH` de organización, sede y miembro,
 acciones de miembro, `invitations` (GET/POST/resend/revoke), `POST /invitations/accept` y `me/devices`
 (GET/DELETE). Valida cuerpos exactos (sin campos extra), filtros cerrados (`status`, `query`, `pageSize`,
-`pageToken`), origen y Bearer; proyecta respuestas (nunca token de invitación ni token push) y solo conserva
+`pageToken`), origen y Bearer; proyecta respuestas (token de invitación solo en el POST de invitar y en `resend`, nunca en listas ni en
+revocar; tampoco token push) y solo conserva
 los códigos de dominio documentados. `workspace-proxy.mjs` acepta ahora `status=ACTIVE|INACTIVE` solo en
-miembros y sedes y devuelve `rowVersion`/`status` cuando existen. Pruebas en `web/accounts-proxy.test.mjs`.
+miembros y sedes y devuelve `rowVersion`/`status` cuando existen. `acceptUrl` y `token` pasan **solo** en `POST .../invitations` y
+`.../resend`, con formato validado: `acceptUrl` https (http solo en localhost), sin credenciales ni fragmento, ruta `/cuenta/invitacion`
+y un único `token` de 43 caracteres base64url; `token` de 43 caracteres solo cuando `acceptUrl` es null. Un formato inválido responde
+503 sin entregar nada. Pruebas en `web/accounts-proxy.test.mjs`.
 
 ## Decisiones y límites
 

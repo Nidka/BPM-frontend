@@ -52,6 +52,8 @@ class TrainingViewModel(
     fun reset() {
         cancelAll()
         mutable.value = TrainingState()
+        // Los videos descargados quedan en el dispositivo, pero dejan de asociarse a esta cuenta.
+        viewModelScope.launch { downloads.unbind() }
     }
 
     /** [canPersist] es falso para SUPER_ADMIN sin membresía: puede leer y practicar, pero no guardar avance ni evaluar. */
@@ -65,8 +67,14 @@ class TrainingViewModel(
         attemptsJob = viewModelScope.launch {
             attempts.observe(courseId).collect { list -> if (expected == generation) mutable.value = mutable.value.copy(attempts = list) }
         }
-        syncCatalog?.let { sync -> viewModelScope.launch { try { sync(organizationId) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { /* la copia local sigue vigente */ } } }
-        viewModelScope.launch { downloads.refresh() }
+        viewModelScope.launch {
+            // Primero con el catálogo ya guardado (sirve sin red) y de nuevo si la sincronización lo actualizó.
+            downloads.bind(organizationId); downloads.refresh()
+            syncCatalog?.let { sync ->
+                try { sync(organizationId) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { /* la copia local sigue vigente */ }
+                downloads.bind(organizationId)
+            }
+        }
         if (downloadsJob == null) downloadsJob = viewModelScope.launch { downloads.state.collect { d -> mutable.value = mutable.value.copy(downloads = d) } }
     }
 

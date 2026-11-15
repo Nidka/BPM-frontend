@@ -76,7 +76,7 @@ class StockMovementsTest {
         val repo = FakeStock()
         val manage = ManageStock(repo)
         assertEquals(OperationsResult.Failure(OperationsFailure.DENIED), manage.record(org, "WORKER", input(), lot(), now, id))
-        assertEquals(OperationsResult.Failure(OperationsFailure.DENIED), manage.record(org, "ADMIN", input(), lot(), now, id))
+        assertEquals(OperationsResult.Failure(OperationsFailure.DENIED), manage.record(org, "SUPER_ADMIN", input(), lot(), now, id))
         assertEquals(OperationsResult.Failure(OperationsFailure.DENIED), manage.history(org, site, "WORKER", StockFilter(), PageRequest()))
         val tooMuch = manage.record(org, "CHEF", input(quantity = "9"), lot(), now, id) as OperationsResult.Failure
         assertEquals(OperationsFailure.INVALID, tooMuch.reason)

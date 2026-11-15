@@ -39,6 +39,11 @@ interface PrivateFileStore {
     suspend fun truncatePart(ref: String, length: Long) { if (length <= 0L) discardPart(ref) }
     /** URI `file://` del archivo final para el reproductor nativo; null si el host no la ofrece. */
     suspend fun localUri(ref: String): String? = null
+    /**
+     * Mueve el archivo final [ref] al almacén [target] con el nombre [targetRef] sin cargarlo en memoria.
+     * Devuelve false si el origen no existe o los almacenes no son del mismo tipo (no se mueve nada).
+     */
+    suspend fun moveTo(ref: String, target: PrivateFileStore, targetRef: String): Boolean = false
 }
 
 class InMemoryPrivateFileStore(override val durable: Boolean = false) : PrivateFileStore {
@@ -70,4 +75,10 @@ class InMemoryPrivateFileStore(override val durable: Boolean = false) : PrivateF
         if (length <= 0) parts.remove(ref) else if (length < part.size) parts[ref] = part.copyOf(length.toInt())
     }
     override suspend fun size(ref: String) = files[ref]?.size?.toLong()
+    override suspend fun moveTo(ref: String, target: PrivateFileStore, targetRef: String): Boolean {
+        if (target !is InMemoryPrivateFileStore || target === this) return false
+        val bytes = files.remove(ref) ?: return false
+        target.files[targetRef] = bytes
+        return true
+    }
 }

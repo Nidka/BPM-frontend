@@ -47,7 +47,12 @@ internal fun IncidentFormContent(
         },
         style = MaterialTheme.typography.bodySmall,
     )
-    e.failure?.let { Text(incidentFailureText(it), color = MaterialTheme.colorScheme.error) }
+    e.failure?.let {
+        // Al validar, un 403/409 suele significar que existe otra persona elegible para validar.
+        val text = if (f.kind == "VERIFY" && (it == IncidentsFailure.DENIED || it == IncidentsFailure.CONFLICT))
+            IncidentsAccess.SELF_VALIDATION_DENIED + ". " + incidentFailureText(it) else incidentFailureText(it)
+        Text(text, color = MaterialTheme.colorScheme.error)
+    }
     if (e.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (e.pending != null) {
         Text("El envío aún no está confirmado. Reintenta para consultar su resultado.")
@@ -65,7 +70,7 @@ internal fun IncidentFormContent(
         IncidentReview(f)
         if (f.kind == "VERIFY")
             Text(
-                "Confirmar cerrará la incidencia. Debes haber revisado la corrección y las fotos; no puedes validar tu propia corrección."
+                "Confirmar cerrará la incidencia. Debes haber revisado la corrección y las fotos. Si eres quien la corrigió, solo puedes validarla cuando no hay otra persona elegible; la nota es obligatoria y quedará marcada como autovalidada."
             )
         if (f.kind == "CATALOG" && f.catalogId != null)
             Text("La versión anterior conservará sus criterios en las incidencias ya reportadas.")

@@ -17,6 +17,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import pe.bpm.core.presentation.supportsNativeModalWindows
 import pe.bpm.core.offline.LocalOnline
+import pe.bpm.core.offline.LogoutDialog
+import pe.bpm.core.offline.LogoutGate
 import pe.bpm.core.offline.OfflinePlatform
 import pe.bpm.core.offline.OfflineStatusBar
 import pe.bpm.core.offline.OfflineViewModel
@@ -195,10 +197,12 @@ fun App(
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
-    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, profile?.platformRole) {
+    // El ADMIN supervisa a todo el equipo en «Seguimiento», pero en «Control» ve solo sus propias revisiones.
+    val onControlRoute = entry?.destination?.route?.startsWith(WorkspaceDestination.Operations.route) == true
+    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, profile?.platformRole, onControlRoute) {
         val allowed = workspaceDestinations(currentWorkspace?.role, profile?.platformRole == "SUPER_ADMIN")
         if (profile != null && currentWorkspace != null && (WorkspaceDestination.Operations in allowed || WorkspaceDestination.Supervision in allowed))
-            history.open(profile.id, currentWorkspace.organization.id, if (WorkspaceDestination.Supervision in allowed) HistoryScope.Team else HistoryScope.Mine)
+            history.open(profile.id, currentWorkspace.organization.id, if (WorkspaceDestination.Supervision in allowed && !onControlRoute) HistoryScope.Team else HistoryScope.Mine)
         else history.reset()
     }
     LaunchedEffect(profile?.id,currentWorkspace?.organization?.id,currentWorkspace?.role,profile?.platformRole,workspaceState.selected,workspaceState.errors) {
@@ -244,7 +248,7 @@ fun App(
         val user = profile?.id ?: return
         val role = workspaceState.workspace?.role
         val recent = runCatching { kotlin.time.Clock.System.now() - kotlin.time.Instant.parse(execution.createdAt) < 24.hours }.getOrDefault(false)
-        val canEdit = execution.responsibleUserId == user && recent && role in setOf("CHEF", "WORKER")
+        val canEdit = execution.responsibleUserId == user && recent && role in setOf("CHEF", "ADMIN", "WORKER")
         cleaningPhotos = execution.input.id
         evidence.openCleaning(user, org, execution.input.id, canEdit)
     }
@@ -323,12 +327,13 @@ fun App(
         identity.logout()
         resetTo(LOGIN)
     }
-    // Cerrar sesión borra los datos del dispositivo: con cambios sin enviar se pide confirmación.
-    fun requestLogout() { if (offlineUi.status.pending > 0 || offlineUi.status.attention > 0) confirmLogout = true else performLogout() }
+    // Cerrar sesión borra los datos personales del dispositivo: con cambios sin enviar no se deja salir;
+    // solo los cambios en conflicto o rechazados se descartan de forma explícita y con confirmación.
+    fun requestLogout() { if (offlineUi.logout == LogoutGate.Clear) performLogout() else confirmLogout = true }
 
     CompositionLocalProvider(LocalOnline provides offlineUi.status.online, pe.bpm.core.offline.LocalPendingMarks provides offlineUi.marks) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
-        banner = { if (profile != null) OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow) }) {
+        banner = { if (profile != null) Column { OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow); pe.bpm.core.offline.OtherAccountNotice(offlineUi) } }) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
             if (!supportsNativeModalWindows() && (evidenceQuestion != null || incidentEvidence != null || cleaningPhotos != null)) Modifier.clearAndSetSemantics { } else Modifier),
             enterTransition = { EnterTransition.None },
@@ -338,6 +343,11 @@ fun App(
                     if (identityState.restoring) RestoringSession()
                     else Column {
                         if (identityState.canRetryRestore) BpmTextButton(onClick = identity::restore) { Text("Reintentar sesión guardada") }
+                        // El enlace de invitación se conserva mientras la persona inicia sesión o crea su cuenta y confirma su correo.
+                        if (pendingRoute.startsWith(INVITATION_BASE)) BpmCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Text("Tienes una invitación pendiente", style = MaterialTheme.typography.titleMedium)
+                            Text("Inicia sesión o crea tu cuenta con el correo al que llegó la invitación y confírmalo. Después volverás aquí para aceptarla.")
+                        }
                         Box(Modifier.weight(1f)) { IdentityScreen(identityState, identity::login, identity::logout,
                         identity::verifySession,
                         googleSupported = identity.googleSupported, onGoogle = identity::loginWithGoogle,
@@ -500,7 +510,8 @@ fun App(
                                 ?: pe.bpm.features.checklists.presentation.ChecklistHistoryState(loading = true, detailLoading = true)
                             fun openAssignedRun(run: pe.bpm.features.checklists.domain.AssignedChecklistRun) {
                                 val target = if (destination == WorkspaceDestination.Company) "seguimiento/${run.id}"
-                                    else if (run.status == "DRAFT" && run.performedBy == profile.id) "control/ejecucion/${run.id}" else "control/revisiones/${run.id}"
+                                    else if (run.status == "DRAFT" && run.performedBy == profile.id) "control/ejecucion/${run.id}"
+                                    else if (destination == WorkspaceDestination.Home) "seguimiento/${run.id}" else "control/revisiones/${run.id}"
                                 nav.navigate(target) { launchSingleTop = true }
                             }
                             val scopedAssignments = assignmentState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
@@ -574,7 +585,15 @@ fun App(
                                 onAccounts = { nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
-                                homeContent = if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole)) ({ pe.bpm.features.reports.presentation.DashboardPanel(reportsDashboardState, reportsDashboard::refresh, { nav.navigate(REPORTS) { launchSingleTop = true } }) }) else null,
+                                homeContent = if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
+                                    if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole))
+                                        pe.bpm.features.reports.presentation.DashboardPanel(reportsDashboardState, reportsDashboard::refresh, { nav.navigate(REPORTS) { launchSingleTop = true } })
+                                    // El ADMIN miembro también ejecuta controles: junto al panel ve los de hoy en todas sus sedes.
+                                    if (currentWorkspace?.role == "ADMIN" && profile.platformRole != "SUPER_ADMIN")
+                                        ChecklistAssignmentsScreen(scopedAssignments, false, assignments::search, assignments::refresh, assignments::previous, assignments::next,
+                                            onOpen = { item -> if (item.run != null) openAssignedRun(item.run) else nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } },
+                                            assignments::requestDeactivate, assignments::confirmDeactivate, title = "Controles de hoy")
+                                }) else null,
                                 onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
                                 learnHeader = if (destination == WorkspaceDestination.Learn && currentWorkspace != null) ({
                                     TrainingLearnerHeader(profile.id, currentWorkspace.organization.id, profile.platformRole != "SUPER_ADMIN", trainingLearner,
@@ -598,7 +617,8 @@ fun App(
                                     if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training)
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
                                 }) else if (managingAccounts) ({
-                                    AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization)
+                                    AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
+                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty())
                                 }) else if (viewingDevices) ({
                                     DevicesContent(profile.id, myDevices)
                                 }) else if (acceptingInvitation) ({
@@ -649,7 +669,7 @@ fun App(
                                         onRemove = { id -> offlineRuns.remove(id) }, onUseServerVersion = offlineRuns::useServerVersion,
                                         evidence = { item -> scopedOfflineState.selected?.let { saved ->
                                             EvidenceQuestionAction(item.label, saved.run.evidenceCounts[item.id] ?: 0, saved.editable && !scopedOfflineState.busy && !scopedOfflineState.localConflict,
-                                                onOpen = { edit -> evidenceQuestion = EvidenceQuestion(saved.run.id, item.id, item.label); evidence.open(profile.id, saved.run.organizationId, saved.run.id, item.id, edit && currentWorkspace?.role == "CHEF") })
+                                                onOpen = { edit -> evidenceQuestion = EvidenceQuestion(saved.run.id, item.id, item.label); evidence.open(profile.id, saved.run.organizationId, saved.run.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) })
                                         } })
                                 }) else if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, evidence = { item ->
                                     scopedHistoryState.detail?.let { reviewed -> EvidenceQuestionAction(item.label, reviewed.evidenceCounts[item.id] ?: 0, false,
@@ -672,7 +692,7 @@ fun App(
                                     onWorkOffline = if (scopedOfflineState.owner == null || scopedOfflineState.busy) null else { id -> offlineRuns.prepare(id) },
                                     onBack = { nav.navigate(CHECKLIST_HISTORY) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } },
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
-                                        onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role == "CHEF") }) }
+                                        onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
                                     }) }) else managementContent,
                                 secondaryEditor = studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
@@ -796,11 +816,10 @@ fun App(
                 }
             }
         }
-        if (confirmLogout) AlertDialog(onDismissRequest = { confirmLogout = false },
-            title = { Text("Tienes cambios sin enviar") },
-            text = { Text("Si cierras sesión se borrarán de este dispositivo los datos guardados, incluidos ${offlineUi.status.pending + offlineUi.status.attention} cambios que todavía no se enviaron. Conéctate y sincroniza antes de salir para no perderlos.") },
-            confirmButton = { BpmTextButton(onClick = ::performLogout) { Text("Cerrar sesión y borrar") } },
-            dismissButton = { BpmTextButton(onClick = { confirmLogout = false }) { Text("Seguir aquí") } })
+        if (confirmLogout) LogoutDialog(offlineUi, online = offlineUi.status.online,
+            onSync = offlineVm::syncNow, onOpenPending = { confirmLogout = false; nav.navigate(PENDING_CHANGES) { launchSingleTop = true } },
+            onLogout = ::performLogout, onDiscardAndLogout = { ids -> offlineVm.discardAll(ids, ::performLogout) },
+            onDismiss = { confirmLogout = false })
         evidenceQuestion?.let { question ->
             ChecklistEvidenceHost(question, evidence, evidenceState) { evidence.close(); evidenceQuestion = null }
         }

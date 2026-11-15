@@ -24,11 +24,12 @@ fun ChecklistAssignmentsScreen(
     onOpen: (ChecklistAssignment) -> Unit,
     onDeactivate: (String?) -> Unit,
     onConfirmDeactivate: () -> Unit,
+    title: String = "Controles de tus sedes",
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (!management)
             Text(
-                "Controles de tus sedes",
+                title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() },

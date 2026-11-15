@@ -13,9 +13,15 @@ import pe.bpm.core.offline.*
 import pe.bpm.features.training.domain.*
 
 /**
- * Descarga de videos privados (R2) al almacén del dispositivo. Pide la URL firmada justo antes de cada
- * intento, transfiere por bloques, verifica tamaño y SHA-256 del catálogo y respeta el límite de espacio
- * (2 GB por defecto, configurable). Las partes cortadas se reanudan al volver a descargar. Las URL no se guardan.
+ * Descarga de videos privados (R2) al almacén de videos del dispositivo, separado de los datos personales
+ * ([files] no se borra al cerrar sesión). Cada archivo se identifica por `mediaId` y su SHA-256 del catálogo.
+ * Pide la URL firmada justo antes de cada intento, transfiere por bloques, verifica tamaño y SHA-256 y
+ * respeta el límite de espacio (2 GB por defecto, configurable): si falta espacio se liberan antes los videos
+ * que no pertenecen al catálogo de la cuenta activa. Las partes cortadas se reanudan al volver a descargar.
+ *
+ * Un video guardado solo se reproduce y se muestra si el catálogo ya cargado de la cuenta activa incluye su
+ * `mediaId` (y el mismo SHA-256): así otra persona que use el celular no ve videos que no le corresponden.
+ * Las URL no se guardan.
  */
 class OfflineTrainingDownloads(
     private val files: PrivateFileStore,
@@ -23,21 +29,60 @@ class OfflineTrainingDownloads(
     private val repository: TrainingRepository,
     private val store: LocalStore,
     private val scope: CoroutineScope,
+    /** Videos del catálogo ya guardado de la cuenta activa en la organización dada. */
+    private val catalog: suspend (String) -> List<LessonVideo> = { emptyList() },
+    /** Almacén personal anterior: sus descargas se migran a [files] cuando el catálogo permite identificarlas. */
+    private val legacy: PrivateFileStore? = null,
 ) : TrainingDownloads {
     private val mutable = MutableStateFlow(DownloadsState(supported = files.durable && files.supportsStreaming))
     override val state: StateFlow<DownloadsState> = mutable.asStateFlow()
     private val lock = Mutex()
     private var job: Job? = null
+    /** mediaId a SHA-256 de los videos que la cuenta activa puede ver; vacío hasta cargar su catálogo. */
+    private val allowedVideos = MutableStateFlow<Map<String, String>>(emptyMap())
+    private val allowed get() = allowedVideos.value
 
-    private fun ref(video: LessonVideo) = ref(video.mediaId, video.mimeType)
+    private fun ref(video: LessonVideo) = ref(video.mediaId, video.mimeType, video.sha256)
+
+    override suspend fun bind(org: String) {
+        if (!mutable.value.supported) return
+        val videos = try { catalog(org) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { emptyList() }
+        allowedVideos.value = videos.mapNotNull { video -> video.sha256?.let { video.mediaId to it } }.toMap()
+        try { migrateLegacy(videos) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { /* se reintenta al abrir otro curso */ }
+        refresh()
+    }
+
+    override suspend fun unbind() {
+        job?.cancel()
+        allowedVideos.value = emptyMap()
+        mutable.update { it.copy(videos = emptyMap(), activeCourseId = null) }
+    }
+
+    /**
+     * Mueve al almacén de videos las descargas del formato anterior (`video-<mediaId>.mp4` en el almacén
+     * personal) que el catálogo permite identificar y cuyo tamaño coincide; las demás se descartan porque
+     * no se puede comprobar qué video son.
+     */
+    private suspend fun migrateLegacy(videos: List<LessonVideo>) {
+        val old = legacy ?: return
+        val byId = videos.filter { it.sha256 != null }.associateBy { it.mediaId }
+        for (info in old.list().filter { it.ref.startsWith(PREFIX) }) {
+            val mediaId = info.ref.removePrefix(PREFIX).substringBefore('.')
+            val video = byId[mediaId]
+            val moved = !info.partial && video != null && info.sizeBytes == video.sizeBytes &&
+                files.size(ref(video)) == null && old.moveTo(info.ref, files, ref(video))
+            if (!moved) old.delete(info.ref)
+        }
+    }
 
     override suspend fun refresh() {
         if (!mutable.value.supported) return
         val limit = readLimit()
         val infos = files.list().filter { it.ref.startsWith(PREFIX) }
         val known = mutable.value.videos
-        val videos = infos.associate { info ->
-            val mediaId = info.ref.removePrefix(PREFIX).substringBefore('.')
+        // Solo se muestran los videos del catálogo de esta cuenta; el espacio usado cuenta todo el dispositivo.
+        val visible = infos.mapNotNull { info -> parse(info.ref)?.takeIf { (id, sha16) -> allowed[id]?.startsWith(sha16) == true }?.let { info to it.first } }
+        val videos = visible.associate { (info, mediaId) ->
             val total = known[mediaId]?.totalBytes ?: 0L
             mediaId to when {
                 !info.partial -> VideoDownload(mediaId, VideoDownloadStatus.DOWNLOADED, info.sizeBytes, info.sizeBytes)
@@ -52,6 +97,8 @@ class OfflineTrainingDownloads(
 
     override fun download(org: String, course: TrainingCourse) {
         if (!mutable.value.supported || mutable.value.activeCourseId != null) return
+        // El curso que se descarga viene del catálogo de la cuenta activa: sus videos quedan autorizados.
+        allowedVideos.update { it + course.lessons.mapNotNull { lesson -> lesson.video?.let { video -> video.sha256?.let { sha -> video.mediaId to sha } } } }
         mutable.update { it.copy(activeCourseId = course.course.id) }
         job = scope.launch {
             try { lock.withLock { run(org, course) } }
@@ -65,6 +112,11 @@ class OfflineTrainingDownloads(
             .filter { !mutable.value.downloaded(it.video!!.mediaId) }
         // El límite se comprueba contra lo que falta bajar de todo el curso, antes de empezar.
         val needed = pending.sumOf { lesson -> lesson.video!!.sizeBytes - (mutable.value.of(lesson.video!!.mediaId)?.downloadedBytes ?: 0L) }
+        // Si falta espacio se liberan primero los videos que no son del catálogo de esta cuenta (de otras cuentas o retirados).
+        if (mutable.value.usedBytes + needed > mutable.value.limitBytes) {
+            freeForeignVideos(mutable.value.usedBytes + needed - mutable.value.limitBytes)
+            refresh()
+        }
         if (mutable.value.usedBytes + needed > mutable.value.limitBytes) {
             pending.forEach { setIssue(it.video!!, DownloadIssue.LIMIT) }
             return
@@ -92,6 +144,17 @@ class OfflineTrainingDownloads(
         }
     }
 
+    /** Borra videos ajenos al catálogo activo, los más grandes primero, hasta liberar [bytes] o agotarlos. */
+    private suspend fun freeForeignVideos(bytes: Long) {
+        var freed = 0L
+        val foreign = files.list().filter { info -> info.ref.startsWith(PREFIX) && parse(info.ref)?.let { (id, sha16) -> allowed[id]?.startsWith(sha16) == true } != true }
+        for (info in foreign.sortedByDescending { it.sizeBytes }) {
+            if (freed >= bytes) break
+            files.delete(info.ref)
+            freed += info.sizeBytes
+        }
+    }
+
     private fun setProgress(video: LessonVideo, status: VideoDownloadStatus, bytes: Long, issue: DownloadIssue?) {
         mutable.update { it.copy(videos = it.videos + (video.mediaId to VideoDownload(video.mediaId, status, bytes, video.sizeBytes, issue))) }
     }
@@ -115,6 +178,7 @@ class OfflineTrainingDownloads(
         course.lessons.mapNotNull { it.video?.mediaId }.forEach { delete(it) }
     }
 
+    /** «Borrar descargas»: vacía el almacén de videos del dispositivo, también los de otras cuentas. */
     override suspend fun deleteAll() {
         job?.cancel()
         files.list().filter { it.ref.startsWith(PREFIX) }.forEach { files.delete(it.ref) }
@@ -129,6 +193,9 @@ class OfflineTrainingDownloads(
 
     override suspend fun localVideo(video: LessonVideo): VideoTicket? {
         if (!mutable.value.supported) return null
+        // Sin catálogo propio cargado que incluya este video (con su SHA-256), no se reproduce el archivo local.
+        val sha = video.sha256 ?: return null
+        if (allowed[video.mediaId] != sha) return null
         val name = ref(video)
         if (files.size(name) != video.sizeBytes) return null
         val uri = files.localUri(name) ?: return null
@@ -140,6 +207,15 @@ class OfflineTrainingDownloads(
 
     companion object {
         const val PREFIX = "video-"
-        fun ref(mediaId: String, mimeType: String) = "$PREFIX$mediaId" + if (mimeType == "video/webm") ".webm" else ".mp4"
+
+        /** `video-<mediaId>-<16 primeros hex del SHA-256>.<ext>`: el nombre identifica el contenido, no a la cuenta. */
+        fun ref(mediaId: String, mimeType: String, sha256: String?) =
+            "$PREFIX$mediaId" + (sha256?.take(16)?.lowercase()?.let { "-$it" } ?: "") + if (mimeType == "video/webm") ".webm" else ".mp4"
+
+        private val named = Regex("^video-(.+)-([0-9a-f]{16})\\.(?:mp4|webm)$")
+
+        /** (mediaId, prefijo del SHA-256) de un archivo del almacén de videos; null si no sigue el formato. */
+        internal fun parse(ref: String): Pair<String, String>? =
+            named.matchEntire(ref.removeSuffix(".part"))?.let { it.groupValues[1] to it.groupValues[2] }
     }
 }
