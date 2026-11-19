@@ -54,9 +54,10 @@ import pe.bpm.features.workspace.domain.*
 }
 
 @Composable internal fun SectionHeading(title: String, action: String?, onAction: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // Título y acción en una misma fila, alineados al centro; sin el «+» pegado como texto.
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        if (action != null) BpmSecondaryButton(onClick = onAction) { Text("+ $action") }
+        if (action != null) BpmSecondaryButton(onClick = onAction) { Text(action) }
     }
 }
 /** [onOpen] conecta cada entrada con su detalle (por ejemplo, el curso de Academia); sin él solo se listan. */

@@ -35,10 +35,10 @@ fun ReportsScreen(
     LaunchedEffect(state.exportReady) {
         state.exportReady?.let { file -> saver.save(file.fileName, "text/csv", file.text) { result -> viewModel.exportHandled(result == FileSaveResult.SAVED) } }
     }
-    Column(modifier.fillMaxWidth().widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ReportTab.entries.forEach { tab ->
-                FilterChip(selected = state.tab == tab, onClick = { viewModel.selectTab(tab) }, label = { Text(tab.label) }, modifier = Modifier.heightIn(min = 48.dp))
+                BpmFilterChip(selected = state.tab == tab, onClick = { viewModel.selectTab(tab) }, label = { Text(tab.label) }, modifier = Modifier.heightIn(min = 48.dp))
             }
         }
         PeriodFilters(state, locations, viewModel)
@@ -62,14 +62,14 @@ private fun PeriodFilters(state: ReportsState, locations: List<ReportLocationOpt
         Text("Período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(7, 30, 90).forEach { days ->
-                FilterChip(selected = state.presetDays == days, onClick = { vm.selectPreset(days) }, label = { Text("Últimos $days días") }, modifier = Modifier.heightIn(min = 48.dp))
+                BpmFilterChip(selected = state.presetDays == days, onClick = { vm.selectPreset(days) }, label = { Text("Últimos $days días") }, modifier = Modifier.heightIn(min = 48.dp))
             }
-            FilterChip(selected = false, onClick = vm::selectCurrentMonth, label = { Text("Este mes") }, modifier = Modifier.heightIn(min = 48.dp))
+            BpmFilterChip(selected = false, onClick = vm::selectCurrentMonth, label = { Text("Este mes") }, modifier = Modifier.heightIn(min = 48.dp))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BpmTextField(state.from, vm::editFrom, "Desde (AAAA-MM-DD)", Modifier.weight(1f), error = state.periodError?.let { ReportPeriodRules.message(it, state.maxDays) })
-            BpmTextField(state.to, vm::editTo, "Hasta (AAAA-MM-DD)", Modifier.weight(1f))
-        }
+        BpmFieldPair(
+            { m -> BpmTextField(state.from, vm::editFrom, "Desde (AAAA-MM-DD)", m, error = state.periodError?.let { ReportPeriodRules.message(it, state.maxDays) }) },
+            { m -> BpmTextField(state.to, vm::editTo, "Hasta (AAAA-MM-DD)", m) },
+        )
         Text("Máximo ${state.maxDays} días en esta vista.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (locations.size > 1) {
             Text("Sede", style = MaterialTheme.typography.labelMedium)
@@ -99,11 +99,13 @@ private fun ComplianceContent(report: ComplianceReport) {
         Text("Cumplimiento del período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(formatPercent(report.average), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
         Text("${report.runs} controles finalizados entre ${longDate(report.from)} y ${longDate(report.to)}", style = MaterialTheme.typography.bodySmall)
-        if (report.days.isEmpty()) Text("No hay controles finalizados en este período.")
+        // Estado vacío dentro de la tarjeta: dato secundario en gris y con el siguiente paso (sin anidar otra tarjeta).
+        if (report.days.isEmpty()) Text("No hay controles finalizados en este período. Prueba con un rango de fechas más amplio.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !line, onClick = { line = false }, label = { Text("Barras") }, modifier = Modifier.heightIn(min = 48.dp))
-                FilterChip(selected = line, onClick = { line = true }, label = { Text("Línea") }, modifier = Modifier.heightIn(min = 48.dp))
+                BpmFilterChip(selected = !line, onClick = { line = false }, label = { Text("Barras") }, modifier = Modifier.heightIn(min = 48.dp))
+                BpmFilterChip(selected = line, onClick = { line = true }, label = { Text("Línea") }, modifier = Modifier.heightIn(min = 48.dp))
             }
             ComplianceChart(report.days, line)
             DayTable(report.days)
@@ -129,16 +131,17 @@ private fun ComplianceContent(report: ComplianceReport) {
 private fun DayTable(days: List<DayCompliance>) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            Text("Fecha", Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-            Text("Controles", Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-            Text("Cumplimiento", Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            // Pesos desiguales: la fecha y «Cumplimiento» necesitan más ancho que el conteo de controles.
+            Text("Fecha", Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text("Controles", Modifier.weight(0.8f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text("Cumplimiento", Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
         }
         HorizontalDivider()
         days.sortedBy { it.date }.forEach { day ->
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(longDate(day.date), Modifier.weight(1f))
-                Text(day.runs.toString(), Modifier.weight(1f))
-                Text(formatPercent(day.average), Modifier.weight(1f))
+                Text(longDate(day.date), Modifier.weight(1.2f))
+                Text(day.runs.toString(), Modifier.weight(0.8f))
+                Text(formatPercent(day.average), Modifier.weight(1.1f))
             }
         }
     }

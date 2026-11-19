@@ -34,7 +34,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
                 BpmSecondaryButton(onClick = onRetryOpen, enabled = !state.busy) { Text("Recuperar mis controles") }
         }
         if (detailId == null) {
-            Text("Controles en este dispositivo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            // El título «Controles en este dispositivo» ya lo pinta WorkspaceScreen (secondaryTitle de la ruta sin conexión).
             Text("Puedes responder los controles que preparaste aunque pierdas la conexión. Los resultados se confirman cuando se envían.")
             if (state.pendingCount > 0) {
                 Text("${state.pendingCount} ${if (state.pendingCount == 1) "control pendiente" else "controles pendientes"} de confirmar")

@@ -61,8 +61,8 @@ fun ChecklistAssignmentsScreen(
                     else "Prueba con otro nombre de control o sede.",
                 )
             else ->
-                state.items.forEach { v ->
-                    BpmCard(Modifier.fillMaxWidth()) {
+                BpmCardGrid(state.items, minCardWidth = 340.dp, maxColumns = 3) { v, cardModifier ->
+                    BpmCard(cardModifier) {
                         Text(
                             v.templateName,
                             style = MaterialTheme.typography.titleMedium,

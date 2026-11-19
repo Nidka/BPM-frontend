@@ -81,9 +81,14 @@ export function createAppServer({
   firebaseProjectId = process.env.FIREBASE_PROJECT_ID ?? firebasePublic.projectId,
   allowInsecureForTests = false,
   hstsEnabled = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT_NAME),
+  // Solo desarrollo: permite un backend HTTP en la propia máquina (localhost, 127.0.0.1 o ::1) cuando se pide
+  // de forma explícita con BPM_ALLOW_LOCAL_API=1. Se ignora en producción/Railway y nunca admite otros hosts.
+  allowLocalApi = process.env.BPM_ALLOW_LOCAL_API === '1' && !hstsEnabled,
 } = {}) {
   const upstream = new URL(apiBaseUrl);
-  if ((!allowInsecureForTests && upstream.protocol !== 'https:') ||
+  const loopbackHttp = allowLocalApi && upstream.protocol === 'http:' &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(upstream.hostname);
+  if ((!allowInsecureForTests && !loopbackHttp && upstream.protocol !== 'https:') ||
       upstream.username || upstream.password || upstream.search || upstream.hash || upstream.pathname !== '/') {
     throw new Error('API_BASE_URL debe indicar el origen HTTPS del backend, sin credenciales ni rutas.');
   }

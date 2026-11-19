@@ -481,7 +481,7 @@ private fun Choices(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         choices.forEach { (value, label) ->
-            FilterChip(
+            BpmFilterChip(
                 selected == value,
                 { onSelect(value) },
                 label = { Text(label) },

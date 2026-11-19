@@ -57,7 +57,7 @@ import pe.bpm.core.designsystem.*
                     shape = MaterialTheme.shapes.small,
                     interactionSource = organizationInteractions,
                     border = BorderStroke(2.dp, if (organizationFocused) MaterialTheme.colorScheme.primary else Color.Transparent),
-                    modifier = Modifier.weight(1f, fill = false).widthIn(max = 360.dp).semantics {
+                    modifier = Modifier.weight(1f, fill = false).widthIn(max = 360.dp).offset(x = (-8).dp).semantics {
                         contentDescription = "Cambiar organización. Actual: ${organizationName ?: "Sin selección"}"
                     }) {
                     WorkspaceContext(organizationName, wide, canChangeOrganization = true, modifier = Modifier.padding(horizontal = 8.dp))

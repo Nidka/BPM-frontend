@@ -57,7 +57,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
         PageNavigation(page.number, page.previous.isNotEmpty(), page.nextToken.isNotEmpty(), loading || page.loading || page.errors.isNotEmpty(), onPrevious, onNext)
         if (canCreate && !shortWindow) {
             HorizontalDivider()
-            BpmSecondaryButton(onClick = onCreate, enabled = !loading && pe.bpm.core.offline.LocalOnline.current, modifier = Modifier.heightIn(min = 48.dp)) { Text("Crear organización") }
+            BpmSecondaryButton(onClick = onCreate, enabled = !loading && pe.bpm.core.offline.LocalOnline.current) { Text("Crear organización") }
         }
     }
     }

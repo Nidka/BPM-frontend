@@ -3,7 +3,6 @@ package pe.bpm.features.training.presentation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -63,15 +62,15 @@ private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssig
     Text("Asigna cursos publicados a una persona, a un rol o a una sede, con fecha límite opcional. El aviso llega en el siguiente ciclo de notificaciones.")
     RaisedButton("Asignar un curso", viewModel::startCreate, Modifier.widthIn(max = 360.dp).fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(state.status == AssignmentRecordStatus.ACTIVE, { viewModel.filterStatus(AssignmentRecordStatus.ACTIVE) }, { Text("Activas") })
-        FilterChip(state.status == AssignmentRecordStatus.CANCELLED, { viewModel.filterStatus(AssignmentRecordStatus.CANCELLED) }, { Text("Canceladas") })
-        FilterChip(state.status == null, { viewModel.filterStatus(null) }, { Text("Todas") })
+        BpmFilterChip(state.status == AssignmentRecordStatus.ACTIVE, { viewModel.filterStatus(AssignmentRecordStatus.ACTIVE) }, { Text("Activas") })
+        BpmFilterChip(state.status == AssignmentRecordStatus.CANCELLED, { viewModel.filterStatus(AssignmentRecordStatus.CANCELLED) }, { Text("Canceladas") })
+        BpmFilterChip(state.status == null, { viewModel.filterStatus(null) }, { Text("Todas") })
     }
     if (state.publishedCourses.isNotEmpty() || state.filterCourseId != null) {
         Text("Filtrar por curso", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(state.filterCourseId == null, { viewModel.filterCourse(null) }, { Text("Todos los cursos") })
-            state.publishedCourses.take(12).forEach { FilterChip(state.filterCourseId == it.id, { viewModel.filterCourse(it.id) }, { Text(it.code) }) }
+            BpmFilterChip(state.filterCourseId == null, { viewModel.filterCourse(null) }, { Text("Todos los cursos") })
+            state.publishedCourses.take(12).forEach { BpmFilterChip(state.filterCourseId == it.id, { viewModel.filterCourse(it.id) }, { Text(it.code) }) }
         }
     } else BpmTextButton(onClick = viewModel::loadCourses) { Text("Filtrar por curso") }
     if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin asignaciones", "No hay asignaciones con este filtro.")
@@ -104,9 +103,9 @@ private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentFor
     issues["course"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Text("¿A quién?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(form.kind == TargetKind.USER, { viewModel.edit { it.copy(kind = TargetKind.USER) } }, { Text("Una persona") }, enabled = enabled)
-        FilterChip(form.kind == TargetKind.ROLE, { viewModel.edit { it.copy(kind = TargetKind.ROLE) } }, { Text("Un rol") }, enabled = enabled)
-        FilterChip(form.kind == TargetKind.LOCATION, { viewModel.edit { it.copy(kind = TargetKind.LOCATION) } }, { Text("Una sede") }, enabled = enabled)
+        BpmFilterChip(form.kind == TargetKind.USER, { viewModel.edit { it.copy(kind = TargetKind.USER) } }, { Text("Una persona") }, enabled = enabled)
+        BpmFilterChip(form.kind == TargetKind.ROLE, { viewModel.edit { it.copy(kind = TargetKind.ROLE) } }, { Text("Un rol") }, enabled = enabled)
+        BpmFilterChip(form.kind == TargetKind.LOCATION, { viewModel.edit { it.copy(kind = TargetKind.LOCATION) } }, { Text("Una sede") }, enabled = enabled)
     }
     when (form.kind) {
         TargetKind.USER -> memberSelector(form.userId, form.userName, enabled) { id, name -> viewModel.edit { it.copy(userId = id, userName = name) } }
@@ -187,8 +186,8 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
             Text("Agrupa cursos en un orden recomendado. Solo las rutas publicadas las ven quienes aprenden.")
             RaisedButton("Crear ruta", viewModel::startCreate, Modifier.widthIn(max = 360.dp).fillMaxWidth())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(state.status == null, { viewModel.filter(null) }, { Text("Todas") })
-                PathStatus.entries.forEach { status -> FilterChip(state.status == status, { viewModel.filter(status) }, { Text(pathStatusLabel(status)) }) }
+                BpmFilterChip(state.status == null, { viewModel.filter(null) }, { Text("Todas") })
+                PathStatus.entries.forEach { status -> BpmFilterChip(state.status == status, { viewModel.filter(status) }, { Text(pathStatusLabel(status)) }) }
             }
             if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin rutas", "Todavía no hay rutas con este filtro.")
             BpmCardGrid(state.items, minCardWidth = 320.dp, maxColumns = 2) { path, m ->

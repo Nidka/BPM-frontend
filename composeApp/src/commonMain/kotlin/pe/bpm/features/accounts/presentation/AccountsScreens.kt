@@ -21,7 +21,7 @@ private enum class AccountsTab(val label: String) { Team("Equipo"), Invitations(
 fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, currentUserId: String, modifier: Modifier = Modifier) {
     val teamState by team.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(AccountsTab.Team.name) }
-    Column(modifier.fillMaxSize().widthIn(max = 960.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
         StatusFilter(AccountsTab.entries.map { it.name to it.label }, tab, true) { tab = it }
         when (tab) {
@@ -36,7 +36,7 @@ fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewMo
 @Composable
 fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 960.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         Text("Estos son los dispositivos de tus organizaciones que reciben avisos. Si no reconoces alguno, revócalo.")
         AccountMessages(state.failure, state.notice)
         state.revoking?.let { device ->

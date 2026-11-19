@@ -36,7 +36,7 @@ internal fun IncidentsContent(
     }
     DisposableEffect(incidents, userId, org) { onDispose { incidents.reset() } }
     Column(
-        modifier.fillMaxSize().widthIn(max = 1100.dp),
+        modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (choosing) {

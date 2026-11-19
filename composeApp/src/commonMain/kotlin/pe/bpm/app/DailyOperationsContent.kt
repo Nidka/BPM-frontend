@@ -60,7 +60,7 @@ internal fun DailyOperationsContent(
         if (state.resource.needsSite && siteId == null) choosingSite = true
     }
     Column(
-        modifier.fillMaxSize().widthIn(max = 1100.dp),
+        modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (choosingSite) {
@@ -90,10 +90,11 @@ internal fun DailyOperationsContent(
                 Text(if (siteId == null) "Elegir sede" else "Cambiar sede")
             }
             if ((showShifts || showStock) && state.form == null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(section == "daily", { section = "daily" }, label = { Text("Operación") })
-                    if (showStock) FilterChip(section == "stock", { section = "stock" }, label = { Text("Consumos y descartes") })
-                    if (showShifts) FilterChip(section == "shifts", { section = "shifts" }, label = { Text("Turnos") })
+                // Tres chips no caben en una fila a 360 dp: se envuelven en lugar de cortarse.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    BpmFilterChip(section == "daily", { section = "daily" }, label = { Text("Operación") })
+                    if (showStock) BpmFilterChip(section == "stock", { section = "stock" }, label = { Text("Consumos y descartes") })
+                    if (showShifts) BpmFilterChip(section == "shifts", { section = "shifts" }, label = { Text("Turnos") })
                 }
             }
             if (section == "stock" && showStock && state.form == null) StockMovementsScreen(stock!!, Modifier.weight(1f))

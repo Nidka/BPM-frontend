@@ -41,7 +41,7 @@ fun OperationsScreen(
                 OperationsResource.entries
                     .filter { OperationsAccess.canRead(state.role, it) }
                     .forEach { resource ->
-                        FilterChip(
+                        BpmFilterChip(
                             state.resource == resource,
                             { viewModel.resource(resource) },
                             label = { Text(resource.title) },
@@ -102,14 +102,14 @@ fun OperationsScreen(
                             Text("Reintentar consulta")
                         }
                     if (state.rows.isEmpty() && !state.loading && state.failure == null)
-                        Text("Todavía no hay registros para esta consulta.")
+                        EmptyState("Sin registros", "Todavía no hay registros para esta consulta. Cambia la búsqueda para ver otros.")
                     if (state.resource == OperationsResource.LOTS)
                         Text(
                             "Los lotes más antiguos se muestran primero (PEPS). Revisa también su fecha de vencimiento antes de usarlos.",
                             style = MaterialTheme.typography.bodySmall,
                         )
-                    state.rows.forEach { entry ->
-                        BpmCard(Modifier.fillMaxWidth()) {
+                    BpmCardGrid(state.rows, minCardWidth = 340.dp, maxColumns = 2) { entry, cardModifier ->
+                        BpmCard(cardModifier) {
                             Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(entry.title(), style = MaterialTheme.typography.titleMedium)
                                 Text(entry.subtitle())
@@ -170,7 +170,7 @@ private fun OperationsPicker(state: OperationsState, vm: OperationsViewModel) {
     )
     if (state.pickerRows.isEmpty() && !state.pickerLoading)
         Text("No hay coincidencias. Puedes cambiar la búsqueda.")
-    state.pickerRows.forEach { entry ->
+    state.pickerRows.forEach { entry -> // lista-apilada: selector dentro de un formulario
         BpmCard(Modifier.fillMaxWidth()) {
             Column(Modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(entry.title())

@@ -76,8 +76,8 @@ fun ChecklistVersionsScreen(
                     else Text("Solo un administrador puede editar las preguntas.", style = MaterialTheme.typography.bodySmall)
                 }
                 Text("Historial", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                state.history.forEach { version ->
-                    BpmCard(Modifier.fillMaxWidth()) {
+                BpmCardGrid(state.history, minCardWidth = 340.dp, maxColumns = 3) { version, cardModifier ->
+                    BpmCard(cardModifier) {
                         Text("Versión ${version.versionNumber} · ${if (version.status == VersionStatus.PUBLISHED) "Vigente" else "Archivada"}", style = MaterialTheme.typography.titleMedium)
                         Text("${version.itemCount} preguntas · ${displayDateTime(version.publishedAt)}")
                         if (version.changeNote.isNotBlank()) Text("Cambio: ${version.changeNote}")
@@ -112,7 +112,7 @@ fun ChecklistVersionsScreen(
                     if (state.changeNote.isNotBlank()) Text("Nota: ${state.changeNote.trim()}")
                     Text("Las revisiones ya iniciadas con la versión anterior podrán terminarse y consultarse.", style = MaterialTheme.typography.bodySmall)
                 }
-                state.questions.mapIndexed { i, q -> q.domain(i) }.forEach { question ->
+                state.questions.mapIndexed { i, q -> q.domain(i) }.forEach { question -> // lista-apilada: preguntas en orden de aplicación
                     BpmCard(Modifier.fillMaxWidth()) {
                         Text("${question.displayOrder}. ${question.label}", fontWeight = FontWeight.Bold)
                         Text("${question.sectionName} · ${question.responseType.label()}")

@@ -3,7 +3,6 @@ package pe.bpm.features.training.presentation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -28,7 +27,7 @@ import pe.bpm.features.training.domain.*
 @Composable
 fun TrainingAdminScreen(viewModel: TrainingAuthoringViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 960.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (state.loading || state.loadingDraft) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -58,9 +57,9 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
     Text("Prepara lecciones con texto y video, escribe preguntas con su explicación y publica cuando todo esté listo. Quienes ya aprenden siguen viendo la versión publicada hasta que publiques otra.")
     RaisedButton("Crear curso", viewModel::startCreate, Modifier.widthIn(max = 360.dp).fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(state.statusFilter == null, { viewModel.filter(null) }, { Text("Todos") })
+        BpmFilterChip(state.statusFilter == null, { viewModel.filter(null) }, { Text("Todos") })
         CourseStatus.entries.forEach { status ->
-            FilterChip(state.statusFilter == status, { viewModel.filter(status) }, { Text(statusLabel(status)) })
+            BpmFilterChip(state.statusFilter == status, { viewModel.filter(status) }, { Text(statusLabel(status)) })
         }
     }
     if (state.courses.isEmpty() && !state.loading) EmptyState("Sin cursos", "Todavía no hay cursos con este filtro. Crea el primero.")

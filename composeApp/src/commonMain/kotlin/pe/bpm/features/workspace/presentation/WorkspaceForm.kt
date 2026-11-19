@@ -102,7 +102,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                         Text("Tipo de establecimiento *", style = MaterialTheme.typography.labelLarge)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("RESTAURANT" to "Restaurante", "CAFETERIA" to "Cafetín", "CATERING" to "Catering", "OTHER_FOOD_SERVICE" to "Otro servicio de alimentos").forEach { (value, label) ->
-                                FilterChip(selected = draft.business == value, onClick = { onEdit { it.copy(business = value) } }, enabled = !saving, label = { Text(label) })
+                                BpmFilterChip(selected = draft.business == value, onClick = { onEdit { it.copy(business = value) } }, enabled = !saving, label = { Text(label) })
                             }
                         }
                         fields["businessType"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }

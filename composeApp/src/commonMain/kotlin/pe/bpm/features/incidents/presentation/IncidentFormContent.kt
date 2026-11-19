@@ -156,7 +156,7 @@ internal fun IncidentFormContent(
             Text("Nivel de riesgo", style = MaterialTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 IncidentRisk.entries.forEach { risk ->
-                    FilterChip(
+                    BpmFilterChip(
                         f.values["riskLevel"] == risk.name,
                         { editor.edit("riskLevel", risk.name) },
                         label = { Text(incidentRiskLabel(risk)) },
@@ -164,14 +164,12 @@ internal fun IncidentFormContent(
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Checkbox(
-                    f.values["evidenceRequired"] == "true",
-                    { editor.edit("evidenceRequired", it.toString()) },
-                    enabled = !e.busy,
-                )
-                Text("Exigir fotos antes y después para cerrar")
-            }
+            // BpmCheckboxRow: etiqueta pulsable, alineada con la casilla y con área táctil de 48 dp.
+            BpmCheckboxRow(
+                "Exigir fotos antes y después para cerrar",
+                f.values["evidenceRequired"] == "true",
+                enabled = !e.busy,
+            ) { editor.edit("evidenceRequired", it.toString()) }
         }
         if (f.kind == "START") Text("Confirma que comenzarás a atender la acción asignada.")
         RaisedButton(

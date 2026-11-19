@@ -21,7 +21,7 @@ import pe.bpm.features.checklists.domain.*
         BpmSearchField(state.query, onSearch, "Buscar revisión", placeholder = "Nombre del control, sede o responsable", loading = state.loading)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("" to "Todas", "DRAFT" to "En curso", "SUBMITTED" to "Finalizadas").forEach { (value, label) ->
-                FilterChip(selected = state.status == value, onClick = { onFilter(value) }, label = { Text(label) })
+                BpmFilterChip(selected = state.status == value, onClick = { onFilter(value) }, label = { Text(label) })
             }
         }
         when {

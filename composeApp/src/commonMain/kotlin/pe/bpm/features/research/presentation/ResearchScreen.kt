@@ -6,7 +6,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,7 +34,7 @@ private fun tabLabel(tab: ResearchTab) = when (tab) {
 @Composable
 fun ResearchScreen(viewModel: ResearchViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 960.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (state.accessLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             Text(researchFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -47,7 +46,7 @@ fun ResearchScreen(viewModel: ResearchViewModel, modifier: Modifier = Modifier) 
         }
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         if (state.tabs.size > 1) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.tabs.forEach { tab -> FilterChip(state.tab == tab, { viewModel.selectTab(tab) }, { Text(tabLabel(tab)) }) }
+            state.tabs.forEach { tab -> BpmFilterChip(state.tab == tab, { viewModel.selectTab(tab) }, { Text(tabLabel(tab)) }) }
         }
         when (state.tab) {
             ResearchTab.CONSENT -> ConsentTab(state, viewModel)
@@ -228,7 +227,7 @@ private fun ResultsTab(controller: AnalysisController) {
     val results = state.results ?: return
     Text("Versión ${results.version.versionNumber} del cuestionario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     if (results.page.items.isEmpty()) EmptyState("Sin resultados", "Todavía no hay empresas con personas participantes.")
-    results.page.items.forEach { ResultCard(it) }
+    BpmCardGrid(results.page.items, minCardWidth = 380.dp, maxColumns = 2) { result, cardModifier -> ResultCard(result, cardModifier) }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmSecondaryButton(onClick = controller::previousResults, enabled = state.hasPreviousResults && !state.resultsLoading) { Text("Página anterior") }
         BpmSecondaryButton(onClick = controller::nextResults, enabled = results.page.nextToken.isNotEmpty() && !state.resultsLoading) { Text("Página siguiente") }
@@ -246,8 +245,8 @@ internal fun formatNumber(value: Double): String {
 }
 
 @Composable
-private fun ResultCard(result: OrganizationResult) {
-    BpmCard(Modifier.fillMaxWidth()) {
+private fun ResultCard(result: OrganizationResult, modifier: Modifier = Modifier) {
+    BpmCard(modifier) {
         Text(result.organizationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text("${result.participants} participantes · ${result.pretest.n} encuestas iniciales · ${result.posttest.n} finales · ${result.paired.n} personas con ambas", style = MaterialTheme.typography.bodySmall)
         ComparisonBars("Conocimientos (0 a 100)", result.pretest.knowledgeMean, result.posttest.knowledgeMean, 100.0)
@@ -272,12 +271,13 @@ private fun ComparisonBars(label: String, pre: Double?, post: Double?, max: Doub
 @Composable
 private fun Bar(name: String, value: Double?, max: Double, color: androidx.compose.ui.graphics.Color) {
     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(name, Modifier.width(64.dp), style = MaterialTheme.typography.bodySmall)
+        // widthIn(min): con fuente grande el texto crece en lugar de partirse dentro de la palabra.
+        Text(name, Modifier.widthIn(min = 64.dp), style = MaterialTheme.typography.bodySmall)
         Box(Modifier.weight(1f).height(14.dp).background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small)) {
             val fraction = ((value ?: 0.0) / max).toFloat().coerceIn(0f, 1f)
             if (fraction > 0f) Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(color, MaterialTheme.shapes.small))
         }
-        Text(mean(value), Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        Text(mean(value), Modifier.widthIn(min = 56.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -329,7 +329,7 @@ private fun NeedsTab(controller: AnalysisController) {
         if (form.showIssues && form.organizationId == null) Text("Elige una empresa.", color = MaterialTheme.colorScheme.error)
         Text("Categoría", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            NeedCategory.entries.forEach { category -> FilterChip(form.category == category, { controller.editNeed { it.copy(category = category) } }, { Text(categoryLabel(category)) }, enabled = !form.busy) }
+            NeedCategory.entries.forEach { category -> BpmFilterChip(form.category == category, { controller.editNeed { it.copy(category = category) } }, { Text(categoryLabel(category)) }, enabled = !form.busy) }
         }
         BpmTextField(form.description, { v -> controller.editNeed { it.copy(description = v.take(ResearchLimits.NEED_DESCRIPTION_MAX)) } }, "Descripción", Modifier.fillMaxWidth(),
             singleLine = false, minLines = 4, enabled = !form.busy, error = if (form.showIssues && form.description.isBlank()) "Describe la necesidad." else null,
@@ -350,8 +350,8 @@ private fun NeedsTab(controller: AnalysisController) {
     if (state.needsFailure != null) BpmSecondaryButton(onClick = controller::refreshNeeds) { Text("Volver a intentar") }
     val page = state.needs ?: return
     if (page.items.isEmpty()) EmptyState("Sin necesidades", "No hay necesidades registradas para este filtro.")
-    page.items.forEach { need ->
-        BpmCard(Modifier.fillMaxWidth()) {
+    BpmCardGrid(page.items, minCardWidth = 340.dp, maxColumns = 3) { need, cardModifier ->
+        BpmCard(cardModifier) {
             Eyebrow(categoryLabel(need.category).uppercase())
             Text(need.organizationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(need.description)
@@ -376,8 +376,8 @@ private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
     if (state.grantBusy || state.grantsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.grantsFailure)
     if (state.grantsLoaded && state.grants.isEmpty()) EmptyState("Sin concesiones", "Todavía no se concedió acceso a nadie.")
-    state.grants.forEach { grant ->
-        BpmCard(Modifier.fillMaxWidth()) {
+    BpmCardGrid(state.grants, minCardWidth = 340.dp, maxColumns = 3) { grant, cardModifier ->
+        BpmCard(cardModifier) {
             Eyebrow(if (grant.active) "ACTIVO" else "RETIRADO")
             Text(grant.displayName.ifBlank { grant.email }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (grant.displayName.isNotBlank()) Text(grant.email)

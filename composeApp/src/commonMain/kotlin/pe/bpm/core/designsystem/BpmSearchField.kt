@@ -31,7 +31,7 @@ fun BpmSearchField(
     var activeIndex by remember(value, suggestions) { mutableStateOf<Int?>(null) }
     val fieldFocus = navigation?.requester ?: remember { FocusRequester() }
     val visible = expanded && suggestions.isNotEmpty() && !loading && enabled
-    Column(modifier.fillMaxWidth().semantics { isTraversalGroup = true }) {
+    Column(modifier.widthIn(max = BpmSpacing.searchMax).fillMaxWidth().semantics { isTraversalGroup = true }) {
         BpmTextField(value, onValueChange, label,
             modifier = (if (navigation == null) Modifier.focusRequester(fieldFocus) else Modifier)
                 .onPreviewKeyEvent { event ->

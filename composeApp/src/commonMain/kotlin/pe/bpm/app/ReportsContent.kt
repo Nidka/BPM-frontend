@@ -1,10 +1,10 @@
 package pe.bpm.app
 
+import pe.bpm.core.designsystem.BpmFilterChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,8 +38,8 @@ internal fun ReportsContent(
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (canAdminister) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = section == 0, onClick = { section = 0 }, label = { Text("Cumplimiento") }, modifier = Modifier.heightIn(min = 48.dp))
-            FilterChip(selected = section == 1, onClick = { section = 1 }, label = { Text("Equipo y constancias") }, modifier = Modifier.heightIn(min = 48.dp))
+            BpmFilterChip(selected = section == 0, onClick = { section = 0 }, label = { Text("Cumplimiento") }, modifier = Modifier.heightIn(min = 48.dp))
+            BpmFilterChip(selected = section == 1, onClick = { section = 1 }, label = { Text("Equipo y constancias") }, modifier = Modifier.heightIn(min = 48.dp))
         }
         if (section == 0 || !canAdminister) ReportsScreen(reports, reportsState, locations)
         else ReportsAdminScreen(admin, adminState)

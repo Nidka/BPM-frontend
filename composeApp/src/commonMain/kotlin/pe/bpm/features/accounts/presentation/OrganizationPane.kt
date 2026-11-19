@@ -79,7 +79,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 
 @Composable private fun BusinessTypeChips(selected: BusinessType, enabled: Boolean, onSelect: (BusinessType) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BusinessType.entries.forEach { type -> FilterChip(selected = selected == type, onClick = { onSelect(type) }, enabled = enabled, label = { Text(type.label) }) }
+        BusinessType.entries.forEach { type -> BpmFilterChip(selected = selected == type, onClick = { onSelect(type) }, enabled = enabled, label = { Text(type.label) }) }
     }
 }
 

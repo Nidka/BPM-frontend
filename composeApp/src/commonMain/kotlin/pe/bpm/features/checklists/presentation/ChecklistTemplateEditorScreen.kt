@@ -46,7 +46,7 @@ import pe.bpm.core.domain.DecimalInput
     }
     LaunchedEffect(state.failure) { if (state.failure != null) scroll.scrollTo(0) }
     Box(Modifier.fillMaxSize()) {
-    Column(Modifier.align(Alignment.TopCenter).widthIn(max = 900.dp).fillMaxWidth().verticalScroll(scroll).padding(bottom = 96.dp),
+    Column(Modifier.align(Alignment.TopStart).widthIn(max = 900.dp).fillMaxWidth().verticalScroll(scroll).padding(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text(when (state.step) {
             TemplateEditorStep.Edit -> "Nueva plantilla de control"

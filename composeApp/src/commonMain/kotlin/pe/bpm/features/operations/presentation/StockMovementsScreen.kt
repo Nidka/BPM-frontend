@@ -43,18 +43,18 @@ fun StockMovementsScreen(viewModel: StockMovementsViewModel, modifier: Modifier 
             else
                 Text("Para registrar un consumo o descarte, abre Stock PEPS y elige el lote.", style = MaterialTheme.typography.bodySmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(state.filter.type == null, { viewModel.filterType(null) }, label = { Text("Todos") }, enabled = !state.loading)
-                FilterChip(state.filter.type == StockMovementType.CONSUMPTION, { viewModel.filterType(StockMovementType.CONSUMPTION) }, label = { Text("Consumos") }, enabled = !state.loading)
-                FilterChip(state.filter.type == StockMovementType.DISCARD, { viewModel.filterType(StockMovementType.DISCARD) }, label = { Text("Descartes") }, enabled = !state.loading)
+                BpmFilterChip(state.filter.type == null, { viewModel.filterType(null) }, label = { Text("Todos") }, enabled = !state.loading)
+                BpmFilterChip(state.filter.type == StockMovementType.CONSUMPTION, { viewModel.filterType(StockMovementType.CONSUMPTION) }, label = { Text("Consumos") }, enabled = !state.loading)
+                BpmFilterChip(state.filter.type == StockMovementType.DISCARD, { viewModel.filterType(StockMovementType.DISCARD) }, label = { Text("Descartes") }, enabled = !state.loading)
             }
             if (state.filter.lotId != null) {
                 Text("Lote: ${state.lotLabel.ifEmpty { "seleccionado" }}")
                 BpmTextButton(viewModel::clearLot, enabled = !state.loading) { Text("Ver todos los lotes") }
             }
             if (state.failure != null) BpmTextButton(viewModel::refresh, enabled = !state.loading) { Text("Reintentar consulta") }
-            if (state.movements.isEmpty() && !state.loading && state.failure == null) Text("Todavía no hay movimientos para esta consulta.")
-            state.movements.forEach { movement ->
-                BpmCard(Modifier.fillMaxWidth()) {
+            if (state.movements.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin movimientos", "Todavía no hay movimientos para esta consulta. Cambia el filtro de tipo para ver otros.")
+            BpmCardGrid(state.movements, minCardWidth = 340.dp, maxColumns = 2) { movement, cardModifier ->
+                BpmCard(cardModifier) {
                     Text("${typeLabel(movement.input)} · ${movement.productName}", style = MaterialTheme.typography.titleMedium)
                     Text("Cantidad: ${movement.input.quantity} ${movement.unit} · Saldo del lote: ${movement.balanceAfter} ${movement.unit}")
                     Text("Lote ${movement.batchCode} · ${displayDateTime(movement.createdAt)}")
@@ -81,8 +81,8 @@ private fun StockFormContent(state: StockState, form: StockForm, vm: StockMoveme
     if (form.uncertain)
         Text("No pudimos confirmar el registro. Reintenta para comprobar el mismo movimiento; no se descontará dos veces.")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(form.type == StockMovementType.CONSUMPTION, { vm.change(type = StockMovementType.CONSUMPTION) }, label = { Text("Consumo") }, enabled = enabled)
-        FilterChip(form.type == StockMovementType.DISCARD, { vm.change(type = StockMovementType.DISCARD) }, label = { Text("Descarte") }, enabled = enabled)
+        BpmFilterChip(form.type == StockMovementType.CONSUMPTION, { vm.change(type = StockMovementType.CONSUMPTION) }, label = { Text("Consumo") }, enabled = enabled)
+        BpmFilterChip(form.type == StockMovementType.DISCARD, { vm.change(type = StockMovementType.DISCARD) }, label = { Text("Descarte") }, enabled = enabled)
     }
     state.fields["type"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     BpmTextField(form.quantity, { vm.change(quantity = it) }, "Cantidad (${lot.unit})", error = state.fields["quantity"], enabled = enabled, inputKind = BpmInputKind.Decimal, placeholder = "Ej.: 0,5")
@@ -90,7 +90,7 @@ private fun StockFormContent(state: StockState, form: StockForm, vm: StockMoveme
         Text("Motivo del descarte")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DiscardReason.entries.forEach { reason ->
-                FilterChip(form.reason == reason, { vm.change(reason = reason) }, label = { Text(reasonLabel(reason)) }, enabled = enabled)
+                BpmFilterChip(form.reason == reason, { vm.change(reason = reason) }, label = { Text(reasonLabel(reason)) }, enabled = enabled)
             }
         }
         state.fields["reason"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }

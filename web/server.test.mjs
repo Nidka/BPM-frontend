@@ -53,6 +53,21 @@ test('rechaza orígenes inseguros o con credenciales', () => {
   }
 });
 
+test('backend HTTP local: solo con el indicador, solo loopback y nunca en producción', () => {
+  const local = 'http://127.0.0.1:8090';
+  assert.throws(() => createAppServer({ apiBaseUrl: local, allowLocalApi: false }));
+  assert.doesNotThrow(() => createAppServer({ apiBaseUrl: local, allowLocalApi: true, hstsEnabled: false }));
+  assert.doesNotThrow(() => createAppServer({ apiBaseUrl: 'http://localhost:8090', allowLocalApi: true, hstsEnabled: false }));
+  for (const apiBaseUrl of ['http://example.com', 'http://192.168.1.10:8090', 'http://localhost.example.com:8090']) {
+    assert.throws(() => createAppServer({ apiBaseUrl, allowLocalApi: true, hstsEnabled: false }));
+  }
+  // En producción (HSTS activo) el indicador no tiene efecto aunque se pase explícitamente por el entorno.
+  const previous = process.env.BPM_ALLOW_LOCAL_API;
+  process.env.BPM_ALLOW_LOCAL_API = '1';
+  try { assert.throws(() => createAppServer({ apiBaseUrl: local, hstsEnabled: true })); }
+  finally { if (previous === undefined) delete process.env.BPM_ALLOW_LOCAL_API; else process.env.BPM_ALLOW_LOCAL_API = previous; }
+});
+
 test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t => {
   const root = await mkdtemp(join(tmpdir(), 'bpm-login-'));
   await writeFile(join(root, 'index.html'), '<html>BPM</html>');

@@ -45,7 +45,7 @@ private fun KpiGrid(kpis: Kpis) {
         add("Incidencias abiertas" to (kpis.openIncidents.toString() to "Sin cerrar"))
         kpis.training?.let { add("Avance de capacitación" to (formatPercent(it.completionPercent) to "${it.completedEnrollments} completados, ${it.inProgressEnrollments} en curso")) }
     }
-    BpmCardGrid(cards, minCardWidth = 220.dp, maxColumns = 3) { (title, value), cardModifier ->
+    BpmCardGrid(cards, minCardWidth = 220.dp, maxColumns = 4) { (title, value), cardModifier ->
         BpmCard(cardModifier) {
             Text(title, style = MaterialTheme.typography.labelMedium)
             Text(value.first, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)

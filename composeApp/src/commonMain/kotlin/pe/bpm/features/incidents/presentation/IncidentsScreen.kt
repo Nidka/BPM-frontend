@@ -48,7 +48,7 @@ fun IncidentsScreen(
                     Text(incidentFailureText(it))
                     BpmTextButton(viewModel::history) { Text("Reintentar historial") }
                 }
-                s.history.rows.forEach { event ->
+                s.history.rows.forEach { event -> // lista-apilada: cronología en orden de eventos
                     BpmCard(Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
@@ -73,12 +73,12 @@ fun IncidentsScreen(
             else -> {
                 if (IncidentsAccess.canAuthor(s.role))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
+                        BpmFilterChip(
                             !s.catalogMode,
                             { viewModel.catalogMode(false) },
                             label = { Text("Incidencias") },
                         )
-                        FilterChip(
+                        BpmFilterChip(
                             s.catalogMode,
                             { viewModel.catalogMode(true) },
                             label = { Text("Configurar criterios") },
@@ -95,13 +95,13 @@ fun IncidentsScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        FilterChip(
+                        BpmFilterChip(
                             s.status == null,
                             { viewModel.filter(null) },
                             label = { Text("Todos los estados") },
                         )
                         IncidentStatus.entries.forEach { status ->
-                            FilterChip(
+                            BpmFilterChip(
                                 s.status == status,
                                 { viewModel.filter(status) },
                                 label = { Text(incidentStatusLabel(status.name)) },
@@ -126,9 +126,9 @@ fun IncidentsScreen(
                     BpmTextButton(viewModel::refresh) { Text("Reintentar consulta") }
                 if (s.catalogMode) {
                     if (s.catalog.rows.isEmpty() && !s.loading && s.failure == null)
-                        Text("Todavía no hay criterios para esta consulta.")
-                    s.catalog.rows.forEach { value ->
-                        BpmCard(Modifier.fillMaxWidth()) {
+                        EmptyState("Sin criterios", "Todavía no hay criterios para esta consulta. Cambia la búsqueda o usa «Crear criterio».")
+                    BpmCardGrid(s.catalog.rows, minCardWidth = 340.dp, maxColumns = 2) { value, cardModifier ->
+                        BpmCard(cardModifier) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(value.name, style = MaterialTheme.typography.titleMedium)
                                 Text(
@@ -154,14 +154,14 @@ fun IncidentsScreen(
                     )
                 } else {
                     if (s.incidents.rows.isEmpty() && !s.loading && s.failure == null)
-                        Text("No hay incidencias para esta consulta.")
+                        EmptyState("Sin incidencias", "No hay incidencias para esta consulta. Cambia la búsqueda o el estado para ver otras.")
                     if (s.role == "WORKER")
                         Text(
                             "Aquí ves las incidencias que reportaste o te asignaron.",
                             style = MaterialTheme.typography.bodySmall,
                         )
-                    s.incidents.rows.forEach { value ->
-                        BpmCard(Modifier.fillMaxWidth()) {
+                    BpmCardGrid(s.incidents.rows, minCardWidth = 340.dp, maxColumns = 2) { value, cardModifier ->
+                        BpmCard(cardModifier) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(value.name, style = MaterialTheme.typography.titleMedium)
                                 pe.bpm.core.offline.PendingBadge(value.id)
@@ -214,7 +214,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
         BpmTextButton({ vm.picker(s.picker) }) { Text("Reintentar consulta") }
     }
     if (catalog)
-        s.catalogChoices.rows.forEach { value ->
+        s.catalogChoices.rows.forEach { value -> // lista-apilada: selector dentro de un formulario
             BpmCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(value.name)
@@ -229,7 +229,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
             }
         }
     else
-        s.choices.rows.forEach { value ->
+        s.choices.rows.forEach { value -> // lista-apilada: selector dentro de un formulario
             BpmCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(value.displayName)
@@ -282,7 +282,7 @@ private fun IncidentDetailContent(
     BpmSecondaryButton({ onEvidence(i.id, null, "BEFORE", beforeWritable) }) {
         Text("Fotos antes (${d.beforeCount})")
     }
-    d.actions.forEach { action ->
+    d.actions.forEach { action -> // lista-apilada: acciones del detalle en orden
         BpmCard(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(

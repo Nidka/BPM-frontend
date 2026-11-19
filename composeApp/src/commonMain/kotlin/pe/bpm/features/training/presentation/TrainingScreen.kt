@@ -168,7 +168,8 @@ private fun DownloadsCard(course: TrainingCourse, state: TrainingState, viewMode
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (downloads.supported) {
             Text("Espacio usado por descargas: ${formatBytes(downloads.usedBytes)} de ${formatBytes(downloads.limitBytes)}", style = MaterialTheme.typography.bodySmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Cuatro opciones no caben en una fila a 360 dp: se envuelven en lugar de cortarse.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 TrainingDownloads.LIMIT_CHOICES.forEach { choice ->
                     BpmTextButton(onClick = { viewModel.setDownloadLimit(choice) }) { Text((if (choice == downloads.limitBytes) "✓ " else "") + formatBytes(choice)) }
                 }

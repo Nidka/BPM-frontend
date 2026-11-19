@@ -22,16 +22,48 @@ const errors = [];
 const warnings = [];
 for (const file of walk(source)) {
   const rel = relative(root, file).replaceAll('\\', '/');
-  readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+  const text = readFileSync(file, 'utf8');
+  const lineOf = (offset) => text.slice(0, offset).split('\n').length;
+  // R5 (multilínea): `forEach { x ->` seguido, aunque sea en otra línea, de una tarjeta a ancho completo.
+  for (const match of text.matchAll(/forEach\s*\{[^}\n]*->\s*\n?\s*BpmCard\(Modifier\.fillMaxWidth\(\)/g)) {
+    const first = lineOf(match.index);
+    const marked = text.split('\n').slice(first - 1, first + 1).some((l) => l.includes('lista-apilada'));
+    if (!marked) warnings.push(`${rel}:${first} R5 lista de tarjetas apiladas; usar BpmCardGrid o marcar // lista-apilada`);
+  }
+  // R6: tres o más chips en una Row rígida se cortan a 360 dp; deben ir en FlowRow.
+  for (const match of text.matchAll(/\bRow\([^\n]*\{\s*\n((?:[^\n]*\n){1,6})/g)) {
+    if ((match[1].match(/FilterChip\(/g) ?? []).length >= 3)
+      warnings.push(`${rel}:${lineOf(match.index)} R6 tres o más chips en Row; usar FlowRow`);
+  }
+  // R11: una tarjeta a ancho completo con un solo Text es una franja o una fila, no una tarjeta.
+  if (!exempt.test(file))
+    for (const match of text.matchAll(/BpmCard\(Modifier\.fillMaxWidth\(\)\)\s*\{\s*\n\s*Text\([^\n]*\n\s*\}/g))
+      warnings.push(`${rel}:${lineOf(match.index)} R11 tarjeta de ancho completo con un solo Text; usar BpmInlineNotice o una fila`);
+  text.split('\n').forEach((line, index) => {
     const at = `${rel}:${index + 1}`;
     const code = line.replace(/\/\/.*$/, '');
+    const isTheme = /designsystem[\\/](BpmTheme|BpmButtons|Components|BpmLayoutComponents|BpmFilterChip)\.kt$/.test(file);
+    // R7: el botón principal solo mide a contenido (mínimo 160 dp) o a ancho completo.
+    if (!isTheme && /RaisedButton\(/.test(code) && /\.(?:width|widthIn|sizeIn)\(/.test(code)
+      && !/widthIn\(min\s*=\s*160\.dp\)/.test(code))
+      warnings.push(`${at} R7 botón principal con ancho fuera de la escala (mínimo 160 dp o ancho completo)`);
+    // R8: el peso de letra viene del estilo del tema, no de cada pantalla.
+    if (!isTheme && /\bfontWeight\s*=/.test(code))
+      warnings.push(`${at} R8 fontWeight escrito a mano; usar el estilo del tema`);
+    // R9: filtros con BpmFilterChip y tarjetas con BpmCard, nunca los de Material directos.
+    if (!isTheme && /(?<![A-Za-z])(?:FilterChip|Card|ElevatedCard|OutlinedCard)\(/.test(code))
+      warnings.push(`${at} R9 componente de Material directo; usar BpmFilterChip o BpmCard`);
+    // R10: separaciones solo de la escala 4 · 8 · 12 · 16 · 24 · 32.
+    for (const match of code.matchAll(/spacedBy\(\s*(\d+(?:\.\d+)?)\.dp/g))
+      if (![4, 8, 12, 16, 24, 32].includes(Number(match[1])))
+        warnings.push(`${at} R10 spacedBy de ${match[1]} dp fuera de la escala 4·8·12·16·24·32`);
     // R1: el margen lateral de pantalla sale de BpmSpacing.gutter, no de literales por pantalla.
     if (!exempt.test(file) && /if\s*\(\s*wide\s*\)\s*\d+\.dp\s*else\s*\d+\.dp/.test(code))
       errors.push(`${at} R1 margen lateral con literales; usar BpmSpacing.gutter(wide)`);
     // R4: una pantalla alojada en el contenedor del workspace no repite el margen lateral.
     if (/Screen\.kt$/.test(file) && /verticalScroll\([^)]*\)\)?\.padding\((?:all\s*=\s*)?\d+\.dp\)/.test(code))
       errors.push(`${at} R4 relleno propio en pantalla alojada; el margen lo aporta el contenedor`);
-    // R5: listas de registros en tarjetas van en BpmCardGrid; las secuenciales se marcan con // lista-apilada.
+    // R5 en una sola línea (la variante multilínea se evalúa arriba sobre el texto completo).
     if (/forEach\s*\{[^}]*->\s*BpmCard\(Modifier\.fillMaxWidth\(\)\)/.test(code) && !line.includes('lista-apilada'))
       warnings.push(`${at} R5 lista de tarjetas apiladas; usar BpmCardGrid o marcar // lista-apilada`);
     // R2: relleno y separación dentro de la escala.

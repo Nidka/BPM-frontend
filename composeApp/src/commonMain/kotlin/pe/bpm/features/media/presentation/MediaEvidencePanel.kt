@@ -49,7 +49,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         if (!state.loading && state.files.none { it.status != EvidenceStatus.DELETED }) {
             Text("Todavía no hay fotos guardadas.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        state.files.filterNot { it.status == EvidenceStatus.DELETED }.forEach { file ->
+        state.files.filterNot { it.status == EvidenceStatus.DELETED }.forEach { file -> // lista-apilada: panel estrecho dentro de hoja o diálogo
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(file.originalName, style = MaterialTheme.typography.titleMedium)
                 Text(when (file.status) {

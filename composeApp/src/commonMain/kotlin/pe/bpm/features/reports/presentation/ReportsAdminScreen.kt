@@ -15,10 +15,10 @@ import pe.bpm.features.reports.domain.*
 /** Capacitación consolidada (RF-09), constancias (RF-39) y configuración (RF-29); solo administración. */
 @Composable
 fun ReportsAdminScreen(viewModel: ReportsAdminViewModel, state: AdminState, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AdminTab.entries.forEach { tab ->
-                FilterChip(selected = state.tab == tab, onClick = { viewModel.selectTab(tab) }, label = { Text(tab.label) }, modifier = Modifier.heightIn(min = 48.dp))
+                BpmFilterChip(selected = state.tab == tab, onClick = { viewModel.selectTab(tab) }, label = { Text(tab.label) }, modifier = Modifier.heightIn(min = 48.dp))
             }
         }
         when (state.tab) {
@@ -98,11 +98,11 @@ private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
     BpmCard(Modifier.fillMaxWidth()) {
         Text("Solicitar constancia de cumplimiento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text("Se calcula con todas las sedes del período. El período debe haber terminado antes de hoy.")
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BpmTextField(state.certFrom, vm::editCertFrom, "Desde (AAAA-MM-DD)", Modifier.weight(1f),
-                error = state.certPeriodError?.let { ReportPeriodRules.message(it, ReportPeriodRules.SUMMARY_MAX_DAYS) })
-            BpmTextField(state.certTo, vm::editCertTo, "Hasta (AAAA-MM-DD)", Modifier.weight(1f))
-        }
+        BpmFieldPair(
+            { m -> BpmTextField(state.certFrom, vm::editCertFrom, "Desde (AAAA-MM-DD)", m,
+                error = state.certPeriodError?.let { ReportPeriodRules.message(it, ReportPeriodRules.SUMMARY_MAX_DAYS) }) },
+            { m -> BpmTextField(state.certTo, vm::editCertTo, "Hasta (AAAA-MM-DD)", m) },
+        )
         RaisedButton(if (state.issuing) "Solicitando…" else "Solicitar constancia", vm::issue, Modifier.widthIn(max = 320.dp).fillMaxWidth(), enabled = !state.issuing)
         state.issueFailure?.let { Text(reportFailureMessage(it, state.issueFields), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.issued?.let {

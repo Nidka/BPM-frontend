@@ -91,7 +91,7 @@ fun AlertsScreen(
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         AlertFilter.entries.forEach { f ->
-          FilterChip(
+          BpmFilterChip(
             s.filter == f,
             { viewModel.filter(f) },
             label = {
@@ -108,9 +108,9 @@ fun AlertsScreen(
         }
       }
       if (s.inboxLoaded && s.inbox.rows.isEmpty() && !s.loading && s.failure == null)
-        Text("No hay avisos para esta consulta.")
-      s.inbox.rows.forEach { row ->
-        BpmCard(Modifier.fillMaxWidth()) {
+        EmptyState("Sin avisos", "No hay avisos para esta consulta. Cambia la búsqueda o el filtro para ver otros.")
+      BpmCardGrid(s.inbox.rows, minCardWidth = 340.dp, maxColumns = 2) { row, cardModifier ->
+        BpmCard(cardModifier) {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(row.title, style = MaterialTheme.typography.titleMedium)
             Text(alertStatusLabel(row))

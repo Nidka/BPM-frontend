@@ -3,7 +3,6 @@ package pe.bpm.features.identity.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -99,9 +98,9 @@ fun IdentityScreen(
                 Text("Al volver a entrar con tu misma cuenta podrás recuperar los borradores conservados en este dispositivo.", style = MaterialTheme.typography.bodySmall)
             }
             if (profile == null && state.mode in listOf(AuthMode.Login, AuthMode.Register)) {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)).padding(4.dp)) {
+                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium).padding(4.dp)) {
                     listOf(AuthMode.Login to "Entrar", AuthMode.Register to "Crear cuenta").forEach { (mode, label) ->
-                        Surface(modifier = Modifier.weight(1f), shape = RoundedCornerShape(11.dp),
+                        Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.small,
                             color = if (state.mode == mode) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.outlineVariant,
                             shadowElevation = if (state.mode == mode) 2.dp else 0.dp) {
                             BpmTextButton(onClick = { changeMode(mode) }, enabled = !state.busy) { Text(label, fontWeight = FontWeight.SemiBold) }
@@ -109,7 +108,7 @@ fun IdentityScreen(
                     }
                 }
             }
-            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surface) {
+            Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (profile != null) {
                         Text(profile.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)

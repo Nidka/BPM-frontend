@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -108,7 +110,7 @@ internal fun PrivateEvidenceHost(
                     Column {
                         EvidenceHeading(label, !state.busy, dismiss)
                         if (confirmClose)
-                            EvidenceCloseConfirmation(unsavedText, onClose) { confirmClose = false }
+                            EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
                         MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false))
                     }
                 }
@@ -125,7 +127,7 @@ internal fun PrivateEvidenceHost(
                 Column(Modifier.fillMaxWidth().heightIn(max = 680.dp).imePadding()) {
                     EvidenceHeading(label, !state.busy, dismiss)
                     if (confirmClose)
-                        EvidenceCloseConfirmation(unsavedText, onClose) { confirmClose = false }
+                        EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
                     MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false))
                 }
             }
@@ -138,13 +140,21 @@ internal fun PrivateEvidenceHost(
                     Column {
                         EvidenceHeading(label, !state.busy, dismiss)
                         if (confirmClose)
-                            EvidenceCloseConfirmation(unsavedText, onClose) { confirmClose = false }
+                            EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
                         MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false))
                     }
                 }
             }
     }
 }
+
+/**
+ * Con altura baja (móvil horizontal) la confirmación no cabe junto a la cabecera: se desplaza para que
+ * «Seguir con la foto» y «Cerrar sin guardar foto» siempre sean alcanzables. Solo se usa dentro de una `Column`.
+ */
+@Composable
+private fun ColumnScope.confirmationScroll(): Modifier =
+    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
 
 @Composable
 private fun EvidenceHeading(label: String, enabled: Boolean, onClose: () -> Unit) {
@@ -156,9 +166,9 @@ private fun EvidenceHeading(label: String, enabled: Boolean, onClose: () -> Unit
 
 /** Confirmación en la misma superficie: evita diálogos anidados y conserva el foco accesible. */
 @Composable
-private fun EvidenceCloseConfirmation(message: String, onClose: () -> Unit, onKeep: () -> Unit) {
+private fun EvidenceCloseConfirmation(message: String, onClose: () -> Unit, onKeep: () -> Unit, modifier: Modifier = Modifier) {
     BpmCard(
-        Modifier.fillMaxWidth().padding(16.dp),
+        modifier.fillMaxWidth().padding(16.dp),
         tint = MaterialTheme.colorScheme.errorContainer,
     ) {
         Text("¿Cerrar sin guardar esta foto?", style = MaterialTheme.typography.titleMedium)

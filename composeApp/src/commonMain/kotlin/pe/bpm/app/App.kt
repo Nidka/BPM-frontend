@@ -478,6 +478,10 @@ fun App(
                         }
                     } else {
                         val available = workspaceDestinations(workspaceState.workspace?.role, profile.platformRole == "SUPER_ADMIN")
+                        // El aviso de acceso se descarta al navegar a otra sección permitida; no debe seguir a la persona por toda la app.
+                        LaunchedEffect(route) {
+                            if (accessNotice != null && destination in available && route != WorkspaceDestination.Home.route) accessNotice = null
+                        }
                         val waiting = workspaceState.loading && workspaceState.workspace == null
                         if ((destination !in available || formKind != null || studySurvey || researching || managingTraining || managingTemplates || managingAssignments || managingDaily || daily || alertRoute || managingAccounts || reportsRoute) && waiting) {
                             RestoringSession()
@@ -632,11 +636,11 @@ fun App(
                                         TrainingAdminContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, trainingAuthoring)
                                     } }
                                 }) else if(alertRoute) ({
-                                    if(managingAlerts) pe.bpm.core.offline.ServerOnly { pe.bpm.features.alerts.presentation.AlertRulesScreen(alerts,modifier=Modifier.widthIn(max=960.dp),
+                                    if(managingAlerts) pe.bpm.core.offline.ServerOnly { pe.bpm.features.alerts.presentation.AlertRulesScreen(alerts,modifier=Modifier,
                                         locationSelector={selected,onSelect,enabled->
                                             AlertScopeSelector(workspaceState,workspace,selected,alertEditorState.form?.locationName.orEmpty(),if(alertEditorState.form!=null) "Toda la empresa" else "Empresa y todas las sedes",enabled,onSelect)
                                         }) }
-                                    else pe.bpm.features.alerts.presentation.AlertsScreen(alerts,modifier=Modifier.widthIn(max=960.dp),pushControls={pe.bpm.features.notifications.presentation.PushOptInPanel(notificationDevices)},onOpenSource={notice->
+                                    else pe.bpm.features.alerts.presentation.AlertsScreen(alerts,modifier=Modifier,pushControls={pe.bpm.features.notifications.presentation.PushOptInPanel(notificationDevices)},onOpenSource={notice->
                                         if(notice.sourceAvailable) when(notice.sourceType){
                                             "CHECKLIST_ASSIGNMENT"->nav.navigate("control/programacion/${notice.sourceId}"){launchSingleTop=true}
                                             "RECEIPT_ITEM"->{alertSource=notice;nav.navigate(if(workspaceState.workspace?.canManage==true) DAILY_MANAGEMENT else DAILY_EXECUTION){launchSingleTop=true}}
@@ -760,7 +764,7 @@ fun App(
                                             Text("Acceso restringido", style = MaterialTheme.typography.titleMedium)
                                         }
                                         Text(message, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                                        BpmTextButton(onClick = { accessNotice = null }) { Text("Entendido") }
+                                        BpmTextButton(onClick = { accessNotice = null }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 8.dp)) { Text("Entendido") }
                                     } }
                                     identityState.notice?.let { Text(it,
                                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }

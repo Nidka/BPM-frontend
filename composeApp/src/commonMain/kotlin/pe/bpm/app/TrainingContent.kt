@@ -1,7 +1,7 @@
 package pe.bpm.app
 
+import pe.bpm.core.designsystem.BpmFilterChip
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -73,10 +73,10 @@ internal fun TrainingPlusAdminContent(
         assignments.open(organizationId, canManage); paths.open(organizationId, canManage); achievements.open(organizationId, canManage)
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    Column(modifier.fillMaxSize().widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (canManage && !tabsLocked) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Cursos", "Asignaciones", "Rutas", "Logros").forEachIndexed { index, label ->
-                FilterChip(tab == index, { tab = index }, { Text(label) })
+                BpmFilterChip(tab == index, { tab = index }, { Text(label) })
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {

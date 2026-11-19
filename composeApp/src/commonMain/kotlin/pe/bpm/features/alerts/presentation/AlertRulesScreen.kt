@@ -67,13 +67,13 @@ fun AlertRulesScreen(
           horizontalArrangement = Arrangement.spacedBy(6.dp),
           verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-          FilterChip(
+          BpmFilterChip(
             s.ruleLocationId == null,
             { viewModel.ruleLocation(null) },
             label = { Text("Empresa y todas las sedes") },
           )
           locations.forEach { l ->
-            FilterChip(
+            BpmFilterChip(
               s.ruleLocationId == l.id,
               { viewModel.ruleLocation(l.id) },
               label = { Text(l.name) },
@@ -82,9 +82,9 @@ fun AlertRulesScreen(
         }
       if (s.savedRevision > 0) Text("Regla guardada y confirmada por el servidor.")
       if (s.rulesLoaded && s.rules.rows.isEmpty() && !s.loading && s.failure == null)
-        Text("No hay reglas para esta consulta.")
-      s.rules.rows.forEach { r ->
-        BpmCard(Modifier.fillMaxWidth()) {
+        EmptyState("Sin reglas", "No hay reglas para esta consulta. Cambia la búsqueda o el filtro de ámbito para ver otras.")
+      BpmCardGrid(s.rules.rows, minCardWidth = 340.dp, maxColumns = 2) { r, cardModifier ->
+        BpmCard(cardModifier) {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(r.name, style = MaterialTheme.typography.titleMedium)
             Text(alertTypeLabel(r.type))
@@ -194,7 +194,7 @@ private fun AlertRuleFormContent(
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         AlertType.entries.forEach { t ->
-          FilterChip(
+          BpmFilterChip(
             f.type == t,
             { vm.editor.type(t) },
             enabled = enabled,
@@ -225,14 +225,14 @@ private fun AlertRuleFormContent(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
-        FilterChip(
+        BpmFilterChip(
           f.locationId == null,
           { vm.editor.location(null) },
           enabled = enabled,
           label = { Text("Toda la empresa") },
         )
         locations.forEach { l ->
-          FilterChip(
+          BpmFilterChip(
             f.locationId == l.id,
             { vm.editor.location(l.id) },
             enabled = enabled,
@@ -309,7 +309,7 @@ private fun RowSwitch(
   enabled: Boolean,
   onChange: (Boolean) -> Unit,
 ) {
-  Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+  Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
     Text(label, Modifier.weight(1f))
     Switch(
       checked,

@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Tokens de la biblioteca `bpm-design-system` (styles.css y playful.css).
@@ -55,7 +56,40 @@ object BpmSpacing {
     val card: Dp = 24.dp
     /** Alto mínimo de cualquier control interactivo. */
     val touch: Dp = 48.dp
+    /** Alto mínimo del cuerpo de un botón (principal y secundario comparten el mismo tamaño). */
+    val button: Dp = 52.dp
+    /** Relieve inferior de los botones; igual en principal y secundario para que midan lo mismo. */
+    val reliefDepth: Dp = 3.dp
+    /** Ancho máximo único del contenido de toda pantalla alojada; en ventanas mayores queda alineado a la izquierda. */
+    val contentMax: Dp = 1200.dp
+    /** Ancho máximo de un campo de búsqueda: en pantallas amplias no debe ocupar toda la fila. */
+    val searchMax: Dp = 560.dp
+
+    // Escala única de separaciones: 4 · 8 · 12 · 16 · 24 · 32. Se retiran 2, 6, 10, 14 y 20.
+    /** Entre líneas de un mismo dato. */
+    val xs: Dp = 4.dp
+    val sm: Dp = 8.dp
+    /** Dentro de una tarjeta. */
+    val md: Dp = 12.dp
+    /** Entre tarjetas. */
+    val lg: Dp = 16.dp
+    /** Entre secciones. */
+    val xl: Dp = 24.dp
+    val xxl: Dp = 32.dp
+
+    /** Cuerpo del botón en talla compacta; el área táctil se mantiene en [touch]. */
+    val buttonCompact: Dp = 44.dp
+    /** Ancho mínimo de un botón a ancho de contenido. */
+    val buttonMinWidth: Dp = 160.dp
+    /** Relleno de una tarjeta compacta (listas y KPI). */
+    val cardCompact: Dp = 16.dp
 }
+
+/** Talla de botón: *Normal* (52 dp) y *Compacta* (44 dp, solo en filas y tarjetas densas). */
+enum class BpmButtonSize { Normal, Compact }
+
+/** Variante de tarjeta: *Estándar* (relleno 24), *Compacta* (relleno 16) y *Destacada* (fondo teal suave, una por pantalla). */
+enum class BpmCardVariant { Standard, Compact, Featured }
 
 private val colors = lightColorScheme(
     primary = BpmTokens.primary,
@@ -79,7 +113,14 @@ private val colors = lightColorScheme(
     onErrorContainer = BpmTokens.dangerText,
 )
 
-/** Los títulos usan peso 800 (`h1,h2,h3` en playful.css); la familia sigue la del sistema de cada plataforma. */
+/**
+ * Los títulos usan peso 800 (`h1,h2,h3` en playful.css); la familia sigue la del sistema de cada plataforma.
+ *
+ * Roles de texto (el peso viene del estilo; las pantallas no escriben `fontWeight`):
+ * título de página `headlineMedium` (uno por pantalla) · sección `titleLarge` · título de tarjeta `titleMedium` ·
+ * cuerpo `bodyMedium` · apoyo `bodySmall` (nunca como único texto de una tarjeta) · etiqueta `labelMedium` ·
+ * texto de botón `labelLarge` (negrita).
+ */
 private fun bpmTypography(): Typography {
     val base = Typography()
     fun androidx.compose.ui.text.TextStyle.heavy() = copy(fontWeight = FontWeight.ExtraBold)
@@ -87,6 +128,10 @@ private fun bpmTypography(): Typography {
         headlineLarge = base.headlineLarge.heavy(), headlineMedium = base.headlineMedium.heavy(),
         headlineSmall = base.headlineSmall.heavy(), titleLarge = base.titleLarge.heavy(),
         titleMedium = base.titleMedium.copy(fontWeight = FontWeight.Bold),
+        // Texto de apoyo un punto más grande: 12 sp se lee pequeño en escritorio.
+        bodySmall = base.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+        labelMedium = base.labelMedium.copy(fontSize = 13.sp, lineHeight = 16.sp),
+        labelLarge = base.labelLarge.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
     )
 }
 

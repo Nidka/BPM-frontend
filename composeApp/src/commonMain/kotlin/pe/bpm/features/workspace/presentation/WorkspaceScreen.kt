@@ -60,7 +60,8 @@ internal fun WorkspaceScreen(
     LaunchedEffect(noticeVisible) { if (noticeVisible) contentScroll.scrollTo(0) }
     LaunchedEffect(secondaryScrollKey) { if (secondaryScrollKey != null) contentScroll.scrollTo(0) }
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
-        val wide = maxWidth >= 950.dp
+        // Con altura baja (móvil horizontal) el menú lateral no cabe sin desplazamiento: se usa la barra inferior.
+        val wide = maxWidth >= 950.dp && maxHeight >= 480.dp
         Row(Modifier.fillMaxSize()) {
             if (wide) Surface(Modifier.width(232.dp).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -88,31 +89,30 @@ internal fun WorkspaceScreen(
                     onAlerts=onAlerts,unreadCount=unreadAlertCount,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)), contentAlignment = Alignment.TopCenter) { taskContent() }
-                else if (secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
-                    contentAlignment = Alignment.TopCenter) { secondaryContent() }
-                else if (form != null) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
-                    contentAlignment = Alignment.TopCenter) {
+                if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), wide) { taskContent() }
+                else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), wide) { secondaryContent() }
+                else if (form != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), wide) {
                     pe.bpm.core.offline.ServerOnly {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
                         onSubmitForm, formDraft, onFormRetryAccount, onFormSelectAccount, onFormEdit, onFormDiscard, onFormRetry, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
                     }
-                } else if (choosingOrganization) Box(Modifier.weight(1f).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
-                    contentAlignment = Alignment.TopCenter) {
+                } else if (choosingOrganization) HostedContent(Modifier.weight(1f).fillMaxWidth(), wide) {
                     OrganizationPickerScreen(state.organizations, state.selected, state.loading, errors = state.errors,
                         canCreate = superAdmin, onSelect = onSelect, onCreate = { open(WorkspaceFormKind.Organization) },
                         onUserActivity = onUserActivity, notice = screenNotice, noticeVisible = noticeVisible,
                         page = state.organizationPage, onSearch = onOrganizationSearch, onNext = onOrganizationNext,
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
-                } else key(section, secondaryTitle) { Column(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll).padding(BpmSpacing.gutter(wide)),
+                } else key(section, secondaryTitle) { Box(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll)) { Column(
+                    Modifier.widthIn(max = BpmSpacing.contentMax + BpmSpacing.gutter(wide) * 2).fillMaxWidth().padding(BpmSpacing.gutter(wide)),
                     verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-                    screenNotice()
+                    // El título de la pantalla va primero; los avisos y accesos de apoyo se muestran debajo.
                     Text(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else section.label,
                         style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    screenNotice()
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
                     state.notice?.let { notice -> key(notice) { BpmReveal { Text(notice, color = MaterialTheme.colorScheme.primary) } } }
                     if (section == WorkspaceDestination.Account) {
-                        BpmCard(Modifier.fillMaxWidth()) {
+                        BpmCard(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
                             Text(viewer.displayName, style = MaterialTheme.typography.titleLarge)
                             Text(viewer.email)
                             Text(when {
@@ -130,9 +130,9 @@ internal fun WorkspaceScreen(
                             sessionConfirmation?.let { Text(it, color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                             sessionMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                            if (WorkspaceDestination.Learn in available) BpmSecondaryButton(onClick = { navigate(WorkspaceDestination.Learn) }) { Text("Mi aprendizaje") }
-                            BpmSecondaryButton(onClick = onDevices) { Text("Mis dispositivos") }
-                            BpmSecondaryButton(onClick = onAcceptInvitation) { Text("Aceptar una invitación") }
+                            if (WorkspaceDestination.Learn in available) BpmSecondaryButton(onClick = { navigate(WorkspaceDestination.Learn) }, modifier = Modifier.fillMaxWidth()) { Text("Mi aprendizaje") }
+                            BpmSecondaryButton(onClick = onDevices, modifier = Modifier.fillMaxWidth()) { Text("Mis dispositivos") }
+                            BpmSecondaryButton(onClick = onAcceptInvitation, modifier = Modifier.fillMaxWidth()) { Text("Aceptar una invitación") }
                             HorizontalDivider()
                             BpmTextButton(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
                                 BpmIcon(BpmSymbol.Logout)
@@ -160,7 +160,8 @@ internal fun WorkspaceScreen(
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
                                 Text(current.organization.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                Text(current.organization.legalName)
+                                // La razón social solo se muestra si difiere del nombre comercial.
+                                if (current.organization.legalName.isNotBlank() && current.organization.legalName != current.organization.name) Text(current.organization.legalName)
                                 if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
                                 if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
                             }
@@ -184,8 +185,12 @@ internal fun WorkspaceScreen(
                             }
                         }
                         WorkspaceDestination.Team -> {
-                            SectionHeading("Personas que hacen la diferencia", if (current.canManage) "Agregar persona" else null) { open(WorkspaceFormKind.Member) }
-                            if (current.canManage) BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
+                            // Una sola fila de acciones: la principal (agregar) y la de gestión; sin segundo título.
+                            if (current.canManage) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.width(240.dp))
+                                BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
+                            }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")
                             else {
                                 WorkspacePagedList(WorkspaceResource.Members, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -194,7 +199,7 @@ internal fun WorkspaceScreen(
                                     Text(member.name, fontWeight = FontWeight.Bold)
                                     Text(member.email)
                                     Eyebrow(roleLabel(member.role))
-                                    Text(if (member.role == "ADMIN") "Todas las sedes de esta organización" else "${member.locationIds.size} sede(s) asignada(s)", style = MaterialTheme.typography.bodySmall)
+                                    Text(memberLocations(member, current.locations), style = MaterialTheme.typography.bodySmall)
                                 } }
                                 }
                             }
@@ -211,7 +216,7 @@ internal fun WorkspaceScreen(
                             if (secondaryTitle == null) IncidentBanner(onIncidents)
                         }
                     } }
-                } }
+                } } }
                 if (!wide && form == null && !secondaryEditor && !choosingOrganization) NavigationBar {
                     destinations.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = section == item,
@@ -220,11 +225,33 @@ internal fun WorkspaceScreen(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
                             indicatorColor = MaterialTheme.colorScheme.primaryContainer),
-                        label = { Text(item.label, style = MaterialTheme.typography.labelMedium) }) }
+                        label = { Text(item.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }) }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Contenedor común de las pantallas alojadas (formularios, selector, gestión): mismo margen que la
+ * cabecera, ancho máximo único [BpmSpacing.contentMax] y alineado a la izquierda, sin centrar.
+ */
+@Composable private fun HostedContent(modifier: Modifier, wide: Boolean, content: @Composable () -> Unit) {
+    Box(modifier.padding(BpmSpacing.gutter(wide)), contentAlignment = Alignment.TopStart) {
+        Box(Modifier.widthIn(max = BpmSpacing.contentMax).fillMaxSize()) { content() }
+    }
+}
+
+/** Sedes de una persona con su nombre cuando la página cargada las incluye; si no, solo la cantidad. */
+private fun memberLocations(member: Member, locations: List<Location>): String {
+    if (member.role == "ADMIN") return "Todas las sedes de esta organización"
+    val names = member.locationIds.mapNotNull { id -> locations.firstOrNull { it.id == id }?.name }
+    return when {
+        member.locationIds.isEmpty() -> "Sin sedes asignadas"
+        names.size == member.locationIds.size -> names.joinToString(", ")
+        member.locationIds.size == 1 -> "1 sede asignada"
+        else -> "${member.locationIds.size} sedes asignadas"
     }
 }
 

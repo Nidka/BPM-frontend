@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.PageNavigation
 import pe.bpm.core.designsystem.BpmCard
+import pe.bpm.core.designsystem.BpmCardGrid
 import pe.bpm.core.designsystem.EmptyState
 import pe.bpm.core.designsystem.RaisedButton
 import pe.bpm.core.designsystem.BpmTextField
@@ -66,16 +67,9 @@ fun ChecklistCatalogScreen(
                 if (state.visibleTemplates.isEmpty()) {
                     EmptyState("No encontramos coincidencias", "Prueba con otro nombre o área.")
                     BpmTextButton(onClick = { onSearch("") }) { Text("Limpiar búsqueda") }
-                } else BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val columns = if (maxWidth >= 720.dp) 2 else 1
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        state.visibleTemplates.chunked(columns).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                row.forEach { template -> TemplateCard(template, Modifier.weight(1f)) { onSelect(template.id) } }
-                                if (row.size < columns) Spacer(Modifier.weight(1f))
-                            }
-                        }
-                    }
+                } else BpmCardGrid(state.visibleTemplates, minCardWidth = 340.dp, maxColumns = 3) { template, cardModifier ->
+                    // Misma altura por fila y un solo criterio de columnas, como el resto de listas de registros.
+                    TemplateCard(template, cardModifier) { onSelect(template.id) }
                 }
             }
         }
@@ -92,6 +86,7 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSele
         if (template.description.isNotBlank()) Text(template.description)
         Text("Versión ${template.versionNumber} · Publicada", style = MaterialTheme.typography.bodyMedium)
         Text("Preguntas: ${template.items.size} · Obligatorias: ${template.items.count { it.required }}", style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.weight(1f))
         RaisedButton("Abrir plantilla", onSelect, Modifier.fillMaxWidth())
     }
 }

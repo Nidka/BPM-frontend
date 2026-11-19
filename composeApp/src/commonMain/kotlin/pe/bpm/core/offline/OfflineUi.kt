@@ -135,7 +135,9 @@ fun PendingChangesScreen(
     onDismissNotice: () -> Unit, modifier: Modifier = Modifier,
 ) {
     var confirming by remember { mutableStateOf<PendingItem?>(null) }
-    Column(modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Ruta propia (no está alojada en el workspace): margen del tema y ancho de lectura limitado y centrado.
+    Column(modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 900.dp).padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmTextButton(onBack) { Text("Volver") }
         Text("Cambios pendientes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(if (state.status.online) "Conectado" else "Sin conexión: se enviarán al recuperarla.",
@@ -173,7 +175,8 @@ private fun PendingCard(item: PendingItem, now: Long, onRetry: (String) -> Unit,
         Text(item.state.label() + " · registrado ${relativeAge(now, item.createdAt)}", style = MaterialTheme.typography.bodyMedium)
         if (item.message.isNotBlank()) Text(item.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (item.state != PendingState.SENT && item.state != PendingState.SENDING) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Con fuente grande o ancho compacto los dos botones pasan a dos líneas en lugar de cortarse.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (item.canRetry) BpmSecondaryButton({ onRetry(item.id) }) { Text("Reintentar") }
                 BpmTextButton(onDiscard) { Text(if (item.state == PendingState.NEEDS_REVIEW) "Descartar y recargar" else "Descartar") }
             }
