@@ -112,7 +112,7 @@ internal fun WorkspaceScreen(
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel) { taskContent() }
-                else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), secondaryPattern) { secondaryContent() }
+                else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), secondaryPattern, preview = secondaryPattern != BpmPattern.Form) { secondaryContent() }
                 else if (form != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Form, preview = false) {
                     pe.bpm.core.offline.ServerOnly {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },

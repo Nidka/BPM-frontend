@@ -26,6 +26,11 @@ for (const file of walk(source)) {
   const rel = relative(root, file).replaceAll('\\', '/');
   const text = readFileSync(file, 'utf8');
   const lineOf = (offset) => text.slice(0, offset).split('\n').length;
+  // R14: toda pantalla declara su patrón: usa un patrón/primitiva de BpmScreenPatterns o lo anota con `// patrón: motivo`
+  // (para pantallas alojadas por otra, por ejemplo un paso de flujo que ya recibe su marco del shell).
+  if (/features[\\/].*Screens?\.kt$/.test(file) &&
+    !/BpmScreen|BpmPanelLayout|BpmListDetail|BpmGridLayout|BpmStepFlow|BpmFormLayout|BpmShortFields|BpmCenteredCard|BpmAccessScreen|BpmActionBar|BpmWindowBox|BpmPageHeader|patrón:/.test(text))
+    errors.push(`${rel}:1 R14 pantalla sin patrón; usar un patrón de BpmScreenPatterns o anotar // patrón: motivo`);
   // R5 (multilínea): `forEach { x ->` seguido, aunque sea en otra línea, de una tarjeta a ancho completo.
   for (const match of text.matchAll(/forEach\s*\{[^}\n]*->\s*\n?\s*BpmCard\(Modifier\.fillMaxWidth\(\)/g)) {
     const first = lineOf(match.index);

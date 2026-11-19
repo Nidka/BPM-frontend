@@ -1,5 +1,7 @@
 package pe.bpm.features.checklists.presentation
 
+import pe.bpm.core.designsystem.BpmListDetail
+import pe.bpm.core.designsystem.BpmSpacing
 import pe.bpm.core.designsystem.BpmType
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
@@ -40,15 +42,8 @@ fun ChecklistCatalogScreen(
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         if (templateId == null && !management) BpmIntroCard("Cada criterio cuenta.",
             "Elige un control publicado, revisa sus preguntas y complétalo para una sede de tu organización.")
-        if (templateId != null) {
-            when {
-                state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
-                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
-                else -> Text("Cargando plantilla…")
-            }
-            return@Column
-        }
+        // Lista–detalle: al consultar una plantilla, desde 840 dp la lista queda a la izquierda.
+        val list: @Composable () -> Unit = {
         BpmTextField(state.query, { onUserActivity(); onSearch(it) }, "Buscar controles",
             placeholder = "Nombre, área o descripción", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search))
         when {
@@ -75,6 +70,19 @@ fun ChecklistCatalogScreen(
             }
         }
         PageNavigation(state.previous.size + 1, state.previous.isNotEmpty(), state.nextToken.isNotEmpty(), state.loading || state.failure != null, onPrevious, onNext)
+        }
+        if (templateId != null) {
+            BpmListDetail(list = { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) { list() } }, detail = {
+            when {
+                state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
+                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
+                else -> Text("Cargando plantilla…")
+            }
+            })
+            return@Column
+        }
+        list()
     }
 }
 

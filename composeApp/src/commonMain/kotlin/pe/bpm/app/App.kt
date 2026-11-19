@@ -724,9 +724,9 @@ fun App(
                                 secondaryEditor = studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
-                                    studySurvey || learningCourse || running || route == CHECKLIST_OFFLINE_DETAIL -> BpmPattern.StepFlow
+                                    studySurvey || learningCourse || running || offline -> BpmPattern.StepFlow
                                     acceptingInvitation -> BpmPattern.Access
-                                    editingAssignment -> BpmPattern.Form
+                                    editingAssignment || editingTemplate -> BpmPattern.Form
                                     else -> BpmPattern.Panel
                                 },
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,

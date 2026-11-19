@@ -19,7 +19,11 @@ import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.Organization
 import pe.bpm.features.workspace.domain.WorkspaceError
 
-/** Selección de contexto con ruta propia; no mezcla una lista de botones con el contenido empresarial. */
+/**
+ * Selección de contexto con ruta propia; no mezcla una lista de botones con el contenido empresarial.
+ * Patrón de acceso: el shell la aloja en una columna centrada de 440 dp (ver `HostedContent`).
+ */
+// patrón: acceso, alojado por WorkspaceScreen
 @Composable internal fun OrganizationPickerScreen(
     organizations: List<Organization>, selectedId: String?, loading: Boolean, errors: List<WorkspaceError>,
     canCreate: Boolean, onSelect: (String) -> Unit, onCreate: () -> Unit, onUserActivity: () -> Unit,

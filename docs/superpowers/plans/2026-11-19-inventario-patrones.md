@@ -14,16 +14,16 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 | Detalle de revisión | `seguimiento/{runId}`, `control/revisiones/{runId}` | Lista–detalle | ADMIN, CHEF | Hecho (lista a la izquierda desde 840 dp) |
 | Control | `control` | Panel | ADMIN, CHEF | Hecho (controles de hoy + accesos) |
 | Catálogo de plantillas | `control/plantillas` | Rejilla | ADMIN, CHEF | Hecho (rejilla) |
-| Detalle de plantilla | `control/plantilla/{id}` | Lista–detalle | ADMIN, CHEF | Pendiente |
+| Detalle de plantilla | `control/plantilla/{id}` | Lista–detalle | ADMIN, CHEF | Hecho |
 | Revisión de tu sede | `control/plantilla/{id}/iniciar`, `control/ejecucion/{runId}` | Pasos | ADMIN, CHEF | Hecho (720 dp; barra de acción fija al pie en compacta) |
 | Mis revisiones | `control/revisiones` | Lista–detalle | ADMIN, CHEF | Hecho (rejilla) |
-| Controles en este dispositivo | `control/guardados`, `control/guardados/{runId}` | Lista / Pasos | ADMIN, CHEF | Parcial (detalle en 720 dp) |
+| Controles en este dispositivo | `control/guardados`, `control/guardados/{runId}` | Lista / Pasos | ADMIN, CHEF | Hecho (cola y detalle en 720 dp; barra de acción fija) |
 | Control programado | `control/programacion/{id}` | Lista–detalle | ADMIN, CHEF | Hecho (rejilla) |
-| Operación diaria | `control/operacion`, `empresa/operacion` | Lista–detalle | ADMIN, CHEF | Parcial (rejillas) |
+| Operación diaria | `control/operacion`, `empresa/operacion` | Lista–detalle | ADMIN, CHEF | Hecho (rejillas y detalle junto a la lista) |
 | Incidencias | `control/incidencias`, `empresa/incidencias`, `tareas/incidencias` | Lista–detalle | ADMIN, CHEF, WORKER | Hecho (detalle junto a la lista desde 840 dp) |
-| Mis tareas | `tareas` | Pasos | WORKER | Pendiente |
+| Mis tareas | `tareas` | Pasos | WORKER | Hecho |
 | Plantillas de control (gestión) | `empresa/plantillas`, `…/detalle/{id}` | Lista–detalle | ADMIN | Hecho (rejilla) |
-| Nueva plantilla | `empresa/plantillas/nueva` | Formulario | ADMIN | Pendiente |
+| Nueva plantilla | `empresa/plantillas/nueva` | Formulario | ADMIN | Hecho |
 | Versiones de plantilla | `…/detalle/{id}/versiones` | Lista | ADMIN | Hecho (rejilla) |
 | Programar control | `…/detalle/{id}/asignar` | Formulario | ADMIN | Hecho (patrón) |
 | Controles programados | `empresa/controles-programados[/{id}]` | Lista–detalle | ADMIN | Hecho (rejilla) |
@@ -34,7 +34,7 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 | Logros | `aprender-logros` | Rejilla | todos con Aprender | Hecho |
 | Rutas de aprendizaje | `aprender-rutas` | Rejilla | todos con Aprender | Hecho |
 | Encuesta del estudio | `estudio` | Pasos | ADMIN, CHEF, WORKER | Hecho (patrón) |
-| Investigación | `investigacion` | Panel | investigación, BPM | Parcial (rejillas) |
+| Investigación | `investigacion` | Panel | investigación, BPM | Hecho (panel con pestañas; sin indicadores propios) |
 | Mis avisos | `avisos` | Lista | todos | Hecho (rejilla) |
 | Reportes | `reportes` | Panel | ADMIN, CHEF | Hecho (indicadores y rejillas) |
 | Elegir organización | `organizaciones` | Acceso | BPM, varias empresas | Hecho (patrón Acceso) |
@@ -46,12 +46,11 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 | Conexión | `conexion` | Acceso | sin sesión | Hecho |
 | Verificar constancia | `verificar/{codigo}` | Acceso | pública | Hecho |
 
-## Pendientes en orden
+## Qué queda
 
-1. ~~Acceso~~ hecho.
-2. ~~Pasos~~ hecho en la ejecución de un control (`BpmActionBar`); queda «Mis tareas», que es una lista de operación y no un flujo por pasos.
-3. **Formularios:** editor de nueva plantilla, formularios de operación diaria e incidencias (hoy dentro de pantallas de gestión).
-4. ~~Lista–detalle~~ hecho en revisiones, seguimiento e incidencias.
-5. ~~Panel de Control~~ hecho.
-6. **Deuda medida:** 11 `BoxWithConstraints` en pantallas (R12) y 265 avisos congelados en `scripts/spacing-baseline.json` (R8 196, R7 34, R10 24).
-7. **Verificación:** capturas con datos reales por rol (faltan cuentas ADMIN, CHEF, WORKER) y compilación Android.
+Todas las rutas usan un patrón. El verificador corre en modo estricto en el CI (0 avisos) y exige que cada
+`*Screen.kt` use una primitiva de `BpmScreenPatterns` o declare `// patrón: motivo`.
+
+- **Verificación con datos reales:** capturas por rol (ADMIN, CHEF, WORKER) a 360, 600, 840, 1200 y 1600 dp, en tema claro y oscuro y con teclado. Faltan las cuentas de prueba.
+- **Android:** `assembleDebug` no se ha compilado en esta máquina. iOS no se puede verificar sin macOS.
+- **Atajos:** Incidencias, Investigación, Empresas y Acceso son atajos a pantallas existentes, no secciones propias.

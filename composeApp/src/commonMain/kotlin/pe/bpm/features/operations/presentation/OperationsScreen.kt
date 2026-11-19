@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
@@ -54,24 +55,8 @@ fun OperationsScreen(
         state.notice?.let { Text(it) }
         pe.bpm.core.offline.PendingOperationsNotice("supply-receipts", "cleaning-executions")
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        when {
-            state.picker != null -> OperationsPicker(state, viewModel)
-            state.saved != null -> {
-                Text("Registro confirmado", style = MaterialTheme.typography.titleLarge)
-                OperationDetails(state.saved!!)
-                RaisedButton(
-                    "Volver a la lista",
-                    viewModel::closeForm,
-                    Modifier.fillMaxWidth(),
-                    enabled = !state.busy,
-                )
-            }
-            state.form != null -> OperationForm(state, viewModel)
-            state.detail != null -> {
-                OperationDetails(state.detail!!)
-                BpmSecondaryButton(viewModel::closeDetail) { Text("Volver a la lista") }
-            }
-            else -> {
+        // Lista–detalle: desde 840 dp el detalle de un registro va junto a la lista.
+        val listBody: @Composable () -> Unit = {
                 if (state.resource.needsSite && state.siteId == null)
                     Text("Selecciona una sede para consultar esta sección.")
                 else {
@@ -151,7 +136,28 @@ fun OperationsScreen(
                         viewModel::next,
                     )
                 }
+        }
+        when {
+            state.picker != null -> OperationsPicker(state, viewModel)
+            state.saved != null -> {
+                Text("Registro confirmado", style = MaterialTheme.typography.titleLarge)
+                OperationDetails(state.saved!!)
+                RaisedButton(
+                    "Volver a la lista",
+                    viewModel::closeForm,
+                    Modifier.fillMaxWidth(),
+                    enabled = !state.busy,
+                )
             }
+            // Formulario: columna de lectura de 720 dp centrada.
+            state.form != null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) { OperationForm(state, viewModel) } }
+            state.detail != null -> BpmListDetail(list = listBody, detail = {
+                Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
+                    OperationDetails(state.detail!!)
+                    BpmSecondaryButton(viewModel::closeDetail) { Text("Volver a la lista") }
+                }
+            })
+            else -> listBody()
         }
     }
 }
