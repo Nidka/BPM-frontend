@@ -83,11 +83,16 @@ data class ChecklistRunLocation(val id: String, val name: String)
         if (run.status == "DRAFT" && run.performedBy == state.userId) {
             if (state.reviewing) {
                 Text("Al finalizar, las respuestas quedarán cerradas y se mostrará tu resultado.")
-                RaisedButton("Confirmar y finalizar control", onSubmit, enabled = state.editable)
-                BpmSecondaryButton(onClick = onBackToEdit, enabled = state.editable) { Text("Volver a las respuestas") }
+                // Flujo por pasos: en pantalla compacta estas acciones quedan fijas al pie.
+                BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                RaisedButton("Confirmar y finalizar control", onSubmit, Modifier.fillMaxWidth(), enabled = state.editable)
+                BpmSecondaryButton(onClick = onBackToEdit, modifier = Modifier.fillMaxWidth(), enabled = state.editable) { Text("Volver a las respuestas") }
+                } }
             } else {
-                RaisedButton("Guardar borrador", onSave, enabled = state.editable && state.dirty)
-                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
+                BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                RaisedButton("Guardar borrador", onSave, Modifier.fillMaxWidth(), enabled = state.editable && state.dirty)
+                BpmSecondaryButton(onClick = onReview, modifier = Modifier.fillMaxWidth(), enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
+                } }
             }
         }
     }

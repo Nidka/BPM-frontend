@@ -15,7 +15,7 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 | Control | `control` | Panel | ADMIN, CHEF | Hecho (controles de hoy + accesos) |
 | Catálogo de plantillas | `control/plantillas` | Rejilla | ADMIN, CHEF | Hecho (rejilla) |
 | Detalle de plantilla | `control/plantilla/{id}` | Lista–detalle | ADMIN, CHEF | Pendiente |
-| Revisión de tu sede | `control/plantilla/{id}/iniciar`, `control/ejecucion/{runId}` | Pasos | ADMIN, CHEF | Parcial (columna de 720 dp) |
+| Revisión de tu sede | `control/plantilla/{id}/iniciar`, `control/ejecucion/{runId}` | Pasos | ADMIN, CHEF | Hecho (720 dp; barra de acción fija al pie en compacta) |
 | Mis revisiones | `control/revisiones` | Lista–detalle | ADMIN, CHEF | Hecho (rejilla) |
 | Controles en este dispositivo | `control/guardados`, `control/guardados/{runId}` | Lista / Pasos | ADMIN, CHEF | Parcial (detalle en 720 dp) |
 | Control programado | `control/programacion/{id}` | Lista–detalle | ADMIN, CHEF | Hecho (rejilla) |
@@ -49,7 +49,7 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 ## Pendientes en orden
 
 1. ~~Acceso~~ hecho.
-2. **Pasos:** Mis tareas y ejecución de control con barra de acción fija abajo en compacta (requiere que la pantalla tenga su propio scroll).
+2. ~~Pasos~~ hecho en la ejecución de un control (`BpmActionBar`); queda «Mis tareas», que es una lista de operación y no un flujo por pasos.
 3. **Formularios:** editor de nueva plantilla, formularios de operación diaria e incidencias (hoy dentro de pantallas de gestión).
 4. ~~Lista–detalle~~ hecho en revisiones, seguimiento e incidencias.
 5. ~~Panel de Control~~ hecho.

@@ -55,6 +55,7 @@ internal fun WorkspaceScreen(
     val navItems = workspaceNavigation(workspacePrimaryDestinations(available), shortcuts)
     val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     val contentScroll = rememberScrollState()
+    val actionSlot = remember { BpmActionBarSlot() }
     val workspace = state.workspace
     val superAdmin = viewer.canCreateOrganization
     val open: (WorkspaceFormKind) -> Unit = { onClear(); onOpenForm(it) }
@@ -67,7 +68,7 @@ internal fun WorkspaceScreen(
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
         val navMode = BpmNavigationMode.of(windowClass, maxHeight)
         val wide = navMode != BpmNavigationMode.BottomBar
-        ProvideBpmWindowClass(windowClass) {
+        ProvideBpmWindowClass(windowClass) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
             if (navMode == BpmNavigationMode.Rail) NavigationRail(Modifier.width(navMode.width).fillMaxHeight(),
                 containerColor = MaterialTheme.colorScheme.surface, header = { Spacer(Modifier.height(BpmSpacing.sm)); Brand(compact = true) }) {
@@ -240,7 +241,10 @@ internal fun WorkspaceScreen(
                         }
                     } }
                 } } }
-                if (navMode == BpmNavigationMode.BottomBar && form == null && !secondaryEditor && !choosingOrganization) NavigationBar {
+                // Los flujos por pasos publican aquí su barra de acción fija (solo clase compacta) y ocultan la barra de navegación.
+                val stepFlow = secondaryContent != null && secondaryPattern == BpmPattern.StepFlow
+                BpmActionBarHost(actionSlot)
+                if (navMode == BpmNavigationMode.BottomBar && form == null && !secondaryEditor && !stepFlow && !choosingOrganization) NavigationBar {
                     navItems.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = item.isSelected(section, activeShortcut),
                         onClick = { item.open(navigate, onShortcut) }, icon = { item.Icon() },
@@ -252,6 +256,7 @@ internal fun WorkspaceScreen(
                     }
                 }
             }
+        }
         }
         }
     }
