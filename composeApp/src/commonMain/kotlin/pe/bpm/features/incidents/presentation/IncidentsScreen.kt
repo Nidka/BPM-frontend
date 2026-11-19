@@ -58,7 +58,7 @@ fun IncidentsScreen(
                 )
                 if (!s.catalogMode)
                     FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         BpmFilterChip(
@@ -170,7 +170,7 @@ fun IncidentsScreen(
                 }
                 s.history.rows.forEach { event -> // lista-apilada: cronología en orden de eventos
                     BpmCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 "${incidentStatusLabel(event.fromStatus)} → ${incidentStatusLabel(event.toStatus)}"
                             )
@@ -218,7 +218,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
     if (catalog)
         s.catalogChoices.rows.forEach { value -> // lista-apilada: selector dentro de un formulario
             BpmCard(Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(value.name)
                     Text(
                         "${value.area} · ${incidentRiskLabel(value.riskLevel)} · Versión ${value.versionNumber}"
@@ -233,7 +233,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
     else
         s.choices.rows.forEach { value -> // lista-apilada: selector dentro de un formulario
             BpmCard(Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(value.displayName)
                     Text(when (value.role) { "ADMIN" -> "Administrador"; "CHEF" -> "Chef"; else -> "Colaborador" })
                     BpmSecondaryButton({ vm.select(value) }, enabled = !loading) {

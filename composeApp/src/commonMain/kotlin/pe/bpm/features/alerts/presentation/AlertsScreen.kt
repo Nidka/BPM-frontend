@@ -42,7 +42,7 @@ fun AlertsScreen(
     val a = s.detail
     if (a != null) {
       BpmCard(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
           Text(a.title, style = MaterialTheme.typography.titleLarge)
           Text(alertStatusLabel(a))
           pe.bpm.core.offline.PendingBadge(a.id)
@@ -87,7 +87,7 @@ fun AlertsScreen(
     } else if (!s.detailLoading) {
       BpmSearchField(s.inbox.query, viewModel::query, "Buscar avisos", loading = s.loading)
       FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         AlertFilter.entries.forEach { f ->

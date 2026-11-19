@@ -39,14 +39,14 @@ private fun Failure(failure: ReportFailure, onRetry: () -> Unit, fields: Map<Str
 
 @Composable
 private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
-    Text("Avance por curso", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("Avance por curso", style = MaterialTheme.typography.titleLarge)
     if (state.coursesLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.coursesFailure?.let { Failure(it, vm::loadCourseRows) }
     state.courses?.let { courses ->
         if (courses.isEmpty()) EmptyState("Sin cursos publicados", "Cuando publiques un curso verás aquí el avance de tu equipo.")
         BpmGridLayout(courses) { course, cardModifier ->
             BpmCard(cardModifier) {
-                Text(course.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(course.title, style = MaterialTheme.typography.titleMedium)
                 Text(course.code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${formatPercent(course.completionPercent)} completado")
                 PercentBar(course.completionPercent)
@@ -55,7 +55,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
                 BpmSecondaryButton(onClick = { vm.filterCourse(course.courseId) }) { Text("Ver personas de este curso") }
             }
         }
-        Text("Avance por persona", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Avance por persona", style = MaterialTheme.typography.titleLarge)
         if (state.courseFilter != null) {
             Text("Mostrando un curso: ${courses.firstOrNull { it.courseId == state.courseFilter }?.title.orEmpty()}")
             BpmTextButton(onClick = { vm.filterCourse(null) }) { Text("Ver todos los cursos") }
@@ -66,7 +66,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
     if (state.peopleLoaded && state.people.isEmpty()) EmptyState("Sin personas para mostrar", "No hay personas activas con cursos publicados.")
     BpmGridLayout(state.people) { person, cardModifier ->
         BpmCard(cardModifier) {
-            Text(person.displayName, fontWeight = FontWeight.Bold)
+            Text(person.displayName, style = BpmType.bodyStrong)
             Eyebrow(roleName(person.role))
             Text("${person.completed} de ${person.publishedCourses} cursos completados · ${person.inProgress} en curso", style = MaterialTheme.typography.bodySmall)
             if (person.averageBestScore != null) Text("Puntaje promedio: ${formatPercent(person.averageBestScore)}", style = MaterialTheme.typography.bodySmall)
@@ -82,12 +82,12 @@ private fun SettingsSection(vm: ReportsAdminViewModel, state: AdminState) {
     state.settingsFailure?.let { Failure(it, vm::loadSettingsNow) }
     if (state.settings == null) return
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Configuración de reportes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Configuración de reportes", style = MaterialTheme.typography.titleMedium)
         BpmTextField(state.thresholdText, vm::editThreshold, "Umbral de constancia (1 a 100 %)", Modifier.widthIn(max = 320.dp),
             error = if (state.thresholdInvalid) "Escribe un número entre 1 y 100 con hasta 2 decimales." else null,
             supportingText = "Una constancia solo se emite si el cumplimiento promedio del período alcanza este valor.")
         BpmCheckboxRow("Enviar el correo semanal de cumplimiento a las personas administradoras", state.weeklyEnabled) { vm.toggleWeekly(it) }
-        RaisedButton(if (state.settingsSaving) "Guardando…" else "Guardar configuración", vm::saveSettingsNow, Modifier.widthIn(max = 320.dp).fillMaxWidth(),
+        RaisedButton(if (state.settingsSaving) "Guardando…" else "Guardar configuración", vm::saveSettingsNow, Modifier.widthIn(min = 160.dp),
             enabled = !state.settingsSaving && state.settingsDirty)
         if (state.settingsSaved) Text("Configuración guardada.", color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
@@ -96,31 +96,31 @@ private fun SettingsSection(vm: ReportsAdminViewModel, state: AdminState) {
 @Composable
 private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Solicitar constancia de cumplimiento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Solicitar constancia de cumplimiento", style = MaterialTheme.typography.titleMedium)
         Text("Se calcula con todas las sedes del período. El período debe haber terminado antes de hoy.")
         BpmFieldPair(
             { m -> BpmTextField(state.certFrom, vm::editCertFrom, "Desde (AAAA-MM-DD)", m,
                 error = state.certPeriodError?.let { ReportPeriodRules.message(it, ReportPeriodRules.SUMMARY_MAX_DAYS) }) },
             { m -> BpmTextField(state.certTo, vm::editCertTo, "Hasta (AAAA-MM-DD)", m) },
         )
-        RaisedButton(if (state.issuing) "Solicitando…" else "Solicitar constancia", vm::issue, Modifier.widthIn(max = 320.dp).fillMaxWidth(), enabled = !state.issuing)
+        RaisedButton(if (state.issuing) "Solicitando…" else "Solicitar constancia", vm::issue, Modifier.widthIn(min = 160.dp), enabled = !state.issuing)
         state.issueFailure?.let { Text(reportFailureMessage(it, state.issueFields), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.issued?.let {
             Text(if (it.created) "Constancia emitida. Código: ${it.certificate.verificationCode}" else "Ese período ya tenía una constancia. Código: ${it.certificate.verificationCode}",
                 color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         }
     }
-    Text("Constancias emitidas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("Constancias emitidas", style = MaterialTheme.typography.titleLarge)
     if (state.certificatesLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.certificatesFailure?.let { Failure(it, { vm.loadCertificates(false) }) }
     if (state.certificatesLoaded && state.certificates.isEmpty()) EmptyState("Aún no hay constancias", "Cuando solicites una constancia aparecerá en esta lista.")
     BpmGridLayout(state.certificates) { certificate, cardModifier ->
         BpmCard(cardModifier) {
-            Text("${longDate(certificate.periodStart)} al ${longDate(certificate.periodEnd)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("${longDate(certificate.periodStart)} al ${longDate(certificate.periodEnd)}", style = MaterialTheme.typography.titleMedium)
             Text("Cumplimiento ${formatPercent(certificate.averageCompliance)} (umbral ${formatPercent(certificate.threshold)}) · ${certificate.runs} controles")
             Text("Emitida el ${longDate(certificate.issuedAt)}", style = MaterialTheme.typography.bodySmall)
             Text("Código de verificación", style = MaterialTheme.typography.labelMedium)
-            Text(certificate.verificationCode, fontWeight = FontWeight.Bold)
+            Text(certificate.verificationCode, style = BpmType.bodyStrong)
             Text("Verificación pública: /verificar-cumplimiento/${certificate.verificationCode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

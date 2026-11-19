@@ -35,13 +35,13 @@ import pe.bpm.features.workspace.domain.*
             description = if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
                 else "Consulta las empresas, sus sedes y los permisos del equipo.",
         ) {
-            if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp).fillMaxWidth())
+            if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(min = 160.dp))
         }
     }
 }
 
 @Composable private fun SetupStatus(label: String, complete: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmIcon(if (complete) BpmSymbol.Check else BpmSymbol.Clock, tint = MaterialTheme.colorScheme.primary)
         Text(label)
     }

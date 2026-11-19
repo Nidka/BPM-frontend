@@ -36,7 +36,7 @@ fun CertificateVerificationScreen(code: String, viewModel: CertificateVerificati
                     Text("Cumplimiento promedio: ${formatPercent(cert.averageCompliance)}")
                     Text("Umbral exigido: ${formatPercent(cert.threshold)}")
                     Text("Emitida el ${longDate(cert.issuedAt)}")
-                    Text("Código: ${cert.verificationCode}", fontWeight = FontWeight.Bold)
+                    Text("Código: ${cert.verificationCode}", style = BpmType.bodyStrong)
                 }
             }
             state.failure?.let { failure ->

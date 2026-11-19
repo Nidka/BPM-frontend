@@ -27,7 +27,7 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String) {
         }, onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
             BpmGridLayout(state.page.items) { member, cardModifier ->
                 BpmCard(cardModifier) {
-                    Text(member.name, fontWeight = FontWeight.Bold)
+                    Text(member.name, style = BpmType.bodyStrong)
                     Text(member.email)
                     Eyebrow(member.role.label + if (member.status == RecordStatus.INACTIVE) " · Inactiva" else "")
                     Text(if (member.role == MemberRole.ADMIN) "Todas las sedes de esta organización" else locationNames(member.locationIds, state.locations),
@@ -46,7 +46,7 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String) {
 
 @Composable private fun MemberEditorCard(editor: MemberEditor, state: TeamState, viewModel: TeamViewModel) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Editar a ${editor.member.name}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Editar a ${editor.member.name}", style = MaterialTheme.typography.titleMedium)
         Text(editor.member.email, style = MaterialTheme.typography.bodySmall)
         RolePicker(editor.role, !state.busy, viewModel::editRole, editor.fields["role"])
         if (editor.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, editor.locationIds, !state.busy,

@@ -48,7 +48,7 @@ fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
             BpmGridLayout(state.page.items) { device, cardModifier ->
                 BpmCard(cardModifier) {
-                    Text(device.platform.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(device.platform.label, style = MaterialTheme.typography.titleMedium)
                     Text(device.organizationName.ifBlank { "Organización" })
                     Text(device.lastSeenAt?.let { "Última actividad: ${displayDateTime(it)}" } ?: "Sin actividad registrada", style = MaterialTheme.typography.bodySmall)
                     Text("Registrado: ${displayDateTime(device.createdAt)}", style = MaterialTheme.typography.bodySmall)
@@ -67,12 +67,12 @@ fun InvitationAcceptScreen(viewModel: InvitationAcceptViewModel, onContinue: () 
         val accepted = state.accepted
         if (accepted != null) {
             BpmCard(Modifier.fillMaxWidth()) {
-                Text("¡Listo! Te uniste a la organización", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("¡Listo! Te uniste a la organización", style = MaterialTheme.typography.titleLarge)
                 Text("Tu rol es ${accepted.role.label}.")
                 RaisedButton("Continuar", onContinue, Modifier.fillMaxWidth())
             }
         } else BpmCard(Modifier.fillMaxWidth()) {
-            Text("Aceptar una invitación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Aceptar una invitación", style = MaterialTheme.typography.titleLarge)
             Text("Inicia sesión con el correo que recibió la invitación y pega aquí el código o el enlace del correo.")
             BpmTextField(state.input, viewModel::edit, "Código o enlace de la invitación", Modifier.fillMaxWidth(), error = state.fieldError, enabled = !state.busy)
             AccountMessages(state.failure, null)

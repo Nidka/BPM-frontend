@@ -172,7 +172,7 @@ private fun OperationsPicker(state: OperationsState, vm: OperationsViewModel) {
         Text("No hay coincidencias. Puedes cambiar la búsqueda.")
     state.pickerRows.forEach { entry -> // lista-apilada: selector dentro de un formulario
         BpmCard(Modifier.fillMaxWidth()) {
-            Column(Modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(entry.title())
                 Text(entry.subtitle(), style = MaterialTheme.typography.bodySmall)
                 val active = (entry as? OperationsEntry.PlanEntry)?.value?.active != false

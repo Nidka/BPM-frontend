@@ -37,7 +37,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         onResult = { result -> viewModel.select(result, state.context, state.userId) },
     )
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Fotos guardadas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Fotos guardadas", style = MaterialTheme.typography.titleLarge)
         Text(if (state.confirmedCount == 1) "1 foto guardada" else "${state.confirmedCount} fotos guardadas", style = MaterialTheme.typography.bodyMedium)
         if (state.loading || state.busy) {
             if (state.progress == null) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -63,7 +63,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
             }
         }
         if (state.pendingName != null) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.secondaryContainer) {
-            Text(state.pendingName, fontWeight = FontWeight.Bold)
+            Text(state.pendingName, style = BpmType.bodyStrong)
             Text("Esta foto todavía no se ha guardado. Reintenta el envío antes de cerrar este panel. Si lo cierras, tendrás que volver a seleccionarla.")
             if (state.pendingNeedsConfirmation) Text("Al reintentar comprobaremos si la foto ya se guardó.")
             if (!state.busy) {
@@ -83,7 +83,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         if (state.failure != null) BpmSecondaryButton(onClick = viewModel::refresh, enabled = !state.loading && !state.busy) { Text("Reintentar consulta") }
         state.removalCandidate?.let { file ->
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
-                Text("¿Retirar ${file.originalName}?", fontWeight = FontWeight.Bold)
+                Text("¿Retirar ${file.originalName}?", style = BpmType.bodyStrong)
                 Text("Dejará de contar como evidencia.")
                 RaisedButton("Confirmar retirada", viewModel::confirmRemove, enabled = !state.busy)
                 BpmSecondaryButton(onClick = viewModel::cancelRemove, enabled = !state.busy) { Text("Conservar foto") }

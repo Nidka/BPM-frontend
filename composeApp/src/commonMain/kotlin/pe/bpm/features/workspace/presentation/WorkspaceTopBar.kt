@@ -55,7 +55,7 @@ import pe.bpm.core.designsystem.*
             }
         },
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (!wide && onBack == null) Brand(compact = true)
                 if (canChangeOrganization) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 Surface(onClick = onToggleOrganization, enabled = enabled,
@@ -81,8 +81,7 @@ import pe.bpm.core.designsystem.*
     Column(modifier.heightIn(min = 48.dp), verticalArrangement = Arrangement.Center) {
         Text(if (wide) "Organización" else BpmBrand.name,
             style = if (wide) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
-            color = if (wide) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-            fontWeight = if (wide) FontWeight.Normal else FontWeight.Bold)
+            color = if (wide) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(organizationName ?: "Mi espacio", modifier = Modifier.weight(1f, fill = false),
                 style = if (wide) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelMedium,

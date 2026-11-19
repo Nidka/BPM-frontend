@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
             .border(if (focused) 3.dp else 2.dp, if (focused) MaterialTheme.colorScheme.onSurface else outline, MaterialTheme.shapes.medium)
             .selectable(selected, interactionSource = interactions, indication = LocalIndication.current,
                 enabled = enabled, role = Role.RadioButton, onClick = onSelect).padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RadioButton(selected, onClick = null, enabled = enabled)
             Column(Modifier.weight(1f).padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(label)

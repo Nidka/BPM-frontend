@@ -59,7 +59,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
             if (!state.busy) Text("Esta revisión no está disponible en este dispositivo con tus permisos actuales.")
             return@Column
         }
-        Text(entry.run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(entry.run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.headlineSmall)
         Text(entry.run.locationName.ifBlank { "Sede de la revisión" })
         if (entry.status != OfflineRunStatus.LOCAL || state.localStatus != DraftSaveStatus.SAVING)
             Text(offlineRunLabel(entry), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

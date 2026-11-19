@@ -53,9 +53,9 @@ private fun statusLabel(status: CourseStatus) = when (status) {
 
 @Composable
 private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewModel) {
-    Text("Cursos de Academia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Cursos de Academia", style = MaterialTheme.typography.headlineMedium)
     Text("Prepara lecciones con texto y video, escribe preguntas con su explicación y publica cuando todo esté listo. Quienes ya aprenden siguen viendo la versión publicada hasta que publiques otra.")
-    RaisedButton("Crear curso", viewModel::startCreate, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+    RaisedButton("Crear curso", viewModel::startCreate, Modifier.widthIn(min = 160.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BpmFilterChip(state.statusFilter == null, { viewModel.filter(null) }, { Text("Todos") })
         CourseStatus.entries.forEach { status ->
@@ -66,7 +66,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
     BpmGridLayout(state.courses) { course, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(course.code)
-            Text(course.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(course.title, style = MaterialTheme.typography.titleMedium)
             Text(statusLabel(course.status) + (course.publishedVersionNumber?.let { " · versión $it publicada" } ?: ""))
             if (course.hasDraft) Text("Tiene un borrador en preparación", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BpmSecondaryButton(onClick = { viewModel.openDraft(course.id) }, modifier = Modifier.fillMaxWidth()) { Text(if (course.hasDraft) "Editar borrador" else "Preparar nueva versión") }
@@ -78,7 +78,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
 private fun CreateCourseForm(state: AuthoringState, viewModel: TrainingAuthoringViewModel) {
     val form = state.creating ?: return
     fun issue(kind: DraftIssueKind) = if (form.showIssues) form.issues.firstOrNull { it.kind == kind }?.message else null
-    Text("Nuevo curso", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Nuevo curso", style = MaterialTheme.typography.headlineMedium)
     BpmTextField(form.code, { v -> viewModel.editCreate { it.copy(code = v) } }, "Código del curso (por ejemplo M-01)", error = issue(DraftIssueKind.COURSE_CODE), enabled = !state.creatingBusy)
     BpmTextField(form.title, { v -> viewModel.editCreate { it.copy(title = v) } }, "Título", error = issue(DraftIssueKind.COURSE_TITLE), enabled = !state.creatingBusy)
     BpmTextField(form.description, { v -> viewModel.editCreate { it.copy(description = v) } }, "Descripción", error = issue(DraftIssueKind.COURSE_DESCRIPTION),
@@ -87,7 +87,7 @@ private fun CreateCourseForm(state: AuthoringState, viewModel: TrainingAuthoring
         error = issue(DraftIssueKind.COURSE_DURATION), inputKind = BpmInputKind.Integer, enabled = !state.creatingBusy)
     state.createFailure?.let { Text(trainingFailureMessage(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     if (state.creatingBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Crear y preparar", viewModel::create, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.creatingBusy)
+    RaisedButton("Crear y preparar", viewModel::create, Modifier.widthIn(min = 160.dp), enabled = !state.creatingBusy)
     BpmTextButton(onClick = viewModel::cancelCreate, enabled = !state.creatingBusy) { Text("Cancelar") }
 }
 
@@ -98,13 +98,13 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
     fun issue(kind: DraftIssueKind, id: String = "") = issues.firstOrNull { it.kind == kind && it.id == id }?.message
     val enabled = !editor.saving && !editor.publishing
     Eyebrow("BORRADOR · VERSIÓN ${draft.versionNumber}")
-    Text(draft.course.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(draft.course.title, style = MaterialTheme.typography.headlineMedium)
     Text(if (editor.dirty) "Tienes cambios sin guardar." else "Todo guardado.", style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     BpmTextField(draft.passingScore.toString(), { v -> viewModel.edit { it.copy(passingScore = v.filter(Char::isDigit).take(3).toIntOrNull() ?: 0) } },
         "Puntaje de aprobación (0 a 100)", error = issue(DraftIssueKind.PASSING_SCORE), inputKind = BpmInputKind.Integer, enabled = enabled)
 
-    Text("Lecciones (${draft.lessons.size} de ${TrainingLimits.MAX_LESSONS})", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("Lecciones (${draft.lessons.size} de ${TrainingLimits.MAX_LESSONS})", style = MaterialTheme.typography.titleLarge)
     draft.lessons.forEachIndexed { number, lesson ->
         key(lesson.id) {
             BpmCard(Modifier.fillMaxWidth()) {
@@ -126,14 +126,14 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
     }
     BpmSecondaryButton(onClick = viewModel::newLesson, enabled = enabled && draft.lessons.size < TrainingLimits.MAX_LESSONS) { Text("+ Agregar lección") }
 
-    Text("Preguntas (${draft.questions.size} de ${TrainingLimits.MAX_QUESTIONS})", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("Preguntas (${draft.questions.size} de ${TrainingLimits.MAX_QUESTIONS})", style = MaterialTheme.typography.titleLarge)
     draft.questions.forEachIndexed { number, question ->
         key(question.id) { QuestionEditor(number, question, draft, enabled, ::issue, viewModel) }
     }
     BpmSecondaryButton(onClick = { viewModel.newQuestion(null) }, enabled = enabled && draft.questions.size < TrainingLimits.MAX_QUESTIONS) { Text("+ Agregar pregunta general") }
 
     if (issues.isNotEmpty()) BpmCard(Modifier.fillMaxWidth()) {
-        Text("Corrige antes de continuar", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+        Text("Corrige antes de continuar", style = BpmType.bodyStrong, color = MaterialTheme.colorScheme.error)
         issues.distinctBy { it.message }.take(8).forEach { Text("• ${it.message}", color = MaterialTheme.colorScheme.error) }
     }
     editor.failure?.let { failure ->
@@ -141,7 +141,7 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
         if (failure == TrainingFailure.DRAFT_CONFLICT) BpmSecondaryButton(onClick = viewModel::reloadDraft) { Text("Recargar borrador (descarta mis cambios locales)") }
     }
     if (editor.saving || editor.publishing) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Guardar borrador", { viewModel.save() }, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = enabled && !editor.uploading && editor.dirty)
+    RaisedButton("Guardar borrador", { viewModel.save() }, Modifier.widthIn(min = 160.dp), enabled = enabled && !editor.uploading && editor.dirty)
     BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.uploading, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
         Text(if (editor.dirty) "Guardar y publicar" else "Publicar curso")
     }
@@ -153,7 +153,7 @@ private fun LessonVideoEditor(editor: DraftEditorState, lesson: DraftLesson, vie
     val pickVideo = rememberLessonVideoPicker(TrainingLimits.CLIENT_VIDEO_MAX_BYTES) { viewModel.attachVideo(lesson.id, it) }
     val uploadingHere = editor.uploadLessonId == lesson.id
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(if (lesson.videoMediaId != null) "Video adjunto" else if (lesson.externalVideoId != null) "Video de YouTube" else "Sin video", fontWeight = FontWeight.Bold)
+        Text(if (lesson.videoMediaId != null) "Video adjunto" else if (lesson.externalVideoId != null) "Video de YouTube" else "Sin video", style = BpmType.bodyStrong)
         if (uploadingHere && editor.uploading) {
             LinearProgressIndicator(progress = { editor.uploadProgress }, modifier = Modifier.fillMaxWidth())
             Text("Subiendo video… ${(editor.uploadProgress * 100).toInt()} %", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

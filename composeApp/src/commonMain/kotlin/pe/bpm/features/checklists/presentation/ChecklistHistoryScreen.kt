@@ -15,7 +15,7 @@ import pe.bpm.features.checklists.domain.*
     onSearch: (String) -> Unit, onFilter: (String) -> Unit, onNext: () -> Unit, onPrevious: () -> Unit,
     onRetry: () -> Unit, onOpen: (ChecklistRunSummary) -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(if (canPerform) "Mis revisiones" else "Revisiones del equipo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(if (canPerform) "Mis revisiones" else "Revisiones del equipo", style = MaterialTheme.typography.titleLarge)
         Text(if (canPerform) "Continúa lo que dejaste en curso o consulta tus revisiones finalizadas."
             else "Consulta quién revisó cada sede, cuándo lo hizo y cuál fue el resultado.")
         BpmSearchField(state.query, onSearch, "Buscar revisión", placeholder = "Nombre del control, sede o responsable", loading = state.loading)
@@ -36,7 +36,7 @@ import pe.bpm.features.checklists.domain.*
                 else "Las revisiones aparecerán cuando el chef comience un control en una sede autorizada.")
             else -> BpmGridLayout(state.items) { item, cardModifier -> BpmCard(cardModifier) {
                 Eyebrow(if (item.status == "DRAFT") "EN CURSO" else "FINALIZADA")
-                Text(item.templateName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(item.templateName, style = MaterialTheme.typography.titleMedium)
                 // Los datos de la revisión se agrupan con poca separación; el relleno de 14 dp separa bloques.
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(item.locationName)
@@ -46,8 +46,8 @@ import pe.bpm.features.checklists.domain.*
                         Text("Finalización: ${displayDateTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (item.status == "DRAFT") Text("${item.answerCount} de ${item.questionCount} respuestas guardadas", fontWeight = FontWeight.Bold)
-                else Text("Cumplimiento: ${item.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %", fontWeight = FontWeight.Bold)
+                if (item.status == "DRAFT") Text("${item.answerCount} de ${item.questionCount} respuestas guardadas", style = BpmType.bodyStrong)
+                else Text("Cumplimiento: ${item.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %", style = BpmType.bodyStrong)
                 Spacer(Modifier.weight(1f)) // empuja el botón al borde inferior para alinear la fila
                 BpmSecondaryButton(onClick = { onOpen(item) }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (canPerform && item.status == "DRAFT" && item.performedBy == state.userId) "Continuar revisión" else "Ver revisión")
@@ -67,7 +67,7 @@ import pe.bpm.features.checklists.domain.*
     val run = state.detail ?: return
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-            Text(run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.titleLarge)
             if (run.locationName.isNotBlank()) Text(run.locationName)
             if (run.performedByName.isNotBlank()) Text("Responsable: ${run.performedByName}")
             Text(if (run.status == "SUBMITTED") "Revisión finalizada. Las respuestas están cerradas." else "Revisión en curso. Esta vista permite consultar las respuestas guardadas.")
@@ -86,7 +86,7 @@ import pe.bpm.features.checklists.domain.*
 @Composable internal fun ChecklistAnswerReview(item: ChecklistItem, index: Int, input: RunAnswerInput, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow(item.sectionName)
-        Text("${index + 1}. ${item.label}", fontWeight = FontWeight.Bold)
+        Text("${index + 1}. ${item.label}", style = BpmType.bodyStrong)
         Text(complianceLabels[input.value] ?: input.value.ifBlank { "Sin respuesta" })
         if (input.observation.isNotBlank()) Text("Observación: ${input.observation}")
         evidence(item)

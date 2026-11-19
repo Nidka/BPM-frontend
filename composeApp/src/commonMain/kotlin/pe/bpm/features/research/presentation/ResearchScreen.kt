@@ -68,7 +68,7 @@ private fun ErrorLine(failure: ResearchFailure?) {
 
 @Composable
 private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
-    Text("Consentimiento informado", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Consentimiento informado", style = MaterialTheme.typography.headlineMedium)
     val form = state.documentForm
     if (form != null) {
         Text("Al publicar una versión nueva, la vigente se archiva y todas las personas participantes deberán aceptarla de nuevo.")
@@ -84,12 +84,12 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
         ErrorLine(state.documentFailure)
         if (state.documentBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Publicar versión", viewModel::publishDocument, Modifier.widthIn(min = 220.dp), enabled = !state.documentBusy)
+            RaisedButton("Publicar versión", viewModel::publishDocument, Modifier.widthIn(min = 160.dp), enabled = !state.documentBusy)
             BpmSecondaryButton(onClick = viewModel::cancelDocument, enabled = !state.documentBusy) { Text("Cancelar") }
         }
         return
     }
-    RaisedButton("Publicar nueva versión", viewModel::startDocument, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+    RaisedButton("Publicar nueva versión", viewModel::startDocument, Modifier.widthIn(min = 160.dp))
     if (state.documentsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.documentsFailure)
     if (state.documentsFailure != null) BpmSecondaryButton(onClick = { viewModel.loadDocuments(force = true) }) { Text("Volver a intentar") }
@@ -98,7 +98,7 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
         var expanded by remember(document.version) { mutableStateOf(false) }
         BpmCard(Modifier.fillMaxWidth(), tint = if (document.status == ConsentStatus.ACTIVE) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
             Eyebrow(if (document.status == ConsentStatus.ACTIVE) "VIGENTE" else "ARCHIVADO")
-            Text("${document.title} · ${document.version}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("${document.title} · ${document.version}", style = MaterialTheme.typography.titleMedium)
             Text("Investigador responsable: ${document.responsibleInvestigator} · publicado el ${document.publishedAt.take(10)}", style = MaterialTheme.typography.bodySmall)
             if (expanded) Text(document.text)
             BpmTextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Ocultar texto" else "Ver texto completo") }
@@ -119,7 +119,7 @@ private fun InstrumentsTab(controller: InstrumentsController) {
     val state by controller.state.collectAsStateWithLifecycle()
     val editor = state.editor
     if (editor != null) { DraftEditor(editor, controller); return }
-    Text("Cuestionarios", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Cuestionarios", style = MaterialTheme.typography.headlineMedium)
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     val form = state.import
     if (form != null) {
@@ -129,12 +129,12 @@ private fun InstrumentsTab(controller: InstrumentsController) {
         ErrorLine(form.failure)
         if (form.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Importar como borrador", controller::confirmImport, Modifier.widthIn(min = 240.dp), enabled = !form.busy && form.text.isNotBlank())
+            RaisedButton("Importar como borrador", controller::confirmImport, Modifier.widthIn(min = 160.dp), enabled = !form.busy && form.text.isNotBlank())
             BpmSecondaryButton(onClick = controller::cancelImport, enabled = !form.busy) { Text("Cancelar") }
         }
         return
     }
-    RaisedButton("Importar cuestionario (JSON)", controller::startImport, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+    RaisedButton("Importar cuestionario (JSON)", controller::startImport, Modifier.widthIn(min = 160.dp))
     if (state.loading || state.openingId != null) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.failure)
     if (state.failure != null && state.items.isEmpty()) BpmSecondaryButton(onClick = { controller.load(force = true) }) { Text("Volver a intentar") }
@@ -142,7 +142,7 @@ private fun InstrumentsTab(controller: InstrumentsController) {
     BpmGridLayout(state.items) { item, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(item.code + if (item.isCap) " · CAP" else "")
-            Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(item.name, style = MaterialTheme.typography.titleMedium)
             Text(item.publishedVersionNumber?.let { "Versión publicada: $it" } ?: "Sin versión publicada", style = MaterialTheme.typography.bodySmall)
             if (item.hasDraft) BpmSecondaryButton(onClick = { controller.openDraft(item.id) }, enabled = state.openingId == null, modifier = Modifier.fillMaxWidth()) { Text("Editar borrador") }
             else if (item.publishedVersionNumber != null) BpmSecondaryButton(onClick = { controller.newVersion(item.id) }, enabled = state.openingId == null, modifier = Modifier.fillMaxWidth()) { Text("Crear nueva versión") }
@@ -152,12 +152,12 @@ private fun InstrumentsTab(controller: InstrumentsController) {
 
 @Composable
 private fun DraftEditor(editor: DraftEditorState, controller: InstrumentsController) {
-    Text("${editor.draft.name} · borrador de la versión ${editor.draft.versionNumber}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Text("${editor.draft.name} · borrador de la versión ${editor.draft.versionNumber}", style = MaterialTheme.typography.headlineSmall)
     Text("Elige la respuesta correcta de cada pregunta de opción múltiple. Las respuestas correctas solo las ves tú: las personas participantes nunca las reciben." +
         if (editor.draft.isCap) " El cuestionario CAP necesita exactamente ${ResearchLimits.CAP_KNOWLEDGE} preguntas de opción múltiple, ${ResearchLimits.CAP_ATTITUDE} de actitud y ${ResearchLimits.CAP_PRACTICE} de frecuencia." else "")
     if (editor.discarding) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
-            Text("Tienes cambios sin guardar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Tienes cambios sin guardar", style = MaterialTheme.typography.titleMedium)
             BpmSecondaryButton(onClick = controller::discardEditor) { Text("Descartar cambios y salir") }
             BpmTextButton(onClick = controller::keepEditing) { Text("Seguir editando") }
         }
@@ -169,7 +169,7 @@ private fun DraftEditor(editor: DraftEditorState, controller: InstrumentsControl
         }
     }
     if (editor.showIssues && editor.problems.isNotEmpty()) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
-        Text("Antes de publicar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Antes de publicar", style = MaterialTheme.typography.titleMedium)
         editor.problems.forEach { Text("• $it") }
     }
     ErrorLine(editor.failure)
@@ -177,7 +177,7 @@ private fun DraftEditor(editor: DraftEditorState, controller: InstrumentsControl
     if (editor.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmSecondaryButton(onClick = controller::save, enabled = editor.dirty && !editor.busy) { Text(if (editor.dirty) "Guardar borrador" else "Borrador guardado") }
-        RaisedButton("Publicar versión", controller::publish, Modifier.widthIn(min = 220.dp), enabled = !editor.busy)
+        RaisedButton("Publicar versión", controller::publish, Modifier.widthIn(min = 160.dp), enabled = !editor.busy)
         BpmTextButton(onClick = { controller.closeEditor() }, enabled = !editor.busy) { Text("Volver a la lista") }
     }
 }
@@ -214,18 +214,18 @@ private fun ResultsTab(controller: AnalysisController) {
     // La plataforma recibe el archivo una sola vez; después los bytes se descartan.
     LaunchedEffect(state.pendingExport) { state.pendingExport?.let { export -> saver.save(export.fileName, "text/csv", export.bytes.decodeToString()) { result -> controller.exportDelivered(saved = result == FileSaveResult.SAVED, failed = result == FileSaveResult.FAILED) } } }
     LaunchedEffect(Unit) { controller.loadOrganizations() }
-    Text("Resultados por empresa", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Resultados por empresa", style = MaterialTheme.typography.headlineMedium)
     Text("Comparación entre la encuesta inicial y la final. Los conocimientos van de 0 a 100; actitudes y prácticas, de 1 a 5. Las empresas con pocas personas participantes pueden dar promedios poco estables.")
     OrganizationFilter(state, controller, label = "Exportar respuestas de")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     ErrorLine(state.exportFailure)
-    RaisedButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.exporting && state.pendingExport == null)
+    RaisedButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.widthIn(min = 160.dp), enabled = !state.exporting && state.pendingExport == null)
     Text("El archivo no incluye correos, nombres ni identificadores de usuario; las empresas se identifican con un código opaco.", style = MaterialTheme.typography.bodySmall)
     if (state.resultsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.resultsFailure)
     if (state.resultsFailure != null) BpmSecondaryButton(onClick = controller::refreshResults) { Text("Volver a intentar") }
     val results = state.results ?: return
-    Text("Versión ${results.version.versionNumber} del cuestionario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Text("Versión ${results.version.versionNumber} del cuestionario", style = MaterialTheme.typography.titleMedium)
     if (results.page.items.isEmpty()) EmptyState("Sin resultados", "Todavía no hay empresas con personas participantes.")
     BpmGridLayout(results.page.items) { result, cardModifier -> ResultCard(result, cardModifier) }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -247,7 +247,7 @@ internal fun formatNumber(value: Double): String {
 @Composable
 private fun ResultCard(result: OrganizationResult, modifier: Modifier = Modifier) {
     BpmCard(modifier) {
-        Text(result.organizationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(result.organizationName, style = MaterialTheme.typography.titleMedium)
         Text("${result.participants} participantes · ${result.pretest.n} encuestas iniciales · ${result.posttest.n} finales · ${result.paired.n} personas con ambas", style = MaterialTheme.typography.bodySmall)
         ComparisonBars("Conocimientos (0 a 100)", result.pretest.knowledgeMean, result.posttest.knowledgeMean, 100.0)
         ComparisonBars("Actitudes (1 a 5)", result.pretest.attitudeMean, result.posttest.attitudeMean, 5.0)
@@ -262,7 +262,7 @@ private fun signed(value: Double?) = value?.let { (if (it > 0) "+" else "") + fo
 @Composable
 private fun ComparisonBars(label: String, pre: Double?, post: Double?, max: Double) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelLarge)
         Bar("Inicial", pre, max, MaterialTheme.colorScheme.secondary)
         Bar("Final", post, max, MaterialTheme.colorScheme.primary)
     }
@@ -277,7 +277,7 @@ private fun Bar(name: String, value: Double?, max: Double, color: androidx.compo
             val fraction = ((value ?: 0.0) / max).toFloat().coerceIn(0f, 1f)
             if (fraction > 0f) Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(color, MaterialTheme.shapes.small))
         }
-        Text(mean(value), Modifier.widthIn(min = 56.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        Text(mean(value), Modifier.widthIn(min = 56.dp), style = BpmType.bodySmallStrong)
     }
 }
 
@@ -314,7 +314,7 @@ private fun categoryLabel(category: NeedCategory) = when (category) {
 private fun NeedsTab(controller: AnalysisController) {
     val state by controller.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { controller.loadOrganizations() }
-    Text("Necesidades detectadas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Necesidades detectadas", style = MaterialTheme.typography.headlineMedium)
     val form = state.needForm
     if (form != null) {
         Text("Registra una necesidad observada en una empresa durante el estudio.")
@@ -337,14 +337,14 @@ private fun NeedsTab(controller: AnalysisController) {
         ErrorLine(form.failure)
         if (form.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Registrar necesidad", controller::saveNeed, Modifier.widthIn(min = 220.dp), enabled = !form.busy)
+            RaisedButton("Registrar necesidad", controller::saveNeed, Modifier.widthIn(min = 160.dp), enabled = !form.busy)
             BpmSecondaryButton(onClick = controller::cancelNeed, enabled = !form.busy) { Text("Cancelar") }
         }
         return
     }
     OrganizationFilter(state, controller, label = "Filtrar por empresa")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-    RaisedButton("Registrar necesidad", controller::startNeed, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+    RaisedButton("Registrar necesidad", controller::startNeed, Modifier.widthIn(min = 160.dp))
     if (state.needsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.needsFailure)
     if (state.needsFailure != null) BpmSecondaryButton(onClick = controller::refreshNeeds) { Text("Volver a intentar") }
@@ -353,7 +353,7 @@ private fun NeedsTab(controller: AnalysisController) {
     BpmGridLayout(page.items) { need, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(categoryLabel(need.category).uppercase())
-            Text(need.organizationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(need.organizationName, style = MaterialTheme.typography.titleMedium)
             Text(need.description)
             Text("Detectada el ${need.detectedAt.take(10)}" + if (need.investigatorName.isNotBlank()) " · ${need.investigatorName}" else "", style = MaterialTheme.typography.bodySmall)
         }
@@ -368,18 +368,18 @@ private fun NeedsTab(controller: AnalysisController) {
 
 @Composable
 private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
-    Text("Accesos de investigación", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Accesos de investigación", style = MaterialTheme.typography.headlineMedium)
     Text("Solo las personas con una concesión pueden ver resultados y exportaciones. Ni los administradores de empresa ni los administradores generales ven estos datos sin ella.")
     BpmTextField(state.grantEmail, viewModel::editGrantEmail, "Correo de la persona", Modifier.fillMaxWidth(), enabled = !state.grantBusy,
         error = if (state.grantEmailInvalid) "Escribe un correo válido." else null, inputKind = BpmInputKind.Email)
-    RaisedButton("Conceder acceso", viewModel::grant, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
+    RaisedButton("Conceder acceso", viewModel::grant, Modifier.widthIn(min = 160.dp), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
     if (state.grantBusy || state.grantsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.grantsFailure)
     if (state.grantsLoaded && state.grants.isEmpty()) EmptyState("Sin concesiones", "Todavía no se concedió acceso a nadie.")
     BpmGridLayout(state.grants) { grant, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(if (grant.active) "ACTIVO" else "RETIRADO")
-            Text(grant.displayName.ifBlank { grant.email }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(grant.displayName.ifBlank { grant.email }, style = MaterialTheme.typography.titleMedium)
             if (grant.displayName.isNotBlank()) Text(grant.email)
             Text("Concedido el ${grant.grantedAt.take(10)}" + (grant.revokedAt?.let { " · retirado el ${it.take(10)}" } ?: ""), style = MaterialTheme.typography.bodySmall)
             if (grant.active) {

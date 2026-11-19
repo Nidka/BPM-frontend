@@ -1,5 +1,6 @@
 package pe.bpm.core.offline
 
+import pe.bpm.core.designsystem.BpmType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -58,7 +59,7 @@ fun PendingBadge(entityId: String, modifier: Modifier = Modifier) {
     if (marks.isPending(entityId)) {
         Text(if (marks.all.any { it.entityId.equals(entityId, true) && it.needsReview }) "Necesita tu revisión" else "Pendiente de enviar",
             modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.tertiary)
+            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
     }
 }
 
@@ -71,7 +72,7 @@ fun PendingOperationsNotice(vararg resources: String, modifier: Modifier = Modif
     val pending = LocalPendingMarks.current.forResource(*resources)
     if (pending.isEmpty()) return
     BpmCard(modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
-        Text("Pendiente de enviar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Pendiente de enviar", style = MaterialTheme.typography.titleMedium)
         pending.forEach { Text("• " + it.title + if (it.needsReview) " (necesita tu revisión)" else "", style = MaterialTheme.typography.bodyMedium) }
         Text("Se enviará al recuperar la conexión.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -113,7 +114,7 @@ fun OfflineStatusBar(state: OfflineUiState, onOpen: () -> Unit, onSync: () -> Un
         contentColor = if (problem) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            Text(text, Modifier.weight(1f), style = BpmType.bodyMediumStrong)
             if (status.online && status.pending > 0 && !status.syncing) BpmTextButton(onSync) { Text("Sincronizar ahora") }
             if (status.pending > 0 || status.attention > 0) BpmTextButton(onOpen) { Text("Ver") }
         }
@@ -173,7 +174,7 @@ fun PendingChangesScreen(
 @Composable
 private fun PendingCard(item: PendingItem, now: Long, onRetry: (String) -> Unit, onDiscard: () -> Unit) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(item.title, style = MaterialTheme.typography.titleMedium)
         Text(item.state.label() + " · registrado ${relativeAge(now, item.createdAt)}", style = MaterialTheme.typography.bodyMedium)
         if (item.message.isNotBlank()) Text(item.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (item.state != PendingState.SENT && item.state != PendingState.SENDING) {

@@ -23,7 +23,7 @@ fun ChecklistAnswerEditor(items: List<ChecklistItem>, inputs: Map<String, RunAns
         if (reviewing) ChecklistAnswerReview(item, index, input, evidence)
         else BpmCard(Modifier.fillMaxWidth()) {
             Eyebrow(item.sectionName)
-            Text("${index + 1}. ${item.label}", fontWeight = FontWeight.Bold)
+            Text("${index + 1}. ${item.label}", style = BpmType.bodyStrong)
             if (item.required) Text("Respuesta obligatoria", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
             if (item.responseType in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE))
                 Text("Criterio publicado: ${item.minimumValue} a ${item.maximumValue} ${item.unit}")

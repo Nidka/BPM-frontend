@@ -797,7 +797,7 @@ fun App(
                                         }
                                     }
                                     accessNotice?.let { message -> BpmCard(Modifier.fillMaxWidth()) {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                             BpmIcon(BpmSymbol.Alert)
                                             Text("Acceso restringido", style = MaterialTheme.typography.titleMedium)
                                         }

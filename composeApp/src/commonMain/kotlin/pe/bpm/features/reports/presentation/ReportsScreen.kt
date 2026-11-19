@@ -59,7 +59,7 @@ fun ReportsScreen(
 @Composable
 private fun PeriodFilters(state: ReportsState, locations: List<ReportLocationOption>, vm: ReportsViewModel) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Período", style = MaterialTheme.typography.titleMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(7, 30, 90).forEach { days ->
                 BpmFilterChip(selected = state.presetDays == days, onClick = { vm.selectPreset(days) }, label = { Text("Últimos $days días") }, modifier = Modifier.heightIn(min = 48.dp))
@@ -76,14 +76,14 @@ private fun PeriodFilters(state: ReportsState, locations: List<ReportLocationOpt
             BpmChoiceRow("Todas las sedes", state.locationId == null) { vm.selectLocation(null) }
             locations.forEach { BpmChoiceRow(it.name, state.locationId == it.id) { vm.selectLocation(it.id) } }
         }
-        RaisedButton("Consultar", vm::load, Modifier.widthIn(max = 320.dp).fillMaxWidth(), enabled = !state.loading)
+        RaisedButton("Consultar", vm::load, Modifier.widthIn(min = 160.dp), enabled = !state.loading)
     }
 }
 
 @Composable
 private fun ExportCard(state: ReportsState, vm: ReportsViewModel) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Exportar historial", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Exportar historial", style = MaterialTheme.typography.titleMedium)
         Text("Descarga un archivo CSV con los controles finalizados del período (hasta 366 días). No incluye nombres de personas.")
         BpmSecondaryButton(onClick = vm::export, enabled = !state.exporting) { Text(if (state.exporting) "Preparando archivo…" else "Exportar CSV") }
         if (state.exporting) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -96,8 +96,8 @@ private fun ExportCard(state: ReportsState, vm: ReportsViewModel) {
 private fun ComplianceContent(report: ComplianceReport) {
     var line by remember { mutableStateOf(false) }
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Cumplimiento del período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(formatPercent(report.average), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Text("Cumplimiento del período", style = MaterialTheme.typography.titleMedium)
+        Text(formatPercent(report.average), style = MaterialTheme.typography.headlineMedium)
         Text("${report.runs} controles finalizados entre ${longDate(report.from)} y ${longDate(report.to)}", style = MaterialTheme.typography.bodySmall)
         // Estado vacío dentro de la tarjeta: dato secundario en gris y con el siguiente paso (sin anidar otra tarjeta).
         if (report.days.isEmpty()) Text("No hay controles finalizados en este período. Prueba con un rango de fechas más amplio.",
@@ -112,10 +112,10 @@ private fun ComplianceContent(report: ComplianceReport) {
         }
     }
     if (report.locations.isNotEmpty()) {
-        Text("Por sede", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Por sede", style = MaterialTheme.typography.titleLarge)
         BpmGridLayout(report.locations) { location, cardModifier ->
             BpmCard(cardModifier) {
-                Text(location.locationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(location.locationName, style = MaterialTheme.typography.titleMedium)
                 Text("${formatPercent(location.average)} · ${location.runs} controles")
                 PercentBar(location.average)
                 if (location.days.isNotEmpty()) {
@@ -129,12 +129,12 @@ private fun ComplianceContent(report: ComplianceReport) {
 /** Tabla equivalente al gráfico: fecha, controles y promedio. */
 @Composable
 private fun DayTable(days: List<DayCompliance>) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth()) {
             // Pesos desiguales: la fecha y «Cumplimiento» necesitan más ancho que el conteo de controles.
-            Text("Fecha", Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-            Text("Controles", Modifier.weight(0.8f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-            Text("Cumplimiento", Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text("Fecha", Modifier.weight(1.2f), style = BpmType.labelStrong)
+            Text("Controles", Modifier.weight(0.8f), style = BpmType.labelStrong)
+            Text("Cumplimiento", Modifier.weight(1.1f), style = BpmType.labelStrong)
         }
         HorizontalDivider()
         days.sortedBy { it.date }.forEach { day ->
@@ -150,8 +150,8 @@ private fun DayTable(days: List<DayCompliance>) {
 @Composable
 private fun SummaryContent(summary: SummaryReport) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Resumen de la empresa", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(formatPercent(summary.average), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Text("Resumen de la empresa", style = MaterialTheme.typography.titleMedium)
+        Text(formatPercent(summary.average), style = MaterialTheme.typography.headlineMedium)
         Text("${summary.runs} controles finalizados entre ${longDate(summary.from)} y ${longDate(summary.to)}", style = MaterialTheme.typography.bodySmall)
     }
     BpmGridLayout(listOf(
@@ -159,15 +159,15 @@ private fun SummaryContent(summary: SummaryReport) {
         "Temperaturas" to "${summary.temperatures.measurements} mediciones · ${summary.temperatures.outOfRange} fuera de rango",
     )) { (title, text), cardModifier ->
         BpmCard(cardModifier) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Text(text)
         }
     }
     if (summary.locations.isNotEmpty()) {
-        Text("Por sede", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Por sede", style = MaterialTheme.typography.titleLarge)
         BpmGridLayout(summary.locations) { location, cardModifier ->
             BpmCard(cardModifier) {
-                Text(location.locationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(location.locationName, style = MaterialTheme.typography.titleMedium)
                 Text("${formatPercent(location.average)} · ${location.runs} controles")
                 PercentBar(location.average)
                 Text("Incidencias: ${location.incidentsReported} reportadas, ${location.incidentsClosed} cerradas, ${location.incidentsOpenNow} abiertas", style = MaterialTheme.typography.bodySmall)
@@ -176,20 +176,20 @@ private fun SummaryContent(summary: SummaryReport) {
         }
     }
     if (summary.templates.isNotEmpty()) {
-        Text("Por plantilla", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Por plantilla", style = MaterialTheme.typography.titleLarge)
         BpmGridLayout(summary.templates) { template, cardModifier ->
             BpmCard(cardModifier) {
-                Text(template.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(template.name, style = MaterialTheme.typography.titleMedium)
                 Text("${template.area} · ${formatPercent(template.average)} · ${template.runs} controles", style = MaterialTheme.typography.bodySmall)
                 PercentBar(template.average)
             }
         }
     }
     if (summary.areas.isNotEmpty()) {
-        Text("Por área", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Por área", style = MaterialTheme.typography.titleLarge)
         BpmGridLayout(summary.areas) { area, cardModifier ->
             BpmCard(cardModifier) {
-                Text(area.area, fontWeight = FontWeight.Bold)
+                Text(area.area, style = BpmType.bodyStrong)
                 Text("${formatPercent(area.average)} · ${area.runs} controles", style = MaterialTheme.typography.bodySmall)
                 PercentBar(area.average)
             }

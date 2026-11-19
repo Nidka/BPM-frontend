@@ -90,7 +90,7 @@ internal fun WorkspaceScreen(
                     Spacer(Modifier.height(32.dp))
                     navItems.forEach { item ->
                         BpmFeedback(MaterialTheme.colorScheme.primary) {
-                        NavigationDrawerItem(label = { Text(item.label, fontWeight = FontWeight.Bold) },
+                        NavigationDrawerItem(label = { Text(item.label, style = BpmType.bodyStrong) },
                             selected = item.isSelected(section, activeShortcut), onClick = { item.open(navigate, onShortcut) },
                             colors = NavigationDrawerItemDefaults.colors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -169,7 +169,7 @@ internal fun WorkspaceScreen(
                     if (section != WorkspaceDestination.Account && workspace == null && !state.loading) {
                         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                             val placeholder = workspacePlaceholder(state, superAdmin)
-                            Text(placeholder.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text(placeholder.title, style = MaterialTheme.typography.headlineSmall)
                             Text(placeholder.message)
                             if (placeholder.canCreate) RaisedButton("Crear organización", { open(WorkspaceFormKind.Organization) })
                             if (placeholder.canRetry) BpmSecondaryButton(onClick = onRefresh) { Text("Volver a intentar") }
@@ -213,7 +213,7 @@ internal fun WorkspaceScreen(
                             // Una sola fila de acciones: la principal (agregar) y la de gestión; sin segundo título.
                             if (current.canManage) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.width(240.dp))
+                                RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.widthIn(min = 160.dp))
                                 BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
                             }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")
@@ -296,13 +296,13 @@ private fun memberLocations(member: Member, locations: List<Location>): String {
     BpmCard(Modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val title: @Composable () -> Unit = {
-                Text("Incidencias y correcciones", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Incidencias y correcciones", style = MaterialTheme.typography.titleMedium)
                 Text("Consulta lo reportado, atiende las correcciones y revisa qué falta para validar el cierre.")
             }
             if (maxWidth >= 640.dp) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
                 BpmSecondaryButton(onClick = onOpen) { Text("Abrir incidencias") }
-            } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
                 BpmSecondaryButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Abrir incidencias") }
             }
@@ -313,7 +313,7 @@ private fun memberLocations(member: Member, locations: List<Location>): String {
 /** Tarjeta de acceso a un módulo: título, descripción y botón a todo el ancho, como en el mockup. */
 @Composable private fun ActionCard(modifier: Modifier, title: String, description: String, action: String, onClick: () -> Unit) {
     BpmCard(modifier) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         Text(description)
         Spacer(Modifier.weight(1f))
         BpmSecondaryButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(action) }

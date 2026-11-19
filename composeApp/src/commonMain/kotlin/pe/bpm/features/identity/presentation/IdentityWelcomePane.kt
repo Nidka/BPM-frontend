@@ -1,5 +1,6 @@
 package pe.bpm.features.identity.presentation
 
+import pe.bpm.core.designsystem.BpmType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,8 +33,7 @@ internal fun IdentityWelcomePane(modifier: Modifier = Modifier) {
                 Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     Brand()
                     Text("Buenas prácticas de manipulación",
-                        style = if (compact) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold)
+                        style = if (compact) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displaySmall)
                     Text("Capacitación y gestión para los equipos de restaurantes y servicios afines.",
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Mascot(Modifier.size(illustrationSize).align(Alignment.CenterHorizontally), learning = true)

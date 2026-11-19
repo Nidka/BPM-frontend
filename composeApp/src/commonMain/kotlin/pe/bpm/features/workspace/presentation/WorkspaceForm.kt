@@ -56,7 +56,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
             Column(if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(formScroll),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Eyebrow("CRECER EN EQUIPO")
-                Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall)
                 if (formState.recovered) Text("Recuperamos tu borrador. Revisa los datos antes de guardar.")
                 DraftSaveNotice(formState.localStatus, onRetryDraft)
                 if (discarding) DiscardDraftConfirmation({ discarding = false }, onDiscardDraft, enabled = !saving)
@@ -65,7 +65,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                     MemberAccountField(draft.email, { value -> onEdit { it.copy(email = value) } }, check,
                         !saving, fields["email"], navigation["email"], onSelectAccount, onRetryAccount)
                     if (check.status == MemberEligibility.READY) {
-                    Text("¿Qué podrá hacer?", fontWeight = FontWeight.Bold)
+                    Text("¿Qué podrá hacer?", style = BpmType.bodyStrong)
                     Column(Modifier.selectableGroup()) {
                         listOf("ADMIN", "CHEF", "WORKER").forEach { choice ->
                             BpmChoiceRow(roleLabel(choice), draft.role == choice, !saving,
@@ -79,7 +79,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (draft.role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
                     else {
-                        Text("¿En qué sedes trabajará?", fontWeight = FontWeight.Bold)
+                        Text("¿En qué sedes trabajará?", style = BpmType.bodyStrong)
                         Text("Sedes de ${state.workspace?.organization?.name.orEmpty()}. Marca las que le corresponden.", style = MaterialTheme.typography.bodySmall)
                         Text(if (draft.locations.isEmpty()) "Selecciona al menos una sede." else if (draft.locations.size == 1) "1 sede seleccionada" else "${draft.locations.size} sedes seleccionadas", style = MaterialTheme.typography.bodySmall)
                         WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {

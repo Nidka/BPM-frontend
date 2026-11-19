@@ -64,7 +64,7 @@ fun AlertRulesScreen(
         locationSelector(s.ruleLocationId, { viewModel.ruleLocation(it?.id) }, !s.loading)
       else
         FlowRow(
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
           verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
           BpmFilterChip(
@@ -190,7 +190,7 @@ private fun AlertRuleFormContent(
     Text("Tipo de aviso", style = MaterialTheme.typography.titleSmall)
     if (f.original == null)
       FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         AlertType.entries.forEach { t ->
@@ -222,7 +222,7 @@ private fun AlertRuleFormContent(
       locationSelector(f.locationId, vm.editor::selectLocation, enabled)
     else
       FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         BpmFilterChip(

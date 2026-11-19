@@ -34,7 +34,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
     val shortWindow = maxHeight < 480.dp
     BpmCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Cambiar organización", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+            Text("Cambiar organización", style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f).semantics { heading() })
             if (canCreate && shortWindow) BpmTextButton(onClick = onCreate, enabled = !loading && pe.bpm.core.offline.LocalOnline.current,
                 modifier = Modifier.semantics { contentDescription = "Crear organización" }) { Text("Crear") }
@@ -78,7 +78,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 BpmIcon(BpmSymbol.Company, tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(organization.name, fontWeight = FontWeight.SemiBold)
+                    Text(organization.name, style = BpmType.bodyStrong)
                     if (organization.name != organization.legalName) Text(organization.legalName,
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

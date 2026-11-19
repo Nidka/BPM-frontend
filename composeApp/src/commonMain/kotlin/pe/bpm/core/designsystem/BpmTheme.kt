@@ -147,3 +147,14 @@ fun BpmTheme(content: @Composable () -> Unit) {
         CompositionLocalProvider(LocalContentColor provides colors.onBackground, content = content)
     }
 }
+
+/**
+ * Énfasis de texto del tema: el peso viene de aquí y no se escribe en las pantallas (regla R8).
+ * [bodyStrong] reemplaza al `Text` por defecto (16 sp) en negrita; el resto, a los estilos de apoyo en negrita.
+ */
+object BpmType {
+    val bodyStrong @Composable get() = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+    val bodyMediumStrong @Composable get() = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+    val bodySmallStrong @Composable get() = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+    val labelStrong @Composable get() = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+}

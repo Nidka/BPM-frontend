@@ -21,7 +21,7 @@ import pe.bpm.features.reports.domain.Kpis
 @Composable
 fun DashboardPanel(state: DashboardState, onRetry: () -> Unit, onOpenReports: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-        Text("Indicadores", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Indicadores", style = MaterialTheme.typography.titleLarge)
         if (state.loading && state.kpis == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             BpmCard(Modifier.fillMaxWidth()) {

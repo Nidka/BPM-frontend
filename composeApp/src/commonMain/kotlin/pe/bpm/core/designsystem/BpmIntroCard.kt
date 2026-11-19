@@ -18,7 +18,7 @@ fun BpmIntroCard(title: String, description: String, learning: Boolean = false,
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(title, style = MaterialTheme.typography.titleLarge)
                     if (expanded) Text(description)
                 }
                 Mascot(Modifier.size(if (expanded) 128.dp else 64.dp), learning)
