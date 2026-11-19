@@ -1,12 +1,1 @@
-{
-  "composeApp/src/commonMain/kotlin/pe/bpm/app/App.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/app/ChecklistEvidenceHost.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/checklists/presentation/ChecklistTemplateEditorScreen.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/identity/presentation/IdentityScreen.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/identity/presentation/IdentityWelcomePane.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/identity/presentation/SessionExpirationNotice.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/training/presentation/TrainingLearnerScreens.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/training/presentation/TrainingScreen.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/workspace/presentation/OrganizationPickerScreen.kt": 1,
-  "composeApp/src/commonMain/kotlin/pe/bpm/features/workspace/presentation/WorkspaceForm.kt": 1
-}
+{}

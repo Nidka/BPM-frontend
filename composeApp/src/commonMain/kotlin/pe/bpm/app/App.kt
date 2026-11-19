@@ -564,12 +564,10 @@ fun App(
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
                                             BpmSecondaryButton(onClick = { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }) { Text("Controles programados por sede") }
                                             Text("Crea una primera versión y revisa las preguntas antes de publicarla.")
-                                            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                                                RaisedButton("Crear plantilla", {
-                                                    if (templateEditorState.published != null) templateEditor.reset()
-                                                    nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true }
-                                                }, Modifier.widthIn(max = if (maxWidth >= 600.dp) 320.dp else maxWidth).fillMaxWidth())
-                                            }
+                                            RaisedButton("Crear plantilla", {
+                                                if (templateEditorState.published != null) templateEditor.reset()
+                                                nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true }
+                                            }, Modifier.widthIn(min = 160.dp))
                                         }
                                         LaunchedEffect(templateId, checklistState.userId, checklistState.organizationId) {
                                             if (checklistState.organizationId == workspaceState.selected) checklists.showTemplate(templateId)

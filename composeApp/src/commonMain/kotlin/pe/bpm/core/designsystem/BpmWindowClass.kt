@@ -1,6 +1,9 @@
 package pe.bpm.core.designsystem
 
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.ReadOnlyComposable
@@ -64,12 +67,31 @@ enum class BpmNavigationMode(val width: Dp) {
 /** Clase de ancho vigente. Sin shell (pruebas, vistas previas) se asume compacta. */
 val LocalBpmWindowClass = compositionLocalOf { BpmWindowClass.Compact }
 
+/** Alto de la ventana vigente; sin shell se asume una ventana alta. */
+val LocalBpmWindowHeight = compositionLocalOf { 800.dp }
+
 /** Atajo de lectura para los patrones y componentes. */
 val currentWindowClass: BpmWindowClass
     @Composable @ReadOnlyComposable get() = LocalBpmWindowClass.current
 
-/** Publica [windowClass] para todo el contenido; solo lo llama el shell. */
+/** Alto de la ventana: las pantallas lo usan para decidir si hay poco espacio vertical (móvil horizontal). */
+val currentWindowHeight: Dp
+    @Composable @ReadOnlyComposable get() = LocalBpmWindowHeight.current
+
+/** Publica [windowClass] (y el alto) para todo el contenido; solo lo llaman el shell y las páginas a pantalla completa. */
 @Composable
-fun ProvideBpmWindowClass(windowClass: BpmWindowClass, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalBpmWindowClass provides windowClass, content = content)
+fun ProvideBpmWindowClass(windowClass: BpmWindowClass, height: Dp = LocalBpmWindowHeight.current, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalBpmWindowClass provides windowClass, LocalBpmWindowHeight provides height, content = content)
+}
+
+/**
+ * Mide la ventana una sola vez y publica su clase y su alto. Es el único punto, junto al shell, que mide
+ * el ancho de la ventana; las pantallas a página completa (ingreso) lo usan en lugar de `BoxWithConstraints`.
+ */
+@Composable
+fun BpmWindowBox(modifier: Modifier = Modifier, content: @Composable BoxScope.(BpmWindowClass, Dp) -> Unit) {
+    BoxWithConstraints(modifier) {
+        val windowClass = BpmWindowClass.fromWidth(maxWidth)
+        ProvideBpmWindowClass(windowClass, maxHeight) { content(windowClass, maxHeight) }
+    }
 }

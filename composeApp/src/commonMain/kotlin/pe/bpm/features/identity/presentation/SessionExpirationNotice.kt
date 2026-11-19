@@ -28,7 +28,7 @@ fun SessionExpirationNotice(status: SessionStatus, onContinue: () -> Unit, onLog
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { focusManager.clearFocus(force = true); keyboard?.hide(); primary.requestFocus() }
-    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)) // medida: ventana modal sobre toda la pantalla
         .pointerInput(Unit) { detectTapGestures {} }
         .onPreviewKeyEvent { event ->
             if (event.type == KeyEventType.KeyDown && event.key == Key.Tab) {

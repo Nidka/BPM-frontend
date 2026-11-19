@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: "24"
       - name: Verificar patrones de pantalla y espaciado
-        run: node scripts/check-spacing.mjs
+        run: node scripts/check-spacing.mjs --strict
       - name: Test web server
         run: node --test scripts/*.test.mjs web/*.test.mjs
       - name: Test shared code and build web and Android

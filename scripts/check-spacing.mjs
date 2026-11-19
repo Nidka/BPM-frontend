@@ -61,7 +61,8 @@ for (const file of walk(source)) {
         warnings.push(`${at} R10 spacedBy de ${match[1]} dp fuera de la escala 4·8·12·16·24·32`);
     const inDesignSystem = /core[\\/]designsystem[\\/]/.test(file);
     // R12: las pantallas no miden la ventana; el ancho viene de LocalBpmWindowClass (BpmAppShell lo calcula una vez).
-    if (!inDesignSystem && /\bBoxWithConstraints\(/.test(code) && !/workspace[\\/]presentation[\\/]WorkspaceScreen\.kt$/.test(file))
+    // Se exime con `// medida: motivo` cuando el componente mide su propio contenedor (ilustración, ventana modal) y no la ventana.
+    if (!inDesignSystem && /\bBoxWithConstraints\(/.test(code) && !line.includes('medida:') && !/workspace[\\/]presentation[\\/]WorkspaceScreen\.kt$/.test(file))
       warnings.push(`${at} R12 BoxWithConstraints en pantalla; usar un patrón (BpmScreen) y LocalBpmWindowClass`);
     // R13: toda rejilla de pantalla usa un patrón (BpmGridLayout o BpmPanelLayout), no BpmCardGrid directo.
     if (!inDesignSystem && /\bBpmCardGrid\(/.test(code) && !line.includes('patrón:'))

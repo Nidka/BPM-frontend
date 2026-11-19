@@ -242,9 +242,7 @@ fun CertificateVerificationScreen(viewModel: CertificateVerificationViewModel, o
                     }
                 }
             }
-            VerificationOutcome.NotFound -> BpmCard(Modifier.fillMaxWidth()) {
-                Text("No encontramos una constancia con ese código. Revisa que esté completo y vuelve a intentarlo.", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            }
+            VerificationOutcome.NotFound -> BpmInlineNotice(warning = true, message = "No encontramos una constancia con ese código. Revisa que esté completo y vuelve a intentarlo.")
             is VerificationOutcome.Failed -> FailureText(outcome.reason)
             null -> Unit
         }

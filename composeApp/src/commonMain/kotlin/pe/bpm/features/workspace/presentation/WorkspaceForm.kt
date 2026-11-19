@@ -45,8 +45,8 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
         val aliases = mapOf("legalName" to "name", "tradeName" to "trade", "taxId" to "tax", "contactEmail" to "email", "contactPhone" to "phone")
         navigation.focusFirstError(fields.keys.map { aliases[it] ?: it })
     }
-    BoxWithConstraints(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) {
-        val shortWindow = maxHeight < 500.dp
+    Box(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) {
+        val shortWindow = currentWindowHeight < 560.dp
         LaunchedEffect(state.errors, check.errors, shortWindow) {
             if (shortWindow && (state.errors.isNotEmpty() || check.errors.isNotEmpty())) formScroll.scrollTo(formScroll.maxValue)
         }

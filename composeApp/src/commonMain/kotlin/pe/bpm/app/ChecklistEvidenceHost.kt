@@ -80,7 +80,7 @@ internal fun PrivateEvidenceHost(
             if (state.pendingId == null) onClose() else confirmClose = true
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) { // medida: ventana modal sobre toda la pantalla
         val overlayHeight = (maxHeight - 32.dp).coerceIn(0.dp, 760.dp)
         if (!supportsNativeModalWindows()) {
             val focus = remember { FocusRequester() }

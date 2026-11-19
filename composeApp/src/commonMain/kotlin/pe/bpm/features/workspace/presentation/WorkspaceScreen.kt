@@ -68,7 +68,7 @@ internal fun WorkspaceScreen(
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
         val navMode = BpmNavigationMode.of(windowClass, maxHeight)
         val wide = navMode != BpmNavigationMode.BottomBar
-        ProvideBpmWindowClass(windowClass) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
+        ProvideBpmWindowClass(windowClass, maxHeight) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
             if (navMode == BpmNavigationMode.Rail) NavigationRail(Modifier.width(navMode.width).fillMaxHeight(),
                 containerColor = MaterialTheme.colorScheme.surface, header = { Spacer(Modifier.height(BpmSpacing.sm)); Brand(compact = true) }) {

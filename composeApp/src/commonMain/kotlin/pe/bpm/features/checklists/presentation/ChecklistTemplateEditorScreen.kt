@@ -151,15 +151,10 @@ import pe.bpm.core.domain.DecimalInput
         if (input.type in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE)) {
             Text("¿Qué valores se consideran aceptables?", style = BpmType.bodyStrong)
             Text("Indica el mínimo y el máximo de tu procedimiento. Al responder, se comparará la medición con estos límites.", style = MaterialTheme.typography.bodySmall)
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth < 420.dp) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"])
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"])
-                } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = Modifier.weight(1f), inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"])
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = Modifier.weight(1f), inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"])
-                }
-            }
+            // Mínimo y máximo: dos columnas desde la clase media, apilados en compacta.
+            BpmShortFields(
+                { m -> EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = m, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"]) },
+                { m -> EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = m, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"]) })
             fields["$prefix.range"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida (opcional)", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades", rule = ChecklistInputRules.unit, navigation = navigation["${input.id}.unit"])
         }

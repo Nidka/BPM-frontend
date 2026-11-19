@@ -275,7 +275,7 @@ fun BpmAccessScreen(
 ) {
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxSize()) {
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
-        ProvideBpmWindowClass(windowClass) {
+        ProvideBpmWindowClass(windowClass, maxHeight) {
             val max = BpmPatternRules.contentMax(pattern, windowClass, preview = false)
             val margin = BpmSpacing.gutter(windowClass)
             Box(Modifier.fillMaxSize().then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier), contentAlignment = Alignment.TopCenter) {

@@ -30,8 +30,8 @@ import pe.bpm.features.workspace.domain.WorkspaceError
     val scroll = rememberLazyListState()
     LaunchedEffect(noticeVisible) { if (noticeVisible) scroll.scrollToItem(0) }
     val matches = organizations
-    BoxWithConstraints(Modifier.widthIn(max = 640.dp).heightIn(max = 680.dp).fillMaxWidth()) {
-    val shortWindow = maxHeight < 480.dp
+    Box(Modifier.widthIn(max = 640.dp).heightIn(max = 680.dp).fillMaxWidth()) {
+    val shortWindow = currentWindowHeight < 560.dp
     BpmCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Cambiar organización", style = MaterialTheme.typography.titleLarge,

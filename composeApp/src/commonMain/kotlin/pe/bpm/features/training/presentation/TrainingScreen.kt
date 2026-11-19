@@ -239,8 +239,8 @@ private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: T
         Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
         Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
     }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stacked = maxWidth < 520.dp
+    Box(Modifier.fillMaxWidth()) {
+        val stacked = currentWindowClass == BpmWindowClass.Compact
         val previous: @Composable (Modifier) -> Unit = { m -> BpmSecondaryButton(onClick = viewModel::previousLesson, enabled = index > 0, modifier = m) { Text("Anterior") } }
         val next: @Composable (Modifier) -> Unit = { m ->
             if (index < course.lessons.lastIndex) RaisedButton("Siguiente", viewModel::nextLesson, m)
