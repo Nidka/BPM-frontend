@@ -71,10 +71,12 @@ fun IdentityScreen(
         else -> "Bienvenido de nuevo"
     }
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
-        val wide = maxWidth >= 900.dp && maxHeight >= 600.dp
+        // Patrón de acceso: tarjeta de 440 dp; con clase expandida o grande (desde 840 dp) se divide con el panel de bienvenida.
+        val windowClass = BpmWindowClass.fromWidth(maxWidth)
+        val wide = (windowClass == BpmWindowClass.Expanded || windowClass == BpmWindowClass.Large) && maxHeight >= 600.dp
         Row(Modifier.fillMaxSize()) {
             if (wide) IdentityWelcomePane(Modifier.weight(1f).fillMaxHeight())
-        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else BpmSpacing.gutter(windowClass), vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
         Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             if (!wide) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {

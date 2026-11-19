@@ -108,7 +108,7 @@ fun OperationsScreen(
                             "Los lotes más antiguos se muestran primero (PEPS). Revisa también su fecha de vencimiento antes de usarlos.",
                             style = MaterialTheme.typography.bodySmall,
                         )
-                    BpmCardGrid(state.rows, minCardWidth = 340.dp, maxColumns = 2) { entry, cardModifier ->
+                    BpmGridLayout(state.rows) { entry, cardModifier ->
                         BpmCard(cardModifier) {
                             Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(entry.title(), style = MaterialTheme.typography.titleMedium)

@@ -25,7 +25,7 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String) {
             EmptyState(if (state.status == RecordStatus.ACTIVE) "Sin personas activas" else "Sin personas inactivas",
                 "No hay personas para esta búsqueda. Invita a alguien desde la pestaña Invitaciones.")
         }, onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
-            BpmCardGrid(state.page.items, minCardWidth = 320.dp, maxColumns = 3) { member, cardModifier ->
+            BpmGridLayout(state.page.items) { member, cardModifier ->
                 BpmCard(cardModifier) {
                     Text(member.name, fontWeight = FontWeight.Bold)
                     Text(member.email)

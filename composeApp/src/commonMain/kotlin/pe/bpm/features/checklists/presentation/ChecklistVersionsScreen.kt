@@ -76,7 +76,7 @@ fun ChecklistVersionsScreen(
                     else Text("Solo un administrador puede editar las preguntas.", style = MaterialTheme.typography.bodySmall)
                 }
                 Text("Historial", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                BpmCardGrid(state.history, minCardWidth = 340.dp, maxColumns = 3) { version, cardModifier ->
+                BpmGridLayout(state.history) { version, cardModifier ->
                     BpmCard(cardModifier) {
                         Text("Versión ${version.versionNumber} · ${if (version.status == VersionStatus.PUBLISHED) "Vigente" else "Archivada"}", style = MaterialTheme.typography.titleMedium)
                         Text("${version.itemCount} preguntas · ${displayDateTime(version.publishedAt)}")

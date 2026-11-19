@@ -12,7 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.PageNavigation
 import pe.bpm.core.designsystem.BpmCard
-import pe.bpm.core.designsystem.BpmCardGrid
+import pe.bpm.core.designsystem.BpmGridLayout
 import pe.bpm.core.designsystem.EmptyState
 import pe.bpm.core.designsystem.RaisedButton
 import pe.bpm.core.designsystem.BpmTextField
@@ -67,7 +67,7 @@ fun ChecklistCatalogScreen(
                 if (state.visibleTemplates.isEmpty()) {
                     EmptyState("No encontramos coincidencias", "Prueba con otro nombre o área.")
                     BpmTextButton(onClick = { onSearch("") }) { Text("Limpiar búsqueda") }
-                } else BpmCardGrid(state.visibleTemplates, minCardWidth = 340.dp, maxColumns = 3) { template, cardModifier ->
+                } else BpmGridLayout(state.visibleTemplates) { template, cardModifier ->
                     // Misma altura por fila y un solo criterio de columnas, como el resto de listas de registros.
                     TemplateCard(template, cardModifier) { onSelect(template.id) }
                 }

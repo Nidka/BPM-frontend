@@ -46,7 +46,7 @@ fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
         }
         PagedBlock(state.page, empty = { EmptyState("Sin dispositivos", "No tienes dispositivos activos con avisos.") },
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
-            BpmCardGrid(state.page.items, minCardWidth = 320.dp, maxColumns = 3) { device, cardModifier ->
+            BpmGridLayout(state.page.items) { device, cardModifier ->
                 BpmCard(cardModifier) {
                     Text(device.platform.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(device.organizationName.ifBlank { "Organización" })

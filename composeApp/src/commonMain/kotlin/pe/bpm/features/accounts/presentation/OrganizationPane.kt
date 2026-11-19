@@ -40,7 +40,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
         BpmSearchField(state.locations.request.query, viewModel::searchLocations, "Buscar sedes", enabled = !state.busy, loading = state.locations.loading)
         PagedBlock(state.locations, empty = { EmptyState("Sin sedes para mostrar", "No hay sedes con este filtro. Puedes agregar una desde la sección Empresa.") },
             onRetry = viewModel::retryLocations, onPrevious = viewModel::previousLocations, onNext = viewModel::nextLocations) {
-            BpmCardGrid(state.locations.items, minCardWidth = 320.dp, maxColumns = 3) { location, cardModifier ->
+            BpmGridLayout(state.locations.items) { location, cardModifier ->
                 BpmCard(cardModifier) {
                     Text(location.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(location.address)

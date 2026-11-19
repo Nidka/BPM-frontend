@@ -45,13 +45,7 @@ private fun KpiGrid(kpis: Kpis) {
         add("Incidencias abiertas" to (kpis.openIncidents.toString() to "Sin cerrar"))
         kpis.training?.let { add("Avance de capacitación" to (formatPercent(it.completionPercent) to "${it.completedEnrollments} completados, ${it.inProgressEnrollments} en curso")) }
     }
-    BpmCardGrid(cards, minCardWidth = 220.dp, maxColumns = 4) { (title, value), cardModifier ->
-        BpmCard(cardModifier) {
-            Text(title, style = MaterialTheme.typography.labelMedium)
-            Text(value.first, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-            Text(value.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+    BpmPanelLayout(indicators = cards.map { (title, value) -> @Composable { m: Modifier -> BpmStatTile(value.first, title, m, support = value.second) } }) {}
 }
 
 private fun runsText(runs: Int) = if (runs == 1) "1 control finalizado" else "$runs controles finalizados"

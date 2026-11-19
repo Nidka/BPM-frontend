@@ -127,7 +127,7 @@ fun IncidentsScreen(
                 if (s.catalogMode) {
                     if (s.catalog.rows.isEmpty() && !s.loading && s.failure == null)
                         EmptyState("Sin criterios", "Todavía no hay criterios para esta consulta. Cambia la búsqueda o usa «Crear criterio».")
-                    BpmCardGrid(s.catalog.rows, minCardWidth = 340.dp, maxColumns = 2) { value, cardModifier ->
+                    BpmGridLayout(s.catalog.rows) { value, cardModifier ->
                         BpmCard(cardModifier) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(value.name, style = MaterialTheme.typography.titleMedium)
@@ -160,7 +160,7 @@ fun IncidentsScreen(
                             "Aquí ves las incidencias que reportaste o te asignaron.",
                             style = MaterialTheme.typography.bodySmall,
                         )
-                    BpmCardGrid(s.incidents.rows, minCardWidth = 340.dp, maxColumns = 2) { value, cardModifier ->
+                    BpmGridLayout(s.incidents.rows) { value, cardModifier ->
                         BpmCard(cardModifier) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(value.name, style = MaterialTheme.typography.titleMedium)

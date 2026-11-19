@@ -12,6 +12,10 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import pe.bpm.core.designsystem.BpmAccessScreen
+import pe.bpm.core.designsystem.BpmPageHeader
+import pe.bpm.core.designsystem.BpmPattern
+import pe.bpm.core.designsystem.BpmSpacing
 import pe.bpm.core.designsystem.BpmCard
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
@@ -135,13 +139,11 @@ fun PendingChangesScreen(
     onDismissNotice: () -> Unit, modifier: Modifier = Modifier,
 ) {
     var confirming by remember { mutableStateOf<PendingItem?>(null) }
-    // Ruta propia (no está alojada en el workspace): margen del tema y ancho de lectura limitado y centrado.
-    Column(modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 900.dp).padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Ruta propia (no está alojada en el workspace): la cola de envío es una lista secuencial de una columna (720 dp).
+    BpmAccessScreen(modifier, pattern = BpmPattern.StepFlow, scrollable = false) {
         BpmTextButton(onBack) { Text("Volver") }
-        Text("Cambios pendientes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(if (state.status.online) "Conectado" else "Sin conexión: se enviarán al recuperarla.",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BpmPageHeader("Cambios pendientes",
+            description = if (state.status.online) "Conectado" else "Sin conexión: se enviarán al recuperarla.")
         BpmSecondaryButton(onSync, Modifier.fillMaxWidth(), enabled = state.status.online && !state.syncing) {
             Text(if (state.syncing) "Enviando…" else "Sincronizar ahora")
         }
@@ -152,7 +154,7 @@ fun PendingChangesScreen(
             }
         }
         if (state.items.isEmpty()) EmptyState("Todo está enviado", "No hay cambios pendientes en este dispositivo.")
-        else LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+        else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md), contentPadding = PaddingValues(bottom = BpmSpacing.xl)) {
             items(state.items, key = { it.id }) { item -> PendingCard(item, state.now, onRetry, { confirming = item }) }
         }
     }

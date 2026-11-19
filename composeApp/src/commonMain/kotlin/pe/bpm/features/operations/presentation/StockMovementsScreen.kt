@@ -53,7 +53,7 @@ fun StockMovementsScreen(viewModel: StockMovementsViewModel, modifier: Modifier 
             }
             if (state.failure != null) BpmTextButton(viewModel::refresh, enabled = !state.loading) { Text("Reintentar consulta") }
             if (state.movements.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin movimientos", "Todavía no hay movimientos para esta consulta. Cambia el filtro de tipo para ver otros.")
-            BpmCardGrid(state.movements, minCardWidth = 340.dp, maxColumns = 2) { movement, cardModifier ->
+            BpmGridLayout(state.movements) { movement, cardModifier ->
                 BpmCard(cardModifier) {
                     Text("${typeLabel(movement.input)} · ${movement.productName}", style = MaterialTheme.typography.titleMedium)
                     Text("Cantidad: ${movement.input.quantity} ${movement.unit} · Saldo del lote: ${movement.balanceAfter} ${movement.unit}")

@@ -34,7 +34,7 @@ import pe.bpm.features.checklists.domain.*
                 "Prueba otra búsqueda o cambia el filtro." else if (canPerform)
                 "Cuando inicies una revisión con una plantilla, aparecerá aquí con su sede y su estado."
                 else "Las revisiones aparecerán cuando el chef comience un control en una sede autorizada.")
-            else -> BpmCardGrid(state.items, minCardWidth = 340.dp, maxColumns = 3) { item, cardModifier -> BpmCard(cardModifier) {
+            else -> BpmGridLayout(state.items) { item, cardModifier -> BpmCard(cardModifier) {
                 Eyebrow(if (item.status == "DRAFT") "EN CURSO" else "FINALIZADA")
                 Text(item.templateName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 // Los datos de la revisión se agrupan con poca separación; el relleno de 14 dp separa bloques.

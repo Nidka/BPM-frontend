@@ -109,7 +109,7 @@ fun AlertsScreen(
       }
       if (s.inboxLoaded && s.inbox.rows.isEmpty() && !s.loading && s.failure == null)
         EmptyState("Sin avisos", "No hay avisos para esta consulta. Cambia la búsqueda o el filtro para ver otros.")
-      BpmCardGrid(s.inbox.rows, minCardWidth = 340.dp, maxColumns = 2) { row, cardModifier ->
+      BpmGridLayout(s.inbox.rows) { row, cardModifier ->
         BpmCard(cardModifier) {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(row.title, style = MaterialTheme.typography.titleMedium)

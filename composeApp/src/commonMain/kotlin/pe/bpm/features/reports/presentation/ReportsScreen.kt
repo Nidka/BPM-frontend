@@ -113,7 +113,7 @@ private fun ComplianceContent(report: ComplianceReport) {
     }
     if (report.locations.isNotEmpty()) {
         Text("Por sede", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        BpmCardGrid(report.locations, minCardWidth = 400.dp, maxColumns = 2) { location, cardModifier ->
+        BpmGridLayout(report.locations) { location, cardModifier ->
             BpmCard(cardModifier) {
                 Text(location.locationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("${formatPercent(location.average)} · ${location.runs} controles")
@@ -154,10 +154,10 @@ private fun SummaryContent(summary: SummaryReport) {
         Text(formatPercent(summary.average), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
         Text("${summary.runs} controles finalizados entre ${longDate(summary.from)} y ${longDate(summary.to)}", style = MaterialTheme.typography.bodySmall)
     }
-    BpmCardGrid(listOf(
+    BpmGridLayout(listOf(
         "Incidencias" to "${summary.incidents.reported} reportadas · ${summary.incidents.closed} cerradas · ${summary.incidents.openNow} abiertas hoy",
         "Temperaturas" to "${summary.temperatures.measurements} mediciones · ${summary.temperatures.outOfRange} fuera de rango",
-    ), minCardWidth = 300.dp, maxColumns = 2) { (title, text), cardModifier ->
+    )) { (title, text), cardModifier ->
         BpmCard(cardModifier) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(text)
@@ -165,7 +165,7 @@ private fun SummaryContent(summary: SummaryReport) {
     }
     if (summary.locations.isNotEmpty()) {
         Text("Por sede", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        BpmCardGrid(summary.locations, minCardWidth = 400.dp, maxColumns = 2) { location, cardModifier ->
+        BpmGridLayout(summary.locations) { location, cardModifier ->
             BpmCard(cardModifier) {
                 Text(location.locationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("${formatPercent(location.average)} · ${location.runs} controles")
@@ -177,7 +177,7 @@ private fun SummaryContent(summary: SummaryReport) {
     }
     if (summary.templates.isNotEmpty()) {
         Text("Por plantilla", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        BpmCardGrid(summary.templates, minCardWidth = 400.dp, maxColumns = 2) { template, cardModifier ->
+        BpmGridLayout(summary.templates) { template, cardModifier ->
             BpmCard(cardModifier) {
                 Text(template.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("${template.area} · ${formatPercent(template.average)} · ${template.runs} controles", style = MaterialTheme.typography.bodySmall)
@@ -187,7 +187,7 @@ private fun SummaryContent(summary: SummaryReport) {
     }
     if (summary.areas.isNotEmpty()) {
         Text("Por área", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        BpmCardGrid(summary.areas, minCardWidth = 260.dp, maxColumns = 3) { area, cardModifier ->
+        BpmGridLayout(summary.areas) { area, cardModifier ->
             BpmCard(cardModifier) {
                 Text(area.area, fontWeight = FontWeight.Bold)
                 Text("${formatPercent(area.average)} · ${area.runs} controles", style = MaterialTheme.typography.bodySmall)

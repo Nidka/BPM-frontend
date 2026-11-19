@@ -63,7 +63,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
         }
     }
     if (state.courses.isEmpty() && !state.loading) EmptyState("Sin cursos", "Todavía no hay cursos con este filtro. Crea el primero.")
-    BpmCardGrid(state.courses, minCardWidth = 320.dp, maxColumns = 2) { course, cardModifier ->
+    BpmGridLayout(state.courses) { course, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(course.code)
             Text(course.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

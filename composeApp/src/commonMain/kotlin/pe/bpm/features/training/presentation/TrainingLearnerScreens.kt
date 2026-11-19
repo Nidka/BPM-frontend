@@ -89,7 +89,7 @@ fun MyAssignmentsPanel(
         }
         if (state.assignmentsLoaded && state.assignments.isEmpty() && state.assignmentsFailure == null)
             EmptyState("Sin capacitaciones asignadas", "Cuando tu administrador te asigne un curso aparecerá aquí con su fecha límite.")
-        BpmCardGrid(state.assignments, minCardWidth = 320.dp, maxColumns = 2) { item, cardModifier ->
+        BpmGridLayout(state.assignments) { item, cardModifier ->
             BpmCard(cardModifier, tint = if (item.status == AssignmentProgress.OVERDUE) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface) {
                 Eyebrow(assignmentStatusLabel(item.status).uppercase())
                 Text(item.course.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -127,10 +127,10 @@ fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier =
             }
             Text("Insignias obtenidas (${mine.earned.size})", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (mine.earned.isEmpty()) Text("Todavía no obtienes insignias. Completa cursos y evaluaciones para ganarlas.")
-            BpmCardGrid(mine.earned, minCardWidth = 320.dp, maxColumns = 2) { a, m -> AchievementCard(a, m) }
+            BpmGridLayout(mine.earned) { a, m -> AchievementCard(a, m) }
             if (mine.pending.isNotEmpty()) {
                 Text("Por lograr", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                BpmCardGrid(mine.pending, minCardWidth = 320.dp, maxColumns = 2) { a, m -> AchievementCard(a, m) }
+                BpmGridLayout(mine.pending) { a, m -> AchievementCard(a, m) }
             }
         }
     }
@@ -173,7 +173,7 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
         FailureText(state.pathDetailFailure ?: state.pathsFailure)
         if (state.pathsFailure != null) BpmSecondaryButton(onClick = viewModel::loadPaths) { Text("Volver a intentar") }
         if (state.pathsLoaded && state.paths.isEmpty() && state.pathsFailure == null) EmptyState("Sin rutas", "Tu organización todavía no publicó rutas de aprendizaje.")
-        BpmCardGrid(state.paths, minCardWidth = 320.dp, maxColumns = 2) { path, m ->
+        BpmGridLayout(state.paths) { path, m ->
             BpmCard(m) {
                 Text(path.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 if (path.description.isNotBlank()) Text(path.description)

@@ -44,7 +44,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
     state.coursesFailure?.let { Failure(it, vm::loadCourseRows) }
     state.courses?.let { courses ->
         if (courses.isEmpty()) EmptyState("Sin cursos publicados", "Cuando publiques un curso verás aquí el avance de tu equipo.")
-        BpmCardGrid(courses, minCardWidth = 400.dp, maxColumns = 2) { course, cardModifier ->
+        BpmGridLayout(courses) { course, cardModifier ->
             BpmCard(cardModifier) {
                 Text(course.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(course.code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -64,7 +64,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
     if (state.peopleLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.peopleFailure?.let { Failure(it, vm::loadFirstPeople) }
     if (state.peopleLoaded && state.people.isEmpty()) EmptyState("Sin personas para mostrar", "No hay personas activas con cursos publicados.")
-    BpmCardGrid(state.people, minCardWidth = 320.dp, maxColumns = 3) { person, cardModifier ->
+    BpmGridLayout(state.people) { person, cardModifier ->
         BpmCard(cardModifier) {
             Text(person.displayName, fontWeight = FontWeight.Bold)
             Eyebrow(roleName(person.role))
@@ -114,7 +114,7 @@ private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
     if (state.certificatesLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.certificatesFailure?.let { Failure(it, { vm.loadCertificates(false) }) }
     if (state.certificatesLoaded && state.certificates.isEmpty()) EmptyState("Aún no hay constancias", "Cuando solicites una constancia aparecerá en esta lista.")
-    BpmCardGrid(state.certificates, minCardWidth = 400.dp, maxColumns = 2) { certificate, cardModifier ->
+    BpmGridLayout(state.certificates) { certificate, cardModifier ->
         BpmCard(cardModifier) {
             Text("${longDate(certificate.periodStart)} al ${longDate(certificate.periodEnd)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text("Cumplimiento ${formatPercent(certificate.averageCompliance)} (umbral ${formatPercent(certificate.threshold)}) · ${certificate.runs} controles")

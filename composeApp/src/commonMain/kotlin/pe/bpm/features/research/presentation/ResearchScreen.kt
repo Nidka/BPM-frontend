@@ -139,7 +139,7 @@ private fun InstrumentsTab(controller: InstrumentsController) {
     ErrorLine(state.failure)
     if (state.failure != null && state.items.isEmpty()) BpmSecondaryButton(onClick = { controller.load(force = true) }) { Text("Volver a intentar") }
     if (state.loaded && state.items.isEmpty()) EmptyState("Sin cuestionarios", "Importa el cuestionario CAP para comenzar.")
-    BpmCardGrid(state.items, minCardWidth = 380.dp, maxColumns = 2) { item, cardModifier ->
+    BpmGridLayout(state.items) { item, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(item.code + if (item.isCap) " · CAP" else "")
             Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -227,7 +227,7 @@ private fun ResultsTab(controller: AnalysisController) {
     val results = state.results ?: return
     Text("Versión ${results.version.versionNumber} del cuestionario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     if (results.page.items.isEmpty()) EmptyState("Sin resultados", "Todavía no hay empresas con personas participantes.")
-    BpmCardGrid(results.page.items, minCardWidth = 380.dp, maxColumns = 2) { result, cardModifier -> ResultCard(result, cardModifier) }
+    BpmGridLayout(results.page.items) { result, cardModifier -> ResultCard(result, cardModifier) }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmSecondaryButton(onClick = controller::previousResults, enabled = state.hasPreviousResults && !state.resultsLoading) { Text("Página anterior") }
         BpmSecondaryButton(onClick = controller::nextResults, enabled = results.page.nextToken.isNotEmpty() && !state.resultsLoading) { Text("Página siguiente") }
@@ -350,7 +350,7 @@ private fun NeedsTab(controller: AnalysisController) {
     if (state.needsFailure != null) BpmSecondaryButton(onClick = controller::refreshNeeds) { Text("Volver a intentar") }
     val page = state.needs ?: return
     if (page.items.isEmpty()) EmptyState("Sin necesidades", "No hay necesidades registradas para este filtro.")
-    BpmCardGrid(page.items, minCardWidth = 340.dp, maxColumns = 3) { need, cardModifier ->
+    BpmGridLayout(page.items) { need, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(categoryLabel(need.category).uppercase())
             Text(need.organizationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -376,7 +376,7 @@ private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
     if (state.grantBusy || state.grantsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.grantsFailure)
     if (state.grantsLoaded && state.grants.isEmpty()) EmptyState("Sin concesiones", "Todavía no se concedió acceso a nadie.")
-    BpmCardGrid(state.grants, minCardWidth = 340.dp, maxColumns = 3) { grant, cardModifier ->
+    BpmGridLayout(state.grants) { grant, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(if (grant.active) "ACTIVO" else "RETIRADO")
             Text(grant.displayName.ifBlank { grant.email }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

@@ -82,7 +82,7 @@ private fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMod
     course.certificate?.let { CertificateCard(it) }
     Text("Lecciones", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
     if (course.lessons.isEmpty()) EmptyState("Sin lecciones", "Este curso todavía no tiene lecciones publicadas.")
-    BpmCardGrid(course.lessons, minCardWidth = 320.dp, maxColumns = 2) { lesson, cardModifier ->
+    BpmCardGrid(course.lessons, minCardWidth = 320.dp, maxColumns = 2) { lesson, cardModifier -> // patrón: las lecciones son una secuencia ordenada
         BpmCard(cardModifier) {
             Eyebrow("LECCIÓN ${course.lessons.indexOf(lesson) + 1}" + if (lesson.id == course.progress.lastLessonId) " · ÚLTIMA QUE VISTE" else "")
             Text(lesson.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

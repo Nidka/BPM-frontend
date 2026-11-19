@@ -45,7 +45,7 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
         BpmSearchField(state.page.request.query, viewModel::search, "Buscar por correo", enabled = !state.busy, loading = state.page.loading)
         PagedBlock(state.page, empty = { EmptyState("Sin invitaciones", "No hay invitaciones con este filtro. Usa «Invitar por correo» para sumar personas.") },
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
-            BpmCardGrid(state.page.items, minCardWidth = 320.dp, maxColumns = 3) { invitation, cardModifier ->
+            BpmGridLayout(state.page.items) { invitation, cardModifier ->
                 BpmCard(cardModifier) {
                     Text(invitation.email, fontWeight = FontWeight.Bold)
                     Eyebrow(invitation.status.label + " · " + invitation.role.label)

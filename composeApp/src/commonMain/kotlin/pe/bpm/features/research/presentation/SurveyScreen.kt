@@ -78,7 +78,7 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
         else -> {
             participation.participant?.let { Text("Tu código de participante: ${it.code}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             val completed = participation.completedMoments()
-            BpmCardGrid(SurveyMoment.entries, minCardWidth = 320.dp, maxColumns = 2) { moment, cardModifier ->
+            BpmCardGrid(SurveyMoment.entries, minCardWidth = 320.dp, maxColumns = 2) { moment, cardModifier -> // patrón: Antes y Después son pasos ordenados, no un catálogo
                 BpmCard(cardModifier) {
                     Eyebrow(if (moment == SurveyMoment.PRETEST) "AL EMPEZAR" else "AL TERMINAR")
                     Text(moment.label(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

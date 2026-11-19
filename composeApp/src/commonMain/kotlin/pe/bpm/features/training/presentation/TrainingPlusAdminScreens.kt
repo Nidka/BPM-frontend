@@ -74,7 +74,7 @@ private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssig
         }
     } else BpmTextButton(onClick = viewModel::loadCourses) { Text("Filtrar por curso") }
     if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin asignaciones", "No hay asignaciones con este filtro.")
-    BpmCardGrid(state.items, minCardWidth = 320.dp, maxColumns = 2) { item, m ->
+    BpmGridLayout(state.items) { item, m ->
         BpmCard(m) {
             Eyebrow(if (item.status == AssignmentRecordStatus.ACTIVE) "ACTIVA" else "CANCELADA")
             Text(item.course.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -158,7 +158,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
             Text("Catálogo de logros", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text("Quienes aprenden ganan estas insignias de forma automática. Puedes ajustar nombre, puntos, umbral y vigencia.")
             if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin insignias", "El catálogo se crea la primera vez que alguien las necesita.")
-            BpmCardGrid(state.items, minCardWidth = 320.dp, maxColumns = 2) { a, m ->
+            BpmGridLayout(state.items) { a, m ->
                 BpmCard(m) {
                     Eyebrow(if (a.active) "ACTIVA" else "INACTIVA")
                     Text(a.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -190,7 +190,7 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
                 PathStatus.entries.forEach { status -> BpmFilterChip(state.status == status, { viewModel.filter(status) }, { Text(pathStatusLabel(status)) }) }
             }
             if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin rutas", "Todavía no hay rutas con este filtro.")
-            BpmCardGrid(state.items, minCardWidth = 320.dp, maxColumns = 2) { path, m ->
+            BpmGridLayout(state.items) { path, m ->
                 BpmCard(m) {
                     Eyebrow(pathStatusLabel(path.status).uppercase())
                     Text(path.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
