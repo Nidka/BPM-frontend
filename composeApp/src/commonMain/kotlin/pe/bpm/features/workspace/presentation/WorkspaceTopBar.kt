@@ -20,17 +20,18 @@ import pe.bpm.core.designsystem.*
 /** La cabecera identifica la app y su organización; las acciones de cuenta viven en Mi cuenta. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun WorkspaceTopBar(
-    organizationName: String?, wide: Boolean, canChangeOrganization: Boolean,
+    organizationName: String?, wide: Boolean, windowClass: BpmWindowClass, canChangeOrganization: Boolean,
     enabled: Boolean, onToggleOrganization: () -> Unit,
     onBack: (() -> Unit)? = null,
  onAlerts: (() -> Unit)? = null, unreadCount:Int? = null,
+    onAccount: (() -> Unit)? = null,
 ) {
     val organizationInteractions = remember { MutableInteractionSource() }
     val organizationFocused by organizationInteractions.collectIsFocusedAsState()
     // TopAppBar reserva 16 dp laterales propios; se completa hasta el margen común del contenido.
     Surface(color = MaterialTheme.colorScheme.surface) {
     TopAppBar(
-        modifier = Modifier.padding(horizontal = BpmSpacing.gutter(wide) - 16.dp),
+        modifier = Modifier.padding(horizontal = (BpmSpacing.gutter(windowClass) - 16.dp).coerceAtLeast(0.dp)),
         windowInsets = WindowInsets(0),
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
@@ -44,6 +45,12 @@ import pe.bpm.core.designsystem.*
             if(onAlerts!=null) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 IconButton(onClick=onAlerts,enabled=enabled,modifier=Modifier.semantics{contentDescription=if(unreadCount==null) "Mis avisos" else "Mis avisos. $unreadCount sin leer"}) {
                     BadgedBox(badge={if(unreadCount!=null && unreadCount>0) Badge{Text(if(unreadCount>99) "99+" else unreadCount.toString())}}){BpmIcon(BpmSymbol.Bell)}
+                }
+            }
+            // «Mi cuenta» sale de la navegación principal y vive en el avatar de la cabecera.
+            if (onAccount != null) BpmFeedback(MaterialTheme.colorScheme.primary) {
+                IconButton(onClick = onAccount, enabled = enabled, modifier = Modifier.semantics { contentDescription = "Mi cuenta" }) {
+                    BpmIcon(BpmSymbol.Account)
                 }
             }
         },
