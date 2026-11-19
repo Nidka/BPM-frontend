@@ -35,42 +35,8 @@ fun IncidentsScreen(
         s.notice?.let { Text(it) }
         pe.bpm.core.offline.PendingOperationsNotice("incidents")
         if (s.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        when {
-            s.siteId == null -> Text("Selecciona una sede para consultar y reportar incidencias.")
-            !s.authorized ->
-                if (!s.loading) BpmSecondaryButton(viewModel::refresh) { Text("Reintentar acceso") }
-            s.picker != null -> IncidentChoices(s, viewModel)
-            e.form != null -> IncidentFormContent(s, e, viewModel)
-            s.showHistory -> {
-                Text("Historial de la incidencia", style = MaterialTheme.typography.titleLarge)
-                if (s.history.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                s.history.failure?.let {
-                    Text(incidentFailureText(it))
-                    BpmTextButton(viewModel::history) { Text("Reintentar historial") }
-                }
-                s.history.rows.forEach { event -> // lista-apilada: cronología en orden de eventos
-                    BpmCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                "${incidentStatusLabel(event.fromStatus)} → ${incidentStatusLabel(event.toStatus)}"
-                            )
-                            Text("${event.actorName} · ${displayDateTime(event.createdAt)}")
-                            event.note?.takeIf { it.isNotEmpty() }?.let { Text(it) }
-                        }
-                    }
-                }
-                PageNavigation(
-                    s.history.number,
-                    s.history.previous.isNotEmpty(),
-                    s.history.next.isNotEmpty(),
-                    s.history.loading,
-                    viewModel::historyPrevious,
-                    viewModel::historyNext,
-                )
-                BpmSecondaryButton(viewModel::closeHistory) { Text("Volver al detalle") }
-            }
-            s.detail != null -> IncidentDetailContent(s, viewModel, onEvidence)
-            else -> {
+        // Lista–detalle: desde 840 dp el detalle de una incidencia se muestra junto a la lista.
+        val listBody: @Composable () -> Unit = {
                 if (IncidentsAccess.canAuthor(s.role))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BpmFilterChip(
@@ -188,7 +154,43 @@ fun IncidentsScreen(
                         viewModel::next,
                     )
                 }
+        }
+        when {
+            s.siteId == null -> Text("Selecciona una sede para consultar y reportar incidencias.")
+            !s.authorized ->
+                if (!s.loading) BpmSecondaryButton(viewModel::refresh) { Text("Reintentar acceso") }
+            s.picker != null -> IncidentChoices(s, viewModel)
+            e.form != null -> IncidentFormContent(s, e, viewModel)
+            s.showHistory -> {
+                Text("Historial de la incidencia", style = MaterialTheme.typography.titleLarge)
+                if (s.history.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                s.history.failure?.let {
+                    Text(incidentFailureText(it))
+                    BpmTextButton(viewModel::history) { Text("Reintentar historial") }
+                }
+                s.history.rows.forEach { event -> // lista-apilada: cronología en orden de eventos
+                    BpmCard(Modifier.fillMaxWidth()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "${incidentStatusLabel(event.fromStatus)} → ${incidentStatusLabel(event.toStatus)}"
+                            )
+                            Text("${event.actorName} · ${displayDateTime(event.createdAt)}")
+                            event.note?.takeIf { it.isNotEmpty() }?.let { Text(it) }
+                        }
+                    }
+                }
+                PageNavigation(
+                    s.history.number,
+                    s.history.previous.isNotEmpty(),
+                    s.history.next.isNotEmpty(),
+                    s.history.loading,
+                    viewModel::historyPrevious,
+                    viewModel::historyNext,
+                )
+                BpmSecondaryButton(viewModel::closeHistory) { Text("Volver al detalle") }
             }
+            s.detail != null -> BpmListDetail(list = listBody, detail = { IncidentDetailContent(s, viewModel, onEvidence) })
+            else -> listBody()
         }
     }
 }

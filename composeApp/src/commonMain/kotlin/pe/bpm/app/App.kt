@@ -36,6 +36,7 @@ import androidx.navigation.compose.*
 import pe.bpm.core.designsystem.RaisedButton
 import pe.bpm.core.designsystem.BpmCard
 import pe.bpm.core.designsystem.BpmIcon
+import pe.bpm.core.designsystem.BpmListDetail
 import pe.bpm.core.designsystem.BpmActionTile
 import pe.bpm.core.designsystem.BpmPanelLayout
 import pe.bpm.core.designsystem.BpmSymbol
@@ -686,10 +687,23 @@ fun App(
                                             EvidenceQuestionAction(item.label, saved.run.evidenceCounts[item.id] ?: 0, saved.editable && !scopedOfflineState.busy && !scopedOfflineState.localConflict,
                                                 onOpen = { edit -> evidenceQuestion = EvidenceQuestion(saved.run.id, item.id, item.label); evidence.open(profile.id, saved.run.organizationId, saved.run.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) })
                                         } })
-                                }) else if (assignmentContent != null) assignmentContent else if (viewingHistory) ({ ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, evidence = { item ->
+                                }) else if (assignmentContent != null) assignmentContent else if (viewingHistory) ({
+                                    // Lista–detalle: desde 840 dp la lista de revisiones queda a la izquierda y el detalle al lado.
+                                    BpmListDetail(list = {
+                                        ChecklistHistoryScreen(scopedHistoryState, destination == WorkspaceDestination.Operations,
+                                            history::search, history::filter, history::next, history::previous, history::refresh,
+                                            onOpen = { item ->
+                                                val target = when {
+                                                    destination == WorkspaceDestination.Supervision -> "seguimiento/${item.id}"
+                                                    item.status == "DRAFT" && item.performedBy == profile.id -> "control/ejecucion/${item.id}"
+                                                    else -> "control/revisiones/${item.id}"
+                                                }
+                                                nav.navigate(target) { launchSingleTop = true }
+                                            })
+                                    }, detail = { ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, evidence = { item ->
                                     scopedHistoryState.detail?.let { reviewed -> EvidenceQuestionAction(item.label, reviewed.evidenceCounts[item.id] ?: 0, false,
                                         onOpen = { evidenceQuestion = EvidenceQuestion(reviewed.id, item.id, item.label); evidence.open(profile.id, reviewed.organizationId, reviewed.id, item.id, false) }) }
-                                }) }) else if (running) ({
+                                }) }) }) else if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")

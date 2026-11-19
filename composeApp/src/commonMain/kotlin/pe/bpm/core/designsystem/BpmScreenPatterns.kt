@@ -172,7 +172,8 @@ fun BpmListDetail(
 ) {
     if (BpmPatternRules.detailBesideList(currentWindowClass)) {
         Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
-            Column(Modifier.width(BpmPatternRules.listWidth)) { list() }
+            // La lista mide 360 dp: dentro de ella los componentes se comportan como en pantalla compacta (una columna).
+            Column(Modifier.width(BpmPatternRules.listWidth)) { ProvideBpmWindowClass(BpmWindowClass.Compact) { list() } }
             Column(Modifier.weight(1f)) { (detail ?: emptyDetail)?.invoke() }
         }
     } else Column(modifier.fillMaxWidth()) { if (detail != null) detail() else list() }

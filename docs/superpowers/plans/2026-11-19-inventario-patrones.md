@@ -8,10 +8,10 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 | Inicio | `inicio` | Panel | todos | Hecho (indicadores + apoyo) |
 | Mi cuenta | `cuenta` | Panel | todos | Hecho |
 | Empresa | `empresa` | Rejilla | ADMIN, BPM | Hecho |
-| Equipo | `equipo` | Lista–detalle | ADMIN, BPM | Parcial (filas densas; sin detalle lateral) |
+| Equipo | `equipo` | Lista–detalle | ADMIN, BPM | Hecho (filas densas; no tiene vista de detalle) |
 | Aprender | `aprender` | Rejilla | ADMIN, CHEF, WORKER | Hecho |
-| Seguimiento | `seguimiento` | Lista–detalle | ADMIN, BPM | Parcial (rejilla; sin detalle lateral) |
-| Detalle de revisión | `seguimiento/{runId}`, `control/revisiones/{runId}` | Lista–detalle | ADMIN, CHEF | Pendiente |
+| Seguimiento | `seguimiento` | Lista–detalle | ADMIN, BPM | Hecho (el detalle abre con la lista al lado) |
+| Detalle de revisión | `seguimiento/{runId}`, `control/revisiones/{runId}` | Lista–detalle | ADMIN, CHEF | Hecho (lista a la izquierda desde 840 dp) |
 | Control | `control` | Panel | ADMIN, CHEF | Hecho (controles de hoy + accesos) |
 | Catálogo de plantillas | `control/plantillas` | Rejilla | ADMIN, CHEF | Hecho (rejilla) |
 | Detalle de plantilla | `control/plantilla/{id}` | Lista–detalle | ADMIN, CHEF | Pendiente |
@@ -20,7 +20,7 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 | Controles en este dispositivo | `control/guardados`, `control/guardados/{runId}` | Lista / Pasos | ADMIN, CHEF | Parcial (detalle en 720 dp) |
 | Control programado | `control/programacion/{id}` | Lista–detalle | ADMIN, CHEF | Hecho (rejilla) |
 | Operación diaria | `control/operacion`, `empresa/operacion` | Lista–detalle | ADMIN, CHEF | Parcial (rejillas) |
-| Incidencias | `control/incidencias`, `empresa/incidencias`, `tareas/incidencias` | Lista–detalle | ADMIN, CHEF, WORKER | Parcial (rejillas) |
+| Incidencias | `control/incidencias`, `empresa/incidencias`, `tareas/incidencias` | Lista–detalle | ADMIN, CHEF, WORKER | Hecho (detalle junto a la lista desde 840 dp) |
 | Mis tareas | `tareas` | Pasos | WORKER | Pendiente |
 | Plantillas de control (gestión) | `empresa/plantillas`, `…/detalle/{id}` | Lista–detalle | ADMIN | Hecho (rejilla) |
 | Nueva plantilla | `empresa/plantillas/nueva` | Formulario | ADMIN | Pendiente |
@@ -51,7 +51,7 @@ Estado al 19/11/2026. Patrones: Panel, Lista–detalle, Rejilla, Pasos, Formular
 1. ~~Acceso~~ hecho.
 2. **Pasos:** Mis tareas y ejecución de control con barra de acción fija abajo en compacta (requiere que la pantalla tenga su propio scroll).
 3. **Formularios:** editor de nueva plantilla, formularios de operación diaria e incidencias (hoy dentro de pantallas de gestión).
-4. **Lista–detalle real:** Equipo, Seguimiento, Revisiones e Incidencias con detalle al lado desde 840 dp.
+4. ~~Lista–detalle~~ hecho en revisiones, seguimiento e incidencias.
 5. ~~Panel de Control~~ hecho.
 6. **Deuda medida:** 11 `BoxWithConstraints` en pantallas (R12) y 265 avisos congelados en `scripts/spacing-baseline.json` (R8 196, R7 34, R10 24).
 7. **Verificación:** capturas con datos reales por rol (faltan cuentas ADMIN, CHEF, WORKER) y compilación Android.
