@@ -1,0 +1,75 @@
+package pe.bpm.core.designsystem
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * Clase de ancho de ventana (Material 3 adaptive). Se calcula **una sola vez** en `BpmAppShell` y baja por
+ * [LocalBpmWindowClass]; ningún otro código mide la ventana. Los cortes son 600, 840 y 1200 dp.
+ */
+enum class BpmWindowClass(val margin: Dp) {
+    /** Menos de 600 dp: barra inferior, una columna. */
+    Compact(16.dp),
+    /** 600–839 dp: riel lateral de 80 dp. */
+    Medium(24.dp),
+    /** 840–1199 dp: menú lateral de 240 dp. */
+    Expanded(32.dp),
+    /** 1200 dp o más: menú lateral y contenido centrado con tope de [BpmSpacing.contentMax]. */
+    Large(32.dp);
+
+    /** La navegación ocupa un lado de la pantalla (riel o menú); en compacta va abajo. */
+    val sideNavigation: Boolean get() = this != Compact
+
+    companion object {
+        /** Corte inferior de cada clase, en dp. */
+        const val MEDIUM_FROM = 600
+        const val EXPANDED_FROM = 840
+        const val LARGE_FROM = 1200
+
+        fun fromWidth(width: Dp): BpmWindowClass = when {
+            width >= LARGE_FROM.dp -> Large
+            width >= EXPANDED_FROM.dp -> Expanded
+            width >= MEDIUM_FROM.dp -> Medium
+            else -> Compact
+        }
+    }
+}
+
+/** Forma de la navegación principal según la clase de ancho (y el alto disponible). */
+enum class BpmNavigationMode(val width: Dp) {
+    /** Barra inferior con un máximo de cinco destinos. */
+    BottomBar(0.dp),
+    /** Riel de 80 dp con icono y texto. */
+    Rail(80.dp),
+    /** Menú lateral de 240 dp. */
+    SideMenu(240.dp);
+
+    companion object {
+        /** Alto mínimo para una navegación lateral; por debajo (móvil horizontal) se usa la barra inferior. */
+        val MIN_SIDE_HEIGHT: Dp = 480.dp
+
+        fun of(windowClass: BpmWindowClass, height: Dp): BpmNavigationMode = when {
+            height < MIN_SIDE_HEIGHT -> BottomBar
+            windowClass == BpmWindowClass.Compact -> BottomBar
+            windowClass == BpmWindowClass.Medium -> Rail
+            else -> SideMenu
+        }
+    }
+}
+
+/** Clase de ancho vigente. Sin shell (pruebas, vistas previas) se asume compacta. */
+val LocalBpmWindowClass = compositionLocalOf { BpmWindowClass.Compact }
+
+/** Atajo de lectura para los patrones y componentes. */
+val currentWindowClass: BpmWindowClass
+    @Composable @ReadOnlyComposable get() = LocalBpmWindowClass.current
+
+/** Publica [windowClass] para todo el contenido; solo lo llama el shell. */
+@Composable
+fun ProvideBpmWindowClass(windowClass: BpmWindowClass, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalBpmWindowClass provides windowClass, content = content)
+}
