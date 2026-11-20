@@ -200,7 +200,7 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
                 BpmSecondaryButton(onClick = viewModel::retryStudyQuestion, modifier = Modifier.fillMaxWidth()) { Text("Reintentar esta pregunta") }
             } else Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid), verticalAlignment = Alignment.CenterVertically) {
                 BpmSecondaryButton(onClick = viewModel::retryStudyQuestion) { Text("Reintentar esta pregunta") }
-                RaisedButton(nextLabel, viewModel::nextStudyQuestion, Modifier.widthIn(min = 200.dp))
+                RaisedButton(nextLabel, viewModel::nextStudyQuestion, Modifier.bpmPrimaryButtonWidth())
             }
         }
     }

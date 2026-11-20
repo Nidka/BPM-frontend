@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
@@ -163,7 +162,7 @@ private fun AssignedCourses(state: LearnerState, onOpenCourse: (String) -> Unit,
             itemsIndexed(items, key = { _, item -> item.assignmentId }) { index, item -> card(index, item, Modifier.width(AssignedCardWidth)) }
         }
     } else {
-        BpmCardGrid(items.withIndex().toList(), minCardWidth = 240.dp, maxColumns = 3) { (index, item), modifier -> card(index, item, modifier) }
+        BpmGridLayout(items.withIndex().toList()) { (index, item), modifier -> card(index, item, modifier) }
     }
     if (state.assignmentsNext != null) BpmSecondaryButton(onClick = onMore, enabled = !state.assignmentsLoading) { Text("Ver más capacitaciones") }
 }

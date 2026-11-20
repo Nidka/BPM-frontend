@@ -28,8 +28,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -91,7 +89,7 @@ fun BpmQuestionNavigator(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
         Text(questionNavigatorSummary(answered), style = BpmType.bodySmallStrong)
         if (wrap) {
-            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xs), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
                 marks.forEachIndexed { index, mark -> QuestionChip(index, mark, onSelect) }
             }
         } else {
@@ -100,7 +98,7 @@ fun BpmQuestionNavigator(
             LaunchedEffect(current) {
                 if (state.layoutInfo.visibleItemsInfo.none { it.index == current }) state.animateScrollToItem((current - 1).coerceAtLeast(0))
             }
-            LazyRow(Modifier.fillMaxWidth(), state = state, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            LazyRow(Modifier.fillMaxWidth(), state = state, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
                 itemsIndexed(marks) { index, mark -> QuestionChip(index, mark, onSelect) }
             }
         }
@@ -134,7 +132,7 @@ private fun QuestionChip(index: Int, mark: BpmQuestionMark, onSelect: (Int) -> U
             ) {
                 Text((index + 1).toString(), modifier = Modifier.clearAndSetSemantics { },
                     color = if (isCurrent) scheme.onPrimary else if (answered) scheme.primary else scheme.onSurface,
-                    style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"))
+                    style = BpmType.bodyMediumStrong.copy(fontSize = 15.sp, fontFeatureSettings = "tnum"))
             }
         }
     }

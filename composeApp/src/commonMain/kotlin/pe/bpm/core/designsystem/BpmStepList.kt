@@ -26,10 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /** Estado de un paso de [BpmStepList]. */
 enum class BpmStepState { Done, Current, Pending }
@@ -120,7 +117,7 @@ private fun StepCircle(step: BpmStep, number: Int, size: androidx.compose.ui.uni
             step.state == BpmStepState.Done -> BpmIcon(BpmSymbol.Check, tint = content, modifier = Modifier.size(16.dp))
             highlighted -> BpmIcon(BpmSymbol.Award, tint = content, modifier = Modifier.size(16.dp))
             else -> Text(number.toString(), color = content,
-                style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"))
+                style = BpmType.bodyMediumStrong.copy(fontFeatureSettings = "tnum"))
         }
     }
 }

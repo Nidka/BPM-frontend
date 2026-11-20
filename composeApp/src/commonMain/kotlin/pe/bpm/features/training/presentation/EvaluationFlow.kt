@@ -17,9 +17,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -177,9 +175,11 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
             if (attempt.passed) Mascot(Modifier.size(112.dp))
             if (attempt.passed) BpmStatusChip("Aprobado", BpmTone.Success, symbol = BpmSymbol.Check) else BpmStatusChip("No aprobado", BpmTone.Warning)
+            val scoreStyle = BpmType.bodyStrong.toSpanStyle().copy(fontSize = 44.sp)
+            val denominatorStyle = BpmType.bodyStrong.toSpanStyle().copy(fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)) { append(attempt.score.toString()) }
-                withStyle(SpanStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)) { append(" / 100") }
+                withStyle(scoreStyle) { append(attempt.score.toString()) }
+                withStyle(denominatorStyle) { append(" / 100") }
             }, modifier = Modifier.semantics { contentDescription = "Puntaje: ${attempt.score} de 100" })
             Text("Mínimo para aprobar: ${course.version.passingScore}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             xpEarnedChip(attempt)?.let { BpmStatusChip(it, BpmTone.Info, symbol = BpmSymbol.Award) }

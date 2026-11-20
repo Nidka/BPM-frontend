@@ -11,7 +11,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
@@ -79,7 +78,7 @@ import pe.bpm.features.workspace.domain.*
             if (filter == CatalogFilter.All) "Sin cursos nuevos" else "Sin cursos con este filtro",
             if (filter == CatalogFilter.All) "Los cursos de esta página ya están en «Asignadas a ti»." else "Prueba con otro filtro; solo se filtran los cursos de esta página.")
     }
-    BpmCardGrid(visible.withIndex().toList(), minCardWidth = 260.dp, maxColumns = 3) { (index, entry), cardModifier ->
+    BpmGridLayout(visible.withIndex().toList()) { (index, entry), cardModifier ->
         BpmCourseCard(
             code = "CURSO", title = entry.title, meta = catalogSummary(entry.detail).ifEmpty { "Curso de tu organización" },
             onClick = { onOpen(entry.id) }, modifier = cardModifier, colorIndex = index,

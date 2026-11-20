@@ -26,8 +26,6 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,7 +63,7 @@ fun BpmProgressRing(
         }
         Text(
             label, color = MaterialTheme.colorScheme.onSurface, maxLines = 1,
-            style = TextStyle(fontSize = (size.value * 0.26f).sp, fontWeight = FontWeight.ExtraBold, fontFeatureSettings = "tnum"),
+            style = BpmType.bodyStrong.copy(fontSize = (size.value * 0.26f).sp, fontFeatureSettings = "tnum"),
         )
     }
 }

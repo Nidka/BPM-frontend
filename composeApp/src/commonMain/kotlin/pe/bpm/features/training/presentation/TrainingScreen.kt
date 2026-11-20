@@ -27,6 +27,7 @@ import pe.bpm.features.training.domain.*
  * Aprender: detalle del curso, lección con video, modo estudio y modo evaluación. [onOpenCourse] abre otro curso
  * (el «Siguiente curso» del resultado); si es nulo ese botón no se muestra.
  */
+// patrón: detalle de curso alojado por TrainingCourseContent; el marco del shell pone los márgenes y aquí solo se centra la lectura o se usa todo el ancho.
 @Composable
 fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
