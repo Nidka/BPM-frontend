@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
+import pe.bpm.features.operations.presentation.OperationsViewModel
+import pe.bpm.features.operations.presentation.TodayPlanRow
+import pe.bpm.features.operations.presentation.homeTodayPlans
 import pe.bpm.features.training.domain.AssignmentProgress
 import pe.bpm.features.training.domain.MyAssignment
 import pe.bpm.features.training.presentation.TrainingLearnerViewModel
@@ -23,21 +26,26 @@ import pe.bpm.features.training.presentation.assignmentsForToday
 import pe.bpm.features.training.presentation.criterionLabel
 import pe.bpm.features.training.presentation.nextAssignment
 import pe.bpm.features.training.presentation.readableDate
+import pe.bpm.features.training.presentation.assignmentProgress
 import pe.bpm.features.training.presentation.trainingFailureMessage
+import pe.bpm.features.workspace.domain.Location
 
 /**
  * Pantalla «Hoy» del personal (WORKER). Solo muestra datos reales: la asignación que toca continuar o empezar,
- * dos accesos del turno (limpieza e incidencias), las capacitaciones asignadas y el resumen de logros.
- * No hay racha ni lista de tareas con hora: el backend aún no las ofrece.
+ * «Tareas de hoy» (hasta 4 planes de limpieza con su estado del servidor, de la primera sede asignada), los accesos
+ * del turno si no hay sede o planes, las capacitaciones asignadas, la racha y el resumen de logros.
  *
- * Pide al [learner] las asignaciones y los logros al abrirse; en compacta el orden es siguiente paso, tu turno,
- * asignadas, recompensas y reportar; desde media los logros y «Reportar un problema» van en el panel lateral.
+ * Pide al [learner] las asignaciones y los logros al abrirse, y a [operations] los planes de hoy de la sede
+ * (`view=today`). En compacta el orden es siguiente paso, tareas/turno, asignadas, racha, recompensas y reportar;
+ * desde media la racha, los logros y «Reportar un problema» van en el panel lateral.
  */
 @Composable
 internal fun WorkerTodayContent(
     learner: TrainingLearnerViewModel,
     userId: String,
     organizationId: String,
+    operations: OperationsViewModel,
+    locations: List<Location>,
     onOpenCourse: (String) -> Unit,
     onLearn: () -> Unit,
     onTasks: () -> Unit,
@@ -49,12 +57,23 @@ internal fun WorkerTodayContent(
         learner.open(userId, organizationId, member = true)
         learner.loadAchievements()
     }
+    // Una sola sede asignada es «la sede»; con varias se usa la primera y «Ver todas» lleva a Tareas.
+    val site = locations.firstOrNull()
+    LaunchedEffect(userId, organizationId, site?.id) {
+        if (site != null) {
+            operations.open(userId, organizationId, "WORKER", site.id)
+            operations.refreshToday()
+        }
+    }
     val state by learner.state.collectAsStateWithLifecycle()
+    val ops by operations.state.collectAsStateWithLifecycle()
     val next = nextAssignment(state.assignments)
     val achievements = state.achievements
+    val todayPlans = if (site != null && ops.userId == userId && ops.siteId == site.id && ops.todayLoaded) homeTodayPlans(ops.todayPlans) else emptyList()
     BpmSupportPaneLayout(
         modifier,
         support = {
+            achievements?.streak?.let { BpmStreakBadge(it.currentDays, it.activeToday, longestDays = it.longestDays) }
             if (achievements != null) {
                 BpmRewardSummary(
                     experiencePoints = achievements.totals.experiencePoints,
@@ -82,9 +101,19 @@ internal fun WorkerTodayContent(
                 }
                 state.assignmentsLoaded -> AllCaughtUp(onLearn)
             }
+            if (todayPlans.isNotEmpty() && site != null) BpmCard(Modifier.fillMaxWidth()) {
+                val more = ops.todayPlans.size > todayPlans.size || locations.size > 1
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tareas de hoy", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    if (more) BpmTextButton(onTasks) { Text("Ver todas") }
+                }
+                if (locations.size > 1) Text("Sede: ${site.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                todayPlans.forEach { plan -> TodayPlanRow(plan, onClick = onTasks) }
+            }
             BpmCard(Modifier.fillMaxWidth()) {
                 Text("Tu turno", style = MaterialTheme.typography.titleMedium)
-                BpmTaskRow("Registrar limpieza", BpmSymbol.Control, detail = "Anota las tareas de limpieza de tu sede", onClick = onTasks)
+                // Con tareas de hoy a la vista, «Registrar limpieza» ya está en ellas; si no, queda el acceso directo.
+                if (todayPlans.isEmpty()) BpmTaskRow("Registrar limpieza", BpmSymbol.Control, detail = "Anota las tareas de limpieza de tu sede", onClick = onTasks)
                 BpmTaskRow("Incidencias y correcciones", BpmSymbol.Alert, detail = "Reporta un problema o sube la foto de una corrección", tone = BpmTone.Warning, onClick = onReport)
             }
             if (state.assignments.isNotEmpty()) {
@@ -120,6 +149,7 @@ private fun NextStep(assignment: MyAssignment, onOpenCourse: (String) -> Unit) {
         actionLabel = if (started) "Continuar curso" else "Empezar curso",
         onAction = { onOpenCourse(assignment.course.id) },
         supporting = due?.let { (if (assignment.status == AssignmentProgress.OVERDUE) "Venció el " else "Vence el ") + it },
+        progress = assignmentProgress(assignment),
     )
 }
 

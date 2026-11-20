@@ -43,9 +43,13 @@ class RemoteTrainingRepository(
         api<Envelope<VideoTicketDto>>(org, "courses/${trainingId(courseId)}/lessons/${trainingId(lessonId)}/video", HttpMethod.Post, buildJsonObject {}).data.domain()
     }
 
-    override suspend fun saveProgress(org: String, courseId: String, lessonId: String): TrainingResult<TrainingProgress> = guarded {
+    override suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String?): TrainingResult<TrainingProgress> = guarded {
         api<Envelope<ProgressEnvelope>>(org, "courses/${trainingId(courseId)}/progress", HttpMethod.Put,
-            buildJsonObject { put("lastLessonId", trainingId(lessonId)) }).data.progress.domain()
+            buildJsonObject {
+                put("lastLessonId", trainingId(lessonId))
+                // Solo viaja cuando la persona terminó una lección; un servidor anterior ignora el campo.
+                completedLessonId?.let { put("completedLessonId", trainingId(it)) }
+            }).data.progress.domain()
     }
 
     override suspend fun checkStudyAnswer(org: String, courseId: String, questionId: String, selected: Int): TrainingResult<StudyFeedback> = guarded {
@@ -141,6 +145,8 @@ class RemoteTrainingRepository(
                 draft.lessons.forEach { lesson -> add(buildJsonObject {
                     put("id", trainingId(lesson.id)); put("title", lesson.title); put("content", lesson.content)
                     put("displayOrder", lesson.displayOrder)
+                    // «Lo esencial»: ausente conserva lo previo en el servidor y [] lo vacía; al editar siempre se envía.
+                    putJsonArray("keyPoints") { lesson.keyPoints.map { it.trim() }.filter { it.isNotEmpty() }.forEach { add(it) } }
                     put("videoMediaId", lesson.videoMediaId?.let { JsonPrimitive(trainingId(it)) } ?: JsonNull)
                     // Video privado y de YouTube son excluyentes; se envía el identificador normalizado.
                     require(lesson.videoMediaId == null || lesson.externalVideoId == null)

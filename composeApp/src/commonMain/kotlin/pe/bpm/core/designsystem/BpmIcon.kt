@@ -24,6 +24,7 @@ enum class BpmSymbol(internal val resource: DrawableResource) {
     Camera(Res.drawable.ic_camera), Download(Res.drawable.ic_download),
     ChevronRight(Res.drawable.ic_chevron_right), Close(Res.drawable.ic_x),
     Route(Res.drawable.ic_route), Book(Res.drawable.ic_book),
+    Flame(Res.drawable.ic_flame),
 }
 
 /** La etiqueta pertenece al control; los íconos decorativos reciben una descripción nula. */

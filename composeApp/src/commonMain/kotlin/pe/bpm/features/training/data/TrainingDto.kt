@@ -52,7 +52,21 @@ internal data class ExternalVideoDto(val provider: String, val videoId: String) 
 }
 
 @Serializable
-internal data class LessonDto(val id: String, val title: String, val content: String = "", val displayOrder: Int, val video: VideoDto? = null, val externalVideo: ExternalVideoDto? = null)
+internal data class LessonDto(
+    val id: String,
+    val title: String,
+    val content: String = "",
+    val displayOrder: Int,
+    val video: VideoDto? = null,
+    val externalVideo: ExternalVideoDto? = null,
+    val keyPoints: List<String> = emptyList(),
+)
+
+/** Valida «Lo esencial» de una lección; un servidor anterior no lo envía y equivale a vacío. */
+internal fun checkedKeyPoints(points: List<String>): List<String> {
+    require(points.size <= TrainingLimits.KEY_POINTS_MAX * 4)
+    return points
+}
 
 /** Vista de aprendizaje: este DTO no declara correctOption ni explanation, así que se ignoran si llegaran. */
 @Serializable
@@ -65,12 +79,19 @@ internal data class ProgressDto(
     val bestScore: Int? = null,
     val experiencePoints: Int = 0,
     val completedAt: String? = null,
+    val completedLessonIds: List<String> = emptyList(),
+    val completedLessons: Int = 0,
+    val totalLessons: Int = 0,
+    val percent: Int = 0,
 ) {
     fun domain(): TrainingProgress {
         lastLessonId?.let(::trainingId)
         require(bestScore == null || bestScore in 0..100)
         require(experiencePoints >= 0)
-        return TrainingProgress(ProgressStatus.valueOf(status), lastLessonId, bestScore, experiencePoints, instantOrNull(completedAt))
+        require(completedLessonIds.size <= TrainingLimits.MAX_LESSONS && completedLessonIds.all { idPattern.matches(it) })
+        require(completedLessons >= 0 && totalLessons >= 0 && percent in 0..100)
+        return TrainingProgress(ProgressStatus.valueOf(status), lastLessonId, bestScore, experiencePoints, instantOrNull(completedAt),
+            completedLessonIds, completedLessons, totalLessons, percent)
     }
 }
 
@@ -101,7 +122,8 @@ internal data class CourseDetailDto(
         require(lessons.size <= TrainingLimits.MAX_LESSONS && questions.size <= TrainingLimits.MAX_QUESTIONS)
         val mappedLessons = lessons.map {
             require(it.video == null || it.externalVideo == null)
-            TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.video?.domain(), it.externalVideo?.domain())
+            TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.video?.domain(), it.externalVideo?.domain(),
+                keyPoints = checkedKeyPoints(it.keyPoints))
         }
         require(mappedLessons.map { it.id }.distinct().size == mappedLessons.size)
         val lessonIds = mappedLessons.map { it.id }.toSet()
@@ -131,7 +153,24 @@ internal data class CourseDetailDto(
 @Serializable internal data class StudyDto(val correct: Boolean, val correctOption: Int, val explanation: String = "")
 
 @Serializable
-internal data class AttemptDto(val id: String, val attemptType: String, val score: Int, val passed: Boolean, val completedAt: String)
+internal data class AttemptDto(
+    val id: String,
+    val attemptType: String,
+    val score: Int,
+    val passed: Boolean,
+    val completedAt: String,
+    val xpEarned: Int? = null,
+)
+
+/** Siguiente curso sugerido; fuera de una ruta el servidor no manda `pathId`/`pathTitle`. */
+@Serializable
+internal data class NextCourseDto(val pathId: String? = null, val pathTitle: String? = null, val courseId: String, val courseTitle: String) {
+    fun domain(): NextCourse {
+        trainingId(courseId)
+        require(courseTitle.isNotBlank() && courseTitle.length <= 400 && (pathTitle?.length ?: 0) <= 400)
+        return NextCourse(pathId?.takeIf { it.isNotBlank() }?.let(::trainingId), pathTitle?.takeIf { it.isNotBlank() }, courseId, courseTitle)
+    }
+}
 
 @Serializable
 internal data class ResultDto(val questionId: String, val selectedOption: Int, val correct: Boolean, val correctOption: Int, val explanation: String = "")
@@ -143,8 +182,10 @@ internal data class AttemptOutcomeDto(
     val progress: ProgressDto,
     val certificate: CertificateDto? = null,
     val achievements: List<AchievementDto> = emptyList(),
+    val nextCourse: NextCourseDto? = null,
 ) {
     fun domain(sent: AttemptSubmission): AttemptOutcome {
+        require(attempt.xpEarned == null || attempt.xpEarned in 0..1_000_000)
         require(attempt.id.equals(sent.id, ignoreCase = true) && AttemptType.valueOf(attempt.attemptType) == sent.attemptType)
         require(achievements.size <= 50)
         require(attempt.score in 0..100 && results.size == sent.answers.size)
@@ -157,7 +198,8 @@ internal data class AttemptOutcomeDto(
         }
         require(mapped.map { it.questionId.lowercase() }.distinct().size == mapped.size)
         require(attempt.score == ((mapped.count { it.correct } * 100.0) / mapped.size + 0.5).toInt())
-        return AttemptOutcome(AttemptSummary(attempt.id, sent.attemptType, attempt.score, attempt.passed, attempt.completedAt), mapped, progress.domain(), certificate?.domain(), achievements.map { it.domain() })
+        return AttemptOutcome(AttemptSummary(attempt.id, sent.attemptType, attempt.score, attempt.passed, attempt.completedAt, attempt.xpEarned), mapped, progress.domain(),
+            certificate?.domain(), achievements.map { it.domain() }, nextCourse?.domain())
     }
 }
 
@@ -173,7 +215,15 @@ internal data class AdminCourseDto(val id: String, val code: String, val title: 
 
 @Serializable internal data class AdminListDto(val items: List<AdminCourseDto>)
 
-@Serializable internal data class DraftLessonDto(val id: String, val title: String, val content: String = "", val displayOrder: Int, val videoMediaId: String? = null, val externalVideo: ExternalVideoDto? = null)
+@Serializable internal data class DraftLessonDto(
+    val id: String,
+    val title: String,
+    val content: String = "",
+    val displayOrder: Int,
+    val videoMediaId: String? = null,
+    val externalVideo: ExternalVideoDto? = null,
+    val keyPoints: List<String> = emptyList(),
+)
 
 @Serializable
 internal data class DraftQuestionDto(
@@ -203,7 +253,8 @@ internal data class DraftDto(
         return TrainingDraft(info, version.id, version.versionNumber, version.passingScore, rowVersion,
             lessons.map {
                 require(it.videoMediaId == null || it.externalVideo == null)
-                DraftLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.videoMediaId?.let(::trainingId), it.externalVideo?.domain()?.videoId)
+                DraftLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.videoMediaId?.let(::trainingId), it.externalVideo?.domain()?.videoId,
+                    checkedKeyPoints(it.keyPoints))
             }.sortedBy { it.displayOrder },
             questions.map {
                 trainingId(it.id)

@@ -22,6 +22,34 @@ class TrainingDraftRulesTest {
         assertFalse(DraftIssueKind.LESSON_COUNT in kinds(base.copy(lessons = many.take(50), questions = emptyList())))
     }
 
+    @Test fun keyPointsFollowTheContract() {
+        val base = sampleDraft()
+        fun with(vararg points: String) = base.copy(lessons = listOf(base.lessons[0].copy(keyPoints = points.toList())))
+        assertEquals(emptySet(), kinds(with()))
+        assertEquals(emptySet(), kinds(with("Lavar", "Secar", "", "  ")))
+        assertEquals(emptySet(), kinds(with("x".repeat(200))))
+        assertEquals(setOf(DraftIssueKind.KEY_POINTS), kinds(with("x".repeat(201))))
+        assertEquals(setOf(DraftIssueKind.KEY_POINTS), kinds(with("1", "2", "3", "4", "5", "6")))
+        assertEquals(setOf(DraftIssueKind.KEY_POINTS), kinds(with("Lavar", " lavar ")))
+        assertEquals(setOf(DraftIssueKind.KEY_POINTS), kinds(with("dos\nlíneas")))
+        // Los campos vacíos no cuentan para el tope.
+        assertEquals(emptySet(), kinds(with("1", "2", "3", "4", "5", "")))
+    }
+
+    @Test fun keyPointEditsRespectTheLimitAndStaySingleLine() {
+        val lesson = sampleDraft().lessons[0]
+        var draft = sampleDraft()
+        repeat(7) { draft = TrainingDraftEdits.addKeyPoint(draft, lesson.id) }
+        assertEquals(TrainingLimits.KEY_POINTS_MAX, draft.lessons[0].keyPoints.size)
+        draft = TrainingDraftEdits.setKeyPoint(draft, lesson.id, 1, "uno\ndos")
+        assertEquals("uno dos", draft.lessons[0].keyPoints[1])
+        draft = TrainingDraftEdits.removeKeyPoint(draft, lesson.id, 0)
+        assertEquals(4, draft.lessons[0].keyPoints.size)
+        assertEquals("uno dos", draft.lessons[0].keyPoints[0])
+        // Al guardar se recortan y se descartan los vacíos.
+        assertEquals(listOf("uno dos"), draft.normalized().lessons[0].keyPoints)
+    }
+
     @Test fun questionLimitsFollowTheContract() {
         val q = sampleDraft().questions[0]
         fun with(question: DraftQuestion) = sampleDraft().copy(questions = listOf(question))

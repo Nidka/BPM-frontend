@@ -23,9 +23,12 @@ import pe.bpm.core.offline.PendingBadge
 import pe.bpm.core.offline.relativeAge
 import pe.bpm.features.training.domain.*
 
-/** Aprender: detalle del curso, lección con video, modo estudio y modo evaluación. */
+/**
+ * Aprender: detalle del curso, lección con video, modo estudio y modo evaluación. [onOpenCourse] abre otro curso
+ * (el «Siguiente curso» del resultado); si es nulo ese botón no se muestra.
+ */
 @Composable
-fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier) {
+fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scroll = rememberScrollState()
     // Cada cambio de pantalla interna vuelve al inicio del contenido.
@@ -54,7 +57,7 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier) 
             TrainingPane.OVERVIEW -> CourseOverview(course, state, viewModel)
             TrainingPane.LESSON -> state.lesson?.let { LessonViewer(state, course, it, viewModel) }
             TrainingPane.STUDY -> state.study?.let { StudyPractice(it, viewModel) }
-            TrainingPane.EVALUATION -> state.evaluation?.let { EvaluationPanel(state, course, it, viewModel) }
+            TrainingPane.EVALUATION -> state.evaluation?.let { EvaluationPanel(state, course, it, viewModel, onOpenCourse) }
         }
     }
     }

@@ -82,6 +82,8 @@ fun OperationsScreen(
         val listBody: @Composable () -> Unit = {
                 if (state.resource.needsSite && state.siteId == null)
                     Text("Selecciona una sede para consultar esta sección.")
+                else if (worker && state.resource == OperationsResource.PLANS)
+                    WorkerTodayList(state, viewModel, onCleaningPhotos)
                 else {
                     BpmSearchField(
                         state.query,
@@ -225,4 +227,25 @@ private fun OperationsPicker(state: OperationsState, vm: OperationsViewModel) {
         vm::pickerNext,
     )
     BpmTextButton(vm::closePicker) { Text("Volver al formulario") }
+}
+
+/**
+ * «Por hacer» del personal: los planes activos de la sede con su estado de hoy (`view=today`), pendientes primero por
+ * hora límite y los hechos al final. Sin búsqueda ni páginas (las recorre el modelo de vista). Chips del servidor.
+ */
+@Composable
+private fun WorkerTodayList(state: OperationsState, viewModel: OperationsViewModel, onCleaningPhotos: ((CleaningExecution) -> Unit)?) {
+    LaunchedEffect(state.siteId, state.resource) {
+        if (!state.todayLoaded && !state.todayLoading) viewModel.refreshToday()
+    }
+    if (state.todayLoading && !state.todayLoaded) LinearProgressIndicator(Modifier.fillMaxWidth())
+    state.todayFailure?.let { failure ->
+        Text(failureText(failure), color = MaterialTheme.colorScheme.error)
+        BpmTextButton(viewModel::refreshToday, enabled = !state.todayLoading) { Text("Reintentar consulta") }
+    }
+    if (state.todayLoaded && state.todayPlans.isEmpty() && state.todayFailure == null)
+        EmptyState("Sin tareas para hoy", "Esta sede no tiene planes de limpieza activos.")
+    BpmGridLayout(sortTodayPlans(state.todayPlans)) { plan, cardModifier ->
+        WorkerTaskItem(OperationsEntry.PlanEntry(plan), viewModel, onCleaningPhotos, cardModifier)
+    }
 }

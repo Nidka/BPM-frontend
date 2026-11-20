@@ -41,6 +41,8 @@ internal class FakeTrainingRepository : TrainingRepository, TrainingAuthoringRep
     val ticketCalls = mutableListOf<String>()
     var progressResult: (String) -> TrainingResult<TrainingProgress> = { id -> TrainingResult.Success(TrainingProgress(ProgressStatus.IN_PROGRESS, id, null, 0, null)) }
     val progressCalls = mutableListOf<String>()
+    /** Lección terminada enviada junto con cada guardado de avance, en el mismo orden que [progressCalls]. */
+    val completedCalls = mutableListOf<String?>()
     var study: (String, Int) -> TrainingResult<StudyFeedback> = { _, selected -> TrainingResult.Success(StudyFeedback(selected == 1, 1, "Por higiene")) }
     val studyCalls = mutableListOf<Pair<String, Int>>()
     val attempts = mutableListOf<AttemptSubmission>()
@@ -48,7 +50,7 @@ internal class FakeTrainingRepository : TrainingRepository, TrainingAuthoringRep
 
     override suspend fun course(org: String, courseId: String): TrainingResult<TrainingCourse> { courseCalls += courseId; return course }
     override suspend fun videoTicket(org: String, courseId: String, lessonId: String): TrainingResult<VideoTicket> { ticketCalls += lessonId; return ticket }
-    override suspend fun saveProgress(org: String, courseId: String, lessonId: String): TrainingResult<TrainingProgress> { progressCalls += lessonId; return progressResult(lessonId) }
+    override suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String?): TrainingResult<TrainingProgress> { progressCalls += lessonId; completedCalls += completedLessonId; return progressResult(lessonId) }
     override suspend fun checkStudyAnswer(org: String, courseId: String, questionId: String, selected: Int): TrainingResult<StudyFeedback> {
         studyCalls += questionId to selected; return study(questionId, selected)
     }

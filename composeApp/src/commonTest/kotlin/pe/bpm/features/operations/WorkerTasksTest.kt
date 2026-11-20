@@ -34,15 +34,52 @@ class WorkerTasksTest {
         assertTrue(sortPlansByDueTime(emptyList()).isEmpty())
     }
 
+    private fun today(done: Boolean = false, doneByMe: Boolean = false, overdue: Boolean = false, shift: String? = null) =
+        CleaningPlanToday("2026-11-20T05:00:00Z", "2026-11-21T05:00:00Z", "America/Lima", done, doneByMe, overdue = overdue,
+            shift = shift?.let { CleaningPlanShift("s1", it, "OPEN") })
+
     @Test
-    fun dueChipTextAndToneFollowTheLocalTime() {
+    fun dueChipTextIsNullWithoutATime() {
         assertEquals("hasta 10:00", dueChipText("10:00"))
         assertNull(dueChipText(""))
-        assertEquals(BpmTone.Warning, dueTone("10:00", localMinutes = 10 * 60 + 1))
-        assertEquals(BpmTone.Neutral, dueTone("10:00", localMinutes = 10 * 60))
-        assertEquals(BpmTone.Neutral, dueTone("10:00", localMinutes = null))
-        assertEquals(BpmTone.Neutral, dueTone("", localMinutes = 23 * 60))
-        assertEquals(BpmTone.Neutral, dueTone("25:99", localMinutes = 23 * 60))
+    }
+
+    @Test
+    fun todayChipFollowsTheServer() {
+        assertEquals(TodayChip("Hecho", BpmTone.Success), todayChip(plan("a", "10:00").copy(today = today(done = true, doneByMe = true))))
+        // Hecho gana a vencida.
+        assertEquals(TodayChip("Hecho", BpmTone.Success), todayChip(plan("a", "10:00").copy(today = today(done = true, overdue = true))))
+        assertEquals(TodayChip("Vencida", BpmTone.Danger), todayChip(plan("a", "10:00").copy(today = today(overdue = true))))
+        assertEquals(TodayChip("hasta 10:00", BpmTone.Neutral), todayChip(plan("a", "10:00").copy(today = today())))
+        assertEquals(TodayChip("Mañana", BpmTone.Neutral), todayChip(plan("a", "").copy(today = today(shift = "Mañana"))))
+        assertNull(todayChip(plan("a", "").copy(today = today())))
+        // Servidor anterior (sin `today`): solo la hora, siempre Neutral.
+        assertEquals(TodayChip("hasta 10:00", BpmTone.Neutral), todayChip(plan("a", "10:00")))
+        assertNull(todayChip(plan("a", "")))
+    }
+
+    @Test
+    fun doneByNeverExposesOtherNames() {
+        assertEquals("Hecho por ti", todayDoneBy(plan("a", "").copy(today = today(done = true, doneByMe = true))))
+        assertEquals("Hecho por tu equipo", todayDoneBy(plan("a", "").copy(today = today(done = true))))
+        assertNull(todayDoneBy(plan("a", "").copy(today = today())))
+        assertNull(todayDoneBy(plan("a", "")))
+        assertEquals("Por turno · Mañana · Hecho por ti", todayDetail(plan("a", "").copy(frequency = CleaningFrequency.PER_SHIFT, today = today(done = true, doneByMe = true, shift = "Mañana"))))
+        assertEquals("Diaria", todayDetail(plan("a", "08:00")))
+    }
+
+    @Test
+    fun todayPlansPutPendingFirstByDueTimeAndDoneLast() {
+        val plans = listOf(
+            plan("hecho-temprano", "07:00").copy(today = today(done = true)),
+            plan("sin-hora", ""),
+            plan("tarde", "16:00").copy(today = today()),
+            plan("vencida", "09:00").copy(today = today(overdue = true)),
+            plan("hecho-sin-hora", "").copy(today = today(done = true, doneByMe = true)),
+        )
+        assertEquals(listOf("vencida", "tarde", "sin-hora", "hecho-temprano", "hecho-sin-hora"), sortTodayPlans(plans).map { it.id })
+        assertEquals(listOf("vencida", "tarde"), homeTodayPlans(plans, limit = 2).map { it.id })
+        assertEquals(4, homeTodayPlans(plans + plan("x", "01:00") + plan("y", "02:00")).size)
     }
 
     @Test

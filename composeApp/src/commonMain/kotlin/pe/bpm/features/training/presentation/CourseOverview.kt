@@ -23,7 +23,8 @@ private const val FINAL_STEP_ID = "final-evaluation"
 /**
  * Vista general del curso: cabecera, temario como lista de pasos con la evaluación final al final y, al lado
  * (o debajo en compacta), el avance, la acción principal, descargas, constancia e historial de intentos.
- * El avance por lección es una aproximación ([lessonStepStates]); no se muestran duraciones por lección porque
+ * El avance por lección sale de `completedLessonIds` del servidor y, si no lo envía, de la aproximación de
+ * [lessonStepStates]; el anillo usa el porcentaje del servidor ([courseRing]). No se muestran duraciones por lección porque
  * el modelo no las tiene. En compacta la acción principal también se publica en la barra fija ([BpmActionBar]).
  */
 @Composable
@@ -55,7 +56,7 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
         if (course.progress.experiencePoints > 0) Text("${course.progress.experiencePoints} XP", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Se aprueba con ${course.version.passingScore} puntos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    val ringDescription = "Avance del curso: $done de $total lecciones"
+    val ring = courseRing(course)
 
     BpmSupportPaneLayout(
         support = {
@@ -63,8 +64,8 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
                 if (hasQuestions) BpmTaskRow("Practicar sin calificación", BpmSymbol.Play, detail = "Responde preguntas y mira al instante si acertaste", onClick = { viewModel.startStudy() })
             } else BpmCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                    if (total > 0) {
-                        BpmProgressRing(done.toFloat() / total, "$done/$total", ringDescription, size = 96.dp, strokeWidth = 9.dp)
+                    if (total > 0 && ring != null) {
+                        BpmProgressRing(ring.progress, ring.label, ring.description, size = 96.dp, strokeWidth = 9.dp)
                         Text("$done de $total lecciones", style = MaterialTheme.typography.titleMedium)
                     }
                     progressText()
@@ -82,9 +83,9 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
             AttemptsHistory(state.attempts, course.version.passingScore)
         },
         main = {
-            if (compact && total > 0) BpmCard(Modifier.fillMaxWidth(), variant = BpmCardVariant.Compact) {
+            if (compact && total > 0 && ring != null) BpmCard(Modifier.fillMaxWidth(), variant = BpmCardVariant.Compact) {
                 Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
-                    BpmProgressRing(done.toFloat() / total, "$done/$total", ringDescription, size = 56.dp, strokeWidth = 6.dp)
+                    BpmProgressRing(ring.progress, ring.label, ring.description, size = 56.dp, strokeWidth = 6.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
                         Text("$done de $total lecciones", style = MaterialTheme.typography.titleMedium)
                         progressText()

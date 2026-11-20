@@ -40,6 +40,11 @@ data class OperationsState(
     val selectedPlan: CleaningPlan? = null,
     val shifts: List<Shift> = emptyList(),
     val shiftsFailed: Boolean = false,
+    /** Planes activos de la sede con su estado de hoy (`view=today`), para la pestaña «Por hacer» del personal. */
+    val todayPlans: List<CleaningPlan> = emptyList(),
+    val todayLoading: Boolean = false,
+    val todayLoaded: Boolean = false,
+    val todayFailure: OperationsFailure? = null,
 ) {
     val editable
         get() =

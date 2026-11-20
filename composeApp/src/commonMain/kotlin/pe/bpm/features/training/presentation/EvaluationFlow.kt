@@ -32,11 +32,11 @@ import pe.bpm.features.training.domain.*
  * Con resultado se muestra [EvaluationResult].
  */
 @Composable
-internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evaluation: EvaluationState, viewModel: TrainingViewModel) {
+internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evaluation: EvaluationState, viewModel: TrainingViewModel, onOpenCourse: ((String) -> Unit)? = null) {
     val label = when (evaluation.type) { AttemptType.FINAL -> "EVALUACIÓN FINAL"; AttemptType.MODULE -> "EVALUACIÓN DE LECCIÓN"; else -> "EVALUACIÓN DIAGNÓSTICA" }
     val questions = state.evaluationQuestions
     val outcome = evaluation.outcome
-    if (outcome != null) { Eyebrow("$label · SE CALIFICA"); EvaluationResult(course, outcome, viewModel); return }
+    if (outcome != null) { Eyebrow("$label · SE CALIFICA"); EvaluationResult(course, outcome, viewModel, onOpenCourse); return }
     if (evaluation.queued) {
         Eyebrow("$label · SE CALIFICA")
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
@@ -170,7 +170,7 @@ private fun EvaluationReview(label: String, state: TrainingState, course: Traini
  * detalle por pregunta plegado en «Revisar respuestas» (cerrado por defecto). Las acciones de antes se conservan.
  */
 @Composable
-internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, viewModel: TrainingViewModel) {
+internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, viewModel: TrainingViewModel, onOpenCourse: ((String) -> Unit)? = null) {
     val attempt = outcome.attempt
     BpmCard(Modifier.fillMaxWidth(), tint = if (attempt.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -182,12 +182,21 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
                 withStyle(SpanStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)) { append(" / 100") }
             }, modifier = Modifier.semantics { contentDescription = "Puntaje: ${attempt.score} de 100" })
             Text("Mínimo para aprobar: ${course.version.passingScore}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            xpEarnedChip(attempt)?.let { BpmStatusChip(it, BpmTone.Info, symbol = BpmSymbol.Award) }
+            xpRepeatedNotice(attempt)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (attempt.attemptType == AttemptType.FINAL && outcome.progress.experiencePoints > 0) Text("Puntos de experiencia: ${outcome.progress.experiencePoints} XP", style = MaterialTheme.typography.titleSmall)
         }
     }
     if (outcome.achievements.isNotEmpty()) AchievementCelebration(outcome.achievements)
     if (attempt.attemptType == AttemptType.MODULE) Text("La evaluación de lección no completa el curso. Tu XP total está en «Mis logros».", style = MaterialTheme.typography.bodySmall)
     outcome.certificate?.let { CertificateCard(it, prominent = true) }
+    val next = outcome.nextCourse
+    if (next != null && attempt.passed && attempt.attemptType == AttemptType.FINAL && onOpenCourse != null) {
+        Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+            next.pathTitle?.takeIf { it.isNotBlank() }?.let { Text("Ruta: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            RaisedButton("Siguiente curso: ${next.courseTitle}", { onOpenCourse(next.courseId) }, Modifier.bpmPrimaryButtonWidth())
+        }
+    }
 
     var open by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
@@ -212,3 +221,13 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
     }
     BpmTextButton(onClick = viewModel::closeEvaluation) { Text("Volver al curso") }
 }
+
+/** «+N XP» ganados con este intento; nulo si el servidor no lo informa (histórico o servidor anterior) o fue 0. */
+internal fun xpEarnedChip(attempt: AttemptSummary): String? = attempt.xpEarned?.takeIf { it > 0 }?.let { "+$it XP" }
+
+/**
+ * Aviso de una evaluación final aprobada que no sumó XP porque ya se tenía ese puntaje. Solo para FINAL aprobada con
+ * `xpEarned == 0`: nulo o un intento reprobado/de otro tipo no lleva aviso.
+ */
+internal fun xpRepeatedNotice(attempt: AttemptSummary): String? =
+    if (attempt.attemptType == AttemptType.FINAL && attempt.passed && attempt.xpEarned == 0) "Sin XP nuevo: ya tenías este puntaje" else null

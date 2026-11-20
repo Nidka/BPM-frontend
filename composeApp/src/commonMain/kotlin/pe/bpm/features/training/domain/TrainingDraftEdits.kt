@@ -10,6 +10,23 @@ object TrainingDraftEdits {
     fun updateLesson(draft: TrainingDraft, id: String, title: String? = null, content: String? = null): TrainingDraft =
         draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(title = title ?: it.title, content = content ?: it.content) else it })
 
+    /** Agrega una idea vacía a «Lo esencial» de la lección (tope [TrainingLimits.KEY_POINTS_MAX]). */
+    fun addKeyPoint(draft: TrainingDraft, id: String): TrainingDraft =
+        draft.copy(lessons = draft.lessons.map { if (it.id == id && it.keyPoints.size < TrainingLimits.KEY_POINTS_MAX) it.copy(keyPoints = it.keyPoints + "") else it })
+
+    /** Reemplaza el texto de la idea [index]; se recorta a una sola línea (saltos de línea se vuelven espacios). */
+    fun setKeyPoint(draft: TrainingDraft, id: String, index: Int, text: String): TrainingDraft =
+        draft.copy(lessons = draft.lessons.map { lesson ->
+            if (lesson.id == id && index in lesson.keyPoints.indices)
+                lesson.copy(keyPoints = lesson.keyPoints.mapIndexed { i, old -> if (i == index) text.replace(Regex("[\\r\\n]+"), " ") else old })
+            else lesson
+        })
+
+    fun removeKeyPoint(draft: TrainingDraft, id: String, index: Int): TrainingDraft =
+        draft.copy(lessons = draft.lessons.map { lesson ->
+            if (lesson.id == id && index in lesson.keyPoints.indices) lesson.copy(keyPoints = lesson.keyPoints.filterIndexed { i, _ -> i != index }) else lesson
+        })
+
     /** Adjuntar un video privado retira el de YouTube: una lección tiene como máximo uno. */
     fun setLessonVideo(draft: TrainingDraft, id: String, mediaId: String?): TrainingDraft =
         draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(videoMediaId = mediaId, externalVideoId = if (mediaId != null) null else it.externalVideoId) else it })

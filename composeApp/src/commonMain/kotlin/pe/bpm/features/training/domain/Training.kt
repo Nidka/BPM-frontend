@@ -32,6 +32,8 @@ data class TrainingLesson(
     val externalVideo: ExternalVideo? = null,
     /** false para videos de YouTube: solo se ven con conexión. */
     val offlineAvailable: Boolean = true,
+    /** «Lo esencial»: hasta 5 ideas clave de la lección; vacío en servidores anteriores. */
+    val keyPoints: List<String> = emptyList(),
 )
 
 /** Pregunta de la vista de aprendizaje: por contrato nunca trae la respuesta ni la explicación. */
@@ -51,7 +53,26 @@ data class TrainingProgress(
     val bestScore: Int?,
     val experiencePoints: Int,
     val completedAt: String?,
-)
+    /** Lecciones que la persona terminó (no solo abrió); vacío en servidores anteriores. */
+    val completedLessonIds: List<String> = emptyList(),
+    val completedLessons: Int = 0,
+    /** 0 mientras el servidor no informe el total (catálogo sin conexión o servidor anterior). */
+    val totalLessons: Int = 0,
+    /** Avance del curso 0..100; 100 si el curso está completado. */
+    val percent: Int = 0,
+) {
+    /**
+     * Avance con [lessonId] marcada como terminada, para reflejar de inmediato lo que el servidor confirmará
+     * (o lo que quedó en la cola sin conexión). Es idempotente.
+     */
+    fun withCompletedLesson(lessonId: String): TrainingProgress {
+        if (lessonId in completedLessonIds) return this
+        val ids = completedLessonIds + lessonId
+        val total = maxOf(totalLessons, ids.size)
+        val computed = if (status == ProgressStatus.COMPLETED) 100 else (ids.size * 100) / total
+        return copy(completedLessonIds = ids, completedLessons = ids.size, totalLessons = total, percent = maxOf(percent, computed))
+    }
+}
 
 data class TrainingCertificate(val id: String, val verificationCode: String, val issuedAt: String)
 
@@ -105,7 +126,18 @@ data class QuestionResult(
     val explanation: String,
 )
 
-data class AttemptSummary(val id: String, val attemptType: AttemptType, val score: Int, val passed: Boolean, val completedAt: String)
+data class AttemptSummary(
+    val id: String,
+    val attemptType: AttemptType,
+    val score: Int,
+    val passed: Boolean,
+    val completedAt: String,
+    /** XP que ganó con este intento (curso o módulo más insignias); nulo en intentos históricos o servidores anteriores. */
+    val xpEarned: Int? = null,
+)
+
+/** Siguiente curso sugerido tras aprobar la evaluación final; [pathId] y [pathTitle] son nulos si no viene de una ruta. */
+data class NextCourse(val pathId: String?, val pathTitle: String?, val courseId: String, val courseTitle: String)
 
 data class AttemptOutcome(
     val attempt: AttemptSummary,
@@ -114,6 +146,8 @@ data class AttemptOutcome(
     val certificate: TrainingCertificate?,
     /** Insignias otorgadas por este intento (también en la repetición idéntica). */
     val achievements: List<Achievement> = emptyList(),
+    /** Solo tras aprobar la evaluación final; nulo si no hay otro curso pendiente o el servidor es anterior. */
+    val nextCourse: NextCourse? = null,
 )
 
 /** Motivos públicos y sanitizados; el detalle técnico no llega a la interfaz. */
@@ -138,7 +172,8 @@ sealed interface TrainingResult<out T> {
 interface TrainingRepository {
     suspend fun course(org: String, courseId: String): TrainingResult<TrainingCourse>
     suspend fun videoTicket(org: String, courseId: String, lessonId: String): TrainingResult<VideoTicket>
-    suspend fun saveProgress(org: String, courseId: String, lessonId: String): TrainingResult<TrainingProgress>
+    /** [lessonId] es la lección abierta; [completedLessonId] marca además una lección como terminada. */
+    suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String? = null): TrainingResult<TrainingProgress>
     suspend fun checkStudyAnswer(org: String, courseId: String, questionId: String, selected: Int): TrainingResult<StudyFeedback>
     suspend fun submitAttempt(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome>
 }

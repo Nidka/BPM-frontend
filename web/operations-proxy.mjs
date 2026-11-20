@@ -63,6 +63,8 @@ const discardReasons = ['EXPIRED', 'DETERIORATED', 'CONTAMINATION', 'OTHER'];
 const clock = value => typeof value === 'string' && /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
 /** Filtros adicionales permitidos por recurso; cualquier otro parámetro se rechaza. */
 const listFilters = {
+  // `view=today` devuelve solo planes activos con su estado de hoy (`today`); sin él la lista no cambia.
+  'cleaning-plans': { view: value => value === 'today' },
   shifts: { status: value => ['ACTIVE', 'ALL'].includes(value) },
   'stock-movements': { lotId: uuid, type: value => ['CONSUMPTION', 'DISCARD'].includes(value) },
 };
@@ -71,6 +73,18 @@ const businessErrors = {
   409: { SHIFT_IN_USE: 'El turno tiene controles programados activos. Desactívalos antes de continuar.', INSUFFICIENT_STOCK: 'El lote no tiene saldo suficiente. Actualiza el saldo e inténtalo de nuevo.', LOT_EXPIRED: 'El lote está vencido. Registra un descarte por vencimiento.' },
   422: { SHIFT_OUT_OF_HOURS: 'El turno elegido no está abierto en este momento.' },
 };
+/** Estado de hoy de un plan (`view=today`): periodo en la zona de la sede, hecho/vencido y turno de PER_SHIFT. */
+function planToday(value) {
+  require(object(value) && instant(value.periodStartsAt) && instant(value.periodEndsAt) && string(value.timezone, 100, 1) && typeof value.done === 'boolean' && typeof value.doneByMe === 'boolean' && typeof value.overdue === 'boolean');
+  require((value.lastExecutionId ?? null) === null || uuid(value.lastExecutionId));
+  require((value.lastResult ?? null) === null || ['COMPLETED', 'NOT_COMPLETED', 'OBSERVED'].includes(value.lastResult));
+  require((value.lastExecutedAt ?? null) === null || instant(value.lastExecutedAt));
+  const shift = value.shift ?? null;
+  if (shift !== null) require(object(shift) && uuid(shift.id) && string(shift.name ?? '', 60) && ['OPEN', 'UPCOMING', 'CLOSED', undefined].includes(shift.state));
+  return { periodStartsAt: value.periodStartsAt, periodEndsAt: value.periodEndsAt, timezone: value.timezone, done: value.done, doneByMe: value.doneByMe,
+    lastExecutionId: value.lastExecutionId ?? null, lastResult: value.lastResult ?? null, lastExecutedAt: value.lastExecutedAt ?? null, overdue: value.overdue,
+    shift: shift === null ? null : { id: shift.id, name: shift.name ?? '', state: shift.state ?? '' } };
+}
 function shiftUpdate(value) {
   exact(value, shiftUpdateFields); require(Number.isSafeInteger(value.rowVersion) && value.rowVersion > 0);
   require(string(value.name, 60, 2) && value.name === value.name.trim() && clock(value.startTime) && clock(value.endTime));
@@ -120,7 +134,7 @@ function entity(resource, value, input = false) {
     } else if (resource === 'cleaning-plans') {
       require(frequencies.includes(value.frequency) && dueTime(input && value.dueTime === undefined ? '' : value.dueTime));
       Object.assign(result, { area: text(value, 'area', 100, 2), task: text(value, 'task', 240, 2), instructions: text(value, 'instructions', 2000, 0, input), productName: text(value, 'productName', 160, 0, input), frequency: value.frequency, dueTime: value.dueTime ?? '' });
-      if (!input) { require(typeof value.active === 'boolean'); result.active = value.active; }
+      if (!input) { require(typeof value.active === 'boolean'); result.active = value.active; if (value.today != null) result.today = planToday(value.today); }
     } else if (resource === 'cleaning-executions') {
       require(['COMPLETED', 'NOT_COMPLETED', 'OBSERVED'].includes(value.result));
       Object.assign(result, { cleaningPlanId: identifier(value, 'cleaningPlanId'), executedAt: stamp(value, 'executedAt', input), result: value.result, observation: text(value, 'observation', 2000, 0, input), clientOperationId: identifier(value, 'clientOperationId'), clientCreatedAt: stamp(value, 'clientCreatedAt', input) });

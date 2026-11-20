@@ -163,6 +163,28 @@ data class CleaningPlan(
     val frequency: CleaningFrequency = CleaningFrequency.DAILY,
     val dueTime: String = "",
     val active: Boolean = true,
+    /** Estado de hoy según el servidor; solo llega con `view=today` (nulo en la lista normal o en servidores anteriores). */
+    val today: CleaningPlanToday? = null,
+)
+
+/** Turno al que apunta un plan PER_SHIFT hoy (abierto o el próximo); [state] es OPEN, UPCOMING, CLOSED o vacío. */
+data class CleaningPlanShift(val id: String, val name: String, val state: String = "")
+
+/**
+ * Estado de un plan en el periodo vigente de su frecuencia, calculado por el servidor en la zona horaria de la sede.
+ * [done] cuenta la limpieza de cualquier persona de la sede; [doneByMe] y los `last*` solo las propias.
+ */
+data class CleaningPlanToday(
+    val periodStartsAt: String,
+    val periodEndsAt: String,
+    val timezone: String,
+    val done: Boolean,
+    val doneByMe: Boolean,
+    val lastExecutionId: String? = null,
+    val lastResult: CleaningResult? = null,
+    val lastExecutedAt: String? = null,
+    val overdue: Boolean = false,
+    val shift: CleaningPlanShift? = null,
 )
 
 data class CleaningExecutionInput(
@@ -260,6 +282,13 @@ interface OperationsRepository {
     ): OperationsResult<Page<StorageLot>>
 
     suspend fun plans(
+        org: String,
+        site: String,
+        page: PageRequest,
+    ): OperationsResult<Page<CleaningPlan>>
+
+    /** Planes activos de la sede con su estado de hoy (`view=today`); lo usa el personal en «Por hacer». */
+    suspend fun todayPlans(
         org: String,
         site: String,
         page: PageRequest,

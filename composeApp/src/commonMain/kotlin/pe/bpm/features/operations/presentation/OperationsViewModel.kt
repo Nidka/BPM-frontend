@@ -28,6 +28,7 @@ class OperationsViewModel(
     val state = mutable.asStateFlow()
     private var job: Job? = null
     private var pickerJob: Job? = null
+    private var todayJob: Job? = null
     private var writer: DraftAutosave<OperationsDraft?>? = null
     private val draining = mutableListOf<Job>()
     private val freshness = DataFreshness()
@@ -35,6 +36,7 @@ class OperationsViewModel(
     fun reset() {
         job?.cancel()
         pickerJob?.cancel()
+        todayJob?.cancel()
         writer?.finish()?.let { draining += it }
         draining.removeAll { it.isCompleted }
         writer = null
@@ -163,6 +165,59 @@ class OperationsViewModel(
                                 failure = result.reason,
                                 fields = result.fields,
                             )
+                    }
+                }
+            }
+    }
+
+    /**
+     * Carga los planes activos de la sede con su estado de hoy (`view=today`, calculado por el servidor en la zona
+     * de la sede). Independiente de la lista paginada de [refresh]; recorre las páginas hasta un tope razonable.
+     */
+    fun refreshToday() {
+        val s = mutable.value
+        val org = s.organizationId ?: return
+        val site = s.siteId ?: return
+        if (!OperationsAccess.canRead(s.role, OperationsResource.PLANS)) return
+        todayJob?.cancel()
+        mutable.value = s.copy(todayLoading = true, todayFailure = null)
+        todayJob =
+            viewModelScope.launch {
+                suspend fun loadAll(): OperationsResult<List<CleaningPlan>> {
+                    val plans = mutableListOf<CleaningPlan>()
+                    var token = ""
+                    repeat(TODAY_MAX_PAGES) {
+                        when (val page = operations.todayPlans(org, site, s.role, PageRequest(token))) {
+                            is OperationsResult.Failure -> return page
+                            is OperationsResult.Success -> {
+                                plans += page.value.items
+                                token = page.value.nextToken
+                            }
+                        }
+                        if (token.isEmpty()) return OperationsResult.Success(plans.distinctBy { it.id })
+                    }
+                    return OperationsResult.Success(plans.distinctBy { it.id })
+                }
+                val result =
+                    localFirst.read(
+                        isUsable = { it is OperationsResult.Success },
+                        onLocal = { local ->
+                            val current = mutable.value
+                            if (current.todayPlans.isEmpty() && current.organizationId == org && current.siteId == site)
+                                mutable.value = current.copy(todayPlans = (local as OperationsResult.Success).value)
+                        },
+                        load = { loadAll() },
+                    )
+                currentCoroutineContext().ensureActive()
+                val current = mutable.value
+                if (current.organizationId != org || current.siteId != site) return@launch
+                when (result) {
+                    is OperationsResult.Success ->
+                        mutable.value =
+                            current.copy(todayPlans = result.value, todayLoading = false, todayLoaded = true, todayFailure = null)
+                    is OperationsResult.Failure -> {
+                        if (hideIfAccessRejected(result.reason)) return@launch
+                        mutable.value = current.copy(todayLoading = false, todayFailure = result.reason)
                     }
                 }
             }
@@ -793,6 +848,8 @@ class OperationsViewModel(
                                 saved = result.value,
                                 failure = if (cleared) null else OperationsFailure.LOCAL,
                             )
+                        // Una limpieza registrada cambia «hecho/pendiente»: se vuelve a pedir el estado de hoy.
+                        if (result.value is OperationsEntry.ExecutionEntry && mutable.value.todayLoaded) refreshToday()
                     }
                     // Sin conexión: el registro quedó en la Outbox con su clave estable. Es un éxito local pendiente:
                     // se retira el borrador, se cierra el formulario y la lista muestra «Pendiente de enviar».
@@ -956,6 +1013,7 @@ class OperationsViewModel(
         val current = currentCoroutineContext()[Job]
         if (job !== current) job?.cancel()
         if (pickerJob !== current) pickerJob?.cancel()
+        if (todayJob !== current) todayJob?.cancel()
         mutable.value =
             OperationsState(
                 userId = s.userId,
@@ -1054,5 +1112,10 @@ class OperationsViewModel(
             }
         } while (token.isNotEmpty())
         return OperationsResult.Failure(OperationsFailure.NOT_FOUND)
+    }
+
+    private companion object {
+        /** Tope de páginas de «Por hacer» (25 planes por página). */
+        const val TODAY_MAX_PAGES = 8
     }
 }

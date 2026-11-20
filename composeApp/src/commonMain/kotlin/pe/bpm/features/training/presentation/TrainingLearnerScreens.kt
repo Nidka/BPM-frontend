@@ -77,8 +77,8 @@ private val AssignedCardWidth = 260.dp
 
 /**
  * Hub de Aprender: tarjeta «Continuar» (asignación en curso), «Asignadas a ti» con estado y vencimiento, acceso a
- * las rutas de aprendizaje y, en el panel de apoyo, el resumen de logros. Solo muestra datos reales: no hay
- * porcentaje por curso, así que la tarjeta usa un icono de reproducir en lugar de un anillo. Conserva la carga,
+ * las rutas de aprendizaje y, en el panel de apoyo, el resumen de logros. Solo muestra datos reales: el avance
+ * (anillo en «Continuar», barra en las tarjetas) aparece solo si el servidor informa el porcentaje; si no, un icono de reproducir. Conserva la carga,
  * el reintento, el estado vacío y «Ver más capacitaciones».
  */
 @Composable
@@ -126,7 +126,11 @@ private fun ContinueCard(assignment: MyAssignment, onOpenCourse: (String) -> Uni
     val (chip, tone) = assignmentChip(assignment)
     BpmCard(Modifier.fillMaxWidth(), variant = BpmCardVariant.Featured) {
         Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+            val progress = assignmentProgress(assignment)
+            if (progress != null) {
+                val percent = assignment.percent.coerceIn(0, 100)
+                BpmProgressRing(progress, "$percent %", "Avance del curso: $percent %", size = 56.dp, strokeWidth = 6.dp)
+            } else Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
                 BpmIcon(BpmSymbol.Play, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
@@ -152,7 +156,7 @@ private fun AssignedCourses(state: LearnerState, onOpenCourse: (String) -> Unit,
     val card: @Composable (Int, MyAssignment, Modifier) -> Unit = { index, item, modifier ->
         val (chip, tone) = assignmentChip(item)
         BpmCourseCard(item.course.code, item.course.title, assignmentMeta(item), { onOpenCourse(item.course.id) }, modifier,
-            colorIndex = index, status = { BpmStatusChip(chip, tone) })
+            colorIndex = index, progress = assignmentProgress(item), status = { BpmStatusChip(chip, tone) })
     }
     if (currentWindowClass == BpmWindowClass.Compact) {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {

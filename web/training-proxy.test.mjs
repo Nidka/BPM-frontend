@@ -16,14 +16,14 @@ const mediaId = '70000000-0000-4000-8000-000000000001';
 const stamp = '2026-01-01T12:00:00Z';
 const r2 = 'https://bucket.abc123.r2.cloudflarestorage.com/organizations/o/training/videos/x.mp4?X-Amz-Signature=secret';
 const headers = { Authorization: 'Bearer test.token', 'Content-Type': 'application/json', Cookie: 'private-cookie', 'X-Role': 'ADMIN' };
-const progress = { status: 'IN_PROGRESS', lastLessonId: lessonId, bestScore: null, experiencePoints: 0, completedAt: null };
+const progress = { status: 'IN_PROGRESS', lastLessonId: lessonId, bestScore: null, experiencePoints: 0, completedAt: null, completedLessonIds: [lessonId], completedLessons: 1, totalLessons: 2, percent: 50 };
 const course = { id: courseId, code: 'M-01', title: 'Higiene de manos', description: 'Lavado correcto', estimatedDurationMinutes: 15 };
-const lesson = { id: lessonId, title: 'Paso a paso', content: 'Texto\nde la lección', displayOrder: 1, video: { mediaId, mimeType: 'video/mp4', sizeBytes: 1234 }, externalVideo: null };
+const lesson = { id: lessonId, title: 'Paso a paso', content: 'Texto\nde la lección', displayOrder: 1, video: { mediaId, mimeType: 'video/mp4', sizeBytes: 1234 }, externalVideo: null, keyPoints: ['Lávate 20 segundos', 'Sécate con papel'] };
 const question = { id: questionId, lessonId, questionText: '¿Cuánto dura el lavado?', options: ['5 s', '20 s'], displayOrder: 1 };
 const learning = { course, version: { id: versionId, versionNumber: 2, passingScore: 80 }, lessons: [lesson], questions: [question], progress, certificate: null };
 const draft = {
   version: { id: versionId, versionNumber: 3, passingScore: 80, rowVersion: 'v7' },
-  lessons: [{ id: lessonId, title: 'Paso a paso', content: 'Texto', displayOrder: 1, videoMediaId: null, externalVideo: null }],
+  lessons: [{ id: lessonId, title: 'Paso a paso', content: 'Texto', displayOrder: 1, videoMediaId: null, externalVideo: null, keyPoints: ['Lávate 20 segundos'] }],
   questions: [{ id: questionId, lessonId, questionText: '¿Cuánto dura?', options: ['5 s', '20 s'], correctOption: 1, explanation: 'Al menos 20 s', displayOrder: 1 }],
 };
 const attempt = {
@@ -521,4 +521,126 @@ test('capacitación: el catálogo offline rechaza videos sin SHA-256 y métodos 
     course, version: { id: versionId, versionNumber: 2, passingScore: 80 }, lessons: [{ ...lesson, offlineAvailable: true }], questions: [question] }] } };
   assert.equal((await f.get('/me/offline-catalog')).status, 503);
   assert.equal((await f.post('/me/offline-catalog', {})).status, 405);
+});
+
+// ---- Pendientes del personal (F1): campos nuevos aditivos --------------------------------------------------------
+
+test('capacitación: el avance por lección y «Lo esencial» llegan al cliente y un backend anterior se proyecta con valores vacíos', async t => {
+  const { state, get } = await fixture(t);
+  const body = await (await get(`/courses/${courseId}`)).json();
+  assert.deepEqual(body.data.progress.completedLessonIds, [lessonId]);
+  assert.equal(body.data.progress.completedLessons, 1);
+  assert.equal(body.data.progress.totalLessons, 2);
+  assert.equal(body.data.progress.percent, 50);
+  assert.deepEqual(body.data.lessons[0].keyPoints, ['Lávate 20 segundos', 'Sécate con papel']);
+  // Backend anterior: sin ninguno de los campos nuevos.
+  const { completedLessonIds, completedLessons, totalLessons, percent, ...oldProgress } = progress;
+  const { keyPoints, ...oldLesson } = lesson;
+  state.payload = { data: { ...learning, progress: oldProgress, lessons: [oldLesson] } };
+  const old = await (await get(`/courses/${courseId}`)).json();
+  assert.deepEqual(old.data.progress, { ...oldProgress, completedLessonIds: [], completedLessons: 0, totalLessons: 0, percent: 0 });
+  assert.deepEqual(old.data.lessons[0].keyPoints, []);
+  for (const bad of [
+    { ...progress, completedLessonIds: ['x'] }, { ...progress, completedLessonIds: [lessonId, lessonId] }, { ...progress, percent: 101 },
+    { ...progress, completedLessons: -1 }, { ...progress, totalLessons: 1.5 }, { ...progress, completedLessonIds: 'no' },
+  ]) { state.payload = { data: { ...learning, progress: bad } }; assert.equal((await get(`/courses/${courseId}`)).status, 503); }
+  for (const bad of [['a', 'b', 'c', 'd', 'e', 'f'], [''], ['x'.repeat(201)], ['dos\nlíneas'], 'texto', [1]]) {
+    state.payload = { data: { ...learning, lessons: [{ ...lesson, keyPoints: bad }] } };
+    assert.equal((await get(`/courses/${courseId}`)).status, 503, JSON.stringify(bad));
+  }
+});
+
+test('capacitación: PUT progress admite completedLessonId opcional y lo reenvía', async t => {
+  const { state, put } = await fixture(t);
+  const second = '30000000-0000-4000-8000-000000000002';
+  state.payload = { data: { progress } };
+  const response = await put(`/courses/${courseId}/progress`, { lastLessonId: second, completedLessonId: lessonId });
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(state.requests.at(-1).body), { lastLessonId: second, completedLessonId: lessonId });
+  assert.deepEqual((await response.json()).data.progress.completedLessonIds, [lessonId]);
+  const before = state.requests.length;
+  for (const bad of [{ lastLessonId: second, completedLessonId: 'x' }, { lastLessonId: second, completedLessonId: null }, { completedLessonId: lessonId }, { lastLessonId: second, completed: lessonId }])
+    assert.equal((await put(`/courses/${courseId}/progress`, bad)).status, 400, JSON.stringify(bad));
+  assert.equal(state.requests.length, before);
+});
+
+test('capacitación: el borrador reenvía keyPoints solo si vienen y los valida', async t => {
+  const { state, put, get } = await fixture(t);
+  state.payload = { data: { ...draft, version: { ...draft.version, rowVersion: 'v8' } } };
+  const saved = await (await put(`/courses/${courseId}/draft`, draft)).json();
+  assert.deepEqual(saved.data.lessons[0].keyPoints, ['Lávate 20 segundos']);
+  assert.deepEqual(JSON.parse(state.requests.at(-1).body).lessons[0].keyPoints, ['Lávate 20 segundos']);
+  // [] vacía y se reenvía; ausente (o nulo) no se envía para que el servidor conserve los previos.
+  await put(`/courses/${courseId}/draft`, { ...draft, lessons: [{ ...draft.lessons[0], keyPoints: [] }] });
+  assert.deepEqual(JSON.parse(state.requests.at(-1).body).lessons[0].keyPoints, []);
+  const { keyPoints, ...withoutPoints } = draft.lessons[0];
+  await put(`/courses/${courseId}/draft`, { ...draft, lessons: [withoutPoints] });
+  assert.equal('keyPoints' in JSON.parse(state.requests.at(-1).body).lessons[0], false);
+  await put(`/courses/${courseId}/draft`, { ...draft, lessons: [{ ...withoutPoints, keyPoints: null }] });
+  assert.equal('keyPoints' in JSON.parse(state.requests.at(-1).body).lessons[0], false);
+  const before = state.requests.length;
+  for (const bad of [['a', 'b', 'c', 'd', 'e', 'f'], [''], ['   '], ['x'.repeat(201)], ['dos\nlíneas'], 'texto', [1]])
+    assert.equal((await put(`/courses/${courseId}/draft`, { ...draft, lessons: [{ ...draft.lessons[0], keyPoints: bad }] })).status, 400, JSON.stringify(bad));
+  assert.equal(state.requests.length, before);
+  // Lectura del borrador de un backend anterior: keyPoints siempre es un arreglo.
+  state.payload = { data: { course, ...draft, lessons: [withoutPoints] } };
+  assert.deepEqual((await (await get(`/courses/${courseId}/draft`)).json()).data.lessons[0].keyPoints, []);
+});
+
+test('capacitación: percent de asignaciones, racha, XP del intento y siguiente curso', async t => {
+  const { state, get, post } = await fixture(t);
+  const item = { assignmentId, course, dueAt: null, assignedAt: stamp, status: 'IN_PROGRESS', progressStatus: 'IN_PROGRESS', bestScore: null, completedAt: null, percent: 40 };
+  state.payload = { data: { items: [item] } };
+  assert.equal((await (await get('/me/assignments')).json()).data.items[0].percent, 40);
+  const { percent, ...oldItem } = item;
+  state.payload = { data: { items: [oldItem] } };
+  assert.equal((await (await get('/me/assignments')).json()).data.items[0].percent, 0);
+  state.payload = { data: { items: [{ ...item, percent: 101 }] } };
+  assert.equal((await get('/me/assignments')).status, 503);
+
+  const totals = { experiencePoints: 95, courseExperiencePoints: 30, moduleExperiencePoints: 15, achievementPoints: 50 };
+  const streak = { currentDays: 4, longestDays: 9, lastActivityDate: '2026-11-19', activeToday: false, timezone: 'America/Lima', interno: 'x' };
+  state.payload = { data: { totals, achievements: [achievementView], streak } };
+  assert.deepEqual((await (await get('/me/achievements')).json()).data.streak, { currentDays: 4, longestDays: 9, lastActivityDate: '2026-11-19', activeToday: false, timezone: 'America/Lima' });
+  state.payload = { data: { totals, achievements: [], streak: { ...streak, lastActivityDate: null } } };
+  assert.equal((await (await get('/me/achievements')).json()).data.streak.lastActivityDate, null);
+  state.payload = { data: { totals, achievements: [achievementView] } };
+  assert.equal('streak' in (await (await get('/me/achievements')).json()).data, false);
+  for (const bad of [{ ...streak, currentDays: -1 }, { ...streak, activeToday: 'si' }, { ...streak, lastActivityDate: '2026-02-30' }, { ...streak, lastActivityDate: '19/11/2026' }, { ...streak, timezone: '' }]) {
+    state.payload = { data: { totals, achievements: [], streak: bad } };
+    assert.equal((await get('/me/achievements')).status, 503, JSON.stringify(bad));
+  }
+
+  const module = { ...attempt, attemptType: 'FINAL', answers: [{ questionId, selectedOption: 1 }] };
+  const results = [{ questionId, selectedOption: 1, correct: true, correctOption: 1, explanation: 'ok' }];
+  const next = { pathId, pathTitle: 'Inducción', courseId: secondQuestionId, courseTitle: 'Inocuidad', interno: 'x' };
+  state.status = 201;
+  state.payload = { data: { attempt: { id: attemptId, attemptType: 'FINAL', score: 100, passed: true, completedAt: stamp, xpEarned: 35 }, results, progress, certificate: null, nextCourse: next } };
+  let body = await (await post(`/courses/${courseId}/attempts`, module)).json();
+  assert.equal(body.data.attempt.xpEarned, 35);
+  assert.deepEqual(body.data.nextCourse, { pathId, pathTitle: 'Inducción', courseId: secondQuestionId, courseTitle: 'Inocuidad' });
+  // Sin ruta: el siguiente curso no trae pathId/pathTitle; backend anterior: sin xpEarned ni nextCourse.
+  state.payload = { data: { attempt: { id: attemptId, attemptType: 'FINAL', score: 100, passed: true, completedAt: stamp }, results, progress, certificate: null,
+    nextCourse: { courseId: secondQuestionId, courseTitle: 'Inocuidad' } } };
+  body = await (await post(`/courses/${courseId}/attempts`, module)).json();
+  assert.equal('xpEarned' in body.data.attempt, false);
+  assert.deepEqual(body.data.nextCourse, { pathId: null, pathTitle: null, courseId: secondQuestionId, courseTitle: 'Inocuidad' });
+  delete state.payload.data.nextCourse;
+  assert.equal((await (await post(`/courses/${courseId}/attempts`, module)).json()).data.nextCourse, null);
+  for (const bad of [{ attempt: { id: attemptId, attemptType: 'FINAL', score: 100, passed: true, completedAt: stamp, xpEarned: -1 } },
+    { attempt: { id: attemptId, attemptType: 'FINAL', score: 100, passed: true, completedAt: stamp }, nextCourse: { courseId: 'x', courseTitle: 'Y' } },
+    { attempt: { id: attemptId, attemptType: 'FINAL', score: 100, passed: true, completedAt: stamp }, nextCourse: { courseId: secondQuestionId, courseTitle: '' } }]) {
+    state.payload = { data: { results, progress, certificate: null, ...bad } };
+    assert.equal((await post(`/courses/${courseId}/attempts`, module)).status, 503, JSON.stringify(bad));
+  }
+});
+
+test('capacitación: el catálogo offline conserva keyPoints y completa vacío con un backend anterior', async t => {
+  const f = await fixture(t);
+  const catalogCourse = { course, version: { id: versionId, versionNumber: 2, passingScore: 80 }, lessons: [{ ...lesson, offlineAvailable: false, video: null }], questions: [question] };
+  f.state.payload = { data: { etag: 'abcdefghijklmnop0123', generatedAt: stamp, courses: [catalogCourse] } };
+  assert.deepEqual((await (await f.get('/me/offline-catalog')).json()).data.courses[0].lessons[0].keyPoints, ['Lávate 20 segundos', 'Sécate con papel']);
+  const { keyPoints, ...old } = catalogCourse.lessons[0];
+  f.state.payload = { data: { etag: 'abcdefghijklmnop0123', generatedAt: stamp, courses: [{ ...catalogCourse, lessons: [old] }] } };
+  assert.deepEqual((await (await f.get('/me/offline-catalog')).json()).data.courses[0].lessons[0].keyPoints, []);
 });

@@ -119,39 +119,63 @@ class TrainingViewModel(
     /** Retoma desde la última lección vista (RF-11) o desde la primera. */
     fun resume() { mutable.value.course?.resumeLesson()?.let { selectLesson(it.id) } }
 
-    fun selectLesson(lessonId: String) {
+    /**
+     * Abre [lessonId]. Si [completedLessonId] no es nulo se envía junto con la lección abierta: la persona terminó
+     * esa lección (p. ej. al pasar a la siguiente) y el servidor la cuenta como completada.
+     */
+    fun selectLesson(lessonId: String, completedLessonId: String? = null) {
         val s = mutable.value
         val course = s.course ?: return
         val org = s.organizationId ?: return
         if (course.lessons.none { it.id == lessonId }) return
         videoJob?.cancel()
         mutable.value = s.copy(screen = TrainingPane.LESSON, lessonId = lessonId, video = VideoState.Idle, progressNotSaved = false)
-        if (s.canPersist) saveLastLesson(org, course.course.id, lessonId)
+        if (s.canPersist) saveLastLesson(org, course.course.id, lessonId, completedLessonId?.takeIf { id -> course.lessons.any { it.id == id } })
     }
 
-    private fun saveLastLesson(org: String, courseId: String, lessonId: String) {
+    private fun saveLastLesson(org: String, courseId: String, lessonId: String, completedLessonId: String? = null) {
         progressJob?.cancel()
         val expected = generation
         progressJob = viewModelScope.launch {
-            val result = saveProgress(org, courseId, lessonId)
+            val result = saveProgress(org, courseId, lessonId, completedLessonId)
             if (expected != generation) return@launch
             val current = mutable.value
             mutable.value = when (result) {
-                is TrainingResult.Success -> current.copy(course = current.course?.copy(progress = result.value), progressNotSaved = false)
+                is TrainingResult.Success -> {
+                    // Un servidor anterior no devuelve las lecciones terminadas: se refleja la marca localmente.
+                    val progress = result.value.let { p -> if (completedLessonId != null && completedLessonId !in p.completedLessonIds) p.withCompletedLesson(completedLessonId) else p }
+                    current.copy(course = current.course?.copy(progress = progress), progressNotSaved = false)
+                }
                 // Leer la lección no debe bloquearse porque el avance no se guardó; se avisa sin interrumpir.
                 is TrainingResult.Failure -> current.copy(progressNotSaved = true)
             }
         }
     }
 
-    fun nextLesson() = moveLesson(1)
+    /** «Siguiente lección»: marca la actual como terminada y abre la siguiente en la misma petición de avance. */
+    fun nextLesson() = moveLesson(1, completeCurrent = true)
     fun previousLesson() = moveLesson(-1)
 
-    private fun moveLesson(step: Int) {
+    /**
+     * «Terminar lecciones»: marca la lección actual como terminada y vuelve al temario. Devuelve `true` si resolvió
+     * dentro del curso (igual que [back]).
+     */
+    fun finishLessons(): Boolean {
+        val s = mutable.value
+        val course = s.course
+        val org = s.organizationId
+        val lessonId = s.lessonId
+        if (s.screen == TrainingPane.LESSON && s.canPersist && course != null && org != null && lessonId != null && course.lessons.any { it.id == lessonId }) {
+            saveLastLesson(org, course.course.id, lessonId, completedLessonId = lessonId)
+        }
+        return back()
+    }
+
+    private fun moveLesson(step: Int, completeCurrent: Boolean = false) {
         val s = mutable.value
         val lessons = s.course?.lessons ?: return
         val index = lessons.indexOfFirst { it.id == s.lessonId }
-        lessons.getOrNull(index + step)?.let { selectLesson(it.id) }
+        lessons.getOrNull(index + step)?.let { selectLesson(it.id, if (completeCurrent) s.lessonId else null) }
     }
 
     // ---- Video -------------------------------------------------------------------------------

@@ -300,3 +300,48 @@ test('operaciones: recepción Unicode válida mayor de 128 KiB conserva su cuerp
   assert.equal(rejected.status, 400);
   assert.equal(requests.length, 1);
 });
+
+// ---- Tareas de hoy (`view=today`) ----------------------------------------------------------------------------------
+
+const planToday = {
+  periodStartsAt: '2026-11-20T05:00:00Z', periodEndsAt: '2026-11-21T05:00:00Z', timezone: 'America/Lima', done: false, doneByMe: false,
+  lastExecutionId: null, lastResult: null, lastExecutedAt: null, overdue: true, shift: null,
+};
+
+test('operaciones: view=today se reenvía solo para planes y proyecta today; sin view la lista no cambia', async t => {
+  const { state, requests, get } = await fixture(t);
+  state.payload = { data: [{ ...plan, today: { ...planToday, interno: 'x' } }], pagination: { nextPageToken: '' } };
+  const response = await get(`/cleaning-plans?locationId=${site}&view=today&pageSize=25`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.data[0].today, planToday);
+  assert.equal(new URL(requests.at(-1).path, 'http://local').searchParams.get('view'), 'today');
+  assert.equal(new URL(requests.at(-1).path, 'http://local').searchParams.get('locationId'), site);
+  // Hecho por otra persona: solo done, sin datos propios; con turno de PER_SHIFT.
+  const shiftToday = { ...planToday, done: true, overdue: false, lastExecutionId: id, lastResult: 'OBSERVED', lastExecutedAt: stamp, doneByMe: true,
+    shift: { id: itemId, name: 'Mañana', state: 'OPEN', interno: 'x' } };
+  state.payload = { data: [{ ...plan, frequency: 'PER_SHIFT', today: shiftToday }], pagination: { nextPageToken: '' } };
+  const shifted = (await (await get(`/cleaning-plans?locationId=${site}&view=today`)).json()).data[0].today;
+  assert.deepEqual(shifted.shift, { id: itemId, name: 'Mañana', state: 'OPEN' });
+  assert.equal(shifted.lastResult, 'OBSERVED');
+  // Sin `today` (lista normal o backend anterior) el plan no lo lleva.
+  state.payload = { data: [plan], pagination: { nextPageToken: '' } };
+  assert.equal('today' in (await (await get(`/cleaning-plans?locationId=${site}`)).json()).data[0], false);
+  // `today: null` (sin turnos abiertos) también se omite.
+  state.payload = { data: [{ ...plan, today: null }], pagination: { nextPageToken: '' } };
+  assert.equal('today' in (await (await get(`/cleaning-plans?locationId=${site}&view=today`)).json()).data[0], false);
+});
+
+test('operaciones: view solo admite today, una vez y solo en planes; today inválido se rechaza', async t => {
+  const { state, requests, get } = await fixture(t);
+  const before = requests.length;
+  for (const path of [`/cleaning-plans?locationId=${site}&view=all`, `/cleaning-plans?locationId=${site}&view=today&view=today`, `/cleaning-plans?locationId=${site}&view=`,
+    `/cleaning-executions?locationId=${site}&view=today`, `/supply-receipts?locationId=${site}&view=today`, `/suppliers?view=today`])
+    assert.equal((await get(path)).status, 400, path);
+  assert.equal(requests.length, before);
+  for (const today of [{ ...planToday, done: 'si' }, { ...planToday, periodStartsAt: 'ayer' }, { ...planToday, timezone: '' }, { ...planToday, lastResult: 'RARO' },
+    { ...planToday, lastExecutionId: 'x' }, { ...planToday, shift: { id: 'x', name: 'M' } }, { ...planToday, overdue: undefined }, 'hoy']) {
+    state.payload = { data: [{ ...plan, today }], pagination: { nextPageToken: '' } };
+    assert.equal((await get(`/cleaning-plans?locationId=${site}&view=today`)).status, 503, JSON.stringify(today));
+  }
+});

@@ -3,6 +3,8 @@ package pe.bpm.features.training
 import pe.bpm.core.designsystem.BpmStepState
 import pe.bpm.features.training.domain.*
 import pe.bpm.features.training.presentation.assignmentMeta
+import pe.bpm.features.training.presentation.assignmentProgress
+import pe.bpm.features.training.presentation.courseRing
 import pe.bpm.features.training.presentation.continueAssignment
 import pe.bpm.features.training.presentation.courseMainActionLabel
 import pe.bpm.features.training.presentation.lessonStepStates
@@ -35,6 +37,38 @@ class CourseStepsTest {
 
     @Test fun completedMarksEveryLessonAsDone() {
         assertEquals(listOf(done, done, done, done), lessonStepStates(course(ProgressStatus.COMPLETED, "b")))
+    }
+
+    private fun serverCourse(status: ProgressStatus, last: String?, completed: List<String>, percent: Int) =
+        sampleCourse().copy(lessons = lessons, progress = TrainingProgress(status, last, null, 0, null, completed, completed.size, lessons.size, percent))
+
+    @Test fun serverProgressUsesCompletedLessonIdsInsteadOfTheApproximation() {
+        // Saltó la lección b: la aproximación diría que a y b están hechas; el servidor dice que solo a y c.
+        assertEquals(listOf(done, current, done, pending), lessonStepStates(serverCourse(ProgressStatus.IN_PROGRESS, "b", listOf("a", "c"), 50)))
+        // La última abierta ya terminada: la actual es la primera sin terminar.
+        assertEquals(listOf(done, done, current, pending), lessonStepStates(serverCourse(ProgressStatus.IN_PROGRESS, "b", listOf("a", "b"), 50)))
+        // Con el servidor sin nada terminado y sin última lección, la primera es la actual.
+        assertEquals(listOf(current, pending, pending, pending), lessonStepStates(serverCourse(ProgressStatus.NOT_STARTED, null, emptyList(), 0)))
+        assertEquals(listOf(done, done, done, done), lessonStepStates(serverCourse(ProgressStatus.COMPLETED, "d", listOf("a"), 100)))
+    }
+
+    @Test fun ringUsesThePercentWhenTheServerSendsIt() {
+        val server = courseRing(serverCourse(ProgressStatus.IN_PROGRESS, "b", listOf("a"), 25))!!
+        assertEquals("25 %", server.label)
+        assertEquals(0.25f, server.progress)
+        assertEquals("100 %", courseRing(serverCourse(ProgressStatus.COMPLETED, "d", listOf("a"), 40))!!.label)
+        // Sin avance del servidor: lecciones hechas según la aproximación.
+        val approx = courseRing(course(ProgressStatus.IN_PROGRESS, "c"))!!
+        assertEquals("2/4", approx.label)
+        assertEquals(0.5f, approx.progress)
+        assertNull(courseRing(course(ProgressStatus.IN_PROGRESS, "a", emptyList())))
+    }
+
+    @Test fun assignmentProgressIsHiddenUntilTheServerReportsIt() {
+        val base = assignment("a", AssignmentProgress.IN_PROGRESS)
+        assertNull(assignmentProgress(base))
+        assertEquals(0.6f, assignmentProgress(base.copy(percent = 60)))
+        assertEquals(1f, assignmentProgress(base.copy(percent = 140)))
     }
 
     @Test fun courseWithoutLessonsHasNoSteps() {

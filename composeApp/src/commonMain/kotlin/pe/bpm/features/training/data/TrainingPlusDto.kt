@@ -33,11 +33,13 @@ internal data class MyAssignmentDto(
     val progressStatus: String,
     val bestScore: Int? = null,
     val completedAt: String? = null,
+    val percent: Int = 0,
 ) {
     fun domain(): MyAssignment {
         require(bestScore == null || bestScore in 0..100)
+        require(percent in 0..100)
         return MyAssignment(trainingId(assignmentId), course.domain(), stampOrNull(dueAt), stamp(assignedAt),
-            AssignmentProgress.valueOf(status), ProgressStatus.valueOf(progressStatus), bestScore, stampOrNull(completedAt))
+            AssignmentProgress.valueOf(status), ProgressStatus.valueOf(progressStatus), bestScore, stampOrNull(completedAt), percent)
     }
 }
 
@@ -108,10 +110,25 @@ internal data class TotalsDto(val experiencePoints: Int, val courseExperiencePoi
 }
 
 @Serializable
-internal data class MyAchievementsDto(val totals: TotalsDto, val achievements: List<AchievementDto>) {
+internal data class MyAchievementsDto(val totals: TotalsDto, val achievements: List<AchievementDto>, val streak: StreakDto? = null) {
     fun domain(): MyAchievements {
         require(achievements.size <= 200)
-        return MyAchievements(totals.domain(), achievements.map { it.domain() })
+        return MyAchievements(totals.domain(), achievements.map { it.domain() }, streak?.domain())
+    }
+}
+
+@Serializable
+internal data class StreakDto(
+    val currentDays: Int = 0,
+    val longestDays: Int = 0,
+    val lastActivityDate: String? = null,
+    val activeToday: Boolean = false,
+    val timezone: String = "",
+) {
+    fun domain(): LearningStreak {
+        require(currentDays in 0..100_000 && longestDays in 0..100_000 && timezone.length <= 80)
+        require(lastActivityDate == null || Regex("\\d{4}-\\d{2}-\\d{2}").matches(lastActivityDate))
+        return LearningStreak(currentDays, longestDays, lastActivityDate, activeToday, timezone)
     }
 }
 

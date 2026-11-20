@@ -26,10 +26,10 @@ import pe.bpm.features.training.presentation.TrainingViewModel
  * solo mientras la pantalla está abierta: al salir se descartan lecciones, URL de video y respuestas.
  */
 @Composable
-internal fun TrainingCourseContent(userId: String, organizationId: String, courseId: String, canPersist: Boolean, training: TrainingViewModel, modifier: Modifier = Modifier) {
+internal fun TrainingCourseContent(userId: String, organizationId: String, courseId: String, canPersist: Boolean, training: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null) {
     LaunchedEffect(userId, organizationId, courseId, canPersist) { training.open(userId, organizationId, courseId, canPersist) }
     DisposableEffect(training, userId, organizationId, courseId) { onDispose { training.reset() } }
-    TrainingScreen(training, modifier)
+    TrainingScreen(training, modifier, onOpenCourse)
 }
 
 /** Autoría de Academia; el backend vuelve a validar el rol de cada operación. */

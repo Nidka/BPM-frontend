@@ -10,6 +10,9 @@ object TrainingLimits {
     const val LESSON_TITLE_MAX = 200
     const val LESSON_CONTENT_MAX = 20000
     const val MAX_LESSONS = 50
+    /** «Lo esencial» de una lección: hasta 5 ideas de 1..200 caracteres. */
+    const val KEY_POINTS_MAX = 5
+    const val KEY_POINT_MAX = 200
     const val MAX_QUESTIONS = 100
     const val MIN_OPTIONS = 2
     const val MAX_OPTIONS = 6
@@ -27,7 +30,7 @@ object TrainingLimits {
 }
 
 enum class DraftIssueKind {
-    COURSE_CODE, COURSE_TITLE, COURSE_DESCRIPTION, COURSE_DURATION, PASSING_SCORE, LESSON_COUNT, LESSON_TITLE, LESSON_CONTENT,
+    COURSE_CODE, COURSE_TITLE, COURSE_DESCRIPTION, COURSE_DURATION, PASSING_SCORE, LESSON_COUNT, LESSON_TITLE, LESSON_CONTENT, KEY_POINTS,
     QUESTION_COUNT, EXTERNAL_VIDEO, QUESTION_TEXT, OPTION_COUNT, OPTION_TEXT, CORRECT_OPTION, EXPLANATION, QUESTION_LESSON, DUPLICATE_ID, DUPLICATE_OPTION, BODY_SIZE,
 }
 
@@ -63,11 +66,12 @@ object TrainingDraftRules {
                 add(DraftIssue(DraftIssueKind.LESSON_TITLE, lesson.id, "El título de la lección es obligatorio y admite hasta ${TrainingLimits.LESSON_TITLE_MAX} caracteres."))
             if (lesson.content.textLength() > TrainingLimits.LESSON_CONTENT_MAX)
                 add(DraftIssue(DraftIssueKind.LESSON_CONTENT, lesson.id, "El contenido admite hasta ${TrainingLimits.LESSON_CONTENT_MAX} caracteres."))
+            keyPointsIssue(lesson.keyPoints)?.let { add(DraftIssue(DraftIssueKind.KEY_POINTS, lesson.id, it)) }
             if (lesson.externalVideoId != null && (lesson.videoMediaId != null || !YouTubeLinks.isVideoId(lesson.externalVideoId)))
                 add(DraftIssue(DraftIssueKind.EXTERNAL_VIDEO, lesson.id, "Usa un video subido o un enlace de YouTube, no ambos."))
         }
         // El servidor limita el cuerpo completo a 1 MiB; se valida un tamaño aproximado con margen.
-        val approxBytes = draft.lessons.sumOf { it.title.encodeToByteArray().size + it.content.encodeToByteArray().size + 200 } +
+        val approxBytes = draft.lessons.sumOf { it.title.encodeToByteArray().size + it.content.encodeToByteArray().size + it.keyPoints.sumOf { p -> p.encodeToByteArray().size + 4 } + 200 } +
             draft.questions.sumOf { q -> q.questionText.encodeToByteArray().size + q.explanation.encodeToByteArray().size + q.options.sumOf { it.encodeToByteArray().size + 4 } + 250 }
         if (approxBytes > TrainingLimits.DRAFT_BODY_MAX_BYTES) add(DraftIssue(DraftIssueKind.BODY_SIZE, message = "El curso es demasiado extenso. Reduce el texto de lecciones o preguntas."))
         val lessonIds = draft.lessons.map { it.id }.toSet()
@@ -89,6 +93,21 @@ object TrainingDraftRules {
         }
     }
 
+    /**
+     * «Lo esencial» de una lección: hasta [TrainingLimits.KEY_POINTS_MAX] ideas de una línea y de hasta
+     * [TrainingLimits.KEY_POINT_MAX] caracteres, sin repetirse. Los campos vacíos se ignoran (no se envían).
+     */
+    fun keyPointsIssue(points: List<String>): String? {
+        val filled = points.map { it.trim() }.filter { it.isNotEmpty() }
+        return when {
+            filled.size > TrainingLimits.KEY_POINTS_MAX -> "«Lo esencial» admite hasta ${TrainingLimits.KEY_POINTS_MAX} ideas."
+            filled.any { it.textLength() > TrainingLimits.KEY_POINT_MAX } -> "Cada idea de «Lo esencial» admite hasta ${TrainingLimits.KEY_POINT_MAX} caracteres."
+            filled.any { line -> line.any { it.isISOControl() } } -> "Cada idea de «Lo esencial» va en una sola línea."
+            filled.map { it.lowercase() }.let { it.toSet().size != it.size } -> "Las ideas de «Lo esencial» no pueden repetirse."
+            else -> null
+        }
+    }
+
     /** Qué falta para poder publicar; el servidor exige al menos una lección y una pregunta. */
     fun publishBlockers(draft: TrainingDraft): List<String> = buildList {
         if (draft.lessons.isEmpty()) add("Agrega al menos una lección.")
@@ -99,7 +118,7 @@ object TrainingDraftRules {
 
 /** Reasigna el orden consecutivo y recorta textos; el cuerpo enviado nunca depende de la interfaz. */
 fun TrainingDraft.normalized(): TrainingDraft = copy(
-    lessons = lessons.mapIndexed { i, lesson -> lesson.copy(title = lesson.title.trim(), displayOrder = i + 1) },
+    lessons = lessons.mapIndexed { i, lesson -> lesson.copy(title = lesson.title.trim(), displayOrder = i + 1, keyPoints = lesson.keyPoints.map { it.trim() }.filter { it.isNotEmpty() }) },
     questions = questions.mapIndexed { i, q ->
         q.copy(questionText = q.questionText.trim(), options = q.options.map { it.trim() }, explanation = q.explanation.trim(), displayOrder = i + 1)
     },

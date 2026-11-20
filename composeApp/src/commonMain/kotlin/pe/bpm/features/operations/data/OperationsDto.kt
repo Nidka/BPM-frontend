@@ -335,6 +335,7 @@ internal data class PlanDto(
     val frequency: String,
     val dueTime: String = "",
     val active: Boolean = true,
+    val today: PlanTodayDto? = null,
 ) {
     fun domain() =
         CleaningPlan(
@@ -347,11 +348,51 @@ internal data class PlanDto(
                 CleaningFrequency.valueOf(frequency),
                 dueTime,
                 active,
+                today?.domain(),
             )
             .also {
                 validId(id)
                 require(OperationsRules.plan(it).isEmpty())
             }
+}
+
+@Serializable
+internal data class PlanShiftDto(val id: String, val name: String = "", val state: String = "")
+
+/** `today` de un plan con `view=today`; el servidor lo calcula en la zona de la sede. */
+@Serializable
+internal data class PlanTodayDto(
+    val periodStartsAt: String,
+    val periodEndsAt: String,
+    val timezone: String = "",
+    val done: Boolean = false,
+    val doneByMe: Boolean = false,
+    val lastExecutionId: String? = null,
+    val lastResult: String? = null,
+    val lastExecutedAt: String? = null,
+    val overdue: Boolean = false,
+    val shift: PlanShiftDto? = null,
+) {
+    fun domain(): CleaningPlanToday {
+        validInstant(periodStartsAt)
+        validInstant(periodEndsAt)
+        lastExecutedAt?.let(::validInstant)
+        lastExecutionId?.let(::validId)
+        shift?.let { validId(it.id) }
+        require(timezone.length <= 80 && (shift?.name?.length ?: 0) <= 120)
+        return CleaningPlanToday(
+            periodStartsAt,
+            periodEndsAt,
+            timezone,
+            done,
+            doneByMe,
+            lastExecutionId,
+            lastResult?.let(CleaningResult::valueOf),
+            lastExecutedAt,
+            overdue,
+            shift?.let { CleaningPlanShift(it.id, it.name, it.state) },
+        )
+    }
 }
 
 @Serializable

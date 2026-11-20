@@ -54,7 +54,8 @@ class TrainingOfflineStore(private val store: LocalStore, private val clock: () 
         store.get(PROGRESS, courseId)?.let { runCatching { OfflineJson.decodeFromString(ProgressDto.serializer(), it.json).domain() }.getOrNull() }
 
     suspend fun saveProgress(courseId: String, progress: TrainingProgress) {
-        val dto = ProgressDto(progress.status.name, progress.lastLessonId, progress.bestScore, progress.experiencePoints, progress.completedAt)
+        val dto = ProgressDto(progress.status.name, progress.lastLessonId, progress.bestScore, progress.experiencePoints, progress.completedAt,
+            progress.completedLessonIds, progress.completedLessons, progress.totalLessons, progress.percent)
         store.put(PROGRESS, courseId, OfflineJson.encodeToString(ProgressDto.serializer(), dto))
     }
 
@@ -81,7 +82,7 @@ class TrainingOfflineStore(private val store: LocalStore, private val clock: () 
         val summary = outcome.attempt
         val queuedAt = store.get(ATTEMPTS, summary.id)
             ?.let { runCatching { OfflineJson.decodeFromString(AttemptRecordDto.serializer(), it.json).queuedAt }.getOrNull() } ?: clock()
-        val dto = AttemptRecordDto(summary.id, courseId, summary.attemptType.name, queuedAt, summary.score, summary.passed, summary.completedAt)
+        val dto = AttemptRecordDto(summary.id, courseId, summary.attemptType.name, queuedAt, summary.score, summary.passed, summary.completedAt, summary.xpEarned)
         store.put(ATTEMPTS, summary.id, OfflineJson.encodeToString(AttemptRecordDto.serializer(), dto))
         saveProgress(courseId, outcome.progress)
     }
@@ -116,7 +117,7 @@ class TrainingOfflineStore(private val store: LocalStore, private val clock: () 
         val queuedAt = store.get(ATTEMPTS, summary.id)
             ?.let { runCatching { OfflineJson.decodeFromString(AttemptRecordDto.serializer(), it.json).queuedAt }.getOrNull() } ?: clock()
         store.put(ATTEMPTS, summary.id, OfflineJson.encodeToString(AttemptRecordDto.serializer(),
-            AttemptRecordDto(summary.id, courseId, summary.attemptType, queuedAt, summary.score, summary.passed, summary.completedAt)))
+            AttemptRecordDto(summary.id, courseId, summary.attemptType, queuedAt, summary.score, summary.passed, summary.completedAt, summary.xpEarned)))
         saveProgress(courseId, dto.progress.domain())
     }
 }

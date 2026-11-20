@@ -114,6 +114,7 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
                 BpmTextField(lesson.content, { v -> viewModel.edit { TrainingDraftEdits.updateLesson(it, lesson.id, content = v) } }, "Texto de la lección (también es la transcripción del video)",
                     error = issue(DraftIssueKind.LESSON_CONTENT, lesson.id), singleLine = false, minLines = 5, enabled = enabled,
                     supportingText = "${lesson.content.length} de ${TrainingLimits.LESSON_CONTENT_MAX} caracteres")
+                KeyPointsEditor(lesson, enabled, issue(DraftIssueKind.KEY_POINTS, lesson.id), viewModel)
                 LessonVideoEditor(editor, lesson, viewModel)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, -1) } }, enabled = enabled && number > 0) { Text("Subir") }
@@ -146,6 +147,33 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
         Text(if (editor.dirty) "Guardar y publicar" else "Publicar curso")
     }
     BpmTextButton(onClick = viewModel::closeDraft, enabled = !editor.busy) { Text("Volver a la lista de cursos") }
+}
+
+/**
+ * «Lo esencial (opcional)»: hasta [TrainingLimits.KEY_POINTS_MAX] ideas de una línea que el alumno ve antes del texto.
+ * Cada campo lleva su contador de [TrainingLimits.KEY_POINT_MAX] caracteres; los vacíos no se guardan.
+ */
+@Composable
+private fun KeyPointsEditor(lesson: DraftLesson, enabled: Boolean, issue: String?, viewModel: TrainingAuthoringViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Lo esencial (opcional)", style = BpmType.bodyStrong)
+        Text("Hasta ${TrainingLimits.KEY_POINTS_MAX} ideas cortas que se muestran antes del texto de la lección.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        lesson.keyPoints.forEachIndexed { index, point ->
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                BpmTextField(point, { v -> viewModel.edit { TrainingDraftEdits.setKeyPoint(it, lesson.id, index, v) } }, "Idea ${index + 1}",
+                    modifier = Modifier.weight(1f), enabled = enabled,
+                    error = if (point.trim().length > TrainingLimits.KEY_POINT_MAX) "Hasta ${TrainingLimits.KEY_POINT_MAX} caracteres." else null,
+                    supportingText = "${point.length} de ${TrainingLimits.KEY_POINT_MAX} caracteres")
+                BpmTextButton(onClick = { viewModel.edit { TrainingDraftEdits.removeKeyPoint(it, lesson.id, index) } }, enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = "Quitar la idea ${index + 1} de Lo esencial" }) { Text("Quitar") }
+            }
+        }
+        issue?.takeIf { lesson.keyPoints.none { p -> p.trim().length > TrainingLimits.KEY_POINT_MAX } }
+            ?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.addKeyPoint(it, lesson.id) } },
+            enabled = enabled && lesson.keyPoints.size < TrainingLimits.KEY_POINTS_MAX) { Text("+ Agregar idea") }
+    }
 }
 
 @Composable

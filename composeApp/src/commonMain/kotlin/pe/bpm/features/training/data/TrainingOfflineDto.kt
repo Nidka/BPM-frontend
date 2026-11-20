@@ -26,6 +26,7 @@ internal data class OfflineLessonDto(
     val video: OfflineVideoDto? = null,
     val externalVideo: ExternalVideoDto? = null,
     val offlineAvailable: Boolean = true,
+    val keyPoints: List<String> = emptyList(),
 )
 
 /** Un curso del catálogo: igual que la vista de aprender pero sin progreso ni constancia. */
@@ -45,7 +46,8 @@ internal data class OfflineCourseDto(
             require(it.video == null || it.externalVideo == null)
             val video = it.video?.domain()
             TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, video, it.externalVideo?.domain(),
-                offlineAvailable = it.externalVideo == null && it.offlineAvailable && (video == null || video.sha256 != null))
+                offlineAvailable = it.externalVideo == null && it.offlineAvailable && (video == null || video.sha256 != null),
+                keyPoints = checkedKeyPoints(it.keyPoints))
         }
         require(mappedLessons.map { it.id }.distinct().size == mappedLessons.size)
         val lessonIds = mappedLessons.map { it.id }.toSet()
@@ -81,10 +83,11 @@ internal data class AttemptRecordDto(
     val score: Int? = null,
     val passed: Boolean? = null,
     val completedAt: String? = null,
+    val xpEarned: Int? = null,
 ) {
     fun domain(): AttemptRecord {
         val kind = AttemptType.valueOf(type)
-        val result = if (score != null && passed != null && completedAt != null) AttemptSummary(attemptId, kind, score, passed, completedAt) else null
+        val result = if (score != null && passed != null && completedAt != null) AttemptSummary(attemptId, kind, score, passed, completedAt, xpEarned) else null
         return AttemptRecord(attemptId, courseId, kind, queuedAt, result)
     }
 }

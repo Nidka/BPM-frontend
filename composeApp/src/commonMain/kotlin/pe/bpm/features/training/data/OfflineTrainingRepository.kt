@@ -38,9 +38,12 @@ class OfflineTrainingRepository(
             val course = result.value
             val local = store.progress(courseId)
             if (local?.lastLessonId != null && local.status != ProgressStatus.NOT_STARTED && course.progress.status != ProgressStatus.COMPLETED) {
-                return TrainingResult.Success(course.copy(progress = course.progress.copy(
+                // Las lecciones terminadas sin conexión también se conservan hasta que el servidor las confirme.
+                val pending = local.completedLessonIds.filter { it !in course.progress.completedLessonIds }
+                val merged = pending.fold(course.progress.copy(
                     lastLessonId = local.lastLessonId,
-                    status = if (course.progress.status == ProgressStatus.NOT_STARTED) ProgressStatus.IN_PROGRESS else course.progress.status)))
+                    status = if (course.progress.status == ProgressStatus.NOT_STARTED) ProgressStatus.IN_PROGRESS else course.progress.status)) { acc, id -> acc.withCompletedLesson(id) }
+                return TrainingResult.Success(course.copy(progress = merged))
             }
             return result
         }
@@ -51,14 +54,17 @@ class OfflineTrainingRepository(
 
     override suspend fun videoTicket(org: String, courseId: String, lessonId: String) = remote.videoTicket(org, courseId, lessonId)
 
-    override suspend fun saveProgress(org: String, courseId: String, lessonId: String): TrainingResult<TrainingProgress> {
-        val result = remote.saveProgress(org, courseId, lessonId)
+    override suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String?): TrainingResult<TrainingProgress> {
+        val result = remote.saveProgress(org, courseId, lessonId, completedLessonId)
         if (result is TrainingResult.Success) { store.clearProgress(courseId); return result }
         if ((result as TrainingResult.Failure).reason != TrainingFailure.QUEUED) return result
         val current = store.progress(courseId) ?: store.cachedCourse(org, courseId)?.progress
             ?: TrainingProgress(ProgressStatus.NOT_STARTED, null, null, 0, null)
-        val local = current.copy(lastLessonId = lessonId,
+        val opened = current.copy(lastLessonId = lessonId,
             status = if (current.status == ProgressStatus.NOT_STARTED) ProgressStatus.IN_PROGRESS else current.status)
+        // El total de lecciones sale del catálogo guardado si el avance local aún no lo conoce.
+        val total = store.cachedCourse(org, courseId)?.lessons?.size ?: 0
+        val local = completedLessonId?.let { opened.copy(totalLessons = maxOf(opened.totalLessons, total)).withCompletedLesson(it) } ?: opened
         store.saveProgress(courseId, local)
         return TrainingResult.Success(local)
     }

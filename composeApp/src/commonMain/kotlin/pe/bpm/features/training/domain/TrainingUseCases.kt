@@ -11,8 +11,8 @@ class RequestLessonVideo(private val repository: TrainingRepository) {
 }
 
 class SaveLessonProgress(private val repository: TrainingRepository) {
-    suspend operator fun invoke(org: String, courseId: String, lessonId: String): TrainingResult<TrainingProgress> =
-        repository.saveProgress(org, courseId, lessonId)
+    suspend operator fun invoke(org: String, courseId: String, lessonId: String, completedLessonId: String? = null): TrainingResult<TrainingProgress> =
+        repository.saveProgress(org, courseId, lessonId, completedLessonId)
 }
 
 /** Modo estudio: verifica la opción elegida sin crear intento, puntaje, XP ni constancia. */

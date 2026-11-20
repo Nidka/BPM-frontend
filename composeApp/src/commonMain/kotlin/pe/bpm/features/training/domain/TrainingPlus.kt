@@ -74,6 +74,8 @@ data class MyAssignment(
     val progressStatus: ProgressStatus,
     val bestScore: Int?,
     val completedAt: String?,
+    /** Avance del curso 0..100; 0 en servidores anteriores. */
+    val percent: Int = 0,
 )
 
 enum class AssignmentRecordStatus { ACTIVE, CANCELLED }
@@ -119,7 +121,24 @@ data class Achievement(
 
 data class ExperienceTotals(val experiencePoints: Int, val courseExperiencePoints: Int, val moduleExperiencePoints: Int, val achievementPoints: Int)
 
-data class MyAchievements(val totals: ExperienceTotals, val achievements: List<Achievement>) {
+/**
+ * Racha de días con aprendizaje, calculada por el servidor en la zona de la persona. [lastActivityDate] es una
+ * fecha `yyyy-MM-dd`; [activeToday] indica si ya aprendió hoy (la racha sigue vigente si terminó ayer).
+ */
+data class LearningStreak(
+    val currentDays: Int,
+    val longestDays: Int,
+    val lastActivityDate: String?,
+    val activeToday: Boolean,
+    val timezone: String,
+)
+
+data class MyAchievements(
+    val totals: ExperienceTotals,
+    val achievements: List<Achievement>,
+    /** Nulo en servidores anteriores. */
+    val streak: LearningStreak? = null,
+) {
     val earned: List<Achievement> get() = achievements.filter { it.awardedAt != null }
     val pending: List<Achievement> get() = achievements.filter { it.awardedAt == null }
 }

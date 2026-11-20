@@ -9,12 +9,31 @@ import androidx.compose.ui.Modifier
 import pe.bpm.core.designsystem.*
 import pe.bpm.core.presentation.displayDateTime
 import pe.bpm.features.operations.domain.CleaningExecution
+import pe.bpm.features.operations.domain.CleaningPlan
 import pe.bpm.features.operations.domain.OperationsEntry
 
 /**
+ * Fila de un plan de limpieza de hoy: icono Clock (o Check si está hecho), título, frecuencia/turno/quién lo hizo y el
+ * chip que decidió el servidor ([todayChip]); el tono de la fila sigue al del chip. Reutilizada por «Tareas de hoy» en Hoy.
+ */
+@Composable
+internal fun TodayPlanRow(plan: CleaningPlan, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+    val chip = todayChip(plan)
+    val done = plan.today?.done == true
+    BpmTaskRow(
+        title = "${plan.area} · ${plan.task}",
+        symbol = if (done) BpmSymbol.Check else BpmSymbol.Clock,
+        modifier = modifier,
+        detail = todayDetail(plan),
+        tone = chip?.tone?.takeIf { it != BpmTone.Neutral } ?: BpmTone.Info,
+        trailing = chip?.let { c -> { BpmStatusChip(c.text, c.tone) } },
+        onClick = onClick,
+    )
+}
+
+/**
  * Fila de «Mis tareas» del personal: un plan de limpieza (toca para registrarlo) o una limpieza ya registrada
- * (toca para ver el detalle). No hay hora local disponible en `commonMain` sin dependencias nuevas, por eso el
- * chip de vencimiento se muestra Neutral (ver [dueTone]).
+ * (toca para ver el detalle). El chip del plan viene del servidor ([todayChip]); no depende de la hora del dispositivo.
  */
 @Composable
 internal fun WorkerTaskItem(
@@ -27,15 +46,7 @@ internal fun WorkerTaskItem(
         when (entry) {
             is OperationsEntry.PlanEntry -> {
                 val plan = entry.value
-                val due = dueChipText(plan.dueTime)
-                BpmTaskRow(
-                    title = entry.title(),
-                    symbol = BpmSymbol.Clock,
-                    detail = entry.subtitle(),
-                    tone = BpmTone.Info,
-                    trailing = due?.let { text -> { BpmStatusChip(text, dueTone(plan.dueTime, localMinutes = null)) } },
-                    onClick = { if (plan.active) viewModel.newCleaningFor(plan) else viewModel.detail(entry) },
-                )
+                TodayPlanRow(plan, onClick = { if (plan.active) viewModel.newCleaningFor(plan) else viewModel.detail(entry) })
                 BpmTextButton({ viewModel.detail(entry) }) { Text("Ver detalle") }
             }
             is OperationsEntry.ExecutionEntry -> {

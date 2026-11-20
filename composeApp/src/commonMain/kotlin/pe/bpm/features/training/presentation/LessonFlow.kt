@@ -21,10 +21,22 @@ internal val sideBySideClass: Boolean
     @Composable get() = currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large
 
 /**
- * Estado de cada lección en el temario lateral de una lección abierta: la abierta es la actual, las anteriores
- * y las que [lessonStepStates] da por hechas figuran como hechas y el resto como pendientes.
+ * Estado de cada lección en el temario lateral de una lección abierta: la abierta es la actual. Con el avance real del
+ * servidor las hechas son las de `completedLessonIds` (o todas si el curso está completado) y el resto está pendiente;
+ * sin él, las anteriores y las que [lessonStepStates] da por hechas figuran como hechas.
  */
 internal fun outlineStates(course: TrainingCourse, openIndex: Int): List<BpmStepState> {
+    if (hasLessonProgress(course)) {
+        val done = course.progress.completedLessonIds.toSet()
+        val all = course.progress.status == ProgressStatus.COMPLETED
+        return course.lessons.mapIndexed { i, lesson ->
+            when {
+                i == openIndex -> BpmStepState.Current
+                all || lesson.id in done -> BpmStepState.Done
+                else -> BpmStepState.Pending
+            }
+        }
+    }
     val approx = lessonStepStates(course)
     return course.lessons.indices.map { i ->
         when {
@@ -96,6 +108,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
             }
         }
     }
+    if (lesson.keyPoints.isNotEmpty()) KeyPointsCard(lesson.keyPoints)
     // El texto de la lección hace de transcripción accesible del video y de lectura sin video.
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
@@ -120,7 +133,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
                 if (!compact) { Spacer(Modifier.width(BpmSpacing.sm)); Text("Anterior") }
             }
             val last = index >= course.lessons.lastIndex
-            RaisedButton(if (last) "Terminar lecciones" else "Siguiente lección", { if (last) { viewModel.back() } else viewModel.nextLesson() },
+            RaisedButton(if (last) "Terminar lecciones" else "Siguiente lección", { if (last) { viewModel.finishLessons() } else viewModel.nextLesson() },
                 if (compact) Modifier.weight(1f) else Modifier.widthIn(min = 200.dp))
         }
     }
@@ -192,4 +205,23 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
         }
     }
     BpmTextButton(onClick = { viewModel.back() }) { Text("Salir de la práctica") }
+}
+
+/**
+ * «Lo esencial»: las ideas clave de la lección en una tarjeta de superficie suave, antes del texto completo.
+ * Cada idea es una viñeta; el lector de pantalla las anuncia como una lista corta.
+ */
+@Composable
+internal fun KeyPointsCard(points: List<String>, modifier: Modifier = Modifier) {
+    BpmCard(modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
+        Eyebrow("LO ESENCIAL")
+        Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+            points.forEach { point ->
+                Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
+                    Text("•", style = BpmType.bodyStrong, color = MaterialTheme.colorScheme.primary)
+                    Text(point, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
 }

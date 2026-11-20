@@ -108,12 +108,14 @@ class RemoteOperationsRepository(
         resource: OperationsResource,
         site: String?,
         page: PageRequest,
+        view: String? = null,
         crossinline convert: (D) -> T,
     ): OperationsResult<Page<T>> = request { access ->
         val response =
             client.get(path(org, resource.path)) {
                 bearerAuth(access)
                 pageParameters(page)
+                view?.let { parameter("view", it) }
                 site?.let {
                     validId(it)
                     parameter("locationId", it)
@@ -145,6 +147,11 @@ class RemoteOperationsRepository(
 
     override suspend fun plans(org: String, site: String, page: PageRequest) =
         list<PlanDto, CleaningPlan>(org, OperationsResource.PLANS, site, page) {
+            it.domain().also { v -> require(v.locationId == site) }
+        }
+
+    override suspend fun todayPlans(org: String, site: String, page: PageRequest) =
+        list<PlanDto, CleaningPlan>(org, OperationsResource.PLANS, site, page, view = "today") {
             it.domain().also { v -> require(v.locationId == site) }
         }
 

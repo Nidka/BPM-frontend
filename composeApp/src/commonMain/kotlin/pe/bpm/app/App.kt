@@ -610,7 +610,7 @@ fun App(
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
                                 homeContent = if (currentWorkspace?.role == "WORKER") ({
                                     // Pantalla «Hoy» del personal: asignaciones y logros reales; solo para WORKER.
-                                    WorkerTodayContent(trainingLearner, profile.id, currentWorkspace.organization.id,
+                                    WorkerTodayContent(trainingLearner, profile.id, currentWorkspace.organization.id, dailyOperations, currentWorkspace.locations,
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onTasks = { nav.navigate(WorkspaceDestination.Tasks.route) { launchSingleTop = true } },
@@ -649,7 +649,8 @@ fun App(
                                 }) else if (researching) ({
                                     pe.bpm.core.offline.ServerOnly { ResearchContent(profile.id, research) }
                                 }) else if (learningCourse) ({
-                                    if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training)
+                                    if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training,
+                                        onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } })
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,

@@ -63,7 +63,18 @@ function courseInfo(value) {
 function progress(value) {
   need(object(value) && progressStates.includes(value.status) && (value.lastLessonId == null || uuid(value.lastLessonId)) &&
     (value.bestScore == null || integer(value.bestScore, 0, 100)) && integer(value.experiencePoints, 0, 1e9));
-  return { status: value.status, lastLessonId: value.lastLessonId ?? null, bestScore: value.bestScore ?? null, experiencePoints: value.experiencePoints, completedAt: optionalStamp(value.completedAt) };
+  // Avance por lección: un backend anterior no lo envía y equivale a cero lecciones terminadas.
+  const completedLessonIds = value.completedLessonIds ?? [];
+  need(Array.isArray(completedLessonIds) && completedLessonIds.length <= 50 && completedLessonIds.every(uuid) && new Set(completedLessonIds.map(id => id.toLowerCase())).size === completedLessonIds.length &&
+    integer(value.completedLessons ?? 0, 0, 50) && integer(value.totalLessons ?? 0, 0, 50) && integer(value.percent ?? 0, 0, 100));
+  return { status: value.status, lastLessonId: value.lastLessonId ?? null, bestScore: value.bestScore ?? null, experiencePoints: value.experiencePoints, completedAt: optionalStamp(value.completedAt),
+    completedLessonIds: [...completedLessonIds], completedLessons: value.completedLessons ?? 0, totalLessons: value.totalLessons ?? 0, percent: value.percent ?? 0 };
+}
+/** «Lo esencial» de una lección: hasta 5 ideas de una línea y 200 caracteres; ausente equivale a vacío. */
+function keyPoints(value, input = false) {
+  const points = value ?? [];
+  need(Array.isArray(points) && points.length <= 5 && points.every(point => string(point, 200, 1) && !/[\r\n\u2028\u2029]/.test(point)));
+  return [...points];
 }
 function certificate(value) {
   if (value == null) return null;
@@ -99,7 +110,7 @@ function learningCourse(value, courseId) {
     need(object(lesson) && uuid(lesson.id) && string(lesson.title, 200, 1) && string(lesson.content ?? '', 20000) && integer(lesson.displayOrder, 0, 1e6));
     const external = externalVideo(lesson.externalVideo);
     need(!(lesson.video && external));
-    return { id: lesson.id, title: lesson.title, content: lesson.content ?? '', displayOrder: lesson.displayOrder, video: lessonVideo(lesson.video), externalVideo: external };
+    return { id: lesson.id, title: lesson.title, content: lesson.content ?? '', displayOrder: lesson.displayOrder, video: lessonVideo(lesson.video), externalVideo: external, keyPoints: keyPoints(lesson.keyPoints) };
   });
   unique(lessons);
   const questions = value.questions.map(question => {
@@ -122,7 +133,7 @@ function offlineCourse(value) {
     const external = externalVideo(lesson.externalVideo);
     need(!(lesson.video && external) && (lesson.offlineAvailable === undefined || typeof lesson.offlineAvailable === 'boolean'));
     return { id: lesson.id, title: lesson.title, content: lesson.content ?? '', displayOrder: lesson.displayOrder, video: offlineVideo(lesson.video), externalVideo: external,
-      offlineAvailable: external ? false : lesson.offlineAvailable ?? true };
+      offlineAvailable: external ? false : lesson.offlineAvailable ?? true, keyPoints: keyPoints(lesson.keyPoints) };
   });
   unique(lessons);
   const questions = value.questions.map(question => {
@@ -141,7 +152,8 @@ function adminItem(value, status) {
   return { id: value.id, code: value.code, title: value.title, status: value.status, publishedVersionNumber: value.publishedVersionNumber ?? null, hasDraft: value.hasDraft };
 }
 
-function draftBody(value, courseId, withCourse) {
+/** [asInput]: lo que se reenvía al backend; sin `keyPoints` (o nulo) el servidor conserva los previos, `[]` los vacía. */
+function draftBody(value, courseId, withCourse, asInput = false) {
   need(object(value) && object(value.version) && Array.isArray(value.lessons) && value.lessons.length <= 50 && Array.isArray(value.questions) && value.questions.length <= 100);
   const version = value.version;
   need(uuid(version.id) && integer(version.versionNumber, 1, 1e9) && integer(version.passingScore, 0, 100) && typeof version.rowVersion === 'string' && /^[\x21-\x7e]{1,64}$/.test(version.rowVersion));
@@ -149,7 +161,9 @@ function draftBody(value, courseId, withCourse) {
     need(object(lesson) && uuid(lesson.id) && string(lesson.title, 200, 1) && string(lesson.content ?? '', 20000) && integer(lesson.displayOrder, 0, 1e6) && (lesson.videoMediaId == null || uuid(lesson.videoMediaId)));
     const external = externalVideo(lesson.externalVideo);
     need(!(lesson.videoMediaId && external));
-    return { id: lesson.id, title: lesson.title, content: lesson.content ?? '', displayOrder: lesson.displayOrder, videoMediaId: lesson.videoMediaId ?? null, externalVideo: external };
+    const projected = { id: lesson.id, title: lesson.title, content: lesson.content ?? '', displayOrder: lesson.displayOrder, videoMediaId: lesson.videoMediaId ?? null, externalVideo: external };
+    if (!asInput || lesson.keyPoints != null) projected.keyPoints = keyPoints(lesson.keyPoints);
+    return projected;
   });
   unique(lessons);
   const questions = value.questions.map(question => {
@@ -209,8 +223,8 @@ function inputFor(kind, value) {
       need(/^[A-Z0-9][A-Z0-9_-]{0,49}$/.test(value.code) && string(value.title, 200, 2) && string(value.description, 2000) && integer(value.estimatedDurationMinutes, 1, 1440));
       return { code: value.code, title: value.title.trim(), description: value.description, estimatedDurationMinutes: value.estimatedDurationMinutes };
     case 'progress':
-      exact(value, ['lastLessonId']); need(uuid(value.lastLessonId));
-      return { lastLessonId: value.lastLessonId };
+      shape(value, ['lastLessonId'], ['completedLessonId']); need(uuid(value.lastLessonId) && (!('completedLessonId' in value) || uuid(value.completedLessonId)));
+      return { lastLessonId: value.lastLessonId, ...(value.completedLessonId ? { completedLessonId: value.completedLessonId } : {}) };
     case 'study':
       exact(value, ['questionId', 'selectedOption']); need(uuid(value.questionId) && integer(value.selectedOption, 0, 5));
       return { questionId: value.questionId, selectedOption: value.selectedOption };
@@ -230,9 +244,9 @@ function inputFor(kind, value) {
       exact(value, ['version', 'lessons', 'questions']);
       exact(value.version, ['id', 'versionNumber', 'passingScore', 'rowVersion']);
       need(Array.isArray(value.lessons) && Array.isArray(value.questions));
-      value.lessons.forEach(lesson => shape(lesson, ['id', 'title', 'content', 'displayOrder', 'videoMediaId'], ['externalVideo']));
+      value.lessons.forEach(lesson => shape(lesson, ['id', 'title', 'content', 'displayOrder', 'videoMediaId'], ['externalVideo', 'keyPoints']));
       value.questions.forEach(question => exact(question, ['id', 'lessonId', 'questionText', 'options', 'correctOption', 'explanation', 'displayOrder']));
-      return draftBody(value, undefined, false);
+      return draftBody(value, undefined, false, true);
     case 'upload':
       exact(value, ['id', 'originalName', 'mimeType', 'sizeBytes', 'sha256']);
       need(uuid(value.id) && string(value.originalName, 200, 1) && !/[\/\\\u0000-\u001f\u007f-\u009f]/u.test(value.originalName) && value.originalName.trim() === value.originalName &&
@@ -269,6 +283,18 @@ function inputFor(kind, value) {
   }
 }
 
+/** Racha de aprendizaje calculada por el backend en la zona de la persona. */
+function streak(value) {
+  need(object(value) && integer(value.currentDays, 0, 100000) && integer(value.longestDays, 0, 100000) && typeof value.activeToday === 'boolean' && string(value.timezone, 80, 1) &&
+    (value.lastActivityDate == null || typeof value.lastActivityDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.lastActivityDate) && instant(value.lastActivityDate + 'T00:00:00Z')));
+  return { currentDays: value.currentDays, longestDays: value.longestDays, lastActivityDate: value.lastActivityDate ?? null, activeToday: value.activeToday, timezone: value.timezone };
+}
+/** Siguiente curso tras aprobar la evaluación final; fuera de una ruta no hay `pathId` ni `pathTitle`. */
+function nextCourse(value) {
+  if (value == null) return null;
+  need(object(value) && uuid(value.courseId) && string(value.courseTitle, 200, 1) && (value.pathId == null || uuid(value.pathId)) && (value.pathTitle == null || string(value.pathTitle, 200)));
+  return { pathId: value.pathId ?? null, pathTitle: value.pathTitle ?? null, courseId: value.courseId, courseTitle: value.courseTitle };
+}
 function achievement(value) {
   need(object(value) && uuid(value.id) && typeof value.code === 'string' && /^[A-Z0-9_]{1,64}$/.test(value.code) && string(value.name, 120, 1) && string(value.description ?? '', 300) &&
     integer(value.points, 0, 100000) && criteria.includes(value.criterionType) && integer(value.criterionThreshold, 1, 1000) && typeof (value.active ?? true) === 'boolean');
@@ -292,8 +318,9 @@ function assignment(value) {
 }
 function myAssignment(value) {
   need(object(value) && uuid(value.assignmentId) && assignmentProgress.includes(value.status) && progressStates.includes(value.progressStatus) && (value.bestScore == null || integer(value.bestScore, 0, 100)));
+  need(integer(value.percent ?? 0, 0, 100));
   return { assignmentId: value.assignmentId, course: courseInfo(value.course), dueAt: optionalStamp(value.dueAt), assignedAt: stamp(value.assignedAt), status: value.status,
-    progressStatus: value.progressStatus, bestScore: value.bestScore ?? null, completedAt: optionalStamp(value.completedAt) };
+    progressStatus: value.progressStatus, bestScore: value.bestScore ?? null, completedAt: optionalStamp(value.completedAt), percent: value.percent ?? 0 };
 }
 function learningPath(value) {
   need(object(value) && uuid(value.id) && string(value.title, 200, 1) && string(value.description ?? '', 2000) && pathStates.includes(value.status) && typeof value.rowVersion === 'string' &&
@@ -509,8 +536,11 @@ export async function proxyTraining(request, url, upstream, send, response) {
         unique(results, 'questionId');
         need(attempt.score === Math.round(results.filter(item => item.correct).length * 100 / results.length));
         need(Array.isArray(data.achievements ?? []) && (data.achievements ?? []).length <= 50);
-        projected = { attempt: { id: attempt.id, attemptType: attempt.attemptType, score: attempt.score, passed: attempt.passed, completedAt: stamp(attempt.completedAt) }, results, progress: progress(data.progress), certificate: certificate(data.certificate),
-          achievements: (data.achievements ?? []).map(achievement) };
+        // XP del intento: ausente en intentos históricos o backends anteriores.
+        need(attempt.xpEarned == null || integer(attempt.xpEarned, 0, 1e9));
+        projected = { attempt: { id: attempt.id, attemptType: attempt.attemptType, score: attempt.score, passed: attempt.passed, completedAt: stamp(attempt.completedAt),
+            ...(attempt.xpEarned != null ? { xpEarned: attempt.xpEarned } : {}) }, results, progress: progress(data.progress), certificate: certificate(data.certificate),
+          achievements: (data.achievements ?? []).map(achievement), nextCourse: nextCourse(data.nextCourse) };
         break;
       }
       case 'adminList':
@@ -562,7 +592,7 @@ export async function proxyTraining(request, url, upstream, send, response) {
         const t = data.totals;
         need([t.experiencePoints, t.courseExperiencePoints, t.moduleExperiencePoints, t.achievementPoints].every(n => integer(n, 0, 1e9)));
         projected = { totals: { experiencePoints: t.experiencePoints, courseExperiencePoints: t.courseExperiencePoints, moduleExperiencePoints: t.moduleExperiencePoints, achievementPoints: t.achievementPoints },
-          achievements: data.achievements.map(achievement) };
+          achievements: data.achievements.map(achievement), ...(data.streak != null ? { streak: streak(data.streak) } : {}) };
         unique(projected.achievements);
         break;
       }

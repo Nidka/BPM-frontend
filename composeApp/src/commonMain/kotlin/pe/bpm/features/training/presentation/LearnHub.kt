@@ -16,3 +16,7 @@ fun assignmentMeta(assignment: MyAssignment): String {
     assignment.bestScore?.let { parts += "mejor puntaje $it" }
     return parts.joinToString(" · ")
 }
+
+/** Avance 0..1 del curso de una asignación, o nulo si el servidor no lo informa (0 o servidor anterior). */
+fun assignmentProgress(assignment: MyAssignment): Float? =
+    assignment.percent.takeIf { it > 0 }?.let { it.coerceAtMost(100) / 100f }

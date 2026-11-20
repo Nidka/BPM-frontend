@@ -113,6 +113,23 @@ class ManageOperations(
         }
     }
 
+    /** Planes activos con el estado de hoy de la sede; mismo permiso de lectura que la lista de planes. */
+    suspend fun todayPlans(
+        org: String,
+        site: String?,
+        role: String,
+        page: PageRequest,
+    ): OperationsResult<Page<CleaningPlan>> {
+        if (!OperationsAccess.canRead(role, OperationsResource.PLANS))
+            return OperationsResult.Failure(OperationsFailure.DENIED)
+        if (site == null)
+            return OperationsResult.Failure(
+                OperationsFailure.INVALID,
+                mapOf("locationId" to "Selecciona una sede."),
+            )
+        return repository.todayPlans(org, site, page)
+    }
+
     fun errors(command: OperationsCommand, products: List<Product>): Map<String, String> =
         when (command) {
             is OperationsCommand.AddSupplier -> OperationsRules.supplier(command.input)

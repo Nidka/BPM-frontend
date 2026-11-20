@@ -21,6 +21,8 @@ data class DraftLesson(
     val videoMediaId: String?,
     /** Identificador de un video de YouTube; excluyente con [videoMediaId]. */
     val externalVideoId: String? = null,
+    /** «Lo esencial» de la lección (hasta 5 ideas de 1..200 caracteres); siempre se envía al guardar. */
+    val keyPoints: List<String> = emptyList(),
 )
 
 data class DraftQuestion(
