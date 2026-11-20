@@ -62,7 +62,7 @@ class WorkspaceNavigationTest {
 
     private fun nav(role: String?, platform: Boolean, research: Boolean = false, grants: Boolean = false) =
         workspaceNavigation(workspacePrimaryDestinations(workspaceDestinations(role, platform)), workspaceShortcuts(role, platform, research, grants))
-            .map { when (it) { is WorkspaceNavItem.Section -> it.destination.label; is WorkspaceNavItem.Shortcut -> it.shortcut.label } }
+            .map { when (it) { is WorkspaceNavItem.Section -> destinationLabel(it.destination, role); is WorkspaceNavItem.Shortcut -> it.shortcut.label } }
 
     @Test fun chefGetsIncidentsAsItsOwnDestinationAndNoTeam() {
         assertEquals(listOf("Inicio", "Control", "Incidencias", "Aprender"), nav("CHEF", false))
@@ -97,6 +97,6 @@ class WorkspaceNavigationTest {
 
     @Test fun adminAndWorkerHaveNoShortcuts() {
         assertEquals(5, nav("ADMIN", false).size)
-        assertEquals(listOf("Inicio", "Mis tareas", "Aprender"), nav("WORKER", false))
+        assertEquals(listOf("Hoy", "Tareas", "Aprender"), nav("WORKER", false))
     }
 }

@@ -28,6 +28,8 @@ import pe.bpm.core.offline.PendingChangesScreen
 import pe.bpm.core.storage.DraftStorage
 import pe.bpm.core.storage.UnavailableDraftStorage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import pe.bpm.core.presentation.OnAppForeground
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -402,6 +404,12 @@ fun App(
                     val alertRoute=route in listOf(ALERT_INBOX,ALERT_RULES)
                     val reportsRoute = route == REPORTS
                     val learningCourse = route == TRAINING_COURSE
+                    // La vista general del curso usa el patrón amplio (temario + panel de apoyo); lección, estudio y evaluación, el de lectura.
+                    val courseOverview by remember(training) { training.state.map { it.screen == pe.bpm.features.training.presentation.TrainingPane.OVERVIEW }.distinctUntilChanged() }.collectAsStateWithLifecycle(true)
+                    // Lección y evaluación por preguntas llevan panel lateral desde la clase expandida: ahí piden el ancho del panel.
+                    val courseWidePane by remember(training) { training.state.map { pe.bpm.features.training.presentation.wantsWidePane(it) }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+                    // Cursos ya asignados: el catálogo de Aprender no los repite.
+                    val assignedCourseIds = if (destination == WorkspaceDestination.Learn) trainingLearner.state.collectAsStateWithLifecycle().value.assignments.map { it.course.id }.toSet() else emptySet()
                     val learningExtras = route == TRAINING_ACHIEVEMENTS || route == TRAINING_PATHS
                     val managingTraining = route == TRAINING_MANAGEMENT
                     val managingAccounts = route == ACCOUNTS_MANAGEMENT
@@ -600,7 +608,15 @@ fun App(
                                 onAccounts = { nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
-                                homeContent = if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
+                                homeContent = if (currentWorkspace?.role == "WORKER") ({
+                                    // Pantalla «Hoy» del personal: asignaciones y logros reales; solo para WORKER.
+                                    WorkerTodayContent(trainingLearner, profile.id, currentWorkspace.organization.id,
+                                        onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                        onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
+                                        onTasks = { nav.navigate(WorkspaceDestination.Tasks.route) { launchSingleTop = true } },
+                                        onReport = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } },
+                                        onAchievements = { nav.navigate(TRAINING_ACHIEVEMENTS) { launchSingleTop = true } })
+                                }) else if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
                                     if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole))
                                         pe.bpm.features.reports.presentation.DashboardPanel(reportsDashboardState, reportsDashboard::refresh, { nav.navigate(REPORTS) { launchSingleTop = true } })
                                     // El ADMIN miembro también ejecuta controles: junto al panel ve los de hoy en todas sus sedes.
@@ -610,6 +626,7 @@ fun App(
                                             assignments::requestDeactivate, assignments::confirmDeactivate, title = "Controles de hoy")
                                 }) else null,
                                 onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                hiddenCourseIds = assignedCourseIds,
                                 learnHeader = if (destination == WorkspaceDestination.Learn && currentWorkspace != null) ({
                                     TrainingLearnerHeader(profile.id, currentWorkspace.organization.id, profile.platformRole != "SUPER_ADMIN", trainingLearner,
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
@@ -619,7 +636,10 @@ fun App(
                                 onIncidents = { nav.navigate(if (destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },
                                 taskContent = {
                                     Column(Modifier.fillMaxSize()) {
-                                        BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
+                                        if (workspaceState.workspace?.role == "WORKER")
+                                            WorkerTasksHeader(enabled = !dailyState.busy,
+                                                onIncidents = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } })
+                                        else BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
                                         DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f),
                                             onCleaningPhotos = { execution -> openCleaningPhotos(execution) })
                                     }
@@ -725,11 +745,13 @@ fun App(
                                 secondaryEditor = studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
+                                    learningCourse && courseOverview -> BpmPattern.Panel
                                     studySurvey || learningCourse || running || offline -> BpmPattern.StepFlow
                                     acceptingInvitation -> BpmPattern.Access
                                     editingAssignment || editingTemplate -> BpmPattern.Form
                                     else -> BpmPattern.Panel
                                 },
+                                secondaryWideOnExpanded = learningCourse && courseWidePane,
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,

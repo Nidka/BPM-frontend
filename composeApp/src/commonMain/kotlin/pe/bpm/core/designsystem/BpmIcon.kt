@@ -20,6 +20,10 @@ enum class BpmSymbol(internal val resource: DrawableResource) {
     ChevronDown(Res.drawable.ic_chevron_down), Back(Res.drawable.ic_arrow_left),
     Logout(Res.drawable.ic_log_out), Check(Res.drawable.ic_check),
     Bell(Res.drawable.ic_bell), Clock(Res.drawable.ic_clock), Alert(Res.drawable.ic_circle_alert),
+    Play(Res.drawable.ic_play), Award(Res.drawable.ic_award), Lock(Res.drawable.ic_lock),
+    Camera(Res.drawable.ic_camera), Download(Res.drawable.ic_download),
+    ChevronRight(Res.drawable.ic_chevron_right), Close(Res.drawable.ic_x),
+    Route(Res.drawable.ic_route), Book(Res.drawable.ic_book),
 }
 
 /** La etiqueta pertenece al control; los íconos decorativos reciben una descripción nula. */

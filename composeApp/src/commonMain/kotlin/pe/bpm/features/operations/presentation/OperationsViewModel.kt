@@ -198,7 +198,46 @@ class OperationsViewModel(
 
     fun newForm() = openForm()
 
-    private fun openForm(product: Product? = null) {
+    /**
+     * Abre el formulario de limpieza con [plan] ya elegido (se llega desde la lista de planes); con `null`
+     * abre el formulario sin plan, desde cualquier pestaña. Pasa el recurso a ejecuciones y reutiliza el plan
+     * recibido, sin buscarlo otra vez en el servidor. Un borrador con envío pendiente se conserva tal cual; uno
+     * sin envío cambia al plan elegido. Ignora planes inactivos y roles que no pueden registrar limpiezas.
+     */
+    fun newCleaning() = newCleaningFor(null)
+
+    fun newCleaningFor(plan: CleaningPlan?) {
+        val s = mutable.value
+        if (
+            plan?.active == false ||
+                s.form != null ||
+                s.loading ||
+                s.busy ||
+                s.siteId == null ||
+                !OperationsAccess.canCreate(s.role, OperationsResource.EXECUTIONS)
+        )
+            return
+        if (s.resource != OperationsResource.EXECUTIONS) {
+            job?.cancel()
+            freshness.reset()
+            mutable.value =
+                s.copy(
+                    resource = OperationsResource.EXECUTIONS,
+                    rows = emptyList(),
+                    query = "",
+                    page = 1,
+                    previous = emptyList(),
+                    token = "",
+                    nextToken = "",
+                    saved = null,
+                    detail = null,
+                    failure = null,
+                )
+        }
+        openForm(preselectedPlan = plan)
+    }
+
+    private fun openForm(product: Product? = null, preselectedPlan: CleaningPlan? = null) {
         val s = mutable.value
         val org = s.organizationId ?: return
         val user = s.userId ?: return
@@ -242,7 +281,7 @@ class OperationsViewModel(
                         return@launch
                     }
                 currentCoroutineContext().ensureActive()
-                val form =
+                val base =
                     draft?.form
                         ?: if (product == null) OperationsForm(newId(), now())
                         else
@@ -261,8 +300,19 @@ class OperationsViewModel(
                                 policyProductId = product.id,
                                 rowVersion = product.rowVersion,
                             )
+                // Un borrador con envío pendiente manda; si no, el plan elegido en la lista.
+                val usePreselected = preselectedPlan != null && draft?.pending == null
+                val form =
+                    if (usePreselected)
+                        base.copy(
+                            values =
+                                base.values +
+                                    ("cleaningPlanId" to preselectedPlan!!.id) +
+                                    ("planName" to "${preselectedPlan.area} · ${preselectedPlan.task}")
+                        )
+                    else base
                 var products = emptyList<Product>()
-                var plan: CleaningPlan? = null
+                var plan: CleaningPlan? = if (usePreselected) preselectedPlan else null
                 if (s.resource == OperationsResource.RECEIPTS && form.items.isNotEmpty()) {
                     when (
                         val found =
@@ -279,6 +329,7 @@ class OperationsViewModel(
                 }
                 if (
                     s.resource == OperationsResource.EXECUTIONS &&
+                        !usePreselected &&
                         form.values["cleaningPlanId"] != null
                 ) {
                     when (

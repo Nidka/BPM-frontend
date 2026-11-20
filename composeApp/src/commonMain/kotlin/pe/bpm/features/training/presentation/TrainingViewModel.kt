@@ -309,6 +309,33 @@ class TrainingViewModel(
         mutable.value = s.copy(evaluation = evaluation.copy(answers = evaluation.answers + (questionId to option), failure = null))
     }
 
+    /** Hay navegación entre preguntas solo mientras se responde: no durante el envío, en cola ni con resultado. */
+    private fun navigableEvaluation(): EvaluationState? =
+        mutable.value.evaluation?.takeIf { !it.submitting && !it.queued && it.outcome == null }
+
+    /** Abre la pregunta [index] (acotada al rango válido) y sale de la revisión. No cambia las respuestas. */
+    fun goToQuestion(index: Int) {
+        val evaluation = navigableEvaluation() ?: return
+        val last = mutable.value.evaluationQuestions.lastIndex
+        if (last < 0) return
+        mutable.value = mutable.value.copy(evaluation = evaluation.copy(index = index.coerceIn(0, last), reviewing = false))
+    }
+
+    /** Avanza una pregunta; en la última se queda (la pantalla ofrece «Revisar respuestas»). */
+    fun nextQuestion() { navigableEvaluation()?.let { goToQuestion(it.index + 1) } }
+
+    fun previousQuestion() { navigableEvaluation()?.let { goToQuestion(it.index - 1) } }
+
+    fun openReview() {
+        val evaluation = navigableEvaluation() ?: return
+        mutable.value = mutable.value.copy(evaluation = evaluation.copy(reviewing = true))
+    }
+
+    fun closeReview() {
+        val evaluation = navigableEvaluation() ?: return
+        mutable.value = mutable.value.copy(evaluation = evaluation.copy(reviewing = false))
+    }
+
     fun canSubmitEvaluation(): Boolean {
         val s = mutable.value
         val evaluation = s.evaluation ?: return false

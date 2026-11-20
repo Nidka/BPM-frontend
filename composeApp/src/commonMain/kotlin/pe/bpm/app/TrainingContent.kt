@@ -95,7 +95,11 @@ internal fun TrainingPlusAdminContent(
 /** «Mis capacitaciones»: entrada principal de la Academia para quienes aprenden. */
 @Composable
 internal fun TrainingLearnerHeader(userId: String, organizationId: String, member: Boolean, learner: TrainingLearnerViewModel, onOpenCourse: (String) -> Unit, onAchievements: () -> Unit, onPaths: () -> Unit) {
-    LaunchedEffect(userId, organizationId, member) { learner.open(userId, organizationId, member) }
+    LaunchedEffect(userId, organizationId, member) {
+        learner.open(userId, organizationId, member)
+        // El resumen de logros del panel de apoyo necesita los totales; sin membresía no hay logros que pedir.
+        if (member) learner.loadAchievements()
+    }
     MyAssignmentsPanel(learner, onOpenCourse, onAchievements, onPaths)
 }
 

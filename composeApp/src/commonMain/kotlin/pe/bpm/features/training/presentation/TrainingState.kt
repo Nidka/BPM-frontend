@@ -42,6 +42,10 @@ data class EvaluationState(
     val outcome: AttemptOutcome? = null,
     /** El intento quedó en el dispositivo: «Evaluación enviada: se calificará al conectarse». */
     val queued: Boolean = false,
+    /** Pregunta abierta (índice desde 0): la evaluación se muestra una pregunta por pantalla. */
+    val index: Int = 0,
+    /** Pantalla de revisión previa al envío (todas las preguntas con su respuesta). */
+    val reviewing: Boolean = false,
 )
 
 data class TrainingState(

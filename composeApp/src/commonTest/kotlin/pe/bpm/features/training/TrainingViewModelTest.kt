@@ -297,4 +297,64 @@ class TrainingViewModelTest {
             assertNull(model.state.value.course)
         } finally { model.reset(); model.viewModelScope.cancel(); Dispatchers.resetMain() }
     }
+
+    @Test fun questionNavigationIsBoundedAndKeepsAnswers() = runTest {
+        withVm(FakeTrainingRepository()) { model ->
+            model.startEvaluation(AttemptType.FINAL)
+            assertEquals(0, model.state.value.evaluation?.index)
+            model.previousQuestion()
+            assertEquals(0, model.state.value.evaluation?.index)
+            model.answerEvaluation(QUESTION_1, 1)
+            // Responder no avanza solo.
+            assertEquals(0, model.state.value.evaluation?.index)
+            model.nextQuestion(); assertEquals(1, model.state.value.evaluation?.index)
+            model.nextQuestion(); assertEquals(1, model.state.value.evaluation?.index)
+            model.goToQuestion(99); assertEquals(1, model.state.value.evaluation?.index)
+            model.goToQuestion(-5); assertEquals(0, model.state.value.evaluation?.index)
+            assertEquals(mapOf(QUESTION_1 to 1), model.state.value.evaluation?.answers)
+        }
+    }
+
+    @Test fun reviewOpensClosesAndGoToQuestionLeavesIt() = runTest {
+        withVm(FakeTrainingRepository()) { model ->
+            model.startEvaluation(AttemptType.FINAL)
+            assertFalse(model.state.value.evaluation!!.reviewing)
+            model.openReview(); assertTrue(model.state.value.evaluation!!.reviewing)
+            model.closeReview(); assertFalse(model.state.value.evaluation!!.reviewing)
+            model.openReview(); model.goToQuestion(1)
+            assertFalse(model.state.value.evaluation!!.reviewing)
+            assertEquals(1, model.state.value.evaluation?.index)
+        }
+    }
+
+    @Test fun navigationIsIgnoredWhileSubmittingAndAfterTheOutcome() = runTest {
+        val repo = FakeTrainingRepository()
+        withVm(repo) { model ->
+            model.startEvaluation(AttemptType.FINAL); model.answerAll(1, 1)
+            model.openReview()
+            model.submitEvaluation()
+            assertTrue(model.state.value.evaluation!!.submitting)
+            model.goToQuestion(1); model.nextQuestion(); model.closeReview()
+            assertEquals(0, model.state.value.evaluation?.index)
+            assertTrue(model.state.value.evaluation!!.reviewing)
+            advanceUntilIdle()
+            assertNotNull(model.state.value.evaluation?.outcome)
+            model.goToQuestion(1); model.openReview()
+            assertEquals(0, model.state.value.evaluation?.index)
+            // El envío no cambia: un único intento con las dos respuestas.
+            assertEquals(1, repo.attempts.size)
+            assertEquals(listOf(QUESTION_1, QUESTION_2), repo.attempts[0].answers.map { it.questionId })
+        }
+    }
+
+    @Test fun submitStaysTheSameAfterNavigatingAndReviewing() = runTest {
+        val repo = FakeTrainingRepository()
+        withVm(repo) { model ->
+            model.startEvaluation(AttemptType.FINAL)
+            model.answerEvaluation(QUESTION_1, 1); model.nextQuestion(); model.answerEvaluation(QUESTION_2, 0)
+            model.openReview(); assertTrue(model.canSubmitEvaluation())
+            model.submitEvaluation(); advanceUntilIdle()
+            assertEquals(listOf(1, 0), repo.attempts.single().answers.map { it.selectedOption })
+        }
+    }
 }

@@ -26,15 +26,38 @@ fun OperationsScreen(
     onCleaningPhotos: ((CleaningExecution) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsState()
+    // El personal (WORKER) tiene su propia presentación; ADMIN y CHEF siguen como antes.
+    val worker = state.role == "WORKER"
+    val listVisible =
+        state.form == null && state.detail == null && state.saved == null && state.picker == null
     Column(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            if (state.role == "WORKER") "Mis tareas de limpieza" else "Operación diaria",
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        if (state.form == null && state.detail == null) {
+        if (!worker)
+            Text("Operación diaria", style = MaterialTheme.typography.headlineSmall)
+        // Acción principal: barra fija abajo en clase compacta; arriba desde la media.
+        if (worker && listVisible && state.siteId != null) {
+            val register: @Composable () -> Unit = {
+                RaisedButton(
+                    "Registrar limpieza",
+                    viewModel::newCleaning,
+                    Modifier.fillMaxWidth(),
+                    enabled = !state.loading && !state.busy,
+                )
+            }
+            if (currentWindowClass == BpmWindowClass.Compact) BpmActionBar(register) else register()
+        }
+        if (worker && state.form == null && state.detail == null) {
+            BpmSegmentedTabs(
+                listOf(
+                    BpmTabOption(OperationsResource.PLANS.name, "Por hacer"),
+                    BpmTabOption(OperationsResource.EXECUTIONS.name, "Hechas"),
+                ),
+                state.resource.name,
+                { viewModel.resource(OperationsResource.valueOf(it)) },
+            )
+        } else if (state.form == null && state.detail == null) {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -66,7 +89,7 @@ fun OperationsScreen(
                         "Buscar en ${state.resource.title.lowercase()}",
                         loading = state.loading,
                     )
-                    if (OperationsAccess.canCreate(state.role, state.resource))
+                    if (!worker && OperationsAccess.canCreate(state.role, state.resource))
                         RaisedButton(
                             if (state.resource == OperationsResource.EXECUTIONS)
                                 "Registrar limpieza"
@@ -93,8 +116,13 @@ fun OperationsScreen(
                             "Los lotes más antiguos se muestran primero (PEPS). Revisa también su fecha de vencimiento antes de usarlos.",
                             style = MaterialTheme.typography.bodySmall,
                         )
-                    BpmGridLayout(state.rows) { entry, cardModifier ->
-                        BpmCard(cardModifier) {
+                    val shownRows =
+                        if (worker && state.resource == OperationsResource.PLANS)
+                            sortByDueTime(state.rows) { (it as? OperationsEntry.PlanEntry)?.value?.dueTime.orEmpty() }
+                        else state.rows
+                    BpmGridLayout(shownRows) { entry, cardModifier ->
+                        if (worker) WorkerTaskItem(entry, viewModel, onCleaningPhotos, cardModifier)
+                        else BpmCard(cardModifier) {
                             Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(entry.title(), style = MaterialTheme.typography.titleMedium)
                                 Text(entry.subtitle())

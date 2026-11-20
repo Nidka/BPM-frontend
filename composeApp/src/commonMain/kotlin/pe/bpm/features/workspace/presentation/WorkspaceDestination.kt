@@ -16,6 +16,16 @@ enum class WorkspaceDestination(val route: String, val label: String) {
     }
 }
 
+/**
+ * Etiqueta visible de un destino según el rol. El personal (WORKER) ve «Hoy» y «Tareas»; el resto de roles
+ * conserva [WorkspaceDestination.label]. Solo cambia el texto: la ruta y el control de acceso no dependen de él.
+ */
+fun destinationLabel(destination: WorkspaceDestination, role: String?): String = when {
+    role == "WORKER" && destination == WorkspaceDestination.Home -> "Hoy"
+    role == "WORKER" && destination == WorkspaceDestination.Tasks -> "Tareas"
+    else -> destination.label
+}
+
 /** Política de presentación; el backend autoriza cada operación empresarial. */
 fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<WorkspaceDestination> {
     return when {

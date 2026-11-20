@@ -35,11 +35,14 @@ internal fun WorkspaceScreen(
     homeContent: (@Composable () -> Unit)? = null,
     onOpenCourse: ((String) -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
+    hiddenCourseIds: Set<String> = emptySet(),
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
     secondaryPattern: BpmPattern = BpmPattern.Panel,
+    /** Con [BpmPattern.StepFlow]: desde la clase expandida usa el ancho del panel (lección y evaluación con panel lateral). */
+    secondaryWideOnExpanded: Boolean = false,
     secondaryTitle: String? = null,
     secondaryBusy: Boolean = false,
     secondaryScrollKey: String? = null,
@@ -51,7 +54,8 @@ internal fun WorkspaceScreen(
     onPagePrevious: (WorkspaceResource) -> Unit, onPageRetry: (WorkspaceResource) -> Unit,
     shortcuts: List<WorkspaceShortcut> = emptyList(), activeShortcut: WorkspaceShortcut? = null, onShortcut: (WorkspaceShortcut) -> Unit = {},
 ) {
-    val available = workspaceDestinations(state.workspace?.role, viewer.canCreateOrganization)
+    val role = state.workspace?.role
+    val available = workspaceDestinations(role, viewer.canCreateOrganization)
     val navItems = workspaceNavigation(workspacePrimaryDestinations(available), shortcuts)
     val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     val contentScroll = rememberScrollState()
@@ -80,7 +84,7 @@ internal fun WorkspaceScreen(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
                                 indicatorColor = MaterialTheme.colorScheme.primaryContainer),
-                            label = { Text(item.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) })
+                            label = { Text(item.label(role), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) })
                     }
                 }
             }
@@ -90,7 +94,7 @@ internal fun WorkspaceScreen(
                     Spacer(Modifier.height(32.dp))
                     navItems.forEach { item ->
                         BpmFeedback(MaterialTheme.colorScheme.primary) {
-                        NavigationDrawerItem(label = { Text(item.label, style = BpmType.bodyStrong) },
+                        NavigationDrawerItem(label = { Text(item.label(role), style = BpmType.bodyStrong) },
                             selected = item.isSelected(section, activeShortcut), onClick = { item.open(navigate, onShortcut) },
                             colors = NavigationDrawerItemDefaults.colors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -112,7 +116,9 @@ internal fun WorkspaceScreen(
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel) { taskContent() }
-                else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), secondaryPattern, preview = secondaryPattern != BpmPattern.Form) { secondaryContent() }
+                else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(),
+                    if (secondaryWideOnExpanded && secondaryPattern == BpmPattern.StepFlow && (windowClass == BpmWindowClass.Expanded || windowClass == BpmWindowClass.Large)) BpmPattern.Panel else secondaryPattern,
+                    preview = secondaryPattern != BpmPattern.Form) { secondaryContent() }
                 else if (form != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Form, preview = false) {
                     pe.bpm.core.offline.ServerOnly {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },
@@ -126,7 +132,7 @@ internal fun WorkspaceScreen(
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
                 } else key(section, secondaryTitle) { Box(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll)) { BpmScreenFrame(if (secondaryContent != null) secondaryPattern else BpmPattern.Panel) {
                     // El título de la pantalla va primero; los avisos y accesos de apoyo se muestran debajo.
-                    BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else section.label)
+                    BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, role))
                     screenNotice()
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
                     state.notice?.let { notice -> key(notice) { BpmReveal { Text(notice, color = MaterialTheme.colorScheme.primary) } } }
@@ -180,7 +186,8 @@ internal fun WorkspaceScreen(
                     else workspace?.let { current -> when (section) {
                         WorkspaceDestination.Tasks -> Unit
                         WorkspaceDestination.Account -> Unit
-                        WorkspaceDestination.Home -> { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
+                        // El personal (WORKER) ve solo su pantalla «Hoy»; el Home genérico de sedes/cursos/controles no le aplica.
+                        WorkspaceDestination.Home -> if (current.role == "WORKER" && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
                         WorkspaceDestination.Company -> {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
@@ -229,10 +236,18 @@ internal fun WorkspaceScreen(
                             }
                         }
                         WorkspaceDestination.Learn -> {
-                            BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
-                            learnHeader?.invoke()
+                            // Con la cabecera del alumno ya hay un saludo contextual: la introducción solo se usa sin ella.
+                            if (learnHeader == null) BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
+                            else learnHeader()
+                            var catalogFilter by remember { mutableStateOf(CatalogFilter.All) }
+                            if (learnHeader != null) Text("Catálogo", style = MaterialTheme.typography.titleLarge)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                                CatalogFilter.entries.forEach { option ->
+                                    BpmFilterChip(selected = catalogFilter == option, onClick = { catalogFilter = option }, label = { Text(option.label) })
+                                }
+                            }
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
-                            Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse)
+                            Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse, hiddenCourseIds, catalogFilter)
                             }
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
@@ -254,7 +269,7 @@ internal fun WorkspaceScreen(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
                             indicatorColor = MaterialTheme.colorScheme.primaryContainer),
-                        label = { Text(item.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }) }
+                        label = { Text(item.label(role), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }) }
                     }
                 }
             }
@@ -324,8 +339,8 @@ private fun memberLocations(member: Member, locations: List<Location>): String {
 
 
 /** Etiqueta del elemento de navegación. */
-private val WorkspaceNavItem.label: String get() = when (this) {
-    is WorkspaceNavItem.Section -> destination.label
+private fun WorkspaceNavItem.label(role: String?): String = when (this) {
+    is WorkspaceNavItem.Section -> destinationLabel(destination, role)
     is WorkspaceNavItem.Shortcut -> shortcut.label
 }
 

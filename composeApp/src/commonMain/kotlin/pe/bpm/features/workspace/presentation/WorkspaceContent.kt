@@ -54,16 +54,40 @@ import pe.bpm.features.workspace.domain.*
         if (action != null) BpmSecondaryButton(onClick = onAction) { Text(action) }
     }
 }
-/** [onOpen] conecta cada entrada con su detalle (por ejemplo, el curso de Academia); sin él solo se listan. */
-@Composable internal fun Entries(entries: List<Entry>, title: String, empty: String, onOpen: ((String) -> Unit)? = null) {
-    if (entries.isEmpty()) EmptyState(title, empty)
-    BpmGridLayout(entries) { entry, cardModifier -> BpmCard(cardModifier) {
-        Text(entry.title, style = MaterialTheme.typography.titleMedium)
-        if (entry.detail.isNotBlank()) Text(entry.detail)
-        Eyebrow(when (entry.status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" })
-        if (onOpen != null) BpmSecondaryButton(onClick = { onOpen(entry.id) }, modifier = Modifier.fillMaxWidth()) { Text("Abrir curso") }
-    } }
+/**
+ * [onOpen] conecta cada entrada con su detalle (por ejemplo, el curso de Academia); sin él solo se listan en tarjetas simples.
+ * Con [onOpen] las entradas se dibujan como tarjetas de curso con su estado; [hiddenIds] oculta cursos (los ya asignados)
+ * y [filter] aplica el filtro local de estado.
+ */
+@Composable internal fun Entries(
+    entries: List<Entry>, title: String, empty: String, onOpen: ((String) -> Unit)? = null,
+    hiddenIds: Set<String> = emptySet(), filter: CatalogFilter = CatalogFilter.All,
+) {
+    if (onOpen == null) {
+        if (entries.isEmpty()) EmptyState(title, empty)
+        BpmGridLayout(entries) { entry, cardModifier -> BpmCard(cardModifier) {
+            Text(entry.title, style = MaterialTheme.typography.titleMedium)
+            if (entry.detail.isNotBlank()) Text(entry.detail)
+            Eyebrow(entryStatusLabel(entry.status))
+        } }
+        return
+    }
+    val visible = visibleCatalog(entries, filter, hiddenIds)
+    when {
+        entries.isEmpty() -> EmptyState(title, empty)
+        visible.isEmpty() -> EmptyState(
+            if (filter == CatalogFilter.All) "Sin cursos nuevos" else "Sin cursos con este filtro",
+            if (filter == CatalogFilter.All) "Los cursos de esta página ya están en «Asignadas a ti»." else "Prueba con otro filtro; solo se filtran los cursos de esta página.")
+    }
+    BpmCardGrid(visible.withIndex().toList(), minCardWidth = 260.dp, maxColumns = 3) { (index, entry), cardModifier ->
+        BpmCourseCard(
+            code = "CURSO", title = entry.title, meta = catalogSummary(entry.detail).ifEmpty { "Curso de tu organización" },
+            onClick = { onOpen(entry.id) }, modifier = cardModifier, colorIndex = index,
+            status = catalogStatusChip(entry.status)?.let { (text, tone) -> { BpmStatusChip(text, tone) } },
+        )
+    }
 }
+private fun entryStatusLabel(status: String) = when (status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" }
 @Composable internal fun Errors(errors: List<WorkspaceError>) {
     errors.forEach { error -> Text(error.message, color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
