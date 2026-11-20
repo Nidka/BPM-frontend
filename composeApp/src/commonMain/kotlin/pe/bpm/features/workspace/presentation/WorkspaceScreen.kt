@@ -213,7 +213,7 @@ internal fun WorkspaceScreen(
                             // Una sola fila de acciones: la principal (agregar) y la de gestión; sin segundo título.
                             if (current.canManage) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.widthIn(min = 160.dp))
+                                RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.bpmPrimaryButtonWidth())
                                 BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
                             }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")

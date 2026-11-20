@@ -224,7 +224,7 @@ fun CertificateVerificationScreen(viewModel: CertificateVerificationViewModel, o
         Text("Verificar constancia", style = MaterialTheme.typography.headlineMedium)
         Text("Escribe el código de 24 caracteres que figura en la constancia de Academia BPM.")
         BpmTextField(state.input, viewModel::edit, "Código de verificación", enabled = !state.checking)
-        RaisedButton("Verificar", viewModel::check, Modifier.widthIn(min = 160.dp), enabled = !state.checking && state.input.isNotBlank())
+        RaisedButton("Verificar", viewModel::check, Modifier.bpmPrimaryButtonWidth(), enabled = !state.checking && state.input.isNotBlank())
         if (state.checking) LinearProgressIndicator(Modifier.fillMaxWidth())
         when (val outcome = state.outcome) {
             is VerificationOutcome.Found -> {

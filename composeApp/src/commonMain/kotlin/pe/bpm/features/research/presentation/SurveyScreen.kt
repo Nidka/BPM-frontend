@@ -70,7 +70,7 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
                 Text(document.title)
                 Text(if (participation.consent?.accepted == false) "Si cambias de opinión, puedes leer el consentimiento y aceptarlo de nuevo."
                 else "Lee el documento completo y decide si quieres participar. Podrás retirarte cuando quieras.")
-                RaisedButton("Leer el consentimiento", viewModel::showConsent, Modifier.widthIn(min = 160.dp))
+                RaisedButton("Leer el consentimiento", viewModel::showConsent, Modifier.bpmPrimaryButtonWidth())
                 if (!LocalOnline.current) Text(CONSENT_ONLINE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -113,7 +113,7 @@ private fun ConsentPanel(state: SurveyState, participation: Participation, viewM
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     if (!participation.consentValid) {
         Text("Al aceptar confirmas que leíste el documento y que participas voluntariamente.")
-        RaisedButton("Acepto participar", viewModel::acceptConsent, Modifier.widthIn(min = 160.dp), enabled = !state.consentBusy && online)
+        RaisedButton("Acepto participar", viewModel::acceptConsent, Modifier.bpmPrimaryButtonWidth(), enabled = !state.consentBusy && online)
         OfflineRequiredNotice()
     } else if (state.confirmingRevoke) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
@@ -167,8 +167,8 @@ private fun QuestionPanel(state: SurveyState, viewModel: SurveyViewModel) {
     if (state.submitting) LinearProgressIndicator(Modifier.fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmSecondaryButton(onClick = viewModel::previous, enabled = state.index > 0 && !state.submitting) { Text("Anterior") }
-        if (state.index < total - 1) RaisedButton("Siguiente", viewModel::next, Modifier.widthIn(min = 160.dp), enabled = !state.submitting)
-        else RaisedButton(if (state.pending != null && state.failure != null) "Reintentar envío" else "Enviar respuestas", viewModel::submit, Modifier.widthIn(min = 160.dp), enabled = !state.submitting)
+        if (state.index < total - 1) RaisedButton("Siguiente", viewModel::next, Modifier.bpmPrimaryButtonWidth(), enabled = !state.submitting)
+        else RaisedButton(if (state.pending != null && state.failure != null) "Reintentar envío" else "Enviar respuestas", viewModel::submit, Modifier.bpmPrimaryButtonWidth(), enabled = !state.submitting)
     }
     if (state.index < total - 1 && state.complete) BpmTextButton(onClick = viewModel::submit, enabled = !state.submitting) { Text("Ya respondí todo: enviar") }
     if (state.pending != null && state.failure != null) Text("Tus respuestas están guardadas en esta pantalla. Al reintentar no se duplicará el envío.", style = MaterialTheme.typography.bodySmall)
@@ -182,6 +182,6 @@ private fun DonePanel(state: SurveyState, viewModel: SurveyViewModel) {
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         if (state.completedQueued) Text("Guardamos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"} en este dispositivo. Se enviará y confirmará al recuperar la conexión; no necesitas responder otra vez.")
         else Text("Recibimos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"}. Tus respuestas se guardan de forma anónima y no se muestran puntajes individuales.")
-        RaisedButton("Volver a la encuesta", viewModel::dismissDone, Modifier.widthIn(min = 160.dp))
+        RaisedButton("Volver a la encuesta", viewModel::dismissDone, Modifier.bpmPrimaryButtonWidth())
     }
 }

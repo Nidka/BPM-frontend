@@ -35,7 +35,7 @@ import pe.bpm.features.workspace.domain.*
             description = if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
                 else "Consulta las empresas, sus sedes y los permisos del equipo.",
         ) {
-            if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(min = 160.dp))
+            if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.bpmPrimaryButtonWidth())
         }
     }
 }

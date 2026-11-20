@@ -84,12 +84,12 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
         ErrorLine(state.documentFailure)
         if (state.documentBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Publicar versión", viewModel::publishDocument, Modifier.widthIn(min = 160.dp), enabled = !state.documentBusy)
+            RaisedButton("Publicar versión", viewModel::publishDocument, Modifier.bpmPrimaryButtonWidth(), enabled = !state.documentBusy)
             BpmSecondaryButton(onClick = viewModel::cancelDocument, enabled = !state.documentBusy) { Text("Cancelar") }
         }
         return
     }
-    RaisedButton("Publicar nueva versión", viewModel::startDocument, Modifier.widthIn(min = 160.dp))
+    RaisedButton("Publicar nueva versión", viewModel::startDocument, Modifier.bpmPrimaryButtonWidth())
     if (state.documentsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.documentsFailure)
     if (state.documentsFailure != null) BpmSecondaryButton(onClick = { viewModel.loadDocuments(force = true) }) { Text("Volver a intentar") }
@@ -129,12 +129,12 @@ private fun InstrumentsTab(controller: InstrumentsController) {
         ErrorLine(form.failure)
         if (form.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Importar como borrador", controller::confirmImport, Modifier.widthIn(min = 160.dp), enabled = !form.busy && form.text.isNotBlank())
+            RaisedButton("Importar como borrador", controller::confirmImport, Modifier.bpmPrimaryButtonWidth(), enabled = !form.busy && form.text.isNotBlank())
             BpmSecondaryButton(onClick = controller::cancelImport, enabled = !form.busy) { Text("Cancelar") }
         }
         return
     }
-    RaisedButton("Importar cuestionario (JSON)", controller::startImport, Modifier.widthIn(min = 160.dp))
+    RaisedButton("Importar cuestionario (JSON)", controller::startImport, Modifier.bpmPrimaryButtonWidth())
     if (state.loading || state.openingId != null) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.failure)
     if (state.failure != null && state.items.isEmpty()) BpmSecondaryButton(onClick = { controller.load(force = true) }) { Text("Volver a intentar") }
@@ -177,7 +177,7 @@ private fun DraftEditor(editor: DraftEditorState, controller: InstrumentsControl
     if (editor.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmSecondaryButton(onClick = controller::save, enabled = editor.dirty && !editor.busy) { Text(if (editor.dirty) "Guardar borrador" else "Borrador guardado") }
-        RaisedButton("Publicar versión", controller::publish, Modifier.widthIn(min = 160.dp), enabled = !editor.busy)
+        RaisedButton("Publicar versión", controller::publish, Modifier.bpmPrimaryButtonWidth(), enabled = !editor.busy)
         BpmTextButton(onClick = { controller.closeEditor() }, enabled = !editor.busy) { Text("Volver a la lista") }
     }
 }
@@ -219,7 +219,7 @@ private fun ResultsTab(controller: AnalysisController) {
     OrganizationFilter(state, controller, label = "Exportar respuestas de")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     ErrorLine(state.exportFailure)
-    RaisedButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.widthIn(min = 160.dp), enabled = !state.exporting && state.pendingExport == null)
+    RaisedButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.bpmPrimaryButtonWidth(), enabled = !state.exporting && state.pendingExport == null)
     Text("El archivo no incluye correos, nombres ni identificadores de usuario; las empresas se identifican con un código opaco.", style = MaterialTheme.typography.bodySmall)
     if (state.resultsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.resultsFailure)
@@ -337,14 +337,14 @@ private fun NeedsTab(controller: AnalysisController) {
         ErrorLine(form.failure)
         if (form.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Registrar necesidad", controller::saveNeed, Modifier.widthIn(min = 160.dp), enabled = !form.busy)
+            RaisedButton("Registrar necesidad", controller::saveNeed, Modifier.bpmPrimaryButtonWidth(), enabled = !form.busy)
             BpmSecondaryButton(onClick = controller::cancelNeed, enabled = !form.busy) { Text("Cancelar") }
         }
         return
     }
     OrganizationFilter(state, controller, label = "Filtrar por empresa")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-    RaisedButton("Registrar necesidad", controller::startNeed, Modifier.widthIn(min = 160.dp))
+    RaisedButton("Registrar necesidad", controller::startNeed, Modifier.bpmPrimaryButtonWidth())
     if (state.needsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.needsFailure)
     if (state.needsFailure != null) BpmSecondaryButton(onClick = controller::refreshNeeds) { Text("Volver a intentar") }
@@ -372,7 +372,7 @@ private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
     Text("Solo las personas con una concesión pueden ver resultados y exportaciones. Ni los administradores de empresa ni los administradores generales ven estos datos sin ella.")
     BpmTextField(state.grantEmail, viewModel::editGrantEmail, "Correo de la persona", Modifier.fillMaxWidth(), enabled = !state.grantBusy,
         error = if (state.grantEmailInvalid) "Escribe un correo válido." else null, inputKind = BpmInputKind.Email)
-    RaisedButton("Conceder acceso", viewModel::grant, Modifier.widthIn(min = 160.dp), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
+    RaisedButton("Conceder acceso", viewModel::grant, Modifier.bpmPrimaryButtonWidth(), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
     if (state.grantBusy || state.grantsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.grantsFailure)
     if (state.grantsLoaded && state.grants.isEmpty()) EmptyState("Sin concesiones", "Todavía no se concedió acceso a nadie.")

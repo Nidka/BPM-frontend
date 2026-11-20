@@ -60,7 +60,7 @@ fun AssignmentAdminScreen(viewModel: TrainingAssignmentAdminViewModel, memberSel
 private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssignmentAdminViewModel) {
     Text("Asignaciones", style = MaterialTheme.typography.headlineMedium)
     Text("Asigna cursos publicados a una persona, a un rol o a una sede, con fecha límite opcional. El aviso llega en el siguiente ciclo de notificaciones.")
-    RaisedButton("Asignar un curso", viewModel::startCreate, Modifier.widthIn(min = 160.dp))
+    RaisedButton("Asignar un curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BpmFilterChip(state.status == AssignmentRecordStatus.ACTIVE, { viewModel.filterStatus(AssignmentRecordStatus.ACTIVE) }, { Text("Activas") })
         BpmFilterChip(state.status == AssignmentRecordStatus.CANCELLED, { viewModel.filterStatus(AssignmentRecordStatus.CANCELLED) }, { Text("Canceladas") })
@@ -122,7 +122,7 @@ private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentFor
         error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (hora universal).")
     Failure(state.formFailure)
     if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Crear asignación", viewModel::create, Modifier.widthIn(min = 160.dp), enabled = enabled)
+    RaisedButton("Crear asignación", viewModel::create, Modifier.bpmPrimaryButtonWidth(), enabled = enabled)
     BpmTextButton(onClick = viewModel::cancelCreate, enabled = enabled) { Text("Cancelar") }
 }
 
@@ -152,7 +152,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
             shown.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
             Failure(state.saveFailure)
             if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-            RaisedButton("Guardar insignia", viewModel::save, Modifier.widthIn(min = 160.dp), enabled = enabled)
+            RaisedButton("Guardar insignia", viewModel::save, Modifier.bpmPrimaryButtonWidth(), enabled = enabled)
             BpmTextButton(onClick = viewModel::cancelEdit, enabled = enabled) { Text("Cancelar") }
         } else {
             Text("Catálogo de logros", style = MaterialTheme.typography.headlineMedium)
@@ -184,7 +184,7 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
         if (editor != null) PathEditorPanel(state, editor, viewModel) else {
             Text("Rutas de aprendizaje", style = MaterialTheme.typography.headlineMedium)
             Text("Agrupa cursos en un orden recomendado. Solo las rutas publicadas las ven quienes aprenden.")
-            RaisedButton("Crear ruta", viewModel::startCreate, Modifier.widthIn(min = 160.dp))
+            RaisedButton("Crear ruta", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BpmFilterChip(state.status == null, { viewModel.filter(null) }, { Text("Todas") })
                 PathStatus.entries.forEach { status -> BpmFilterChip(state.status == status, { viewModel.filter(status) }, { Text(pathStatusLabel(status)) }) }
@@ -239,7 +239,7 @@ private fun PathEditorPanel(state: PathAdminState, editor: PathEditor, viewModel
         Failure(it)
         if (it == TrainingFailure.PATH_CONFLICT && !editor.isNew) BpmSecondaryButton(onClick = viewModel::reloadEditor) { Text("Recargar ruta (descarta mis cambios locales)") }
     }
-    RaisedButton("Guardar ruta", viewModel::save, Modifier.widthIn(min = 160.dp), enabled = enabled && (editor.dirty || editor.isNew))
+    RaisedButton("Guardar ruta", viewModel::save, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && (editor.dirty || editor.isNew))
     if (!editor.isNew && editor.status == PathStatus.DRAFT)
         BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.dirty, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Publicar ruta") }
     if (!editor.isNew && editor.status != PathStatus.ARCHIVED)

@@ -76,7 +76,7 @@ private fun PeriodFilters(state: ReportsState, locations: List<ReportLocationOpt
             BpmChoiceRow("Todas las sedes", state.locationId == null) { vm.selectLocation(null) }
             locations.forEach { BpmChoiceRow(it.name, state.locationId == it.id) { vm.selectLocation(it.id) } }
         }
-        RaisedButton("Consultar", vm::load, Modifier.widthIn(min = 160.dp), enabled = !state.loading)
+        RaisedButton("Consultar", vm::load, Modifier.bpmPrimaryButtonWidth(), enabled = !state.loading)
     }
 }
 

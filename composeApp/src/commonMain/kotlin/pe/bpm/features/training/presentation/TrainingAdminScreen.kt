@@ -55,7 +55,7 @@ private fun statusLabel(status: CourseStatus) = when (status) {
 private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewModel) {
     Text("Cursos de Academia", style = MaterialTheme.typography.headlineMedium)
     Text("Prepara lecciones con texto y video, escribe preguntas con su explicación y publica cuando todo esté listo. Quienes ya aprenden siguen viendo la versión publicada hasta que publiques otra.")
-    RaisedButton("Crear curso", viewModel::startCreate, Modifier.widthIn(min = 160.dp))
+    RaisedButton("Crear curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BpmFilterChip(state.statusFilter == null, { viewModel.filter(null) }, { Text("Todos") })
         CourseStatus.entries.forEach { status ->
@@ -87,7 +87,7 @@ private fun CreateCourseForm(state: AuthoringState, viewModel: TrainingAuthoring
         error = issue(DraftIssueKind.COURSE_DURATION), inputKind = BpmInputKind.Integer, enabled = !state.creatingBusy)
     state.createFailure?.let { Text(trainingFailureMessage(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     if (state.creatingBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Crear y preparar", viewModel::create, Modifier.widthIn(min = 160.dp), enabled = !state.creatingBusy)
+    RaisedButton("Crear y preparar", viewModel::create, Modifier.bpmPrimaryButtonWidth(), enabled = !state.creatingBusy)
     BpmTextButton(onClick = viewModel::cancelCreate, enabled = !state.creatingBusy) { Text("Cancelar") }
 }
 
@@ -141,7 +141,7 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
         if (failure == TrainingFailure.DRAFT_CONFLICT) BpmSecondaryButton(onClick = viewModel::reloadDraft) { Text("Recargar borrador (descarta mis cambios locales)") }
     }
     if (editor.saving || editor.publishing) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Guardar borrador", { viewModel.save() }, Modifier.widthIn(min = 160.dp), enabled = enabled && !editor.uploading && editor.dirty)
+    RaisedButton("Guardar borrador", { viewModel.save() }, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && !editor.uploading && editor.dirty)
     BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.uploading, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
         Text(if (editor.dirty) "Guardar y publicar" else "Publicar curso")
     }

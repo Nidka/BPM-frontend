@@ -3,6 +3,7 @@ package pe.bpm.app
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 
+import pe.bpm.core.designsystem.bpmPrimaryButtonWidth
 import pe.bpm.core.designsystem.BpmPattern
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
@@ -567,7 +568,7 @@ fun App(
                                             RaisedButton("Crear plantilla", {
                                                 if (templateEditorState.published != null) templateEditor.reset()
                                                 nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true }
-                                            }, Modifier.widthIn(min = 160.dp))
+                                            }, Modifier.bpmPrimaryButtonWidth())
                                         }
                                         LaunchedEffect(templateId, checklistState.userId, checklistState.organizationId) {
                                             if (checklistState.organizationId == workspaceState.selected) checklists.showTemplate(templateId)

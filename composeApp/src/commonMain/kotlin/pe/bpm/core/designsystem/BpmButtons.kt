@@ -10,7 +10,9 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -80,3 +82,11 @@ fun BpmTextButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: B
             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary), content = content)
     }
 }
+
+/**
+ * Ancho del botón principal: a ancho completo en la clase compacta (objetivo táctil grande y énfasis) y a contenido,
+ * con mínimo de 160 dp, desde la clase media. Las pantallas lo usan en lugar de fijar el ancho a mano (regla R7).
+ */
+@Composable
+fun Modifier.bpmPrimaryButtonWidth(): Modifier =
+    if (currentWindowClass == BpmWindowClass.Compact) fillMaxWidth() else widthIn(min = 160.dp)

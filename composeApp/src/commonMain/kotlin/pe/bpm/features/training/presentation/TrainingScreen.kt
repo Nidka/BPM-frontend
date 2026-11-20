@@ -110,7 +110,7 @@ private fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMod
         Text("Demuestra lo aprendido", style = MaterialTheme.typography.titleMedium)
         Text("Responde todas las preguntas y envía el intento. Para aprobar necesitas ${course.version.passingScore} puntos. La evaluación final aprobada completa el curso y emite tu constancia; la diagnóstica solo mide dónde estás.")
         BpmSecondaryButton(onClick = { viewModel.startEvaluation(AttemptType.DIAGNOSTIC) }, enabled = course.questions.isNotEmpty(), modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Evaluación diagnóstica") }
-        RaisedButton("Evaluación final", { viewModel.startEvaluation(AttemptType.FINAL) }, Modifier.widthIn(min = 160.dp), enabled = course.questions.isNotEmpty())
+        RaisedButton("Evaluación final", { viewModel.startEvaluation(AttemptType.FINAL) }, Modifier.bpmPrimaryButtonWidth(), enabled = course.questions.isNotEmpty())
     }
     AttemptsHistory(state.attempts, course.version.passingScore)
 }
@@ -262,7 +262,7 @@ private fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
         BpmCard(Modifier.fillMaxWidth()) {
             Text("Terminaste la práctica", style = MaterialTheme.typography.titleLarge)
             Text("Repasar no genera puntaje ni constancia. Cuando quieras que cuente, usa el modo evaluación.")
-            RaisedButton("Practicar de nuevo", viewModel::restartStudy, Modifier.widthIn(min = 160.dp))
+            RaisedButton("Practicar de nuevo", viewModel::restartStudy, Modifier.bpmPrimaryButtonWidth())
             BpmSecondaryButton(onClick = { viewModel.back() }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Volver al curso") }
         }
         return
@@ -299,7 +299,7 @@ private fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
                 if (feedback.explanation.isNotBlank()) Text(feedback.explanation)
             }
             BpmSecondaryButton(onClick = viewModel::retryStudyQuestion, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Reintentar esta pregunta") }
-            RaisedButton(if (study.index == study.questions.lastIndex) "Terminar práctica" else "Siguiente pregunta", viewModel::nextStudyQuestion, Modifier.widthIn(min = 160.dp))
+            RaisedButton(if (study.index == study.questions.lastIndex) "Terminar práctica" else "Siguiente pregunta", viewModel::nextStudyQuestion, Modifier.bpmPrimaryButtonWidth())
         }
     }
     BpmTextButton(onClick = { viewModel.back() }) { Text("Salir de la práctica") }
@@ -318,7 +318,7 @@ private fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalua
                 Text("Evaluación enviada: se calificará al conectarse", style = MaterialTheme.typography.titleLarge)
                 Text("Tus respuestas están guardadas en este dispositivo. El servidor las calificará cuando recuperes la conexión y verás el resultado en el curso.")
             }
-            RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.widthIn(min = 160.dp))
+            RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.bpmPrimaryButtonWidth())
         }
         return
     }
@@ -340,7 +340,7 @@ private fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalua
         if (evaluation.pending != null && failure.retryable) Text("Tus respuestas están guardadas. Reintentar envía exactamente el mismo intento, sin duplicarlo.", style = MaterialTheme.typography.bodySmall)
     }
     val retrying = evaluation.pending != null
-    RaisedButton(if (retrying) "Reintentar envío" else "Enviar evaluación", viewModel::submitEvaluation, Modifier.widthIn(min = 160.dp), enabled = viewModel.canSubmitEvaluation())
+    RaisedButton(if (retrying) "Reintentar envío" else "Enviar evaluación", viewModel::submitEvaluation, Modifier.bpmPrimaryButtonWidth(), enabled = viewModel.canSubmitEvaluation())
     BpmTextButton(onClick = { viewModel.back() }, enabled = !evaluation.submitting) { Text("Salir sin enviar") }
 }
 
@@ -370,7 +370,7 @@ private fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, vi
     }
     if (!attempt.passed || attempt.attemptType == AttemptType.DIAGNOSTIC) {
         BpmSecondaryButton(onClick = { viewModel.startStudy() }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Repasar en modo estudio") }
-        RaisedButton("Intentar otra vez", { val lesson = viewModel.state.value.evaluation?.lessonId; if (attempt.attemptType == AttemptType.MODULE && lesson != null) viewModel.startModuleEvaluation(lesson) else viewModel.startEvaluation(attempt.attemptType) }, Modifier.widthIn(min = 160.dp))
+        RaisedButton("Intentar otra vez", { val lesson = viewModel.state.value.evaluation?.lessonId; if (attempt.attemptType == AttemptType.MODULE && lesson != null) viewModel.startModuleEvaluation(lesson) else viewModel.startEvaluation(attempt.attemptType) }, Modifier.bpmPrimaryButtonWidth())
     }
     BpmTextButton(onClick = viewModel::closeEvaluation) { Text("Volver al curso") }
 }

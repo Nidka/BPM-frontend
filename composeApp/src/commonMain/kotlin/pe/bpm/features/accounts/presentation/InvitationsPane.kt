@@ -34,7 +34,7 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
         AccountMessages(state.failure, state.notice)
         state.share?.let { InvitationSharePanel(it, state.organizationName, viewModel::closeShare) }
         if (state.form != null) InviteFormCard(state.form!!, state, viewModel)
-        else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.widthIn(min = 160.dp), enabled = !state.busy)
+        else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
         state.revoking?.let { invitation ->
             ConfirmCard("¿Revocar la invitación de ${invitation.email}?", state.busy, "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke) {
                 Text("El enlace dejará de funcionar. Puedes invitar de nuevo a esa persona cuando quieras.")
