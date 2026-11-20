@@ -64,7 +64,8 @@ enum class WorkspaceShortcut(val label: String, val after: WorkspaceDestination)
  * el equipo BPM ve Empresas y, si concede accesos, Acceso. El servidor sigue autorizando cada operación.
  */
 fun workspaceShortcuts(role: String?, platformAdmin: Boolean, canResearch: Boolean, canManageGrants: Boolean): List<WorkspaceShortcut> = buildList {
-    if (role == "CHEF") add(WorkspaceShortcut.Incidents)
+    // Las incidencias son operación diaria: quien administra la plataforma no opera, aunque tenga una membresía de jefe de cocina.
+    if (role == "CHEF" && !platformAdmin) add(WorkspaceShortcut.Incidents)
     if (platformAdmin) add(WorkspaceShortcut.Companies)
     if (platformAdmin && canManageGrants) add(WorkspaceShortcut.Access)
     else if (canResearch || canManageGrants) add(WorkspaceShortcut.Research)

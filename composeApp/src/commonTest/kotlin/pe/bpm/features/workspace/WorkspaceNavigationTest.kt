@@ -78,6 +78,23 @@ class WorkspaceNavigationTest {
         assertEquals(listOf("Inicio", "Empresas", "Seguimiento", "Acceso", "Empresa"), items)
     }
 
+    @Test fun everyRoleAndShortcutCombinationFitsFiveEntriesWithoutTruncation() {
+        for (role in listOf(null, "WORKER", "CHEF", "ADMIN", "OWNER")) for (platform in listOf(false, true))
+            for (research in listOf(false, true)) for (grants in listOf(false, true)) {
+                val primary = workspacePrimaryDestinations(workspaceDestinations(role, platform))
+                val shortcuts = workspaceShortcuts(role, platform, research, grants)
+                val merged = workspaceNavigation(primary, shortcuts)
+                val label = "rol=$role plataforma=$platform investigación=$research accesos=$grants"
+                assertTrue(merged.size <= 5, label)
+                // Lo que sale de la barra es lo que el cálculo omitió a propósito (Equipo, Aprender), nunca un atajo ni otra sección.
+                val shown = merged.mapNotNull { (it as? WorkspaceNavItem.Shortcut)?.shortcut }
+                assertEquals(shortcuts.toSet(), shown.toSet(), "atajo perdido: $label")
+                val sections = merged.mapNotNull { (it as? WorkspaceNavItem.Section)?.destination }
+                val lost = primary.filter { it !in sections }
+                assertTrue(lost.all { it == WorkspaceDestination.Team || it == WorkspaceDestination.Learn }, "sección perdida $lost: $label")
+            }
+    }
+
     @Test fun adminAndWorkerHaveNoShortcuts() {
         assertEquals(5, nav("ADMIN", false).size)
         assertEquals(listOf("Inicio", "Mis tareas", "Aprender"), nav("WORKER", false))
