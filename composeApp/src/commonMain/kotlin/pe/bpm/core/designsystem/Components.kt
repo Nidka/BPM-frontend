@@ -31,10 +31,10 @@ object BpmBrand {
 }
 
 @Composable fun Brand(compact: Boolean = false) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         // Logo «gorro con visto»: el vector ya incluye el fondo teal redondeado.
         Image(painterResource(Res.drawable.bpm_logo), contentDescription = null, modifier = Modifier.size(36.dp))
-        if (!compact) Text(BpmBrand.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        if (!compact) Text(BpmBrand.name, style = MaterialTheme.typography.titleLarge)
     }
 }
 @Composable fun Mascot(modifier:Modifier=Modifier,learning:Boolean=false){Image(painterResource(if(learning)Res.drawable.mascot_learning else Res.drawable.mascot_welcome),contentDescription=null,modifier=modifier)}
@@ -54,7 +54,7 @@ object BpmBrand {
     // Borde de 2 dp y relieve de 3 dp, como `.course-card` en playful.css.
     Box(modifier.bpmRelief(border,shape,3.dp),propagateMinConstraints=true){
         Surface(shape=shape,color=fill,border=BorderStroke(2.dp,border)){
-            Column(Modifier.padding(padding),verticalArrangement=Arrangement.spacedBy(14.dp),content=content)
+            Column(Modifier.padding(padding),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
         }
     }
 }
@@ -81,8 +81,8 @@ object BpmBrand {
         }
     }
 }
-@Composable fun Eyebrow(text:String){Text(text,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)}
+@Composable fun Eyebrow(text:String){Text(text,style=BpmType.labelStrong,color=MaterialTheme.colorScheme.primary)}
 @Composable fun EmptyState(title:String,description:String){BpmCard(Modifier.fillMaxWidth()){
-    Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+    Text(title,style=MaterialTheme.typography.titleMedium)
     Text(description,color=MaterialTheme.colorScheme.onSurfaceVariant)
 }}

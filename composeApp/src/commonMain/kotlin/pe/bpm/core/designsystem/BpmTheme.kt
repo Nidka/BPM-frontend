@@ -48,6 +48,8 @@ object BpmTokens {
 object BpmSpacing {
     /** Margen lateral común de cabecera y contenido: 32 dp en vista amplia y 20 dp en compacta. */
     fun gutter(wide: Boolean): Dp = if (wide) 32.dp else 20.dp
+    /** Margen lateral por clase de ancho: 16 · 24 · 32 · 32 (ver [BpmWindowClass]). */
+    fun gutter(windowClass: BpmWindowClass): Dp = windowClass.margin
     /** Separación vertical entre secciones de una pantalla. */
     val section: Dp = 20.dp
     /** Separación entre tarjetas de una rejilla. */
@@ -76,6 +78,9 @@ object BpmSpacing {
     /** Entre secciones. */
     val xl: Dp = 24.dp
     val xxl: Dp = 32.dp
+    /** Separaciones grandes de pantalla (columnas de patrón, zonas vacías). */
+    val xxxl: Dp = 48.dp
+    val huge: Dp = 64.dp
 
     /** Cuerpo del botón en talla compacta; el área táctil se mantiene en [touch]. */
     val buttonCompact: Dp = 44.dp
@@ -141,4 +146,15 @@ fun BpmTheme(content: @Composable () -> Unit) {
         small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp))) {
         CompositionLocalProvider(LocalContentColor provides colors.onBackground, content = content)
     }
+}
+
+/**
+ * Énfasis de texto del tema: el peso viene de aquí y no se escribe en las pantallas (regla R8).
+ * [bodyStrong] reemplaza al `Text` por defecto (16 sp) en negrita; el resto, a los estilos de apoyo en negrita.
+ */
+object BpmType {
+    val bodyStrong @Composable get() = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+    val bodyMediumStrong @Composable get() = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+    val bodySmallStrong @Composable get() = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+    val labelStrong @Composable get() = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
 }

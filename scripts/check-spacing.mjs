@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Verifica las reglas de espaciado de .claude/skills/bpm-spacing/SKILL.md sobre el código Compose.
 // Uso: node scripts/check-spacing.mjs [--strict]   (con --strict las advertencias también fallan)
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +12,8 @@ const scale = new Set([0, 1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 
 /** Excepciones documentadas: tokens y composición dividida del login (48/24 dp por panel). */
 const exempt = /(designsystem[\\/]BpmTheme|identity[\\/]presentation[\\/]IdentityScreen)\.kt$/;
 const strict = process.argv.includes('--strict');
+const updateBaseline = process.argv.includes('--update-baseline');
+const baselinePath = join(root, 'scripts/spacing-baseline.json');
 
 const walk = (dir) => readdirSync(dir).flatMap((name) => {
   const path = join(dir, name);
@@ -24,6 +26,11 @@ for (const file of walk(source)) {
   const rel = relative(root, file).replaceAll('\\', '/');
   const text = readFileSync(file, 'utf8');
   const lineOf = (offset) => text.slice(0, offset).split('\n').length;
+  // R14: toda pantalla declara su patrón: usa un patrón/primitiva de BpmScreenPatterns o lo anota con `// patrón: motivo`
+  // (para pantallas alojadas por otra, por ejemplo un paso de flujo que ya recibe su marco del shell).
+  if (/features[\\/].*Screens?\.kt$/.test(file) &&
+    !/BpmScreen|BpmPanelLayout|BpmListDetail|BpmGridLayout|BpmStepFlow|BpmFormLayout|BpmShortFields|BpmCenteredCard|BpmAccessScreen|BpmActionBar|BpmWindowBox|BpmPageHeader|patrón:/.test(text))
+    errors.push(`${rel}:1 R14 pantalla sin patrón; usar un patrón de BpmScreenPatterns o anotar // patrón: motivo`);
   // R5 (multilínea): `forEach { x ->` seguido, aunque sea en otra línea, de una tarjeta a ancho completo.
   for (const match of text.matchAll(/forEach\s*\{[^}\n]*->\s*\n?\s*BpmCard\(Modifier\.fillMaxWidth\(\)/g)) {
     const first = lineOf(match.index);
@@ -57,6 +64,14 @@ for (const file of walk(source)) {
     for (const match of code.matchAll(/spacedBy\(\s*(\d+(?:\.\d+)?)\.dp/g))
       if (![4, 8, 12, 16, 24, 32].includes(Number(match[1])))
         warnings.push(`${at} R10 spacedBy de ${match[1]} dp fuera de la escala 4·8·12·16·24·32`);
+    const inDesignSystem = /core[\\/]designsystem[\\/]/.test(file);
+    // R12: las pantallas no miden la ventana; el ancho viene de LocalBpmWindowClass (BpmAppShell lo calcula una vez).
+    // Se exime con `// medida: motivo` cuando el componente mide su propio contenedor (ilustración, ventana modal) y no la ventana.
+    if (!inDesignSystem && /\bBoxWithConstraints\(/.test(code) && !line.includes('medida:') && !/workspace[\\/]presentation[\\/]WorkspaceScreen\.kt$/.test(file))
+      warnings.push(`${at} R12 BoxWithConstraints en pantalla; usar un patrón (BpmScreen) y LocalBpmWindowClass`);
+    // R13: toda rejilla de pantalla usa un patrón (BpmGridLayout o BpmPanelLayout), no BpmCardGrid directo.
+    if (!inDesignSystem && /\bBpmCardGrid\(/.test(code) && !line.includes('patrón:'))
+      errors.push(`${at} R13 BpmCardGrid directo; usar BpmGridLayout/BpmPanelLayout o marcar // patrón: motivo`);
     // R1: el margen lateral de pantalla sale de BpmSpacing.gutter, no de literales por pantalla.
     if (!exempt.test(file) && /if\s*\(\s*wide\s*\)\s*\d+\.dp\s*else\s*\d+\.dp/.test(code))
       errors.push(`${at} R1 margen lateral con literales; usar BpmSpacing.gutter(wide)`);
@@ -76,6 +91,19 @@ for (const file of walk(source)) {
       if (Number(match[1]) < 48 && /clickable|Button|Row|Switch|Checkbox|Chip/.test(code))
         warnings.push(`${at} R3 control con alto mínimo de ${match[1]} dp; el mínimo es 48 dp`);
   });
+}
+
+// Compuerta de CI: los avisos existentes se congelan en una línea base por archivo; ningún archivo puede sumar avisos nuevos.
+const perFile = {};
+for (const message of warnings) { const file = message.split(':')[0]; perFile[file] = (perFile[file] ?? 0) + 1; }
+if (updateBaseline) {
+  writeFileSync(baselinePath, JSON.stringify(Object.fromEntries(Object.entries(perFile).sort()), null, 2) + '\n');
+  console.log(`Línea base actualizada: ${Object.keys(perFile).length} archivos.`);
+} else if (existsSync(baselinePath)) {
+  const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+  for (const [file, count] of Object.entries(perFile))
+    if (count > (baseline[file] ?? 0))
+      errors.push(`${file} suma avisos nuevos (${count} frente a ${baseline[file] ?? 0} de la línea base); corrígelos o justifícalos con --update-baseline`);
 }
 
 for (const message of errors) console.error(`ERROR  ${message}`);

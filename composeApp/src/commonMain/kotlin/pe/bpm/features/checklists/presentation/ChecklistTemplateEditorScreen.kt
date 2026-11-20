@@ -47,13 +47,13 @@ import pe.bpm.core.domain.DecimalInput
     LaunchedEffect(state.failure) { if (state.failure != null) scroll.scrollTo(0) }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.align(Alignment.TopStart).widthIn(max = 900.dp).fillMaxWidth().verticalScroll(scroll).padding(bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(when (state.step) {
             TemplateEditorStep.Edit -> "Nueva plantilla de control"
             TemplateEditorStep.Review -> "Revisar y publicar"
             TemplateEditorStep.Discard -> "Descartar borrador"
             TemplateEditorStep.Published -> "Plantilla publicada"
-        }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+        }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
         if (state.recovered && state.published == null) Text("Recuperamos tu borrador. Revisa su contenido antes de publicar.")
         if (state.published == null) DraftSaveNotice(state.localStatus, onProtectDraft)
         when {
@@ -83,7 +83,7 @@ import pe.bpm.core.domain.DecimalInput
                 if (state.step == TemplateEditorStep.Edit) {
                     if (state.canUseSuggestion) {
                         BpmCard(Modifier.fillMaxWidth()) {
-                            Text("Puedes comenzar con un ejemplo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Puedes comenzar con un ejemplo", style = MaterialTheme.typography.titleMedium)
                             Text("Adáptalo a los procedimientos de tu organización antes de publicarlo. También puedes escribir tu propio control abajo.")
                             checklistSuggestions.forEach { suggestion ->
                                 BpmSecondaryButton(onClick = { onSuggestion(suggestion.id) }) { Text("Usar ejemplo: ${suggestion.name}") }
@@ -91,13 +91,13 @@ import pe.bpm.core.domain.DecimalInput
                         }
                     }
                     BpmCard(Modifier.fillMaxWidth()) {
-                        Text("Datos del control", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Datos del control", style = MaterialTheme.typography.titleMedium)
                         EditorField(state.name, onName, "Nombre del control *", state.fields["name"], placeholder = "Ej.: Control de apertura", rule = ChecklistInputRules.name, navigation = navigation["name"])
                         EditorField(state.area, onArea, "Área que se revisará *", state.fields["area"], placeholder = "Ej.: Cocina", rule = ChecklistInputRules.area, navigation = navigation["area"])
                         EditorField(state.description, onDescription, "Descripción (opcional)", state.fields["description"], singleLine = false, placeholder = "Ej.: Revisión antes de comenzar el turno", rule = ChecklistInputRules.description, navigation = navigation["description"])
                         Text("Tu equipo verá este control después de que lo revises y publiques.", style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge)
                     state.questions.forEachIndexed { index, input -> key(input.id) {
                         QuestionEditor(input, index, state.questions.size, state.fields, navigation,
                             onChange = { change -> onQuestion(input.id, change) }, onType = { onType(input.id, it) },
@@ -109,13 +109,13 @@ import pe.bpm.core.domain.DecimalInput
                     BpmTextButton(onClick = onDiscard) { Text("Descartar borrador") }
                 } else {
                     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-                        Text(state.name.trim(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(state.name.trim(), style = MaterialTheme.typography.titleLarge)
                         Text("${state.area.trim()} · Primera versión")
                         if (state.description.isNotBlank()) Text(state.description.trim())
                         Text("Publicar hará que esta versión esté disponible para los miembros autorizados de tu organización. Revisa las preguntas y los criterios antes de continuar.")
                     }
                     state.draft().items.forEach { question -> BpmCard(Modifier.fillMaxWidth()) { // lista-apilada: preguntas en orden
-                        Text("${question.displayOrder}. ${question.label}", fontWeight = FontWeight.Bold)
+                        Text("${question.displayOrder}. ${question.label}", style = BpmType.bodyStrong)
                         Text("${question.sectionName} · ${question.responseType.label()}")
                         Text(if (question.required) "Respuesta obligatoria" else "Respuesta opcional")
                         if (question.minimumValue != null) Text("Criterio: ${question.minimumValue} a ${question.maximumValue} ${question.unit}")
@@ -139,7 +139,7 @@ import pe.bpm.core.domain.DecimalInput
     onType: (ChecklistResponseType) -> Unit, onMove: (Int) -> Unit, onRemove: () -> Unit) {
     val prefix = "items.${input.id}"
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Pregunta ${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+        Text("Pregunta ${index + 1}", style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.semantics { heading() })
         EditorField(input.label, { value -> onChange { it.copy(label = value) } }, "¿Qué quieres preguntar? *", fields["$prefix.label"], rule = ChecklistInputRules.label, navigation = navigation["${input.id}.label"],
             singleLine = false, placeholder = "Ej.: ¿La superficie de trabajo está limpia?")
@@ -149,17 +149,12 @@ import pe.bpm.core.domain.DecimalInput
         QuestionResponsePicker(input.type, onType)
         BpmCheckboxRow("Es obligatorio responder esta pregunta", input.required) { checked -> onChange { it.copy(required = checked) } }
         if (input.type in setOf(ChecklistResponseType.NUMBER, ChecklistResponseType.TEMPERATURE)) {
-            Text("¿Qué valores se consideran aceptables?", fontWeight = FontWeight.Medium)
+            Text("¿Qué valores se consideran aceptables?", style = BpmType.bodyStrong)
             Text("Indica el mínimo y el máximo de tu procedimiento. Al responder, se comparará la medición con estos límites.", style = MaterialTheme.typography.bodySmall)
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth < 420.dp) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"])
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"])
-                } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = Modifier.weight(1f), inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"])
-                    EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = Modifier.weight(1f), inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"])
-                }
-            }
+            // Mínimo y máximo: dos columnas desde la clase media, apilados en compacta.
+            BpmShortFields(
+                { m -> EditorField(input.minimum, { value -> onChange { it.copy(minimum = value) } }, "Valor mínimo aceptado *", null, modifier = m, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.minimum"]) },
+                { m -> EditorField(input.maximum, { value -> onChange { it.copy(maximum = value) } }, "Valor máximo aceptado *", null, modifier = m, inputKind = BpmInputKind.Decimal, rule = DecimalInput, navigation = navigation["${input.id}.maximum"]) })
             fields["$prefix.range"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             EditorField(input.unit, { value -> onChange { it.copy(unit = value) } }, "Unidad de medida (opcional)", fields["$prefix.unit"], placeholder = if (input.type == ChecklistResponseType.TEMPERATURE) "Ej.: °C" else "Ej.: unidades", rule = ChecklistInputRules.unit, navigation = navigation["${input.id}.unit"])
         }
@@ -197,13 +192,13 @@ internal fun publicationMessage(reason: PublicationFailure) = when (reason) {
 @Composable private fun QuestionResponsePicker(selected: ChecklistResponseType, onSelect: (ChecklistResponseType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("¿Cómo responderá tu equipo?", fontWeight = FontWeight.Medium)
+        Text("¿Cómo responderá tu equipo?", style = BpmType.bodyStrong)
         if (expanded) Column(Modifier.selectableGroup()) {
             ChecklistResponseType.entries.forEach { type ->
                 BpmChoiceRow(type.label(), selected == type, supportingText = type.responseHint()) { onSelect(type); expanded = false }
             }
         } else {
-            Text(selected.label(), fontWeight = FontWeight.Bold)
+            Text(selected.label(), style = BpmType.bodyStrong)
             Text(selected.responseHint(), style = MaterialTheme.typography.bodySmall)
         }
         BpmTextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Cerrar opciones" else "Cambiar forma de responder") }

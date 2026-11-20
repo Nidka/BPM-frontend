@@ -1,5 +1,8 @@
 package pe.bpm.features.checklists.presentation
 
+import pe.bpm.core.designsystem.BpmListDetail
+import pe.bpm.core.designsystem.BpmSpacing
+import pe.bpm.core.designsystem.BpmType
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
 import androidx.compose.foundation.layout.*
@@ -12,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.PageNavigation
 import pe.bpm.core.designsystem.BpmCard
-import pe.bpm.core.designsystem.BpmCardGrid
+import pe.bpm.core.designsystem.BpmGridLayout
 import pe.bpm.core.designsystem.EmptyState
 import pe.bpm.core.designsystem.RaisedButton
 import pe.bpm.core.designsystem.BpmTextField
@@ -36,18 +39,11 @@ fun ChecklistCatalogScreen(
     onAssign: ((String) -> Unit)? = null,
     onVersions: ((String) -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         if (templateId == null && !management) BpmIntroCard("Cada criterio cuenta.",
             "Elige un control publicado, revisa sus preguntas y complétalo para una sede de tu organización.")
-        if (templateId != null) {
-            when {
-                state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
-                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
-                else -> Text("Cargando plantilla…")
-            }
-            return@Column
-        }
+        // Lista–detalle: al consultar una plantilla, desde 840 dp la lista queda a la izquierda.
+        val list: @Composable () -> Unit = {
         BpmTextField(state.query, { onUserActivity(); onSearch(it) }, "Buscar controles",
             placeholder = "Nombre, área o descripción", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search))
         when {
@@ -56,7 +52,7 @@ fun ChecklistCatalogScreen(
                 Text("Cargando controles…")
             }
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
-                Text("No pudimos cargar los controles", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("No pudimos cargar los controles", style = MaterialTheme.typography.titleMedium)
                 Text(failureMessage(state.failure), color = MaterialTheme.colorScheme.error)
                 BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") }
             }
@@ -67,21 +63,34 @@ fun ChecklistCatalogScreen(
                 if (state.visibleTemplates.isEmpty()) {
                     EmptyState("No encontramos coincidencias", "Prueba con otro nombre o área.")
                     BpmTextButton(onClick = { onSearch("") }) { Text("Limpiar búsqueda") }
-                } else BpmCardGrid(state.visibleTemplates, minCardWidth = 340.dp, maxColumns = 3) { template, cardModifier ->
+                } else BpmGridLayout(state.visibleTemplates) { template, cardModifier ->
                     // Misma altura por fila y un solo criterio de columnas, como el resto de listas de registros.
                     TemplateCard(template, cardModifier) { onSelect(template.id) }
                 }
             }
         }
         PageNavigation(state.previous.size + 1, state.previous.isNotEmpty(), state.nextToken.isNotEmpty(), state.loading || state.failure != null, onPrevious, onNext)
+        }
+        if (templateId != null) {
+            BpmListDetail(list = { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) { list() } }, detail = {
+            when {
+                state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
+                state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
+                else -> Text("Cargando plantilla…")
+            }
+            })
+            return@Column
+        }
+        list()
     }
 }
 
 @Composable
 private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSelect: () -> Unit) {
     BpmCard(modifier) {
-        Text(template.area, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        Text(template.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+        Text(template.area, color = MaterialTheme.colorScheme.primary, style = BpmType.bodyStrong)
+        Text(template.name, style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() })
         if (template.description.isNotBlank()) Text(template.description)
         Text("Versión ${template.versionNumber} · Publicada", style = MaterialTheme.typography.bodyMedium)
@@ -99,8 +108,8 @@ private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> U
         if (onAssign != null) RaisedButton("Programar en una sede", { onAssign(template.id) }, Modifier.fillMaxWidth())
         if (onVersions != null) BpmSecondaryButton(onClick = { onVersions(template.id) }) { Text("Editar preguntas y ver versiones") }
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-            Text("DETALLE DEL CONTROL", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-            Text(template.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+            Text("DETALLE DEL CONTROL", style = BpmType.bodyMediumStrong)
+            Text(template.name, style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() })
             Text("${template.area} · Versión ${template.versionNumber}")
             if (template.description.isNotBlank()) Text(template.description)
@@ -113,9 +122,9 @@ private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> U
 @Composable
 private fun Question(item: ChecklistItem) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text(item.sectionName, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+        Text(item.sectionName, color = MaterialTheme.colorScheme.primary, style = BpmType.bodyStrong)
         Text("${item.displayOrder}. ${item.label}", style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+            modifier = Modifier.semantics { heading() })
         Text(if (item.required) "Respuesta obligatoria" else "Respuesta opcional", style = MaterialTheme.typography.bodyMedium)
         Text(when (item.responseType) {
             ChecklistResponseType.COMPLIANCE -> "Cumplimiento: cumple, no cumple o no aplica."

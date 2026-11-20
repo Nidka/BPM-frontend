@@ -25,10 +25,11 @@ fun <T> BpmCardGrid(
     modifier: Modifier = Modifier,
     minCardWidth: Dp = 360.dp,
     maxColumns: Int = 3,
+    fixedColumns: Int? = null,
     content: @Composable (T, Modifier) -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columns = ((maxWidth + BpmSpacing.grid) / (minCardWidth + BpmSpacing.grid)).toInt().coerceIn(1, maxColumns)
+        val columns = fixedColumns ?: ((maxWidth + BpmSpacing.grid) / (minCardWidth + BpmSpacing.grid)).toInt().coerceIn(1, maxColumns)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
             items.chunked(columns).forEachIndexed { rowIndex, row ->
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {

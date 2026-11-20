@@ -68,24 +68,24 @@ private fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMod
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
     PendingBadge(info.id)
-    Text(info.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(info.title, style = MaterialTheme.typography.headlineMedium)
     if (info.description.isNotBlank()) Text(info.description)
     Text("${info.code} · ${info.estimatedDurationMinutes} min · versión ${course.version.versionNumber}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
         Eyebrow("TU AVANCE")
-        Text(progressLabel(course.progress.status), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(progressLabel(course.progress.status), style = MaterialTheme.typography.titleLarge)
         course.progress.bestScore?.let { Text("Mejor puntaje en evaluación final: $it") }
         if (course.progress.experiencePoints > 0) Text("Puntos de experiencia: ${course.progress.experiencePoints} XP")
         if (course.lessons.isNotEmpty()) RaisedButton(
             if (course.progress.lastLessonId != null) "Continuar donde quedaste" else "Empezar el curso", viewModel::resume, Modifier.widthIn(max = 360.dp).fillMaxWidth())
     }
     course.certificate?.let { CertificateCard(it) }
-    Text("Lecciones", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("Lecciones", style = MaterialTheme.typography.titleLarge)
     if (course.lessons.isEmpty()) EmptyState("Sin lecciones", "Este curso todavía no tiene lecciones publicadas.")
-    BpmCardGrid(course.lessons, minCardWidth = 320.dp, maxColumns = 2) { lesson, cardModifier ->
+    BpmCardGrid(course.lessons, minCardWidth = 320.dp, maxColumns = 2) { lesson, cardModifier -> // patrón: las lecciones son una secuencia ordenada
         BpmCard(cardModifier) {
             Eyebrow("LECCIÓN ${course.lessons.indexOf(lesson) + 1}" + if (lesson.id == course.progress.lastLessonId) " · ÚLTIMA QUE VISTE" else "")
-            Text(lesson.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(lesson.title, style = MaterialTheme.typography.titleMedium)
             if (lesson.video != null || lesson.externalVideo != null) Text(
                 when {
                     lesson.externalVideo != null -> "Incluye video de YouTube · Requiere conexión"
@@ -98,7 +98,7 @@ private fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMod
     DownloadsCard(course, state, viewModel)
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow("MODO ESTUDIO · SIN CALIFICACIÓN")
-        Text("Repasa y practica", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Repasa y practica", style = MaterialTheme.typography.titleMedium)
         Text("Responde preguntas una por una y mira al instante si acertaste y por qué. No genera puntaje, intentos, puntos ni constancia, y puedes repetir cuantas veces quieras.")
         BpmSecondaryButton(onClick = { viewModel.startStudy() }, enabled = course.questions.isNotEmpty(), modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Practicar en modo estudio") }
     }
@@ -107,10 +107,10 @@ private fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMod
         Text("Tu cuenta no tiene una membresía en esta organización: puedes leer y practicar, pero la evaluación y el avance solo están disponibles para sus miembros.")
     } else BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow("MODO EVALUACIÓN · SE CALIFICA")
-        Text("Demuestra lo aprendido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Demuestra lo aprendido", style = MaterialTheme.typography.titleMedium)
         Text("Responde todas las preguntas y envía el intento. Para aprobar necesitas ${course.version.passingScore} puntos. La evaluación final aprobada completa el curso y emite tu constancia; la diagnóstica solo mide dónde estás.")
         BpmSecondaryButton(onClick = { viewModel.startEvaluation(AttemptType.DIAGNOSTIC) }, enabled = course.questions.isNotEmpty(), modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Evaluación diagnóstica") }
-        RaisedButton("Evaluación final", { viewModel.startEvaluation(AttemptType.FINAL) }, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = course.questions.isNotEmpty())
+        RaisedButton("Evaluación final", { viewModel.startEvaluation(AttemptType.FINAL) }, Modifier.widthIn(min = 160.dp), enabled = course.questions.isNotEmpty())
     }
     AttemptsHistory(state.attempts, course.version.passingScore)
 }
@@ -147,7 +147,7 @@ private fun DownloadsCard(course: TrainingCourse, state: TrainingState, viewMode
             val total = videos.sumOf { it.video!!.sizeBytes }
             val done = videos.count { it.offlineAvailable && downloads.downloaded(it.video!!.mediaId) }
             val busy = downloads.activeCourseId == course.course.id
-            Text("${done} de ${videos.size} videos guardados · ${formatBytes(total)} en total", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("${done} de ${videos.size} videos guardados · ${formatBytes(total)} en total", style = MaterialTheme.typography.titleSmall)
             if (busy) {
                 val progress = videos.mapNotNull { downloads.of(it.video!!.mediaId) }.sumOf { it.downloadedBytes }
                 LinearProgressIndicator(progress = { if (total > 0) (progress.toFloat() / total).coerceIn(0f, 1f) else 0f }, modifier = Modifier.fillMaxWidth())
@@ -191,9 +191,9 @@ internal fun downloadIssueMessage(issue: DownloadIssue, limit: Long) = when (iss
 private fun CertificateCard(certificate: TrainingCertificate) {
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
         Eyebrow("CONSTANCIA")
-        Text("Completaste este curso", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Completaste este curso", style = MaterialTheme.typography.titleMedium)
         Text("Código de verificación")
-        Text(certificate.verificationCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+        Text(certificate.verificationCode, style = MaterialTheme.typography.titleLarge)
         Text("Emitida: ${certificate.issuedAt.substringBefore('T')}", style = MaterialTheme.typography.bodySmall)
     }
 }
@@ -202,7 +202,7 @@ private fun CertificateCard(certificate: TrainingCertificate) {
 private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: TrainingLesson, viewModel: TrainingViewModel) {
     val index = course.lessons.indexOfFirst { it.id == lesson.id }
     Eyebrow("LECCIÓN ${index + 1} DE ${course.lessons.size}")
-    Text(lesson.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(lesson.title, style = MaterialTheme.typography.headlineMedium)
     if (state.progressNotSaved) Text("No pudimos guardar tu avance. Puedes seguir leyendo; se guardará al abrir otra lección.", color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     lesson.externalVideo?.let { external ->
@@ -239,8 +239,8 @@ private fun LessonViewer(state: TrainingState, course: TrainingCourse, lesson: T
         Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
         Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
     }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stacked = maxWidth < 520.dp
+    Box(Modifier.fillMaxWidth()) {
+        val stacked = currentWindowClass == BpmWindowClass.Compact
         val previous: @Composable (Modifier) -> Unit = { m -> BpmSecondaryButton(onClick = viewModel::previousLesson, enabled = index > 0, modifier = m) { Text("Anterior") } }
         val next: @Composable (Modifier) -> Unit = { m ->
             if (index < course.lessons.lastIndex) RaisedButton("Siguiente", viewModel::nextLesson, m)
@@ -260,16 +260,16 @@ private fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
     Eyebrow("MODO ESTUDIO · SIN CALIFICACIÓN")
     if (study.finished) {
         BpmCard(Modifier.fillMaxWidth()) {
-            Text("Terminaste la práctica", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Terminaste la práctica", style = MaterialTheme.typography.titleLarge)
             Text("Repasar no genera puntaje ni constancia. Cuando quieras que cuente, usa el modo evaluación.")
-            RaisedButton("Practicar de nuevo", viewModel::restartStudy, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+            RaisedButton("Practicar de nuevo", viewModel::restartStudy, Modifier.widthIn(min = 160.dp))
             BpmSecondaryButton(onClick = { viewModel.back() }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Volver al curso") }
         }
         return
     }
     val question = study.current ?: return
     Text("Pregunta ${study.index + 1} de ${study.questions.size}", style = MaterialTheme.typography.labelLarge)
-    Text(question.questionText, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text(question.questionText, style = MaterialTheme.typography.titleLarge)
     val answered = study.feedback != null
     Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
         question.options.forEachIndexed { option, text ->
@@ -294,12 +294,12 @@ private fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
     study.feedback?.let { feedback ->
         BpmCard(Modifier.fillMaxWidth(), tint = if (feedback.correct) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (feedback.correct) "¡Correcto!" else "Todavía no", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(if (feedback.correct) "¡Correcto!" else "Todavía no", style = MaterialTheme.typography.titleMedium)
                 if (!feedback.correct) Text("La respuesta correcta es: ${question.options.getOrNull(feedback.correctOption).orEmpty()}")
                 if (feedback.explanation.isNotBlank()) Text(feedback.explanation)
             }
             BpmSecondaryButton(onClick = viewModel::retryStudyQuestion, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Reintentar esta pregunta") }
-            RaisedButton(if (study.index == study.questions.lastIndex) "Terminar práctica" else "Siguiente pregunta", viewModel::nextStudyQuestion, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+            RaisedButton(if (study.index == study.questions.lastIndex) "Terminar práctica" else "Siguiente pregunta", viewModel::nextStudyQuestion, Modifier.widthIn(min = 160.dp))
         }
     }
     BpmTextButton(onClick = { viewModel.back() }) { Text("Salir de la práctica") }
@@ -315,20 +315,20 @@ private fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalua
     if (evaluation.queued) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Evaluación enviada: se calificará al conectarse", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Evaluación enviada: se calificará al conectarse", style = MaterialTheme.typography.titleLarge)
                 Text("Tus respuestas están guardadas en este dispositivo. El servidor las calificará cuando recuperes la conexión y verás el resultado en el curso.")
             }
-            RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+            RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.widthIn(min = 160.dp))
         }
         return
     }
-    Text("Responde todas las preguntas", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Text("Responde todas las preguntas", style = MaterialTheme.typography.headlineSmall)
     Text("Aprobar requiere ${course.version.passingScore} puntos. Respondidas: ${evaluation.answers.size} de ${questions.size}.")
     if (evaluation.type == AttemptType.MODULE) Text("Esta evaluación solo mide esta lección: no completa el curso ni emite constancia, pero suma puntos de experiencia.", style = MaterialTheme.typography.bodySmall)
     val locked = evaluation.pending != null || evaluation.submitting
     questions.forEachIndexed { number, question ->
         BpmCard(Modifier.fillMaxWidth()) {
-            Text("${number + 1}. ${question.questionText}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("${number + 1}. ${question.questionText}", style = MaterialTheme.typography.titleMedium)
             question.options.forEachIndexed { option, text ->
                 BpmChoiceRow(text, evaluation.answers[question.id] == option, enabled = !locked) { viewModel.answerEvaluation(question.id, option) }
             }
@@ -340,7 +340,7 @@ private fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalua
         if (evaluation.pending != null && failure.retryable) Text("Tus respuestas están guardadas. Reintentar envía exactamente el mismo intento, sin duplicarlo.", style = MaterialTheme.typography.bodySmall)
     }
     val retrying = evaluation.pending != null
-    RaisedButton(if (retrying) "Reintentar envío" else "Enviar evaluación", viewModel::submitEvaluation, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = viewModel.canSubmitEvaluation())
+    RaisedButton(if (retrying) "Reintentar envío" else "Enviar evaluación", viewModel::submitEvaluation, Modifier.widthIn(min = 160.dp), enabled = viewModel.canSubmitEvaluation())
     BpmTextButton(onClick = { viewModel.back() }, enabled = !evaluation.submitting) { Text("Salir sin enviar") }
 }
 
@@ -349,7 +349,7 @@ private fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, vi
     val attempt = outcome.attempt
     BpmCard(Modifier.fillMaxWidth(), tint = if (attempt.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
         Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(if (attempt.passed) "Aprobado" else "No aprobado", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+            Text(if (attempt.passed) "Aprobado" else "No aprobado", style = MaterialTheme.typography.headlineMedium)
             Text("Puntaje: ${attempt.score} de 100 (mínimo ${course.version.passingScore})", style = MaterialTheme.typography.titleMedium)
             if (attempt.attemptType == AttemptType.FINAL && outcome.progress.experiencePoints > 0) Text("Puntos de experiencia: ${outcome.progress.experiencePoints} XP")
         }
@@ -357,12 +357,12 @@ private fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, vi
     if (outcome.achievements.isNotEmpty()) AchievementCelebration(outcome.achievements)
     if (attempt.attemptType == AttemptType.MODULE) Text("La evaluación de lección no completa el curso. Tu XP total está en «Mis logros».", style = MaterialTheme.typography.bodySmall)
     outcome.certificate?.let { CertificateCard(it) }
-    Text("Resultado por pregunta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("Resultado por pregunta", style = MaterialTheme.typography.titleLarge)
     outcome.results.forEachIndexed { number, result ->
         val question = course.questions.firstOrNull { it.id == result.questionId }
         BpmCard(Modifier.fillMaxWidth()) {
             Eyebrow(if (result.correct) "CORRECTA" else "INCORRECTA")
-            Text("${number + 1}. ${question?.questionText.orEmpty()}", fontWeight = FontWeight.Bold)
+            Text("${number + 1}. ${question?.questionText.orEmpty()}", style = BpmType.bodyStrong)
             Text("Tu respuesta: ${question?.options?.getOrNull(result.selectedOption).orEmpty()}")
             if (!result.correct) Text("Respuesta correcta: ${question?.options?.getOrNull(result.correctOption).orEmpty()}")
             if (result.explanation.isNotBlank()) Text(result.explanation, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -370,7 +370,7 @@ private fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, vi
     }
     if (!attempt.passed || attempt.attemptType == AttemptType.DIAGNOSTIC) {
         BpmSecondaryButton(onClick = { viewModel.startStudy() }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Repasar en modo estudio") }
-        RaisedButton("Intentar otra vez", { val lesson = viewModel.state.value.evaluation?.lessonId; if (attempt.attemptType == AttemptType.MODULE && lesson != null) viewModel.startModuleEvaluation(lesson) else viewModel.startEvaluation(attempt.attemptType) }, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+        RaisedButton("Intentar otra vez", { val lesson = viewModel.state.value.evaluation?.lessonId; if (attempt.attemptType == AttemptType.MODULE && lesson != null) viewModel.startModuleEvaluation(lesson) else viewModel.startEvaluation(attempt.attemptType) }, Modifier.widthIn(min = 160.dp))
     }
     BpmTextButton(onClick = viewModel::closeEvaluation) { Text("Volver al curso") }
 }

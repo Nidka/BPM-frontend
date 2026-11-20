@@ -45,8 +45,8 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
         val aliases = mapOf("legalName" to "name", "tradeName" to "trade", "taxId" to "tax", "contactEmail" to "email", "contactPhone" to "phone")
         navigation.focusFirstError(fields.keys.map { aliases[it] ?: it })
     }
-    BoxWithConstraints(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
-        val shortWindow = maxHeight < 500.dp
+    Box(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) {
+        val shortWindow = currentWindowHeight < 560.dp
         LaunchedEffect(state.errors, check.errors, shortWindow) {
             if (shortWindow && (state.errors.isNotEmpty() || check.errors.isNotEmpty())) formScroll.scrollTo(formScroll.maxValue)
         }
@@ -56,7 +56,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
             Column(if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(formScroll),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Eyebrow("CRECER EN EQUIPO")
-                Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall)
                 if (formState.recovered) Text("Recuperamos tu borrador. Revisa los datos antes de guardar.")
                 DraftSaveNotice(formState.localStatus, onRetryDraft)
                 if (discarding) DiscardDraftConfirmation({ discarding = false }, onDiscardDraft, enabled = !saving)
@@ -65,7 +65,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                     MemberAccountField(draft.email, { value -> onEdit { it.copy(email = value) } }, check,
                         !saving, fields["email"], navigation["email"], onSelectAccount, onRetryAccount)
                     if (check.status == MemberEligibility.READY) {
-                    Text("¿Qué podrá hacer?", fontWeight = FontWeight.Bold)
+                    Text("¿Qué podrá hacer?", style = BpmType.bodyStrong)
                     Column(Modifier.selectableGroup()) {
                         listOf("ADMIN", "CHEF", "WORKER").forEach { choice ->
                             BpmChoiceRow(roleLabel(choice), draft.role == choice, !saving,
@@ -79,7 +79,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                     fields["role"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (draft.role == "ADMIN") Text("Acceso administrativo a todas las sedes de esta organización.")
                     else {
-                        Text("¿En qué sedes trabajará?", fontWeight = FontWeight.Bold)
+                        Text("¿En qué sedes trabajará?", style = BpmType.bodyStrong)
                         Text("Sedes de ${state.workspace?.organization?.name.orEmpty()}. Marca las que le corresponden.", style = MaterialTheme.typography.bodySmall)
                         Text(if (draft.locations.isEmpty()) "Selecciona al menos una sede." else if (draft.locations.size == 1) "1 sede seleccionada" else "${draft.locations.size} sedes seleccionadas", style = MaterialTheme.typography.bodySmall)
                         WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
@@ -96,8 +96,9 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                 } else {
                     FormField(draft.name, { value -> onEdit { it.copy(name = value) } }, if (kind == WorkspaceFormKind.Organization) "Razón social *" else "Nombre de la sede *", fields[if (kind == WorkspaceFormKind.Organization) "legalName" else "name"], !saving, rule = if (kind == WorkspaceFormKind.Organization) WorkspaceInputRules.legalName else WorkspaceInputRules.locationName, navigation = navigation["name"])
                     if (kind == WorkspaceFormKind.Organization) {
-                        FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, rule = WorkspaceInputRules.tradeName, navigation = navigation["trade"])
-                        FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, rule = WorkspaceInputRules.taxId, navigation = navigation["tax"])
+                        BpmShortFields(
+                            { m -> FormField(draft.trade, { value -> onEdit { it.copy(trade = value) } }, "Nombre comercial", fields["tradeName"], !saving, rule = WorkspaceInputRules.tradeName, navigation = navigation["trade"], modifier = m) },
+                            { m -> FormField(draft.tax, { value -> onEdit { it.copy(tax = value) } }, "RUC / identificación fiscal", fields["taxId"], !saving, rule = WorkspaceInputRules.taxId, navigation = navigation["tax"], modifier = m) })
                         FormField(draft.contactName, { value -> onEdit { it.copy(contactName = value) } }, "Persona de contacto", fields["contactName"], !saving, BpmInputKind.PersonName, rule = WorkspaceInputRules.contactName, navigation = navigation["contactName"])
                         Text("Tipo de establecimiento *", style = MaterialTheme.typography.labelLarge)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -106,12 +107,15 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
                             }
                         }
                         fields["businessType"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, BpmInputKind.Email, rule = WorkspaceInputRules.contactEmail, navigation = navigation["email"])
                     } else {
                         FormField(draft.address, { value -> onEdit { it.copy(address = value) } }, "Dirección *", fields["address"], !saving, rule = WorkspaceInputRules.address, navigation = navigation["address"])
-                        FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, rule = WorkspaceInputRules.district, navigation = navigation["district"])
                     }
-                    FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, BpmInputKind.Phone, rule = WorkspaceInputRules.contactPhone, navigation = navigation["phone"])
+                    // Campos cortos: dos columnas desde la clase media (distrito/teléfono o correo/teléfono).
+                    BpmShortFields(
+                        { m -> if (kind == WorkspaceFormKind.Location)
+                            FormField(draft.district, { value -> onEdit { it.copy(district = value) } }, "Distrito", fields["district"], !saving, rule = WorkspaceInputRules.district, navigation = navigation["district"], modifier = m)
+                        else FormField(draft.email, { value -> onEdit { it.copy(email = value) } }, "Correo de contacto", fields["contactEmail"], !saving, BpmInputKind.Email, rule = WorkspaceInputRules.contactEmail, navigation = navigation["email"], modifier = m) },
+                        { m -> FormField(draft.phone, { value -> onEdit { it.copy(phone = value) } }, "Teléfono de contacto", fields["contactPhone"], !saving, BpmInputKind.Phone, rule = WorkspaceInputRules.contactPhone, navigation = navigation["phone"], modifier = m) })
                 }
             }
             // La respuesta permanece junto a Guardar, fuera del área desplazable de campos.
@@ -128,7 +132,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     }
 }
 @Composable private fun FormField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
-    inputKind: BpmInputKind = BpmInputKind.Text, rule: InputRule, navigation: BpmFieldNavigation) {
-    BpmTextField(value, onValue, label, enabled = enabled, error = error,
+    inputKind: BpmInputKind = BpmInputKind.Text, rule: InputRule, navigation: BpmFieldNavigation, modifier: Modifier = Modifier) {
+    BpmTextField(value, onValue, label, modifier, enabled = enabled, error = error,
         navigation = navigation, inputKind = inputKind, rule = rule)
 }

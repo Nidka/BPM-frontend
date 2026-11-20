@@ -69,7 +69,7 @@ import pe.bpm.features.accounts.domain.*
 @Composable internal fun ConfirmCard(title: String, busy: Boolean, confirmLabel: String, onConfirm: () -> Unit, onCancel: () -> Unit,
     confirmEnabled: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         content()
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         RaisedButton(if (busy) "Guardando…" else confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = !busy && confirmEnabled)

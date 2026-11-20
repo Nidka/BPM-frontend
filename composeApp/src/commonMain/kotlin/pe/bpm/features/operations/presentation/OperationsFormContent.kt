@@ -346,7 +346,7 @@ private fun ReceiptItemEditor(
         )
     fun error(key: String) = state.fields[prefix + key]
     BpmCard(Modifier.fillMaxWidth()) {
-        Column(Modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 "${index+1}. ${product?.name?:"Producto"} · ${product?.unit.orEmpty()}",
                 style = MaterialTheme.typography.titleMedium,

@@ -50,7 +50,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
             if (templateError != null) { Text(templateError); return@Column }
             if (template == null) return@Column
             BpmCard(Modifier.fillMaxWidth()) {
-                Text(template.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(template.name, style = MaterialTheme.typography.titleLarge)
                 Text("Versión ${template.versionNumber} · ${template.items.size} preguntas")
                 Text("El chef registra aquí lo que observa en el local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con fecha y responsable.")
                 ChecklistLocationSelector(locations,location,locationName,locationQuery,locationPage,locationsLoading,locationsFailed,
@@ -61,20 +61,20 @@ data class ChecklistRunLocation(val id: String, val name: String)
             return@Column
         }
         BpmCard(Modifier.fillMaxWidth()) {
-            Text(run.templateName.ifBlank { template?.name ?: "Revisión BPM" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(run.templateName.ifBlank { template?.name ?: "Revisión BPM" }, style = MaterialTheme.typography.titleLarge)
             Text(run.locationName.ifBlank { locations.firstOrNull { it.id == run.locationId }?.name.orEmpty() })
             if (run.createdAt.isNotBlank()) Text("Inicio: ${pe.bpm.core.presentation.displayDateTime(run.createdAt)}", style = MaterialTheme.typography.bodySmall)
         }
         if (run.status == "SUBMITTED" && !state.dirty) {
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Mascot(Modifier.size(96.dp))
-                Text("Control finalizado", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Control finalizado", style = MaterialTheme.typography.titleLarge)
                 Text("Cumplimiento: ${run.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %")
                 Text("Las respuestas enviadas ya no se pueden editar.")
                 BpmSecondaryButton(onClick = onBack) { Text("Ver mis revisiones") }
             }
         } else {
-            Text(if (state.reviewing) "Revisa antes de finalizar" else "Responde el control", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(if (state.reviewing) "Revisa antes de finalizar" else "Responde el control", style = MaterialTheme.typography.titleLarge)
             Text("${run.answers.size} respuestas guardadas")
             if (run.performedBy != state.userId) Text("Solo la persona que inició este control puede editarlo.")
             if (state.dirty) Text("Guarda tus respuestas antes de revisar y finalizar.")
@@ -83,11 +83,16 @@ data class ChecklistRunLocation(val id: String, val name: String)
         if (run.status == "DRAFT" && run.performedBy == state.userId) {
             if (state.reviewing) {
                 Text("Al finalizar, las respuestas quedarán cerradas y se mostrará tu resultado.")
-                RaisedButton("Confirmar y finalizar control", onSubmit, enabled = state.editable)
-                BpmSecondaryButton(onClick = onBackToEdit, enabled = state.editable) { Text("Volver a las respuestas") }
+                // Flujo por pasos: en pantalla compacta estas acciones quedan fijas al pie.
+                BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                RaisedButton("Confirmar y finalizar control", onSubmit, Modifier.fillMaxWidth(), enabled = state.editable)
+                BpmSecondaryButton(onClick = onBackToEdit, modifier = Modifier.fillMaxWidth(), enabled = state.editable) { Text("Volver a las respuestas") }
+                } }
             } else {
-                RaisedButton("Guardar borrador", onSave, enabled = state.editable && state.dirty)
-                BpmSecondaryButton(onClick = onReview, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
+                BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                RaisedButton("Guardar borrador", onSave, Modifier.fillMaxWidth(), enabled = state.editable && state.dirty)
+                BpmSecondaryButton(onClick = onReview, modifier = Modifier.fillMaxWidth(), enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
+                } }
             }
         }
     }

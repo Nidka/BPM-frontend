@@ -154,7 +154,7 @@ internal fun IncidentFormContent(
         }
         if (f.kind == "CATALOG") {
             Text("Nivel de riesgo", style = MaterialTheme.typography.titleMedium)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IncidentRisk.entries.forEach { risk ->
                     BpmFilterChip(
                         f.values["riskLevel"] == risk.name,

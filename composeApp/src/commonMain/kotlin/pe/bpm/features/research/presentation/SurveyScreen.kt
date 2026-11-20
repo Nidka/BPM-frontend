@@ -56,7 +56,7 @@ fun SurveyScreen(viewModel: SurveyViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Overview(state: SurveyState, participation: Participation, viewModel: SurveyViewModel) {
-    Text("Encuesta del estudio", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Encuesta del estudio", style = MaterialTheme.typography.headlineMedium)
     Text("Tu participación es voluntaria. Respondemos de forma anónima: usamos un código en lugar de tu nombre y no mostramos puntajes individuales.")
     val document = participation.consentDocument
     val submissionPending = LocalPendingMarks.current.forResource("research").isNotEmpty()
@@ -66,11 +66,11 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
         !participation.consentValid -> {
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Eyebrow("PRIMER PASO")
-                Text(if (participation.consent?.accepted == false) "Retiraste tu participación" else "Consentimiento informado", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (participation.consent?.accepted == false) "Retiraste tu participación" else "Consentimiento informado", style = MaterialTheme.typography.titleLarge)
                 Text(document.title)
                 Text(if (participation.consent?.accepted == false) "Si cambias de opinión, puedes leer el consentimiento y aceptarlo de nuevo."
                 else "Lee el documento completo y decide si quieres participar. Podrás retirarte cuando quieras.")
-                RaisedButton("Leer el consentimiento", viewModel::showConsent, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+                RaisedButton("Leer el consentimiento", viewModel::showConsent, Modifier.widthIn(min = 160.dp))
                 if (!LocalOnline.current) Text(CONSENT_ONLINE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -78,13 +78,13 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
         else -> {
             participation.participant?.let { Text("Tu código de participante: ${it.code}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             val completed = participation.completedMoments()
-            BpmCardGrid(SurveyMoment.entries, minCardWidth = 320.dp, maxColumns = 2) { moment, cardModifier ->
+            BpmCardGrid(SurveyMoment.entries, minCardWidth = 320.dp, maxColumns = 2) { moment, cardModifier -> // patrón: Antes y Después son pasos ordenados, no un catálogo
                 BpmCard(cardModifier) {
                     Eyebrow(if (moment == SurveyMoment.PRETEST) "AL EMPEZAR" else "AL TERMINAR")
-                    Text(moment.label(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(moment.label(), style = MaterialTheme.typography.titleMedium)
                     val record = participation.submissions.firstOrNull { it.moment == moment && it.instrumentVersionId.equals(participation.survey.instrumentVersionId, ignoreCase = true) }
                     if (moment in completed) {
-                        Text("Completada" + (record?.let { " el ${it.submittedAt.take(10)}" } ?: ""), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text("Completada" + (record?.let { " el ${it.submittedAt.take(10)}" } ?: ""), color = MaterialTheme.colorScheme.primary, style = BpmType.bodyStrong)
                         Text("Gracias por responder. No necesitas hacer nada más en este momento.")
                     } else {
                         val resuming = state.moment == moment && state.answers.isNotEmpty()
@@ -104,7 +104,7 @@ private fun Overview(state: SurveyState, participation: Participation, viewModel
 private fun ConsentPanel(state: SurveyState, participation: Participation, viewModel: SurveyViewModel) {
     val document = participation.consentDocument
     if (document == null) { EmptyState("Consentimiento no disponible", "No hay un documento publicado por ahora."); return }
-    Text(document.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(document.title, style = MaterialTheme.typography.headlineMedium)
     Text("Versión ${document.version} · Investigador responsable: ${document.responsibleInvestigator}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     BpmCard(Modifier.fillMaxWidth()) { Text(document.text) }
     if (state.consentBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -113,11 +113,11 @@ private fun ConsentPanel(state: SurveyState, participation: Participation, viewM
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     if (!participation.consentValid) {
         Text("Al aceptar confirmas que leíste el documento y que participas voluntariamente.")
-        RaisedButton("Acepto participar", viewModel::acceptConsent, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.consentBusy && online)
+        RaisedButton("Acepto participar", viewModel::acceptConsent, Modifier.widthIn(min = 160.dp), enabled = !state.consentBusy && online)
         OfflineRequiredNotice()
     } else if (state.confirmingRevoke) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
-            Text("¿Retirar tu consentimiento?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("¿Retirar tu consentimiento?", style = MaterialTheme.typography.titleMedium)
             Text("Dejarás de participar y tus respuestas no se usarán en los resultados ni en las exportaciones.")
             BpmSecondaryButton(onClick = viewModel::revokeConsent, enabled = !state.consentBusy && online) { Text("Sí, retirar mi consentimiento") }
             BpmTextButton(onClick = viewModel::cancelRevoke) { Text("Mantener mi participación") }
@@ -143,14 +143,14 @@ private fun QuestionPanel(state: SurveyState, viewModel: SurveyViewModel) {
     val survey = state.survey ?: return
     val question = state.current ?: return
     val total = survey.questions.size
-    Text(state.moment?.label() ?: "Encuesta", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Text(state.moment?.label() ?: "Encuesta", style = MaterialTheme.typography.headlineSmall)
     val answered = state.answeredCount
     Text("Pregunta ${state.index + 1} de $total · $answered respondidas", style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.semantics { contentDescription = "Pregunta ${state.index + 1} de $total, $answered respondidas" })
     LinearProgressIndicator(progress = { answered.toFloat() / total }, modifier = Modifier.fillMaxWidth())
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow(dimensionTitle(question.dimension).uppercase())
-        Text(question.text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(question.text, style = MaterialTheme.typography.titleMedium)
         val selected = SurveyRules.optionIndex(question, state.answers[question.id])
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             question.options.forEachIndexed { index, option ->
@@ -168,7 +168,7 @@ private fun QuestionPanel(state: SurveyState, viewModel: SurveyViewModel) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmSecondaryButton(onClick = viewModel::previous, enabled = state.index > 0 && !state.submitting) { Text("Anterior") }
         if (state.index < total - 1) RaisedButton("Siguiente", viewModel::next, Modifier.widthIn(min = 160.dp), enabled = !state.submitting)
-        else RaisedButton(if (state.pending != null && state.failure != null) "Reintentar envío" else "Enviar respuestas", viewModel::submit, Modifier.widthIn(min = 200.dp), enabled = !state.submitting)
+        else RaisedButton(if (state.pending != null && state.failure != null) "Reintentar envío" else "Enviar respuestas", viewModel::submit, Modifier.widthIn(min = 160.dp), enabled = !state.submitting)
     }
     if (state.index < total - 1 && state.complete) BpmTextButton(onClick = viewModel::submit, enabled = !state.submitting) { Text("Ya respondí todo: enviar") }
     if (state.pending != null && state.failure != null) Text("Tus respuestas están guardadas en esta pantalla. Al reintentar no se duplicará el envío.", style = MaterialTheme.typography.bodySmall)
@@ -178,10 +178,10 @@ private fun QuestionPanel(state: SurveyState, viewModel: SurveyViewModel) {
 private fun DonePanel(state: SurveyState, viewModel: SurveyViewModel) {
     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
         Eyebrow("LISTO")
-        Text("¡Gracias por participar!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+        Text("¡Gracias por participar!", style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         if (state.completedQueued) Text("Guardamos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"} en este dispositivo. Se enviará y confirmará al recuperar la conexión; no necesitas responder otra vez.")
         else Text("Recibimos tu ${state.completedMoment?.label()?.lowercase() ?: "encuesta"}. Tus respuestas se guardan de forma anónima y no se muestran puntajes individuales.")
-        RaisedButton("Volver a la encuesta", viewModel::dismissDone, Modifier.widthIn(max = 360.dp).fillMaxWidth())
+        RaisedButton("Volver a la encuesta", viewModel::dismissDone, Modifier.widthIn(min = 160.dp))
     }
 }

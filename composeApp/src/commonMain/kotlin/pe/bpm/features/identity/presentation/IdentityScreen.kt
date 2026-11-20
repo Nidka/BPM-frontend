@@ -70,19 +70,20 @@ fun IdentityScreen(
         state.mode == AuthMode.Verification -> "Confirma tu correo"
         else -> "Bienvenido de nuevo"
     }
-    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) {
-        val wide = maxWidth >= 900.dp && maxHeight >= 600.dp
+    BpmWindowBox(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) { windowClass, height ->
+        // Patrón de acceso: tarjeta de 440 dp; con clase expandida o grande (desde 840 dp) se divide con el panel de bienvenida.
+        val wide = (windowClass == BpmWindowClass.Expanded || windowClass == BpmWindowClass.Large) && height >= 600.dp
         Row(Modifier.fillMaxSize()) {
             if (wide) IdentityWelcomePane(Modifier.weight(1f).fillMaxHeight())
-        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else 24.dp, vertical = 32.dp),
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(horizontal = if (wide) 48.dp else BpmSpacing.gutter(windowClass), vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
-        Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             if (!wide) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Brand()
                 Mascot(Modifier.size(80.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text(title, style = MaterialTheme.typography.headlineLarge)
                 Text(when {
                     profile != null -> "Consulta tu cuenta y tus permisos de acceso."
                     state.mode == AuthMode.Register -> "Completa tus datos. Después te pediremos confirmar tu correo."
@@ -92,7 +93,7 @@ fun IdentityScreen(
                 }, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (sessionErrors.isNotEmpty()) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-                Text("Tu sesión ha terminado", fontWeight = FontWeight.Bold)
+                Text("Tu sesión ha terminado", style = BpmType.bodyStrong)
                 sessionErrors.forEach { Text(it.message,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                 Text("Al volver a entrar con tu misma cuenta podrás recuperar los borradores conservados en este dispositivo.", style = MaterialTheme.typography.bodySmall)
@@ -103,7 +104,7 @@ fun IdentityScreen(
                         Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.small,
                             color = if (state.mode == mode) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.outlineVariant,
                             shadowElevation = if (state.mode == mode) 2.dp else 0.dp) {
-                            BpmTextButton(onClick = { changeMode(mode) }, enabled = !state.busy) { Text(label, fontWeight = FontWeight.SemiBold) }
+                            BpmTextButton(onClick = { changeMode(mode) }, enabled = !state.busy) { Text(label, style = BpmType.bodyStrong) }
                         }
                     }
                 }
@@ -111,13 +112,13 @@ fun IdentityScreen(
             Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (profile != null) {
-                        Text(profile.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text(profile.displayName, style = MaterialTheme.typography.titleLarge)
                         Text(profile.email, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (profile.organizations.isEmpty()) Text("Cuenta activa. Todavía no tienes una organización asignada.")
                         profile.organizations.forEach { Text(it.name + " · " + it.role) }
                     } else if (state.mode == AuthMode.Verification) {
                         Text("Correo de tu cuenta", style = MaterialTheme.typography.labelLarge)
-                        state.verificationEmail?.let { Text(it, fontWeight = FontWeight.SemiBold) }
+                        state.verificationEmail?.let { Text(it, style = BpmType.bodyStrong) }
                         if (needsVerificationEmail) {
                             Text("Solicita el enlace con «Reintentar envío». Cuando lo recibas, ábrelo y vuelve a esta pantalla.")
                         } else {

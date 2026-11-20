@@ -31,7 +31,6 @@ fun ChecklistAssignmentsScreen(
             Text(
                 title,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() },
             )
         Text(
@@ -61,12 +60,11 @@ fun ChecklistAssignmentsScreen(
                     else "Prueba con otro nombre de control o sede.",
                 )
             else ->
-                BpmCardGrid(state.items, minCardWidth = 340.dp, maxColumns = 3) { v, cardModifier ->
+                BpmGridLayout(state.items) { v, cardModifier ->
                     BpmCard(cardModifier) {
                         Text(
                             v.templateName,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
                         )
                         Text(v.locationName)
                         Text(frequencyLabel(v.frequency))
@@ -82,7 +80,7 @@ fun ChecklistAssignmentsScreen(
                                 "SUBMITTED" -> "Finalizado en este período"
                                 else -> "Pendiente en este período"
                             },
-                            fontWeight = FontWeight.SemiBold,
+                            style = BpmType.bodyStrong,
                         )
                         RaisedButton(
                             if (management) "Ver programación"
@@ -157,9 +155,8 @@ fun ChecklistAssignmentDetailScreen(
         Text(
             value.templateName,
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
         )
-        Text(value.locationName, fontWeight = FontWeight.SemiBold)
+        Text(value.locationName, style = BpmType.bodyStrong)
         Text(frequencyLabel(value.frequency))
         Text(frequencyExplanation(value.frequency))
         AssignmentShiftInfo(value)
@@ -254,7 +251,7 @@ fun ChecklistAssignmentFormScreen(
             Text(
                 "Hay una programación pendiente de confirmar. Comprueba su resultado antes de cambiar los datos."
             )
-        Text("¿En qué sede se realizará?", fontWeight = FontWeight.Bold)
+        Text("¿En qué sede se realizará?", style = BpmType.bodyStrong)
         ChecklistLocationSelector(
             locations,
             input.locationId,
@@ -273,7 +270,7 @@ fun ChecklistAssignmentFormScreen(
             { onLocation(it.id, it.name) },
         )
         state.fields["locationId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Text("¿Cuándo se repetirá?", fontWeight = FontWeight.Bold)
+        Text("¿Cuándo se repetirá?", style = BpmType.bodyStrong)
         Column(Modifier.selectableGroup()) {
             ChecklistFrequency.entries.forEach { frequency ->
                 BpmChoiceRow(
@@ -292,7 +289,7 @@ fun ChecklistAssignmentFormScreen(
         }
         state.fields["frequency"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (input.frequency == ChecklistFrequency.DAILY && input.locationId.isNotEmpty()) {
-            Text("¿Para un turno específico?", fontWeight = FontWeight.Bold)
+            Text("¿Para un turno específico?", style = BpmType.bodyStrong)
             when {
                 shiftsLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
                 shiftsFailed -> Text("No pudimos cargar los turnos de la sede. Vuelve a elegir la sede para reintentar.", color = MaterialTheme.colorScheme.error)
@@ -357,7 +354,7 @@ internal fun AssignmentShiftInfo(value: ChecklistAssignment) {
     if (value.shiftId.isNotEmpty()) {
         Text(
             "Turno ${value.shiftName} (${value.shiftStartTime}-${value.shiftEndTime}) · ${shiftStateLabel(value.shiftState)}",
-            fontWeight = FontWeight.SemiBold,
+            style = BpmType.bodyStrong,
         )
         if (value.shiftState != ShiftState.OPEN && value.active)
             Text(

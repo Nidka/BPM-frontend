@@ -17,37 +17,31 @@ import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.*
 
 @Composable internal fun Home(workspace: Workspace, learningAllowed: Boolean, onLearn: () -> Unit, onCompany: () -> Unit) {
-    BpmIntroCard(
-        title = if (learningAllowed) "Capacitación y buenas prácticas" else "Gestión de organizaciones",
-        description = if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
-            else "Consulta las empresas, sus sedes y los permisos del equipo.",
-    ) {
-        if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(max = 300.dp).fillMaxWidth())
-    }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-    val fontScale = LocalDensity.current.fontScale
-    val columns = (maxWidth.value / (112 * fontScale)).toInt().coerceIn(1, 3)
-    FlowRow(Modifier.fillMaxWidth(), maxItemsInEachRow = columns,
-        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf("Sedes" to (workspace.totals["locations"] ?: workspace.locations.size), "Cursos" to (workspace.totals["courses"] ?: workspace.courses.size), "Controles" to (workspace.totals["checklists"] ?: workspace.checklists.size)).forEach { (label, count) ->
-            BpmCard(Modifier.weight(1f)) {
-                Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                Text(label, style = MaterialTheme.typography.labelMedium)
-            }
+    val locations = workspace.totals["locations"] ?: workspace.locations.size
+    val indicators = listOf("Sedes" to locations, "Cursos" to (workspace.totals["courses"] ?: workspace.courses.size),
+        "Controles" to (workspace.totals["checklists"] ?: workspace.checklists.size))
+        .map { (label, count) -> @Composable { m: Modifier -> BpmStatTile(count.toString(), label, m) } }
+    BpmPanelLayout(indicators = indicators, support = {
+        BpmCard(Modifier.fillMaxWidth()) {
+            Text("Estado de tu espacio", style = MaterialTheme.typography.titleMedium)
+            SetupStatus("Cuenta verificada", complete = true)
+            SetupStatus("Organización disponible", complete = true)
+            SetupStatus(if (locations == 0) "Configura la primera sede" else "Sedes disponibles", locations > 0)
+            if (workspace.canManage) BpmSecondaryButton(onClick = onCompany) { Text("Ver mi organización") }
         }
-    }
-    }
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text("Estado de tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        SetupStatus("Cuenta verificada", complete = true)
-        SetupStatus("Organización disponible", complete = true)
-        SetupStatus(if ((workspace.totals["locations"] ?: workspace.locations.size) == 0) "Configura la primera sede" else "Sedes disponibles", (workspace.totals["locations"] ?: workspace.locations.size) > 0)
-        if (workspace.canManage) BpmSecondaryButton(onClick = onCompany) { Text("Ver mi organización") }
+    }) {
+        BpmIntroCard(
+            title = if (learningAllowed) "Capacitación y buenas prácticas" else "Gestión de organizaciones",
+            description = if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
+                else "Consulta las empresas, sus sedes y los permisos del equipo.",
+        ) {
+            if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.widthIn(min = 160.dp))
+        }
     }
 }
 
 @Composable private fun SetupStatus(label: String, complete: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmIcon(if (complete) BpmSymbol.Check else BpmSymbol.Clock, tint = MaterialTheme.colorScheme.primary)
         Text(label)
     }
@@ -56,15 +50,15 @@ import pe.bpm.features.workspace.domain.*
 @Composable internal fun SectionHeading(title: String, action: String?, onAction: () -> Unit) {
     // Título y acción en una misma fila, alineados al centro; sin el «+» pegado como texto.
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.titleLarge)
         if (action != null) BpmSecondaryButton(onClick = onAction) { Text(action) }
     }
 }
 /** [onOpen] conecta cada entrada con su detalle (por ejemplo, el curso de Academia); sin él solo se listan. */
 @Composable internal fun Entries(entries: List<Entry>, title: String, empty: String, onOpen: ((String) -> Unit)? = null) {
     if (entries.isEmpty()) EmptyState(title, empty)
-    BpmCardGrid(entries, minCardWidth = 320.dp, maxColumns = 3) { entry, cardModifier -> BpmCard(cardModifier) {
-        Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    BpmGridLayout(entries) { entry, cardModifier -> BpmCard(cardModifier) {
+        Text(entry.title, style = MaterialTheme.typography.titleMedium)
         if (entry.detail.isNotBlank()) Text(entry.detail)
         Eyebrow(when (entry.status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" })
         if (onOpen != null) BpmSecondaryButton(onClick = { onOpen(entry.id) }, modifier = Modifier.fillMaxWidth()) { Text("Abrir curso") }

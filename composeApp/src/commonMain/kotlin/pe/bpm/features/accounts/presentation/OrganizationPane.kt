@@ -24,7 +24,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
             else -> state.organization?.let { organization ->
                 BpmCard(Modifier.fillMaxWidth()) {
                     Eyebrow("ORGANIZACIÓN")
-                    Text(organization.tradeName.ifBlank { organization.legalName }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(organization.tradeName.ifBlank { organization.legalName }, style = MaterialTheme.typography.titleLarge)
                     Text(organization.legalName)
                     Text("Tipo de establecimiento: ${organization.businessType.label}")
                     if (organization.taxId.isNotBlank()) Text("RUC / identificación fiscal: ${organization.taxId}")
@@ -35,14 +35,14 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
                 }
             }
         }
-        Text("Sedes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Sedes", style = MaterialTheme.typography.titleLarge)
         StatusFilter(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.locationStatus, !state.busy, viewModel::selectLocationStatus)
         BpmSearchField(state.locations.request.query, viewModel::searchLocations, "Buscar sedes", enabled = !state.busy, loading = state.locations.loading)
         PagedBlock(state.locations, empty = { EmptyState("Sin sedes para mostrar", "No hay sedes con este filtro. Puedes agregar una desde la sección Empresa.") },
             onRetry = viewModel::retryLocations, onPrevious = viewModel::previousLocations, onNext = viewModel::nextLocations) {
-            BpmCardGrid(state.locations.items, minCardWidth = 320.dp, maxColumns = 3) { location, cardModifier ->
+            BpmGridLayout(state.locations.items) { location, cardModifier ->
                 BpmCard(cardModifier) {
-                    Text(location.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(location.name, style = MaterialTheme.typography.titleMedium)
                     Text(location.address)
                     if (location.district.isNotBlank()) Text(location.district)
                     if (location.contactPhone.isNotBlank()) Text(location.contactPhone)
@@ -58,7 +58,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 @Composable private fun OrganizationFormCard(form: OrganizationForm, busy: Boolean, viewModel: OrganizationViewModel) {
     val value = form.value
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Editar organización", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Editar organización", style = MaterialTheme.typography.titleMedium)
         BpmTextField(value.legalName, { v -> viewModel.changeOrganization { it.copy(legalName = v) } }, "Razón social *", Modifier.fillMaxWidth(), error = form.fields["legalName"], enabled = !busy, rule = AccountsRules.legalName)
         BpmTextField(value.tradeName, { v -> viewModel.changeOrganization { it.copy(tradeName = v) } }, "Nombre comercial", Modifier.fillMaxWidth(), error = form.fields["tradeName"], enabled = !busy, rule = AccountsRules.tradeName)
         BpmTextField(value.taxId, { v -> viewModel.changeOrganization { it.copy(taxId = v) } }, "RUC / identificación fiscal", Modifier.fillMaxWidth(), error = form.fields["taxId"], enabled = !busy, rule = AccountsRules.taxId)
@@ -86,7 +86,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 @Composable private fun LocationFormCard(form: LocationForm, busy: Boolean, viewModel: OrganizationViewModel) {
     val value = form.value
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Editar sede", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Editar sede", style = MaterialTheme.typography.titleMedium)
         BpmTextField(value.name, { v -> viewModel.changeLocation { it.copy(name = v) } }, "Nombre de la sede *", Modifier.fillMaxWidth(), error = form.fields["name"], enabled = !busy, rule = AccountsRules.locationName)
         BpmTextField(value.address, { v -> viewModel.changeLocation { it.copy(address = v) } }, "Dirección *", Modifier.fillMaxWidth(), error = form.fields["address"], enabled = !busy, rule = AccountsRules.address)
         BpmTextField(value.district, { v -> viewModel.changeLocation { it.copy(district = v) } }, "Distrito", Modifier.fillMaxWidth(), error = form.fields["district"], enabled = !busy, rule = AccountsRules.district)

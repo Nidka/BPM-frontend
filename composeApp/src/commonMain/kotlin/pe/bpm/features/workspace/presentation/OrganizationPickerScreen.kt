@@ -19,7 +19,11 @@ import pe.bpm.core.designsystem.*
 import pe.bpm.features.workspace.domain.Organization
 import pe.bpm.features.workspace.domain.WorkspaceError
 
-/** Selección de contexto con ruta propia; no mezcla una lista de botones con el contenido empresarial. */
+/**
+ * Selección de contexto con ruta propia; no mezcla una lista de botones con el contenido empresarial.
+ * Patrón de acceso: el shell la aloja en una columna centrada de 440 dp (ver `HostedContent`).
+ */
+// patrón: acceso, alojado por WorkspaceScreen
 @Composable internal fun OrganizationPickerScreen(
     organizations: List<Organization>, selectedId: String?, loading: Boolean, errors: List<WorkspaceError>,
     canCreate: Boolean, onSelect: (String) -> Unit, onCreate: () -> Unit, onUserActivity: () -> Unit,
@@ -30,11 +34,11 @@ import pe.bpm.features.workspace.domain.WorkspaceError
     val scroll = rememberLazyListState()
     LaunchedEffect(noticeVisible) { if (noticeVisible) scroll.scrollToItem(0) }
     val matches = organizations
-    BoxWithConstraints(Modifier.widthIn(max = 640.dp).heightIn(max = 680.dp).fillMaxWidth()) {
-    val shortWindow = maxHeight < 480.dp
+    Box(Modifier.widthIn(max = 640.dp).heightIn(max = 680.dp).fillMaxWidth()) {
+    val shortWindow = currentWindowHeight < 560.dp
     BpmCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Cambiar organización", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+            Text("Cambiar organización", style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f).semantics { heading() })
             if (canCreate && shortWindow) BpmTextButton(onClick = onCreate, enabled = !loading && pe.bpm.core.offline.LocalOnline.current,
                 modifier = Modifier.semantics { contentDescription = "Crear organización" }) { Text("Crear") }
@@ -78,7 +82,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 BpmIcon(BpmSymbol.Company, tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(organization.name, fontWeight = FontWeight.SemiBold)
+                    Text(organization.name, style = BpmType.bodyStrong)
                     if (organization.name != organization.legalName) Text(organization.legalName,
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

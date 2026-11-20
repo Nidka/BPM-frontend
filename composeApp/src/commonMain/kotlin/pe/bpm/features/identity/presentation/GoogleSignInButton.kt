@@ -1,5 +1,6 @@
 package pe.bpm.features.identity.presentation
 
+import pe.bpm.core.designsystem.BpmType
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -40,7 +41,7 @@ internal fun GoogleSignInButton(onClick: () -> Unit, enabled: Boolean) {
             Image(painterResource(Res.drawable.google_g), contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
             Text("Continuar con Google", fontFamily = FontFamily(Font(Res.font.google_sans, weight = FontWeight.Medium)),
-                fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp)
+                style = BpmType.bodyStrong, fontSize = 14.sp, lineHeight = 20.sp)
         }
     }
 }

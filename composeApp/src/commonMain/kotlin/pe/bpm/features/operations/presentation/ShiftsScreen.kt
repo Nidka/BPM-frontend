@@ -60,7 +60,7 @@ private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
     }
     if (state.shifts.isEmpty() && !state.loading && state.failure == null)
         Text("Esta sede todavía no tiene turnos.")
-    BpmCardGrid(state.shifts, minCardWidth = 340.dp, maxColumns = 3) { shift, cardModifier ->
+    BpmGridLayout(state.shifts) { shift, cardModifier ->
         BpmCard(cardModifier) {
             Text(shift.name, style = MaterialTheme.typography.titleMedium)
             Text("${shift.startTime} a ${shift.endTime}" + if (shift.crossesMidnight) " · cruza la medianoche" else "")

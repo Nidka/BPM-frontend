@@ -64,7 +64,7 @@ fun AlertRulesScreen(
         locationSelector(s.ruleLocationId, { viewModel.ruleLocation(it?.id) }, !s.loading)
       else
         FlowRow(
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
           verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
           BpmFilterChip(
@@ -83,7 +83,7 @@ fun AlertRulesScreen(
       if (s.savedRevision > 0) Text("Regla guardada y confirmada por el servidor.")
       if (s.rulesLoaded && s.rules.rows.isEmpty() && !s.loading && s.failure == null)
         EmptyState("Sin reglas", "No hay reglas para esta consulta. Cambia la búsqueda o el filtro de ámbito para ver otras.")
-      BpmCardGrid(s.rules.rows, minCardWidth = 340.dp, maxColumns = 2) { r, cardModifier ->
+      BpmGridLayout(s.rules.rows) { r, cardModifier ->
         BpmCard(cardModifier) {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(r.name, style = MaterialTheme.typography.titleMedium)
@@ -190,7 +190,7 @@ private fun AlertRuleFormContent(
     Text("Tipo de aviso", style = MaterialTheme.typography.titleSmall)
     if (f.original == null)
       FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         AlertType.entries.forEach { t ->
@@ -222,7 +222,7 @@ private fun AlertRuleFormContent(
       locationSelector(f.locationId, vm.editor::selectLocation, enabled)
     else
       FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         BpmFilterChip(

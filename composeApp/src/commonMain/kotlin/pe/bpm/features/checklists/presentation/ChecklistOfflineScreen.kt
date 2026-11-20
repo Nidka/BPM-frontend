@@ -20,7 +20,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
     onRetryOpen: () -> Unit, onRemove: (String) -> Unit, onUseServerVersion: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
     var removing by remember(detailId) { mutableStateOf(false) }
     var resolving by remember(detailId) { mutableStateOf(false) }
-    Column(Modifier.widthIn(max = 860.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
         if (state.busy || state.syncing) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.notice?.let { Text(it, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         if (state.localConflict) BpmCard(Modifier.fillMaxWidth()) {
@@ -59,7 +59,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
             if (!state.busy) Text("Esta revisión no está disponible en este dispositivo con tus permisos actuales.")
             return@Column
         }
-        Text(entry.run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(entry.run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.headlineSmall)
         Text(entry.run.locationName.ifBlank { "Sede de la revisión" })
         if (entry.status != OfflineRunStatus.LOCAL || state.localStatus != DraftSaveStatus.SAVING)
             Text(offlineRunLabel(entry), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -76,11 +76,16 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
         if (entry.editable && !state.localConflict) {
             if (state.reviewing) {
                 Text("Se enviará cuando haya conexión. Después de confirmar el envío ya no podrás editar las respuestas.")
-                RaisedButton("Finalizar y enviar cuando haya conexión", { onQueue(true) }, enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED)
-                BpmSecondaryButton(onClick = onBackToEdit, enabled = !state.busy) { Text("Seguir editando") }
+                // Flujo por pasos: en pantalla compacta estas acciones quedan fijas al pie.
+                BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                    RaisedButton("Finalizar y enviar cuando haya conexión", { onQueue(true) }, Modifier.fillMaxWidth(), enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED)
+                    BpmSecondaryButton(onClick = onBackToEdit, modifier = Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Seguir editando") }
+                } }
             } else {
-                RaisedButton("Revisar y finalizar", onReview, enabled = !state.busy)
-                BpmSecondaryButton(onClick = { onQueue(false) }, enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED) { Text("Enviar borrador sin finalizar") }
+                BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                    RaisedButton("Revisar y finalizar", onReview, Modifier.fillMaxWidth(), enabled = !state.busy)
+                    BpmSecondaryButton(onClick = { onQueue(false) }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED) { Text("Enviar borrador sin finalizar") }
+                } }
             }
         } else if (entry.upload != null && entry.status != OfflineRunStatus.ATTENTION) {
             Text("Tus respuestas están protegidas. Confirma el envío antes de seguir editando.")

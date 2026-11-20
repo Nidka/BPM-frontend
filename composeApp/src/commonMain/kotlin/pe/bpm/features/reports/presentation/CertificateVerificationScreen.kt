@@ -22,20 +22,21 @@ import pe.bpm.features.reports.domain.ReportFailure
 @Composable
 fun CertificateVerificationScreen(code: String, viewModel: CertificateVerificationViewModel, state: VerificationState, modifier: Modifier = Modifier) {
     LaunchedEffect(code) { viewModel.check(code) }
-    Column(modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 24.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-        Column(Modifier.widthIn(max = 640.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    // Patrón de acceso: ruta pública, una columna centrada de 440 dp (todo el ancho en compacta).
+    BpmAccessScreen(modifier) {
+        run {
             Brand()
-            Text("Verificación de constancia de cumplimiento", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            BpmPageHeader("Verificación de constancia de cumplimiento")
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.certificate?.let { cert ->
                 BpmCard(Modifier.fillMaxWidth()) {
                     Eyebrow("CONSTANCIA VÁLIDA")
-                    Text(cert.organizationName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(cert.organizationName, style = MaterialTheme.typography.titleLarge)
                     Text("Período: ${longDate(cert.periodStart)} al ${longDate(cert.periodEnd)}")
                     Text("Cumplimiento promedio: ${formatPercent(cert.averageCompliance)}")
                     Text("Umbral exigido: ${formatPercent(cert.threshold)}")
                     Text("Emitida el ${longDate(cert.issuedAt)}")
-                    Text("Código: ${cert.verificationCode}", fontWeight = FontWeight.Bold)
+                    Text("Código: ${cert.verificationCode}", style = BpmType.bodyStrong)
                 }
             }
             state.failure?.let { failure ->

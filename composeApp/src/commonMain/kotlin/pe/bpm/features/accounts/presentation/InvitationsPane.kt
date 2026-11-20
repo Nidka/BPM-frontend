@@ -34,7 +34,7 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
         AccountMessages(state.failure, state.notice)
         state.share?.let { InvitationSharePanel(it, state.organizationName, viewModel::closeShare) }
         if (state.form != null) InviteFormCard(state.form!!, state, viewModel)
-        else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.widthIn(max = 360.dp).fillMaxWidth(), enabled = !state.busy)
+        else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.widthIn(min = 160.dp), enabled = !state.busy)
         state.revoking?.let { invitation ->
             ConfirmCard("¿Revocar la invitación de ${invitation.email}?", state.busy, "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke) {
                 Text("El enlace dejará de funcionar. Puedes invitar de nuevo a esa persona cuando quieras.")
@@ -45,9 +45,9 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
         BpmSearchField(state.page.request.query, viewModel::search, "Buscar por correo", enabled = !state.busy, loading = state.page.loading)
         PagedBlock(state.page, empty = { EmptyState("Sin invitaciones", "No hay invitaciones con este filtro. Usa «Invitar por correo» para sumar personas.") },
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
-            BpmCardGrid(state.page.items, minCardWidth = 320.dp, maxColumns = 3) { invitation, cardModifier ->
+            BpmGridLayout(state.page.items) { invitation, cardModifier ->
                 BpmCard(cardModifier) {
-                    Text(invitation.email, fontWeight = FontWeight.Bold)
+                    Text(invitation.email, style = BpmType.bodyStrong)
                     Eyebrow(invitation.status.label + " · " + invitation.role.label)
                     Text(if (invitation.role == MemberRole.ADMIN) "Todas las sedes" else locationNames(invitation.locationIds, state.locations), style = MaterialTheme.typography.bodySmall)
                     Text(statusLine(invitation), style = MaterialTheme.typography.bodySmall)
@@ -73,7 +73,7 @@ internal fun InvitationSharePanel(share: ShareState, organizationName: String, o
     var feedback by remember(share) { mutableStateOf<String?>(null) }
     val isLink = share.share is InvitationShare.Link
     BpmCard(Modifier.fillMaxWidth()) {
-        Text(if (share.resent) "Invitación reenviada" else "Invitación lista para compartir", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(if (share.resent) "Invitación reenviada" else "Invitación lista para compartir", style = MaterialTheme.typography.titleMedium)
         Text(if (isLink) "Enlace de invitación" else "Código de invitación", style = MaterialTheme.typography.labelLarge)
         Text(share.share.value, style = MaterialTheme.typography.bodyMedium)
         Text(InvitationSharing.notice(share.email), style = MaterialTheme.typography.bodySmall)
@@ -102,7 +102,7 @@ private fun statusLine(invitation: Invitation) = when (invitation.status) {
 
 @Composable private fun InviteFormCard(form: InviteForm, state: InvitationsState, viewModel: InvitationsViewModel) {
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Invitar por correo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Invitar por correo", style = MaterialTheme.typography.titleMedium)
         Text("La persona recibirá un enlace válido por 7 días. Debe iniciar sesión con ese mismo correo, ya verificado, para aceptarlo.", style = MaterialTheme.typography.bodySmall)
         BpmTextField(form.email, viewModel::editEmail, "Correo electrónico *", Modifier.fillMaxWidth(), error = form.fields["email"], enabled = !state.busy,
             inputKind = BpmInputKind.Email, rule = AccountsRules.email)

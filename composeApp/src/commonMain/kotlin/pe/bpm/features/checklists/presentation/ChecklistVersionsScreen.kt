@@ -41,7 +41,7 @@ fun ChecklistVersionsScreen(
     )
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         val current = state.current
-        Text(current?.name ?: "Versiones de la plantilla", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(current?.name ?: "Versiones de la plantilla", style = MaterialTheme.typography.headlineSmall)
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let {
             Text(versionFailureMessage(it), color = MaterialTheme.colorScheme.error)
@@ -75,8 +75,8 @@ fun ChecklistVersionsScreen(
                     if (canEdit) RaisedButton("Editar preguntas (crear versión ${current.versionNumber + 1})", onStartEdit, Modifier.fillMaxWidth(), enabled = !state.loading)
                     else Text("Solo un administrador puede editar las preguntas.", style = MaterialTheme.typography.bodySmall)
                 }
-                Text("Historial", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                BpmCardGrid(state.history, minCardWidth = 340.dp, maxColumns = 3) { version, cardModifier ->
+                Text("Historial", style = MaterialTheme.typography.titleLarge)
+                BpmGridLayout(state.history) { version, cardModifier ->
                     BpmCard(cardModifier) {
                         Text("Versión ${version.versionNumber} · ${if (version.status == VersionStatus.PUBLISHED) "Vigente" else "Archivada"}", style = MaterialTheme.typography.titleMedium)
                         Text("${version.itemCount} preguntas · ${displayDateTime(version.publishedAt)}")
@@ -93,7 +93,7 @@ fun ChecklistVersionsScreen(
                 state.fields["items"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.fields["baseVersionNumber"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.fields["versionId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge)
                 state.questions.forEachIndexed { index, input ->
                     key(input.id) {
                         QuestionEditor(input, index, state.questions.size, state.fields, navigation,
@@ -114,7 +114,7 @@ fun ChecklistVersionsScreen(
                 }
                 state.questions.mapIndexed { i, q -> q.domain(i) }.forEach { question -> // lista-apilada: preguntas en orden de aplicación
                     BpmCard(Modifier.fillMaxWidth()) {
-                        Text("${question.displayOrder}. ${question.label}", fontWeight = FontWeight.Bold)
+                        Text("${question.displayOrder}. ${question.label}", style = BpmType.bodyStrong)
                         Text("${question.sectionName} · ${question.responseType.label()}")
                     }
                 }
