@@ -25,6 +25,8 @@ import pe.bpm.core.designsystem.*
     onBack: (() -> Unit)? = null,
  onAlerts: (() -> Unit)? = null, unreadCount:Int? = null,
     onAccount: (() -> Unit)? = null,
+    /** Modo enfoque: no nulo cambia la cabecera a cerrar (X) + este título, sin avisos ni cuenta. */
+    focusTitle: String? = null,
 ) {
     val organizationInteractions = remember { MutableInteractionSource() }
     val organizationFocused by organizationInteractions.collectIsFocusedAsState()
@@ -37,25 +39,26 @@ import pe.bpm.core.designsystem.*
         navigationIcon = {
             if (onBack != null) BpmFeedback(MaterialTheme.colorScheme.primary) {
             IconButton(onClick = onBack, enabled = enabled) {
-                BpmIcon(BpmSymbol.Back, contentDescription = "Volver")
+                if (focusTitle != null) BpmIcon(BpmSymbol.Close, contentDescription = "Cerrar") else BpmIcon(BpmSymbol.Back, contentDescription = "Volver")
             }
             }
         },
         actions = {
-            if(onAlerts!=null) BpmFeedback(MaterialTheme.colorScheme.primary) {
+            if(onAlerts!=null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 IconButton(onClick=onAlerts,enabled=enabled,modifier=Modifier.semantics{contentDescription=if(unreadCount==null) "Mis avisos" else "Mis avisos. $unreadCount sin leer"}) {
                     BadgedBox(badge={if(unreadCount!=null && unreadCount>0) Badge{Text(if(unreadCount>99) "99+" else unreadCount.toString())}}){BpmIcon(BpmSymbol.Bell)}
                 }
             }
             // «Mi cuenta» sale de la navegación principal y vive en el avatar de la cabecera.
-            if (onAccount != null) BpmFeedback(MaterialTheme.colorScheme.primary) {
+            if (onAccount != null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 IconButton(onClick = onAccount, enabled = enabled, modifier = Modifier.semantics { contentDescription = "Mi cuenta" }) {
                     BpmIcon(BpmSymbol.Account)
                 }
             }
         },
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (focusTitle != null) Text(focusTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (!wide && onBack == null) Brand(compact = true)
                 if (canChangeOrganization) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 Surface(onClick = onToggleOrganization, enabled = enabled,

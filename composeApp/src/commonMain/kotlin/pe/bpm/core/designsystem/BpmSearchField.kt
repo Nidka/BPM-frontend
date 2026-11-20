@@ -26,12 +26,14 @@ fun BpmSearchField(
     suggestions: List<String> = emptyList(), onSelect: (String) -> Unit = {},
     keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
     navigation: BpmFieldNavigation? = null,
+    /** Ocupa todo el ancho de la columna en lugar del máximo de [BpmSpacing.searchMax]. */
+    fullWidth: Boolean = false,
 ) {
     var expanded by remember(value, suggestions) { mutableStateOf(true) }
     var activeIndex by remember(value, suggestions) { mutableStateOf<Int?>(null) }
     val fieldFocus = navigation?.requester ?: remember { FocusRequester() }
     val visible = expanded && suggestions.isNotEmpty() && !loading && enabled
-    Column(modifier.widthIn(max = BpmSpacing.searchMax).fillMaxWidth().semantics { isTraversalGroup = true }) {
+    Column(modifier.then(if (fullWidth) Modifier else Modifier.widthIn(max = BpmSpacing.searchMax)).fillMaxWidth().semantics { isTraversalGroup = true }) {
         BpmTextField(value, onValueChange, label,
             modifier = (if (navigation == null) Modifier.focusRequester(fieldFocus) else Modifier)
                 .onPreviewKeyEvent { event ->

@@ -8,23 +8,15 @@ import kotlin.test.assertNull
 class BpmComponentsLogicTest {
     private fun answered(total: Int, vararg done: Int) = List(total) { (it + 1) in done }
 
-    @Test fun summaryWithNoAnswersListsFirstThreeMissingAndTheRest() {
-        assertEquals("0 de 10 respondidas · faltan 1, 2, 3 y 7 más", questionNavigatorSummary(answered(10)))
-    }
-
-    @Test fun summaryListsAllMissingWhenThreeOrFewer() {
-        assertEquals("7 de 10 respondidas · faltan 8, 9 y 10", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7)))
-        assertEquals("8 de 10 respondidas · faltan 9 y 10", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7, 8)))
-        assertEquals("9 de 10 respondidas · falta 10", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
-    }
-
-    @Test fun summaryWithMoreThanThreeMissingAbbreviates() {
-        assertEquals("6 de 10 respondidas · faltan 7, 8, 9 y 1 más", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6)))
-        assertEquals("3 de 10 respondidas · faltan 4, 5, 6 y 4 más", questionNavigatorSummary(answered(10, 1, 2, 3)))
+    @Test fun summaryCountsPendingQuestionsWithoutListingThem() {
+        assertEquals("10 por responder", questionNavigatorSummary(answered(10)))
+        assertEquals("3 por responder", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7)))
+        assertEquals("1 por responder", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
+        assertEquals("5 por responder", questionNavigatorSummary(answered(8, 1, 2, 5)))
     }
 
     @Test fun summaryWhenAllAnsweredOrEmpty() {
-        assertEquals("Todas respondidas", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
+        assertEquals("Todas respondidas · lista para enviar", questionNavigatorSummary(answered(10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
         assertEquals("Sin preguntas", questionNavigatorSummary(emptyList()))
     }
 
@@ -32,7 +24,7 @@ class BpmComponentsLogicTest {
         // La actual cuenta como respondida solo si tiene respuesta: el resumen depende únicamente de `answered`.
         val marks = questionMarks(listOf(true, false, true), current = 1)
         assertEquals(listOf(BpmQuestionMark.Answered, BpmQuestionMark.Current, BpmQuestionMark.Answered), marks)
-        assertEquals("2 de 3 respondidas · falta 2", questionNavigatorSummary(listOf(true, false, true)))
+        assertEquals("1 por responder", questionNavigatorSummary(listOf(true, false, true)))
     }
 
     @Test fun marksDistinguishThreeStates() {
@@ -42,7 +34,8 @@ class BpmComponentsLogicTest {
 
     @Test fun supportPaneWidthByWindowClass() {
         assertNull(supportPaneWidth(BpmWindowClass.Compact))
-        assertEquals(260.dp, supportPaneWidth(BpmWindowClass.Medium))
+        // G2: el panel de apoyo solo aparece desde Expanded (840 dp); en Medium el contenido va en una columna.
+        assertNull(supportPaneWidth(BpmWindowClass.Medium))
         assertEquals(300.dp, supportPaneWidth(BpmWindowClass.Expanded))
         assertEquals(300.dp, supportPaneWidth(BpmWindowClass.Large))
     }

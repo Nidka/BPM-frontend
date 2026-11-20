@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,6 +24,7 @@ import pe.bpm.features.training.domain.AssignmentProgress
 import pe.bpm.features.training.domain.MyAssignment
 import pe.bpm.features.training.presentation.TrainingLearnerViewModel
 import pe.bpm.features.training.presentation.assignmentChip
+import pe.bpm.features.training.presentation.learnerSummary
 import pe.bpm.features.training.presentation.assignmentsForToday
 import pe.bpm.features.training.presentation.criterionLabel
 import pe.bpm.features.training.presentation.nextAssignment
@@ -70,23 +73,23 @@ internal fun WorkerTodayContent(
     val next = nextAssignment(state.assignments)
     val achievements = state.achievements
     val todayPlans = if (site != null && ops.userId == userId && ops.siteId == site.id && ops.todayLoaded) homeTodayPlans(ops.todayPlans) else emptyList()
+    // Sin panel de apoyo (compacta y media) la racha, el XP y las insignias van en una franja bajo «Tu siguiente paso».
+    val singleColumn = supportPaneWidth(currentWindowClass) == null
     BpmSupportPaneLayout(
         modifier,
         support = {
-            achievements?.streak?.let { BpmStreakBadge(it.currentDays, it.activeToday, longestDays = it.longestDays) }
-            if (achievements != null) {
-                BpmRewardSummary(
-                    experiencePoints = achievements.totals.experiencePoints,
-                    earnedBadges = achievements.earned.size,
-                    totalBadges = achievements.achievements.size,
-                    nextBadgeTitle = achievements.pending.firstOrNull()?.name,
-                    nextBadgeHint = achievements.pending.firstOrNull()?.let { criterionLabel(it) },
-                    onOpen = onAchievements,
-                )
-            }
-            BpmSecondaryButton(onClick = onReport, modifier = Modifier.fillMaxWidth()) {
-                BpmIcon(BpmSymbol.Camera, modifier = Modifier.size(20.dp))
-                Text("Reportar un problema")
+            if (!singleColumn) {
+                achievements?.streak?.let { BpmStreakBadge(it.currentDays, it.activeToday, longestDays = it.longestDays) }
+                if (achievements != null) {
+                    BpmRewardSummary(
+                        experiencePoints = achievements.totals.experiencePoints,
+                        earnedBadges = achievements.earned.size,
+                        totalBadges = achievements.achievements.size,
+                        nextBadgeTitle = achievements.pending.firstOrNull()?.name,
+                        nextBadgeHint = achievements.pending.firstOrNull()?.let { criterionLabel(it) },
+                        onOpen = onAchievements,
+                    )
+                }
             }
         },
         main = {
@@ -101,6 +104,7 @@ internal fun WorkerTodayContent(
                 }
                 state.assignmentsLoaded -> AllCaughtUp(onLearn)
             }
+            if (singleColumn && achievements != null) BpmSummaryStrip(learnerSummary(achievements), onClick = onAchievements)
             if (todayPlans.isNotEmpty() && site != null) BpmCard(Modifier.fillMaxWidth()) {
                 val more = ops.todayPlans.size > todayPlans.size || locations.size > 1
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -108,32 +112,47 @@ internal fun WorkerTodayContent(
                     if (more) BpmTextButton(onTasks) { Text("Ver todas") }
                 }
                 if (locations.size > 1) Text("Sede: ${site.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                todayPlans.forEach { plan -> TodayPlanRow(plan, onClick = onTasks) }
-            }
-            BpmCard(Modifier.fillMaxWidth()) {
-                Text("Tu turno", style = MaterialTheme.typography.titleMedium)
-                // Con tareas de hoy a la vista, «Registrar limpieza» ya está en ellas; si no, queda el acceso directo.
-                if (todayPlans.isEmpty()) BpmTaskRow("Registrar limpieza", BpmSymbol.Control, detail = "Anota las tareas de limpieza de tu sede", onClick = onTasks)
-                BpmTaskRow("Incidencias y correcciones", BpmSymbol.Alert, detail = "Reporta un problema o sube la foto de una corrección", tone = BpmTone.Warning, onClick = onReport)
-            }
-            if (state.assignments.isNotEmpty()) {
-                BpmCard(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Capacitaciones asignadas", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        if (state.assignments.size > 3) BpmTextButton(onLearn) { Text("Ver todas") }
-                    }
-                    assignmentsForToday(state.assignments).forEach { assignment ->
-                        val (chip, tone) = assignmentChip(assignment)
-                        BpmTaskRow(
-                            assignment.course.title, BpmSymbol.Book,
-                            detail = assignment.course.code,
-                            tone = if (assignment.status == AssignmentProgress.COMPLETED) BpmTone.Success else BpmTone.Info,
-                            trailing = { BpmStatusChip(chip, tone) },
-                            onClick = { onOpenCourse(assignment.course.id) },
-                        )
+                // Filas planas separadas por un divisor: nada de tarjetas dentro de tarjetas (G5).
+                Column(Modifier.fillMaxWidth()) {
+                    todayPlans.forEachIndexed { index, plan ->
+                        if (index > 0) BpmRowDivider()
+                        TodayPlanRow(plan, onClick = onTasks, framed = false)
                     }
                 }
             }
+            // La que ya es «Tu siguiente paso» no se repite en la lista.
+            val otherAssignments = assignmentsForToday(state.assignments).filter { it.assignmentId != next?.assignmentId }
+            if (otherAssignments.isNotEmpty()) {
+                BpmCard(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Asignadas a ti", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        if (state.assignments.size > 3) BpmTextButton(onLearn) { Text("Ver todas") }
+                    }
+                    Column(Modifier.fillMaxWidth()) {
+                        otherAssignments.forEachIndexed { index, assignment ->
+                            if (index > 0) BpmRowDivider()
+                            val (chip, tone) = assignmentChip(assignment)
+                            BpmTaskRow(
+                                assignment.course.title, BpmSymbol.Book,
+                                detail = assignment.course.code,
+                                tone = if (assignment.status == AssignmentProgress.COMPLETED) BpmTone.Success else BpmTone.Info,
+                                trailing = { BpmStatusChip(chip, tone) },
+                                onClick = { onOpenCourse(assignment.course.id) },
+                                framed = false,
+                            )
+                        }
+                    }
+                }
+            }
+            // Una sola acción rápida: «Reportar un problema» (incidencias y correcciones abren la misma pantalla).
+            // En compacta ocupa el ancho de la columna; desde la media va a la derecha, con ancho de contenido.
+            BpmInlineActions(primary = {
+                BpmSecondaryButton(onClick = onReport, modifier = Modifier.fillMaxWidth()) {
+                    BpmIcon(BpmSymbol.Camera, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(BpmSpacing.sm))
+                    Text("Reportar un problema")
+                }
+            })
         },
     )
 }

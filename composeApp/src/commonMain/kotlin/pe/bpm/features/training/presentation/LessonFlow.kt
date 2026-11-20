@@ -1,12 +1,19 @@
 package pe.bpm.features.training.presentation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -73,8 +80,8 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
     val total = course.lessons.size
     val compact = currentWindowClass == BpmWindowClass.Compact
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-        BpmSegmentedProgress(total, index, "Lección ${index + 1} de $total", current = index)
-        Eyebrow("LECCIÓN ${index + 1} DE $total")
+        // Regla G1: sin panel lateral la posición es «Lección 3 de 5» con su barra; con panel, el temario lateral la indica.
+        if (!sideBySideClass) PositionBar("Lección ${index + 1} de $total", total, index)
         Text(lesson.title, style = MaterialTheme.typography.headlineMedium)
     }
     if (state.progressNotSaved) Text("No pudimos guardar tu avance. Puedes seguir leyendo; se guardará al abrir otra lección.", color = MaterialTheme.colorScheme.error,
@@ -91,9 +98,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
             VideoState.Idle -> {
                 val saved = state.downloads.downloaded(lesson.video.mediaId)
                 val online = LocalOnline.current
-                BpmSecondaryButton(onClick = viewModel::loadVideo, enabled = online || saved, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
-                    Text(if (saved) "Ver video (guardado en este dispositivo)" else "Ver video de la lección")
-                }
+                VideoPlayCard(if (saved) "Guardado en este dispositivo" else null, enabled = online || saved, onClick = viewModel::loadVideo)
                 if (!online && !saved) Text("Este video necesita conexión. Descárgalo desde el curso para verlo sin conexión; mientras tanto puedes leer el texto de la lección.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -115,27 +120,48 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
         Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
     }
     val questionCount = course.questions.count { it.lessonId == lesson.id }
-    if (questionCount > 0) {
-        BpmCard(Modifier.fillMaxWidth()) {
-            Eyebrow("COMPRUEBA LO APRENDIDO · NO SE CALIFICA")
-            Text(if (questionCount == 1) "1 pregunta de esta lección" else "$questionCount preguntas de esta lección", style = BpmType.bodyStrong)
-            BpmSecondaryButton(onClick = { viewModel.startStudy(lesson.id) }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Practicar esta lección") }
-        }
-        if (state.canPersist) BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("Evaluar esta lección (suma XP)")
-        }
+    if (questionCount > 0) BpmCard(Modifier.fillMaxWidth()) {
+        Text("Comprueba lo aprendido", style = MaterialTheme.typography.titleMedium)
+        Text(if (questionCount == 1) "1 pregunta de esta lección" else "$questionCount preguntas de esta lección", style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val practice: @Composable () -> Unit = { BpmSecondaryButton(onClick = { viewModel.startStudy(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Practicar · no califica") } }
+        val evaluate: @Composable () -> Unit = { BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Evaluar lección · suma XP") } }
+        if (compact) { practice(); if (state.canPersist) evaluate() }
+        else BpmInlineActions(secondary = if (state.canPersist) evaluate else null, primary = practice)
     }
     BpmActionBar {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid), verticalAlignment = Alignment.CenterVertically) {
-            BpmSecondaryButton(onClick = viewModel::previousLesson, enabled = index > 0,
-                modifier = Modifier.semantics { contentDescription = "Lección anterior" }.then(if (compact) Modifier else Modifier.widthIn(min = 120.dp))) {
-                BpmIcon(BpmSymbol.Back, modifier = Modifier.size(20.dp))
-                if (!compact) { Spacer(Modifier.width(BpmSpacing.sm)); Text("Anterior") }
-            }
-            val last = index >= course.lessons.lastIndex
-            RaisedButton(if (last) "Terminar lecciones" else "Siguiente lección", { if (last) { viewModel.finishLessons() } else viewModel.nextLesson() },
-                if (compact) Modifier.weight(1f) else Modifier.widthIn(min = 200.dp))
+        val last = index >= course.lessons.lastIndex
+        BpmInlineActions(compactSecondaryFixed = true,
+            secondary = { BackButton("Anterior", "Lección anterior", viewModel::previousLesson, enabled = index > 0) },
+            primary = { RaisedButton(if (last) "Terminar lecciones" else "Siguiente lección", { if (last) { viewModel.finishLessons() } else viewModel.nextLesson() }, Modifier.fillMaxWidth()) })
+    }
+}
+
+/** Posición en una secuencia: rótulo («Lección 3 de 5») y barra segmentada fina; juntos son un solo indicador (regla G1). */
+@Composable
+internal fun PositionBar(label: String, total: Int, index: Int, finished: Boolean = false) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+        Text(label, Modifier.clearAndSetSemantics { }, style = BpmType.bodySmallStrong, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BpmSegmentedProgress(total, if (finished) total else index, label, current = if (finished) null else index)
+    }
+}
+
+/** Tarjeta 16:9 con el icono de reproducir que carga el video de la lección; toda la tarjeta es el botón. */
+@Composable
+private fun VideoPlayCard(caption: String?, enabled: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(24.dp)
+    Box(
+        Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(shape).background(scheme.inverseSurface)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "Ver video de la lección" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(64.dp).clip(CircleShape).background(if (enabled) scheme.inverseOnSurface else scheme.outline), contentAlignment = Alignment.Center) {
+            BpmIcon(BpmSymbol.Play, tint = scheme.primary, modifier = Modifier.size(28.dp))
         }
+        Text(caption ?: "Video de la lección", Modifier.align(Alignment.BottomStart).padding(BpmSpacing.md).clearAndSetSemantics { },
+            style = BpmType.bodySmallStrong, color = scheme.inverseOnSurface)
     }
 }
 
@@ -145,24 +171,26 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
  */
 @Composable
 internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
+    val total = study.questions.size
+    val position = study.index.coerceAtMost(total)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-        val total = study.questions.size
-        val position = study.index.coerceAtMost(total)
-        BpmSegmentedProgress(total, position, if (study.finished) "Práctica terminada: $total preguntas" else "Pregunta ${position + 1} de $total",
-            current = if (study.finished) null else position)
         Eyebrow("MODO ESTUDIO · SIN CALIFICACIÓN")
+        // Regla G1: un solo indicador, «Pregunta 2 de 5» con su barra.
+        PositionBar(if (study.finished) "Práctica terminada · $total preguntas" else "Pregunta ${position + 1} de $total", total, position, finished = study.finished)
     }
     if (study.finished) {
         BpmCard(Modifier.fillMaxWidth()) {
             Text("Terminaste la práctica", style = MaterialTheme.typography.titleLarge)
             Text("Repasar no genera puntaje ni constancia. Cuando quieras que cuente, usa el modo evaluación.")
-            RaisedButton("Practicar de nuevo", viewModel::restartStudy, Modifier.bpmPrimaryButtonWidth())
-            BpmSecondaryButton(onClick = { viewModel.back() }, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Volver al curso") }
+        }
+        BpmActionBar {
+            BpmInlineActions(compactSecondaryFixed = false,
+                secondary = { BpmSecondaryButton(onClick = { viewModel.back() }, modifier = Modifier.fillMaxWidth()) { Text("Volver al curso") } },
+                primary = { RaisedButton("Practicar de nuevo", viewModel::restartStudy, Modifier.fillMaxWidth()) })
         }
         return
     }
     val question = study.current ?: return
-    Text("Pregunta ${study.index + 1} de ${study.questions.size}", style = MaterialTheme.typography.labelLarge)
     Text(question.questionText, style = MaterialTheme.typography.titleLarge)
     val answered = study.feedback != null
     Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
@@ -181,9 +209,11 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
     study.failure?.let { failure ->
         Text(if (failure == TrainingFailure.CONNECTION) "Necesita conexión para revisar la respuesta. Puedes seguir leyendo las lecciones o pasar a la siguiente pregunta."
         else trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        if (failure == TrainingFailure.CONNECTION) BpmSecondaryButton(onClick = viewModel::skipStudyQuestion, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
-            Text(if (study.index == study.questions.lastIndex) "Terminar práctica sin revisar" else "Seguir sin revisar")
-        }
+        if (failure == TrainingFailure.CONNECTION) BpmInlineActions(primary = {
+            BpmSecondaryButton(onClick = viewModel::skipStudyQuestion, modifier = Modifier.fillMaxWidth()) {
+                Text(if (study.index == study.questions.lastIndex) "Terminar práctica sin revisar" else "Seguir sin revisar")
+            }
+        })
     }
     study.feedback?.let { feedback ->
         BpmCard(Modifier.fillMaxWidth(), tint = if (feedback.correct) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
@@ -195,16 +225,15 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
         }
         BpmActionBar {
             val nextLabel = if (study.index == study.questions.lastIndex) "Terminar práctica" else "Siguiente pregunta"
+            // En compacta los dos rótulos largos no caben lado a lado: el principal arriba y «Reintentar» debajo.
             if (currentWindowClass == BpmWindowClass.Compact) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
                 RaisedButton(nextLabel, viewModel::nextStudyQuestion, Modifier.fillMaxWidth())
                 BpmSecondaryButton(onClick = viewModel::retryStudyQuestion, modifier = Modifier.fillMaxWidth()) { Text("Reintentar esta pregunta") }
-            } else Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid), verticalAlignment = Alignment.CenterVertically) {
-                BpmSecondaryButton(onClick = viewModel::retryStudyQuestion) { Text("Reintentar esta pregunta") }
-                RaisedButton(nextLabel, viewModel::nextStudyQuestion, Modifier.bpmPrimaryButtonWidth())
-            }
+            } else BpmInlineActions(
+                secondary = { BpmSecondaryButton(onClick = viewModel::retryStudyQuestion, modifier = Modifier.fillMaxWidth()) { Text("Reintentar esta pregunta") } },
+                primary = { RaisedButton(nextLabel, viewModel::nextStudyQuestion, Modifier.fillMaxWidth()) })
         }
     }
-    BpmTextButton(onClick = { viewModel.back() }) { Text("Salir de la práctica") }
 }
 
 /**

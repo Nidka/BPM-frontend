@@ -408,6 +408,10 @@ fun App(
                     val courseOverview by remember(training) { training.state.map { it.screen == pe.bpm.features.training.presentation.TrainingPane.OVERVIEW }.distinctUntilChanged() }.collectAsStateWithLifecycle(true)
                     // Lección y evaluación por preguntas llevan panel lateral desde la clase expandida: ahí piden el ancho del panel.
                     val courseWidePane by remember(training) { training.state.map { pe.bpm.features.training.presentation.wantsWidePane(it) }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+                    // Modo enfoque (G4): fuera de la vista general del curso se oculta la navegación y la cabecera muestra el nombre del curso.
+                    val courseFocus by remember(training) { training.state.map { pe.bpm.features.training.presentation.isFocusMode(it) }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+                    val courseTitle by remember(training) { training.state.map { it.course?.course?.title }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
+                    var confirmEvaluationExit by remember(routeEntry.id) { mutableStateOf(false) }
                     // Cursos ya asignados: el catálogo de Aprender no los repite.
                     val assignedCourseIds = if (destination == WorkspaceDestination.Learn) trainingLearner.state.collectAsStateWithLifecycle().value.assignments.map { it.course.id }.toSet() else emptySet()
                     val learningExtras = route == TRAINING_ACHIEVEMENTS || route == TRAINING_PATHS
@@ -442,7 +446,12 @@ fun App(
                     }
                     fun closeForm() {
                         if (managingAccounts || viewingDevices || acceptingInvitation) { navigateBack(destination.route); return }
-                        if (learningCourse) { if (!training.back()) navigateBack(destination.route); return }
+                        if (learningCourse) {
+                            // Una evaluación sin enviar pide confirmación antes de perder las respuestas.
+                            if (pe.bpm.features.training.presentation.needsExitConfirmation(training.state.value)) { confirmEvaluationExit = true; return }
+                            if (!training.back()) navigateBack(destination.route)
+                            return
+                        }
                         if (studySurvey) { if (!survey.back()) navigateBack(destination.route); return }
                         if (researching) { if (!research.back()) navigateBack(destination.route); return }
                         if (learningExtras) { if (!(route == TRAINING_PATHS && trainingLearner.back())) navigateBack(destination.route); return }
@@ -636,12 +645,13 @@ fun App(
                                 onIncidents = { nav.navigate(if (destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },
                                 taskContent = {
                                     Column(Modifier.fillMaxSize()) {
-                                        if (workspaceState.workspace?.role == "WORKER")
-                                            WorkerTasksHeader(enabled = !dailyState.busy,
-                                                onIncidents = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } })
-                                        else BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
+                                        // El personal lleva «Incidencias y correcciones» en su propia cabecera de «Mis tareas».
+                                        val workerTasks = workspaceState.workspace?.role == "WORKER"
+                                        if (!workerTasks)
+                                            BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
                                         DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f),
-                                            onCleaningPhotos = { execution -> openCleaningPhotos(execution) })
+                                            onCleaningPhotos = { execution -> openCleaningPhotos(execution) },
+                                            onIncidents = if (workerTasks) ({ leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }) else null)
                                     }
                                 },
                                 secondaryContent = if (studySurvey) ({
@@ -649,6 +659,11 @@ fun App(
                                 }) else if (researching) ({
                                     pe.bpm.core.offline.ServerOnly { ResearchContent(profile.id, research) }
                                 }) else if (learningCourse) ({
+                                    if (confirmEvaluationExit) AlertDialog(onDismissRequest = { confirmEvaluationExit = false },
+                                        title = { Text("¿Salir sin enviar?") },
+                                        text = { Text("Perderás las respuestas de este intento.") },
+                                        confirmButton = { BpmTextButton({ confirmEvaluationExit = false; if (!training.back()) navigateBack(destination.route) }) { Text("Salir") } },
+                                        dismissButton = { BpmTextButton({ confirmEvaluationExit = false }) { Text("Seguir respondiendo") } })
                                     if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training,
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } })
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
@@ -753,6 +768,8 @@ fun App(
                                     else -> BpmPattern.Panel
                                 },
                                 secondaryWideOnExpanded = learningCourse && courseWidePane,
+                                focusMode = learningCourse && courseFocus,
+                                focusTitle = courseTitle,
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,

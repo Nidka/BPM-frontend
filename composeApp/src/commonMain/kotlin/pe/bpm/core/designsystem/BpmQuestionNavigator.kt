@@ -10,13 +10,18 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,24 +52,13 @@ fun questionMarks(answered: List<Boolean>, current: Int): List<BpmQuestionMark> 
 }
 
 /**
- * Resumen de una línea: «7 de 10 respondidas · faltan 8, 9 y 10». Con más de tres faltantes se listan las tres
- * primeras y «y N más» («faltan 1, 2, 3 y 7 más»); si no falta ninguna, «Todas respondidas». [answered] tiene
- * un elemento por pregunta (la actual cuenta como respondida solo si ya tiene respuesta).
+ * Resumen de una línea del navegador: «5 por responder» o, con todas contestadas, «Todas respondidas · lista para
+ * enviar». No lista números de pregunta (las fichas ya lo muestran). [answered] tiene un elemento por pregunta.
  */
 fun questionNavigatorSummary(answered: List<Boolean>): String {
-    val total = answered.size
-    if (total == 0) return "Sin preguntas"
-    val missing = answered.indices.filter { !answered[it] }.map { it + 1 }
-    if (missing.isEmpty()) return "Todas respondidas"
-    val done = total - missing.size
-    val count = if (total == 1) "$done de $total respondida" else "$done de $total respondidas"
-    val list = when {
-        missing.size == 1 -> "falta ${missing[0]}"
-        missing.size == 2 -> "faltan ${missing[0]} y ${missing[1]}"
-        missing.size == 3 -> "faltan ${missing[0]}, ${missing[1]} y ${missing[2]}"
-        else -> "faltan ${missing[0]}, ${missing[1]}, ${missing[2]} y ${missing.size - 3} más"
-    }
-    return "$count · $list"
+    if (answered.isEmpty()) return "Sin preguntas"
+    val missing = answered.count { !it }
+    return if (missing == 0) "Todas respondidas · lista para enviar" else "$missing por responder"
 }
 
 private val ChipSize = 44.dp
@@ -156,5 +150,47 @@ private fun LegendItem(label: String, fill: androidx.compose.ui.graphics.Color, 
     Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(fill).border(2.dp, border, CircleShape))
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * Hoja inferior con el navegador de preguntas (clase compacta y media): título, [BpmQuestionNavigator] con las fichas
+ * en varias líneas y la ranura [reviewAction] para «Revisar y enviar». Al elegir una pregunta se abre y se cierra la hoja.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BpmQuestionNavigatorSheet(
+    answered: List<Boolean>,
+    current: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    reviewAction: @Composable () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = BpmSpacing.gutter(currentWindowClass)).padding(bottom = BpmSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
+            Text("Tus preguntas", style = MaterialTheme.typography.titleLarge)
+            BpmQuestionNavigator(answered, current, { onSelect(it); onDismiss() }, wrap = true)
+            reviewAction()
+        }
+    }
+}
+
+/** Botón-chip «Pregunta 3 de 8 ▾» que abre [BpmQuestionNavigatorSheet]; el área táctil mide 48 dp. */
+@Composable
+fun BpmQuestionPickerChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    val scheme = MaterialTheme.colorScheme
+    BpmFeedback(scheme.primary) {
+        Row(
+            modifier.heightIn(min = BpmSpacing.touch).clip(CircleShape).border(2.dp, scheme.outline, CircleShape)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .padding(horizontal = BpmSpacing.md),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xs),
+        ) {
+            Text(label, style = BpmType.bodySmallStrong, color = scheme.onSurface)
+            BpmIcon(BpmSymbol.ChevronDown, tint = scheme.primary, modifier = Modifier.size(16.dp))
+        }
     }
 }

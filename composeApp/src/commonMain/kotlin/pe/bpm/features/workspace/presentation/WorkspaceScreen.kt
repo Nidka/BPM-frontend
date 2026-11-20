@@ -46,6 +46,12 @@ internal fun WorkspaceScreen(
     secondaryTitle: String? = null,
     secondaryBusy: Boolean = false,
     secondaryScrollKey: String? = null,
+    /**
+     * Modo enfoque (regla G4): oculta la barra inferior, el riel y el menú lateral; la cabecera muestra cerrar (X) y
+     * [focusTitle] (el nombre del curso) en lugar de la organización. La X llama a [onCloseForm].
+     */
+    focusMode: Boolean = false,
+    focusTitle: String? = null,
     screenNotice: @Composable () -> Unit = {},
     noticeVisible: Boolean = false,
     onUserActivity: () -> Unit = {},
@@ -74,7 +80,7 @@ internal fun WorkspaceScreen(
         val wide = navMode != BpmNavigationMode.BottomBar
         ProvideBpmWindowClass(windowClass, maxHeight) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
-            if (navMode == BpmNavigationMode.Rail) NavigationRail(Modifier.width(navMode.width).fillMaxHeight(),
+            if (navMode == BpmNavigationMode.Rail && !focusMode) NavigationRail(Modifier.width(navMode.width).fillMaxHeight(),
                 containerColor = MaterialTheme.colorScheme.surface, header = { Spacer(Modifier.height(BpmSpacing.sm)); Brand(compact = true) }) {
                 Spacer(Modifier.height(BpmSpacing.lg))
                 navItems.forEach { item ->
@@ -88,7 +94,7 @@ internal fun WorkspaceScreen(
                     }
                 }
             }
-            if (navMode == BpmNavigationMode.SideMenu) Surface(Modifier.width(navMode.width).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
+            if (navMode == BpmNavigationMode.SideMenu && !focusMode) Surface(Modifier.width(navMode.width).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Brand()
                     Spacer(Modifier.height(32.dp))
@@ -113,6 +119,7 @@ internal fun WorkspaceScreen(
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
                     onAlerts=onAlerts,unreadCount=unreadAlertCount,
+                    focusTitle = if (focusMode) focusTitle ?: "" else null,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel) { taskContent() }
@@ -241,12 +248,8 @@ internal fun WorkspaceScreen(
                             else learnHeader()
                             var catalogFilter by remember { mutableStateOf(CatalogFilter.All) }
                             if (learnHeader != null) Text("Catálogo", style = MaterialTheme.typography.titleLarge)
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                                CatalogFilter.entries.forEach { option ->
-                                    BpmFilterChip(selected = catalogFilter == option, onClick = { catalogFilter = option }, label = { Text(option.label) })
-                                }
-                            }
-                            WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
+                            CatalogFilterRow(catalogFilter) { catalogFilter = it }
+                            WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry, fullWidthSearch = true) {
                             Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse, hiddenCourseIds, catalogFilter)
                             }
                         }
@@ -261,7 +264,7 @@ internal fun WorkspaceScreen(
                 BpmActionBarHost(actionSlot)
                 // Los atajos (incidencias, investigación, empresas, acceso) son destinos de la barra: al abrirlos, la barra sigue visible y los marca.
                 val keepNavigation = activeShortcut != null
-                if (navMode == BpmNavigationMode.BottomBar && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) NavigationBar {
+                if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) NavigationBar {
                     navItems.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = item.isSelected(section, activeShortcut),
                         onClick = { item.open(navigate, onShortcut) }, icon = { item.Icon() },

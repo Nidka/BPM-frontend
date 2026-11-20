@@ -19,9 +19,32 @@ internal fun sortPlansByDueTime(plans: List<CleaningPlan>): List<CleaningPlan> =
 internal fun <T> sortByDueTime(items: List<T>, dueTime: (T) -> String): List<T> =
     items.sortedWith(compareBy<T> { dueTime(it).isBlank() }.thenBy { dueTime(it) })
 
-/** «Por hacer»: primero los pendientes por hora límite y al final los hechos (también por hora). Estable. */
+/**
+ * Orden de las tareas del turno: pendientes primero (vencidas, luego por hora límite y al final las sin hora) y los
+ * hechos al final (también por hora). Estable: conserva el orden previo en empates.
+ */
 internal fun sortTodayPlans(plans: List<CleaningPlan>): List<CleaningPlan> =
-    plans.sortedWith(compareBy<CleaningPlan> { it.today?.done == true }.thenBy { it.dueTime.isBlank() }.thenBy { it.dueTime })
+    plans.sortedWith(
+        compareBy<CleaningPlan> { it.today?.done == true }.thenBy { it.today?.overdue != true }
+            .thenBy { it.dueTime.isBlank() }.thenBy { it.dueTime },
+    )
+
+/** «Por hacer»: solo las tareas que el servidor no marca como hechas, Vencidas → por hora → sin hora. */
+internal fun pendingPlans(plans: List<CleaningPlan>): List<CleaningPlan> =
+    sortTodayPlans(plans.filter { it.today?.done != true })
+
+/** «Hechas · Hoy»: las tareas que el servidor marca como hechas en el periodo, por hora límite (sin hora al final). */
+internal fun donePlans(plans: List<CleaningPlan>): List<CleaningPlan> =
+    sortTodayPlans(plans.filter { it.today?.done == true })
+
+/**
+ * Historial sin duplicados: quita de [items] los registros que ya aparecen como «Hecho» en la sección «Hoy»
+ * (el servidor informa la última ejecución de cada tarea hecha en `today.lastExecutionId`).
+ */
+internal fun <T> withoutDoneToday(items: List<T>, donePlans: List<CleaningPlan>, idOf: (T) -> String): List<T> {
+    val shown = donePlans.mapNotNull { it.today?.lastExecutionId }.toSet()
+    return if (shown.isEmpty()) items else items.filter { idOf(it) !in shown }
+}
 
 /** Texto del chip de vencimiento («hasta 10:00») o `null` si el plan no tiene hora. */
 internal fun dueChipText(dueTime: String): String? = dueTime.takeIf { it.isNotBlank() }?.let { "hasta $it" }
@@ -51,6 +74,20 @@ internal fun todayDoneBy(plan: CleaningPlan): String? {
 internal fun todayDetail(plan: CleaningPlan): String {
     val parts = mutableListOf(frequencyLabel(plan.frequency))
     plan.today?.shift?.name?.takeIf { it.isNotBlank() }?.let { parts += it }
+    todayDoneBy(plan)?.let { parts += it }
+    return parts.joinToString(" · ")
+}
+
+/**
+ * Meta de la fila de una tarea (regla G6): «Cocina · Diaria». Suma el turno solo si el chip no lo dice ya y, en las
+ * hechas, quién las hizo. El título de la fila es la tarea; el área va aquí.
+ */
+internal fun todayMeta(plan: CleaningPlan): String {
+    val parts = mutableListOf<String>()
+    plan.area.takeIf { it.isNotBlank() }?.let { parts += it }
+    parts += frequencyLabel(plan.frequency)
+    val shift = plan.today?.shift?.name?.takeIf { it.isNotBlank() }
+    if (shift != null && todayChip(plan)?.text != shift) parts += shift
     todayDoneBy(plan)?.let { parts += it }
     return parts.joinToString(" · ")
 }

@@ -33,6 +33,8 @@ internal fun DailyOperationsContent(
     shifts: ShiftsViewModel? = null,
     stock: StockMovementsViewModel? = null,
     onCleaningPhotos: ((CleaningExecution) -> Unit)? = null,
+    /** Personal (WORKER): abre «Incidencias y correcciones» desde la cabecera de «Mis tareas». */
+    onIncidents: (() -> Unit)? = null,
 ) {
     val org = workspace.workspace?.organization?.id ?: return
     var siteId by rememberSaveable(userId, org) { mutableStateOf<String?>(sourceSiteId) }
@@ -75,6 +77,7 @@ internal fun DailyOperationsContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (choosingSite) {
+            if (role == "WORKER") Text("Mis tareas", style = MaterialTheme.typography.headlineMedium)
             Text("¿En qué sede trabajarás?", style = MaterialTheme.typography.titleLarge)
             WorkspaceSiteSelector(
                 workspace,
@@ -92,13 +95,15 @@ internal fun DailyOperationsContent(
                     Text("Seguir con la selección actual")
                 }
         } else {
-            if (siteId != null)
-                Text("Sede: $siteName", style = MaterialTheme.typography.titleMedium)
-            BpmTextButton(
-                onClick = { choosingSite = true },
-                enabled = state.form == null && !state.busy,
-            ) {
-                Text(if (siteId == null) "Elegir sede" else "Cambiar sede")
+            if (role != "WORKER") {
+                if (siteId != null)
+                    Text("Sede: $siteName", style = MaterialTheme.typography.titleMedium)
+                BpmTextButton(
+                    onClick = { choosingSite = true },
+                    enabled = state.form == null && !state.busy,
+                ) {
+                    Text(if (siteId == null) "Elegir sede" else "Cambiar sede")
+                }
             }
             if ((showShifts || showStock) && state.form == null) {
                 // Tres chips no caben en una fila a 360 dp: se envuelven en lugar de cortarse.
@@ -121,6 +126,16 @@ internal fun DailyOperationsContent(
                     Modifier.weight(1f),
                     onLotMovement = if (showStock && stock != null) { lot -> stock.start(lot); section = "stock" } else null,
                     onCleaningPhotos = onCleaningPhotos,
+                    workerHeader = if (role == "WORKER") { listVisible ->
+                        WorkerTasksHeader(
+                            siteName = siteName.takeIf { siteId != null },
+                            onChangeSite = { choosingSite = true },
+                            onRegister = if (siteId != null) operations::newCleaning else null,
+                            onIncidents = onIncidents,
+                            enabled = !state.loading && !state.busy,
+                            showActions = listVisible,
+                        )
+                    } else null,
                 )
             else LinearProgressIndicator(Modifier.fillMaxWidth())
         }

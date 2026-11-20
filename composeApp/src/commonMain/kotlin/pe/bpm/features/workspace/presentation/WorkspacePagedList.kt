@@ -15,6 +15,7 @@ import pe.bpm.features.workspace.domain.WorkspaceResource
     resource: WorkspaceResource, state: WorkspaceState,
     onSearch: (WorkspaceResource, String) -> Unit, onNext: (WorkspaceResource) -> Unit,
     onPrevious: (WorkspaceResource) -> Unit, onRetry: (WorkspaceResource) -> Unit,
+    fullWidthSearch: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val page = state.pages[resource] ?: WorkspacePageState()
@@ -25,7 +26,7 @@ import pe.bpm.features.workspace.domain.WorkspaceResource
         WorkspaceResource.Incidents -> "Buscar incidencias"
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        BpmSearchField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving, loading = page.loading)
+        BpmSearchField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving, loading = page.loading, fullWidth = fullWidthSearch)
         when {
             page.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando resultados…") }
             page.errors.isNotEmpty() -> { Errors(page.errors); BpmSecondaryButton(onClick = { onRetry(resource) }) { Text("Reintentar") } }

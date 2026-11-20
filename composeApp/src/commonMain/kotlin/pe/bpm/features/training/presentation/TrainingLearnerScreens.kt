@@ -6,8 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -71,9 +69,6 @@ fun AchievementCelebration(achievements: List<Achievement>) {
 
 // ---- Aprender: hub del alumno ------------------------------------------------------------------
 
-/** Ancho de las tarjetas de curso en la lista horizontal de la clase compacta. */
-private val AssignedCardWidth = 260.dp
-
 /**
  * Hub de Aprender: tarjeta «Continuar» (asignación en curso), «Asignadas a ti» con estado y vencimiento, acceso a
  * las rutas de aprendizaje y, en el panel de apoyo, el resumen de logros. Solo muestra datos reales: el avance
@@ -89,9 +84,11 @@ fun MyAssignmentsPanel(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val achievements = state.achievements
+    val singleColumn = supportPaneWidth(currentWindowClass) == null
     BpmSupportPaneLayout(
         support = {
-            if (state.member) {
+            // Sin panel de apoyo (compacta y media) el resumen es una franja compacta; el detalle solo en el panel.
+            if (state.member && !singleColumn) {
                 if (achievements != null) BpmRewardSummary(
                     experiencePoints = achievements.totals.experiencePoints,
                     earnedBadges = achievements.earned.size,
@@ -115,11 +112,15 @@ fun MyAssignmentsPanel(
                 if (state.assignments.isNotEmpty()) AssignedCourses(state, onOpenCourse, viewModel::moreAssignments)
             }
             BpmTaskRow("Rutas de aprendizaje", BpmSymbol.Route, detail = "Sigue un camino de cursos paso a paso", onClick = onPaths)
+            if (state.member && singleColumn) {
+                if (achievements != null) BpmSummaryStrip(learnerSummary(achievements), onClick = onAchievements)
+                else BpmSecondaryButton(onClick = onAchievements, modifier = Modifier.fillMaxWidth()) { Text("Mis logros") }
+            }
         },
     )
 }
 
-/** Tarjeta «Continuar»: la capacitación en curso con su vencimiento y un solo botón principal. */
+/** Tarjeta «Continuar»: la capacitación en curso con su vencimiento y un solo botón principal (auto-ancho desde la media). */
 @Composable
 private fun ContinueCard(assignment: MyAssignment, onOpenCourse: (String) -> Unit) {
     val (chip, tone) = assignmentChip(assignment)
@@ -136,33 +137,31 @@ private fun ContinueCard(assignment: MyAssignment, onOpenCourse: (String) -> Uni
                 Eyebrow("CONTINUAR")
                 Text(assignment.course.title, style = MaterialTheme.typography.titleLarge)
                 Text("${assignment.course.code} · ${assignment.course.estimatedDurationMinutes} min", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(Modifier.padding(top = BpmSpacing.xs)) { BpmStatusChip(chip, tone) }
             }
         }
-        BpmStatusChip(chip, tone)
-        RaisedButton("Continuar", { onOpenCourse(assignment.course.id) }, Modifier.bpmPrimaryButtonWidth())
+        BpmInlineActions { RaisedButton("Continuar", { onOpenCourse(assignment.course.id) }, Modifier.fillMaxWidth()) }
     }
 }
 
-/** «Asignadas a ti»: lista horizontal en compacta y rejilla desde media; cada tarjeta lleva su chip de vencimiento. */
+/**
+ * «Asignadas a ti»: filas de curso (título, meta, avance y chip de vencimiento) en una sola columna en todo ancho.
+ * No repite el curso que ya está en «Continuar».
+ */
 @Composable
 private fun AssignedCourses(state: LearnerState, onOpenCourse: (String) -> Unit, onMore: () -> Unit) {
-    val items = state.assignments
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text("Asignadas a ti", style = MaterialTheme.typography.titleLarge)
-        // Con más páginas por cargar la cuenta sería parcial: no se muestra.
-        if (state.assignmentsNext == null) Text(if (items.size == 1) "1 curso" else "${items.size} cursos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    val card: @Composable (Int, MyAssignment, Modifier) -> Unit = { index, item, modifier ->
-        val (chip, tone) = assignmentChip(item)
-        BpmCourseCard(item.course.code, item.course.title, assignmentMeta(item), { onOpenCourse(item.course.id) }, modifier,
-            colorIndex = index, progress = assignmentProgress(item), status = { BpmStatusChip(chip, tone) })
-    }
-    if (currentWindowClass == BpmWindowClass.Compact) {
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-            itemsIndexed(items, key = { _, item -> item.assignmentId }) { index, item -> card(index, item, Modifier.width(AssignedCardWidth)) }
+    val items = assignedWithoutContinue(state.assignments)
+    if (items.isNotEmpty()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Asignadas a ti", style = MaterialTheme.typography.titleLarge)
+            // Con más páginas por cargar la cuenta sería parcial: no se muestra.
+            if (state.assignmentsNext == null) Text(if (items.size == 1) "1 curso" else "${items.size} cursos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-    } else {
-        BpmGridLayout(items.withIndex().toList()) { (index, item), modifier -> card(index, item, modifier) }
+        BpmRowGrid(items, columns = 1) { item, modifier ->
+            val (chip, tone) = assignmentChip(item)
+            BpmCourseRow(item.course.title, "${item.course.code} · ${assignmentMeta(item)}", BpmSymbol.Book, { onOpenCourse(item.course.id) }, modifier,
+                progress = assignmentProgress(item), status = { BpmStatusChip(chip, tone) })
+        }
     }
     if (state.assignmentsNext != null) BpmSecondaryButton(onClick = onMore, enabled = !state.assignmentsLoading) { Text("Ver más capacitaciones") }
 }

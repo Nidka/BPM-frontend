@@ -1,7 +1,12 @@
 package pe.bpm.core.designsystem
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -55,3 +61,34 @@ fun BpmActionBarHost(slot: BpmActionBarSlot) {
         Box(Modifier.padding(horizontal = BpmSpacing.gutter(currentWindowClass), vertical = BpmSpacing.md)) { bar() }
     }
 }
+
+/**
+ * Fila de acciones en línea (regla G7). En clase compacta los botones se reparten el ancho de la fila (con
+ * [compactSecondaryFixed] el secundario conserva su ancho y el principal ocupa el resto). Desde la clase media
+ * cada botón mide a contenido (mínimo 160 dp) y el par va alineado a la derecha del bloque: el secundario a la
+ * izquierda y el principal a la derecha, nunca a todo el ancho. [secondary] es opcional.
+ */
+@Composable
+fun BpmInlineActions(
+    modifier: Modifier = Modifier,
+    compactSecondaryFixed: Boolean = false,
+    secondary: (@Composable () -> Unit)? = null,
+    primary: @Composable () -> Unit,
+) {
+    if (currentWindowClass == BpmWindowClass.Compact) {
+        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid), verticalAlignment = Alignment.CenterVertically) {
+            if (secondary != null) {
+                if (compactSecondaryFixed) secondary() else Box(Modifier.weight(1f)) { secondary() }
+            }
+            Box(Modifier.weight(1f)) { primary() }
+        }
+    } else {
+        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+            if (secondary != null) Box(Modifier.autoActionWidth()) { secondary() }
+            Box(Modifier.autoActionWidth()) { primary() }
+        }
+    }
+}
+
+/** Ancho a contenido con un mínimo de 160 dp: el botón interior (que llena su contenedor) toma ese ancho. */
+private fun Modifier.autoActionWidth(): Modifier = widthIn(min = 160.dp).width(IntrinsicSize.Max)

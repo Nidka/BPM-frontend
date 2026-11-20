@@ -3,6 +3,9 @@ package pe.bpm.core.designsystem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,8 +47,9 @@ fun BpmNextStepCard(
                 Text(title, style = MaterialTheme.typography.titleLarge, color = onPrimary)
                 if (supporting != null) Text(supporting, style = MaterialTheme.typography.bodyMedium, color = onPrimary.copy(alpha = .9f))
                 if (progress != null) BpmProgressBar(progress, color = onPrimary, trackColor = onPrimary.copy(alpha = .3f))
+                // Desde la media el botón mide a su contenido (mín. 160 dp), nunca el ancho de la columna (regla G7).
                 // Botón blanco con relieve oscuro: mismo lenguaje que RaisedButton, invertido sobre el fondo primario.
-                Box(Modifier.bpmPrimaryButtonWidth().bpmRelief(BpmTokens.primaryRelief, RoundedCornerShape(16.dp), BpmSpacing.reliefDepth)) {
+                Box(Modifier.then(if (wide) Modifier.widthIn(min = BpmSpacing.buttonMinWidth).width(IntrinsicSize.Max) else Modifier.fillMaxWidth()).bpmRelief(BpmTokens.primaryRelief, RoundedCornerShape(16.dp), BpmSpacing.reliefDepth)) {
                     BpmFeedback(MaterialTheme.colorScheme.primary) {
                         Button(
                             onClick = onAction, enabled = enabled,

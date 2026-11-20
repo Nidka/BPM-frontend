@@ -1,6 +1,7 @@
 package pe.bpm.features.workspace.presentation
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -78,12 +79,21 @@ import pe.bpm.features.workspace.domain.*
             if (filter == CatalogFilter.All) "Sin cursos nuevos" else "Sin cursos con este filtro",
             if (filter == CatalogFilter.All) "Los cursos de esta página ya están en «Asignadas a ti»." else "Prueba con otro filtro; solo se filtran los cursos de esta página.")
     }
-    BpmGridLayout(visible.withIndex().toList()) { (index, entry), cardModifier ->
-        BpmCourseCard(
-            code = "CURSO", title = entry.title, meta = catalogSummary(entry.detail).ifEmpty { "Curso de tu organización" },
-            onClick = { onOpen(entry.id) }, modifier = cardModifier, colorIndex = index,
+    // Filas compactas (icono + título + descripción de 2 líneas + chip): una columna y, desde la expandida, dos.
+    BpmRowGrid(visible, if (supportPaneWidth(currentWindowClass) != null) 2 else 1) { entry, rowModifier ->
+        BpmCourseRow(
+            title = entry.title, description = catalogSummary(entry.detail).ifEmpty { "Curso de tu organización" },
+            symbol = BpmSymbol.Book, onClick = { onOpen(entry.id) }, modifier = rowModifier,
             status = catalogStatusChip(entry.status)?.let { (text, tone) -> { BpmStatusChip(text, tone) } },
         )
+    }
+}
+/** Filtros del catálogo en una sola fila desplazable horizontalmente (no se parten en varias líneas). */
+@Composable internal fun CatalogFilterRow(selected: CatalogFilter, onSelect: (CatalogFilter) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+        CatalogFilter.entries.forEach { option ->
+            BpmFilterChip(selected = selected == option, onClick = { onSelect(option) }, label = { Text(option.label) })
+        }
     }
 }
 private fun entryStatusLabel(status: String) = when (status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" }

@@ -199,3 +199,14 @@ composeCompiler {
         metricsDestination = layout.buildDirectory.dir("compose_compiler")
     }
 }
+
+// Arnés de capturas de pantalla del personal (jvmTest, `WorkerScreenshots`). Solo se activa al pedirlo por nombre:
+// ./gradlew :composeApp:jvmTest --tests '*WorkerScreenshots*'  → composeApp/build/screenshots/*.png
+tasks.withType<Test>().configureEach {
+    val requested = gradle.startParameter.taskRequests.flatMap { it.args }.any { "Screenshots" in it }
+    if (requested) {
+        systemProperty("bpm.screenshots", "true")
+        systemProperty("bpm.screenshots.dir", layout.buildDirectory.dir("screenshots").get().asFile.absolutePath)
+        outputs.upToDateWhen { false }
+    }
+}
