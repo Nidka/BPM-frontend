@@ -244,7 +244,9 @@ internal fun WorkspaceScreen(
                 // Los flujos por pasos publican aquí su barra de acción fija (solo clase compacta) y ocultan la barra de navegación.
                 val stepFlow = secondaryContent != null && secondaryPattern == BpmPattern.StepFlow
                 BpmActionBarHost(actionSlot)
-                if (navMode == BpmNavigationMode.BottomBar && form == null && !secondaryEditor && !stepFlow && !choosingOrganization) NavigationBar {
+                // Los atajos (incidencias, investigación, empresas, acceso) son destinos de la barra: al abrirlos, la barra sigue visible y los marca.
+                val keepNavigation = activeShortcut != null
+                if (navMode == BpmNavigationMode.BottomBar && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) NavigationBar {
                     navItems.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = item.isSelected(section, activeShortcut),
                         onClick = { item.open(navigate, onShortcut) }, icon = { item.Icon() },

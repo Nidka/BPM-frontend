@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -64,9 +65,15 @@ object BpmPatternRules {
         BpmPattern.Access -> if (windowClass == BpmWindowClass.Compact) Dp.Unspecified else accessWidth
     }
 
-    /** Columnas de indicadores del panel: 2×2 en compacta, una fila de 4 desde media. */
-    fun indicatorColumns(windowClass: BpmWindowClass, count: Int = 4): Int =
-        if (windowClass == BpmWindowClass.Compact) (if (count == 3) 3 else 2) else count.coerceIn(1, 4)
+    /** Escala de letra desde la que las tarjetas de indicador de la clase compacta ya no caben en tres columnas. */
+    const val LARGE_FONT_SCALE = 1.3f
+
+    /**
+     * Columnas de indicadores del panel: 2×2 en compacta, una fila de 4 desde media.
+     * Con letra grande ([fontScale] ≥ [LARGE_FONT_SCALE]) la clase compacta baja a 2 columnas para que las etiquetas no se corten.
+     */
+    fun indicatorColumns(windowClass: BpmWindowClass, count: Int = 4, fontScale: Float = 1f): Int =
+        if (windowClass == BpmWindowClass.Compact) (if (count == 3 && fontScale < LARGE_FONT_SCALE) 3 else 2) else count.coerceIn(1, 4)
 
     /** Columnas fijas de la rejilla; `null` = automática con [gridMinCard] (clase expandida). */
     fun gridColumns(windowClass: BpmWindowClass): Int? = when (windowClass) {
@@ -145,7 +152,7 @@ fun BpmPanelLayout(
     val windowClass = currentWindowClass
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
         if (indicators.isNotEmpty())
-            BpmCardGrid(indicators, fixedColumns = BpmPatternRules.indicatorColumns(windowClass, indicators.size)) { item, m -> item(m) }
+            BpmCardGrid(indicators, fixedColumns = BpmPatternRules.indicatorColumns(windowClass, indicators.size, LocalDensity.current.fontScale)) { item, m -> item(m) }
         if (support != null && BpmPatternRules.panelSplit(windowClass)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
                 Column(Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl), content = main)

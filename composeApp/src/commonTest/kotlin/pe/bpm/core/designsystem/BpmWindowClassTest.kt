@@ -28,6 +28,9 @@ class BpmWindowClassTest {
     @Test fun patternRulesMatchTheDesignTable() {
         val c = BpmWindowClass.Compact; val m = BpmWindowClass.Medium; val e = BpmWindowClass.Expanded; val l = BpmWindowClass.Large
         assertEquals(2, BpmPatternRules.indicatorColumns(c)); assertEquals(4, BpmPatternRules.indicatorColumns(m))
+        // Tres indicadores caben en una fila a letra normal; con letra grande bajan a dos columnas.
+        assertEquals(3, BpmPatternRules.indicatorColumns(c, 3)); assertEquals(2, BpmPatternRules.indicatorColumns(c, 3, fontScale = 1.5f))
+        assertEquals(3, BpmPatternRules.indicatorColumns(m, 3, fontScale = 1.5f))
         assertEquals(listOf(1, 2, null, 3), listOf(c, m, e, l).map { BpmPatternRules.gridColumns(it) })
         assertEquals(listOf(false, false, true, true), listOf(c, m, e, l).map { BpmPatternRules.detailBesideList(it) })
         assertEquals(listOf(false, false, false, true), listOf(c, m, e, l).map { BpmPatternRules.panelSplit(it) })
