@@ -122,7 +122,7 @@ fun OperationsScreen(
                             else state.rows
                         BpmGridLayout(shownRows) { entry, cardModifier ->
                             if (worker) WorkerTaskItem(entry, viewModel, onCleaningPhotos, cardModifier)
-                            else BpmCard(cardModifier) {
+                            else BpmCard(cardModifier, onClick = { viewModel.detail(entry) }, onClickLabel = "Ver detalle", selected = state.detail == entry) {
                                 Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(entry.title(), style = MaterialTheme.typography.titleMedium)
                                     Text(entry.subtitle())

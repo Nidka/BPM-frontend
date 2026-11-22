@@ -126,9 +126,9 @@ fun BpmRecordCard(
     onAction: (() -> Unit)? = null,
     textActions: List<Pair<String, () -> Unit>> = emptyList(),
     enabled: Boolean = true,
+    selected: Boolean = false,
 ) {
-    BpmCard(modifier.then(if (onOpen != null && enabled) Modifier.clickable(role = Role.Button, onClickLabel = "Ver detalle", onClick = onOpen) else Modifier),
-        variant = BpmCardVariant.Compact) {
+    BpmCard(modifier, variant = BpmCardVariant.Compact, onClick = onOpen, onClickLabel = actionLabel ?: "Ver detalle", enabled = enabled, selected = selected) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.Top) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (status != null) BpmStatusChip(status.text, status.tone)
@@ -139,8 +139,9 @@ fun BpmRecordCard(
         }
         if (actionLabel != null || textActions.isNotEmpty()) {
             if (actionLabel != null) BpmSecondaryButton(onClick = onAction ?: onOpen ?: {}, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text(actionLabel) }
-            if (textActions.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                textActions.take(2).forEach { (label, action) -> BpmTextButton(onClick = action, enabled = enabled, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text(label) } }
+            // Apiladas: una fila que se parte (FlowRow) no informa bien su alto a la rejilla y la segunda acción quedaba recortada.
+            textActions.take(2).forEach { (label, action) ->
+                BpmTextButton(onClick = action, enabled = enabled, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text(label) }
             }
         }
     }

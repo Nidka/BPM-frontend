@@ -1,5 +1,8 @@
 package pe.bpm.core.designsystem
 
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
+
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -89,4 +92,6 @@ fun BpmTextButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: B
  */
 @Composable
 fun Modifier.bpmPrimaryButtonWidth(): Modifier =
-    if (currentWindowClass == BpmWindowClass.Compact) fillMaxWidth() else widthIn(min = 160.dp)
+    // `width(IntrinsicSize.Max)` hace que el botón mida su texto: sin él, el `fillMaxWidth` interno del botón
+    // ocupaba toda la fila (en una cabecera aplastaba el título y en una fila de acciones empujaba las demás).
+    if (currentWindowClass == BpmWindowClass.Compact) fillMaxWidth() else widthIn(min = BpmSpacing.buttonMinWidth).width(IntrinsicSize.Max)

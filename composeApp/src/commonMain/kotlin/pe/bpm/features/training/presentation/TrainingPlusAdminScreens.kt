@@ -217,7 +217,7 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
             }
             if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin rutas", "Todavía no hay rutas con este filtro.")
             BpmGridLayout(state.items) { path, m ->
-                BpmCard(m) {
+                BpmCard(m, onClick = { viewModel.openPath(path) }, onClickLabel = "Abrir ruta") {
                     Eyebrow(pathStatusLabel(path.status).uppercase())
                     Text(path.title, style = MaterialTheme.typography.titleMedium)
                     Text("${path.courses.size} curso(s)", style = MaterialTheme.typography.bodySmall)

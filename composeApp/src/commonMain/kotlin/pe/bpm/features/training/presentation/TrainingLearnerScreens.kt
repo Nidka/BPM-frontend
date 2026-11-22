@@ -234,7 +234,7 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
         if (state.pathsFailure != null) BpmSecondaryButton(onClick = viewModel::loadPaths) { Text("Volver a intentar") }
         if (state.pathsLoaded && state.paths.isEmpty() && state.pathsFailure == null) EmptyState("Sin rutas", "Tu organización todavía no publicó rutas de aprendizaje.")
         BpmGridLayout(state.paths) { path, m ->
-            BpmCard(m) {
+            BpmCard(m, onClick = { viewModel.openPath(path.id) }, onClickLabel = "Ver ruta") {
                 Text(path.title, style = MaterialTheme.typography.titleMedium)
                 if (path.description.isNotBlank()) Text(path.description)
                 path.progress?.let {

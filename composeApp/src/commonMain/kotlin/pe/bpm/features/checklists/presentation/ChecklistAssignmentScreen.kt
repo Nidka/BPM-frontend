@@ -62,7 +62,7 @@ fun ChecklistAssignmentsScreen(
                 )
             else ->
                 BpmGridLayout(state.items) { v, cardModifier ->
-                    BpmCard(cardModifier) {
+                    BpmCard(cardModifier, onClick = { onOpen(v) }, onClickLabel = if (management) "Ver programación" else "Abrir control") {
                         Text(
                             v.templateName,
                             style = MaterialTheme.typography.titleMedium,
@@ -83,19 +83,18 @@ fun ChecklistAssignmentsScreen(
                             },
                             style = BpmType.bodyStrong,
                         )
-                        RaisedButton(
-                            if (management) "Ver programación"
+                        BpmSecondaryButton(onClick = { onOpen(v) }, modifier = Modifier.fillMaxWidth(), enabled = !state.actionBusy) {
+                            Text(
+                                if (management) "Ver programación"
                             else
                                 when {
                                     v.run == null -> "Revisar e iniciar"
                                     v.run.status == "DRAFT" && v.run.performedBy == state.userId ->
                                         "Continuar revisión"
                                     else -> "Ver revisión"
-                                },
-                            { onOpen(v) },
-                            Modifier.fillMaxWidth(),
-                            enabled = !state.actionBusy,
-                        )
+                                }
+                            )
+                        }
                         if (management)
                             BpmTextButton(
                                 onClick = { onDeactivate(v.id) },

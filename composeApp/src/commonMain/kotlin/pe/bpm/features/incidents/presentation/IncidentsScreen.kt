@@ -127,7 +127,7 @@ fun IncidentsScreen(
                             style = MaterialTheme.typography.bodySmall,
                         )
                     BpmGridLayout(s.incidents.rows) { value, cardModifier ->
-                        BpmCard(cardModifier) {
+                        BpmCard(cardModifier, onClick = { viewModel.detail(value.id) }, onClickLabel = "Ver incidencia", selected = s.detail?.summary?.id == value.id) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(value.name, style = MaterialTheme.typography.titleMedium)
                                 pe.bpm.core.offline.PendingBadge(value.id)

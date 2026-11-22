@@ -77,7 +77,7 @@ fun ChecklistVersionsScreen(
                 }
                 Text("Historial", style = MaterialTheme.typography.titleLarge)
                 BpmGridLayout(state.history) { version, cardModifier ->
-                    BpmCard(cardModifier) {
+                    BpmCard(cardModifier, onClick = { onView(version.id) }, onClickLabel = "Ver preguntas") {
                         Text("Versión ${version.versionNumber} · ${if (version.status == VersionStatus.PUBLISHED) "Vigente" else "Archivada"}", style = MaterialTheme.typography.titleMedium)
                         Text("${version.itemCount} preguntas · ${displayDateTime(version.publishedAt)}")
                         if (version.changeNote.isNotBlank()) Text("Cambio: ${version.changeNote}")

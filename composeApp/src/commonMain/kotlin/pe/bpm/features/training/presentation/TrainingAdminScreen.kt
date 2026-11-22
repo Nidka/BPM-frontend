@@ -64,7 +64,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
     }
     if (state.courses.isEmpty() && !state.loading) EmptyState("Sin cursos", "Todavía no hay cursos con este filtro. Crea el primero.")
     BpmGridLayout(state.courses) { course, cardModifier ->
-        BpmCard(cardModifier) {
+        BpmCard(cardModifier, onClick = { viewModel.openDraft(course.id) }, onClickLabel = if (course.hasDraft) "Editar borrador" else "Preparar nueva versión") {
             Eyebrow(course.code)
             Text(course.title, style = MaterialTheme.typography.titleMedium)
             Text(statusLabel(course.status) + (course.publishedVersionNumber?.let { " · versión $it publicada" } ?: ""))

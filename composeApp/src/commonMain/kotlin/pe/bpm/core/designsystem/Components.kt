@@ -8,6 +8,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -42,20 +48,37 @@ object BpmBrand {
  * Tarjeta del sistema. [BpmCardVariant.Standard] relleno 24 dp; [BpmCardVariant.Compact] relleno 16 dp para
  * listas y KPI; [BpmCardVariant.Featured] fondo teal suave, una por pantalla. Un `tint` explícito manda sobre la variante.
  */
-@Composable fun BpmCard(modifier:Modifier=Modifier,tint:Color=Color.Unspecified,variant:BpmCardVariant=BpmCardVariant.Standard,content:@Composable ColumnScope.()->Unit){
+/**
+ * Tarjeta del sistema (borde de 2 dp, radio 24 y relieve de 3 dp, como `.course-card` en playful.css).
+ * Con [onClick] la **tarjeta completa** es el objetivo (specs/LAYOUT.md §3.4): al pasar el cursor o enfocarla con
+ * Tab, el borde pasa a primario y el fondo se aclara; muestra la mano, se activa con Enter/Espacio y se hunde al
+ * pulsarla. Con [selected] queda marcada (registro abierto junto a la lista). [onClickLabel] es lo que anuncia el lector de pantalla («Abrir plantilla»).
+ */
+@Composable fun BpmCard(modifier:Modifier=Modifier,tint:Color=Color.Unspecified,variant:BpmCardVariant=BpmCardVariant.Standard,
+    onClick:(()->Unit)?=null,onClickLabel:String?=null,enabled:Boolean=true,selected:Boolean=false,content:@Composable ColumnScope.()->Unit){
     val shape=RoundedCornerShape(24.dp)
-    val border=MaterialTheme.colorScheme.outlineVariant
+    val interactions = remember { MutableInteractionSource() }
+    val hovered by interactions.collectIsHoveredAsState()
+    val focused by interactions.collectIsFocusedAsState()
+    val pressed by interactions.collectIsPressedAsState()
+    val active = onClick != null && enabled && (hovered || focused)
+    // Seleccionada: el registro abierto en el detalle de al lado (lista–detalle).
+    val border = if (active || selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     val fill=when{
         tint!=Color.Unspecified->tint
         variant==BpmCardVariant.Featured->MaterialTheme.colorScheme.primaryContainer
+        active||selected->MaterialTheme.colorScheme.primaryContainer
         else->MaterialTheme.colorScheme.surface
     }
     val padding=if(variant==BpmCardVariant.Compact)BpmSpacing.cardCompact else BpmSpacing.card
-    // Borde de 2 dp y relieve de 3 dp, como `.course-card` en playful.css.
+    val reduceMotion = rememberReduceMotion()
+    val offset by animateDpAsState(if (pressed && onClick != null && enabled) 2.dp else 0.dp, if (reduceMotion) snap() else tween(100), label = "Presión de la tarjeta")
     Box(modifier.bpmRelief(border,shape,3.dp),propagateMinConstraints=true){
-        Surface(shape=shape,color=fill,border=BorderStroke(2.dp,border)){
-            Column(Modifier.padding(padding),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
-        }
+        val body: @Composable () -> Unit = { Column(Modifier.padding(padding),verticalArrangement=Arrangement.spacedBy(12.dp),content=content) }
+        if (onClick != null) Surface(onClick = onClick, enabled = enabled, shape = shape, color = fill, border = BorderStroke(2.dp, border),
+            interactionSource = interactions,
+            modifier = Modifier.offset(y = offset).pointerHoverIcon(PointerIcon.Hand).semantics { this.selected = selected; if (onClickLabel != null) onClick(onClickLabel) { onClick(); true } }) { body() }
+        else Surface(shape=shape,color=fill,border=BorderStroke(2.dp,border)) { body() }
     }
 }
 @Composable fun RaisedButton(label:String,onClick:()->Unit,modifier:Modifier=Modifier,enabled:Boolean=true,

@@ -84,7 +84,7 @@ fun AlertRulesScreen(
       if (s.rulesLoaded && s.rules.rows.isEmpty() && !s.loading && s.failure == null)
         EmptyState("Sin reglas", "No hay reglas para esta consulta. Cambia la búsqueda o el filtro de ámbito para ver otras.")
       BpmGridLayout(s.rules.rows) { r, cardModifier ->
-        BpmCard(cardModifier) {
+        BpmCard(cardModifier, onClick = { viewModel.editRule(r) }, onClickLabel = "Editar regla") {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(r.name, style = MaterialTheme.typography.titleMedium)
             Text(alertTypeLabel(r.type))
