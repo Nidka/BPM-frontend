@@ -112,6 +112,15 @@ Patrón `Form` (`BpmFormLayout`). Anatomía:
 6. **Edición dentro de un listado:** el editor se muestra arriba de la lista con `BpmSection` +
    `BpmFormActions` y la misma columna de 720; no es una tarjeta a todo el ancho de la pantalla.
 
+7. **Formulario por pasos (`BpmStepForm`)** cuando la creación pide **tres o más decisiones que dependen
+   entre sí** (invitar persona: correo → rol → sedes; programar control: sede → frecuencia y turno → hora;
+   asignar curso: curso → a quién → fecha). Cada paso es **una pregunta** («¿A quién invitas?»), con
+   «Paso N de M» y barra de avance arriba (anunciados al lector de pantalla), «Cancelar» en el primer paso y
+   «Atrás» en los demás, «Siguiente» deshabilitado con una línea que dice qué falta, y la acción final
+   («Enviar invitación») en el último paso, que muestra un resumen. Si el servidor devuelve un error, el
+   formulario vuelve al primer paso con problema. Un paso que no aplica (sedes de un administrador) no se
+   muestra. Los formularios cortos (una sección) siguen en una sola página.
+
 ## 5. Detalle
 
 Patrón `ListDetail` (junto a la lista) o a pantalla completa. Anatomía (`BpmDetailPane`):

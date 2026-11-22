@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
@@ -15,6 +16,7 @@ import androidx.compose.ui.semantics.semantics
 import pe.bpm.core.presentation.ShareResult
 import pe.bpm.core.presentation.rememberTextSharer
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -108,14 +110,27 @@ private fun statusLine(invitation: Invitation) = when (invitation.status) {
 }
 
 @Composable private fun InviteFormCard(form: InviteForm, state: InvitationsState, viewModel: InvitationsViewModel) {
-    BpmFormLayout(actions = { BpmFormActions("Enviar invitación", viewModel::submit, busy = state.busy, busyLabel = "Enviando…", onCancel = viewModel::cancelForm) }) {
-        BpmSection("Invitar por correo",
-            description = "La persona recibirá un enlace válido por 7 días. Debe iniciar sesión con ese mismo correo, ya verificado, para aceptarlo.") {
+    // Formulario por pasos (specs/LAYOUT.md §4.7): una decisión por paso; «Sedes» solo aparece si el rol las necesita.
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(form.fields) {
+        BpmStepFormRules.firstStepWithError(listOf("email" in form.fields, "role" in form.fields, "locationIds" in form.fields))?.let { step = it }
+    }
+    val steps = buildList {
+        add(BpmFormStep("¿A quién invitas?",
+            description = "La persona recibirá un enlace válido por 7 días. Debe iniciar sesión con ese mismo correo, ya verificado, para aceptarlo.",
+            canContinue = form.email.isNotBlank(), blockedHint = "Escribe el correo de la persona para continuar.") {
             BpmTextField(form.email, viewModel::editEmail, "Correo electrónico *", Modifier.fillMaxWidth(), error = form.fields["email"], enabled = !state.busy,
                 inputKind = BpmInputKind.Email, rule = AccountsRules.email)
+        })
+        add(BpmFormStep("¿Qué podrá hacer?", description = "El rol define qué secciones verá en la app.") {
             RolePicker(form.role, !state.busy, viewModel::editRole, form.fields["role"])
-            if (form.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, form.locationIds, !state.busy,
+        })
+        if (form.role.needsLocations) add(BpmFormStep("¿En qué sedes trabajará?", description = "Marca todas las sedes donde trabajará.",
+            canContinue = form.locationIds.isNotEmpty(), blockedHint = "Elige al menos una sede para continuar.") {
+            LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, form.locationIds, !state.busy,
                 viewModel::toggleLocation, form.fields["locationIds"])
-        }
+        })
     }
+    BpmStepForm(steps, step, { step = it }, submitLabel = "Enviar invitación", onSubmit = viewModel::submit,
+        busy = state.busy, busyLabel = "Enviando…", onCancel = viewModel::cancelForm)
 }

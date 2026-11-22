@@ -8,6 +8,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
@@ -94,16 +98,23 @@ private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssig
 private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentForm, viewModel: TrainingAssignmentAdminViewModel, memberSelector: TargetSelector, locationSelector: TargetSelector) {
     val issues = if (form.showIssues) AssignmentFormRules.issues(form, Clock.System.now()) else emptyMap()
     val enabled = !state.saving
-    BpmFormLayout(actions = { BpmFormActions("Crear asignación", viewModel::create, busy = state.saving, onCancel = viewModel::cancelCreate) }) {
-        Text("Asignar un curso", style = MaterialTheme.typography.titleLarge)
-        BpmSection("Curso publicado") {
+    // Formulario por pasos (specs/LAYOUT.md §4.7); para avanzar se usan las mismas reglas de dominio que al crear.
+    val pending = AssignmentFormRules.issues(form, Clock.System.now())
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(form.showIssues, issues.keys) {
+        BpmStepFormRules.firstStepWithError(listOf("course" in issues, "target" in issues, "dueDate" in issues))?.let { step = it }
+    }
+    val steps = listOf(
+        BpmFormStep("¿Qué curso asignas?", description = "Solo se pueden asignar cursos publicados.",
+            canContinue = "course" !in pending, blockedHint = "Elige un curso para continuar.") {
             if (state.publishedCourses.isEmpty()) Text("No hay cursos publicados para asignar.")
             state.publishedCourses.forEach { course ->
                 BpmChoiceRow("${course.code} · ${course.title}", form.courseId == course.id, enabled) { viewModel.edit { it.copy(courseId = course.id, courseTitle = course.title) } }
             }
             issues["course"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
-        BpmSection("¿A quién?") {
+        },
+        BpmFormStep("¿A quién se asigna?", description = "A una persona, a todo un rol o a quienes trabajan en una sede.",
+            canContinue = "target" !in pending, blockedHint = "Elige a quién se asigna para continuar.") {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BpmFilterChip(form.kind == TargetKind.USER, { viewModel.edit { it.copy(kind = TargetKind.USER) } }, { Text("Una persona") }, enabled = enabled)
                 BpmFilterChip(form.kind == TargetKind.ROLE, { viewModel.edit { it.copy(kind = TargetKind.ROLE) } }, { Text("Un rol") }, enabled = enabled)
@@ -120,11 +131,26 @@ private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentFor
                 }
             }
             issues["target"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        },
+        BpmFormStep("¿Hasta cuándo?", description = "Revisa el resumen. La fecha límite es opcional.") {
+            BpmDetailFields(listOf(BpmDetailField("Curso", form.courseTitle), BpmDetailField("Para", targetSummary(form))))
             BpmTextField(form.dueDate, { v -> viewModel.edit { it.copy(dueDate = v.filter { c -> c.isDigit() || c == '-' }.take(10)) } }, "Fecha límite (AAAA-MM-DD, opcional)",
                 error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (hora universal).")
-        }
-        Failure(state.formFailure)
-    }
+        },
+    )
+    BpmStepForm(steps, step, { step = it }, submitLabel = "Crear asignación", onSubmit = viewModel::create,
+        busy = state.saving, onCancel = viewModel::cancelCreate,
+        header = {
+            Text("Asignar un curso", style = MaterialTheme.typography.titleLarge)
+            Failure(state.formFailure)
+        })
+}
+
+/** Resumen legible del destinatario de una asignación. */
+private fun targetSummary(form: AssignmentForm): String = when (form.kind) {
+    TargetKind.USER -> form.userName.ifBlank { "Una persona" }
+    TargetKind.LOCATION -> "Sede ${form.locationName}".trim()
+    TargetKind.ROLE -> roleName(form.role) + if (form.locationId != null) " · ${form.locationName}" else " · todas las sedes"
 }
 
 // ---- Insignias -------------------------------------------------------------------------------

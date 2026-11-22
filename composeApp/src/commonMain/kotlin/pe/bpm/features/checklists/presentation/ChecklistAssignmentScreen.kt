@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -216,6 +217,7 @@ fun ChecklistAssignmentFormScreen(
     onDiscard: () -> Unit,
 ) {
     var discarding by remember(state.input?.id) { mutableStateOf(false) }
+    var step by rememberSaveable(state.input?.id) { mutableIntStateOf(0) }
     val input = state.input
     val navigation = rememberBpmFormNavigation(listOf("dueTime"))
     Column(
@@ -241,87 +243,104 @@ fun ChecklistAssignmentFormScreen(
             return@Column
         }
         Text(template.name, style = MaterialTheme.typography.titleLarge)
-        Text("El chef de la sede verá este control en su sección Control.")
         DraftSaveNotice(state.localStatus, onProtect)
         if (state.pending)
             Text(
                 "Hay una programación pendiente de confirmar. Comprueba su resultado antes de cambiar los datos."
             )
-        Text("¿En qué sede se realizará?", style = BpmType.bodyStrong)
-        ChecklistLocationSelector(
-            locations,
-            input.locationId,
-            state.locationName,
-            query,
-            page,
-            loadingLocations,
-            failedLocations,
-            previous,
-            next,
-            state.editable,
-            onSearch,
-            onPrevious,
-            onNext,
-            onRetryLocations,
-            { onLocation(it.id, it.name) },
-        )
-        state.fields["locationId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Text("¿Cuándo se repetirá?", style = BpmType.bodyStrong)
-        Column(Modifier.selectableGroup()) {
-            ChecklistFrequency.entries.forEach { frequency ->
-                BpmChoiceRow(
-                    frequencyLabel(frequency),
-                    input.frequency == frequency,
+        // Formulario por pasos (specs/LAYOUT.md §4.7): sede → frecuencia y turno → hora y confirmación.
+        LaunchedEffect(state.fields) {
+            BpmStepFormRules.firstStepWithError(listOf("locationId" in state.fields,
+                "frequency" in state.fields || "shiftId" in state.fields, "dueTime" in state.fields))?.let { step = it }
+        }
+        BpmStepForm(
+            listOf(
+                BpmFormStep("¿En qué sede se realizará?", description = "El chef de la sede verá este control en su sección Control.",
+                    canContinue = input.locationId.isNotEmpty(), blockedHint = "Elige una sede para continuar.") {
+                ChecklistLocationSelector(
+                    locations,
+                    input.locationId,
+                    state.locationName,
+                    query,
+                    page,
+                    loadingLocations,
+                    failedLocations,
+                    previous,
+                    next,
                     state.editable,
-                ) {
-                    onFrequency(frequency)
-                }
-                if (input.frequency == frequency)
-                    Text(
-                        frequencyExplanation(frequency),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-            }
-        }
-        state.fields["frequency"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (input.frequency == ChecklistFrequency.DAILY && input.locationId.isNotEmpty()) {
-            Text("¿Para un turno específico?", style = BpmType.bodyStrong)
-            when {
-                shiftsLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                shiftsFailed -> Text("No pudimos cargar los turnos de la sede. Vuelve a elegir la sede para reintentar.", color = MaterialTheme.colorScheme.error)
-                else -> Column(Modifier.selectableGroup()) {
-                    BpmChoiceRow("Todo el día (sin turno)", input.shiftId == null, state.editable) { onShift(null) }
-                    shifts.forEach { shift ->
+                    onSearch,
+                    onPrevious,
+                    onNext,
+                    onRetryLocations,
+                    { onLocation(it.id, it.name) },
+                )
+                state.fields["locationId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                },
+                BpmFormStep("¿Cuándo se repetirá?", canContinue = input.frequency != null, blockedHint = "Elige cada cuánto se repetirá para continuar.") {
+                Column(Modifier.selectableGroup()) {
+                    ChecklistFrequency.entries.forEach { frequency ->
                         BpmChoiceRow(
-                            "${shift.name} (${shift.startTime}-${shift.endTime})",
-                            input.shiftId == shift.id,
+                            frequencyLabel(frequency),
+                            input.frequency == frequency,
                             state.editable,
-                            supportingText = if (shift.openNow) "Abierto ahora" else null,
-                        ) { onShift(shift.id) }
+                        ) {
+                            onFrequency(frequency)
+                        }
+                        if (input.frequency == frequency)
+                            Text(
+                                frequencyExplanation(frequency),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                     }
-                    if (shifts.isEmpty()) Text("La sede no tiene turnos activos; la programación será de día completo.", style = MaterialTheme.typography.bodySmall)
                 }
-            }
-            Text("Con un turno, la revisión solo puede iniciarse mientras el turno está abierto, y cada turno tiene su propia revisión del día.", style = MaterialTheme.typography.bodySmall)
-            state.fields["shiftId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
-        if (input.shiftId == null) BpmTextField(
-            input.dueTime,
-            onTime,
-            "Hora de referencia (opcional)",
-            enabled = state.editable,
-            error = state.fields["dueTime"],
-            rule = AssignmentInputRules.time,
-            placeholder = "08:30",
-            supportingText = "Formato de 24 horas, en la zona horaria de la sede.",
-            navigation = navigation["dueTime"],
-        )
-        BpmFormActions(
-            if (state.pending) "Comprobar programación" else "Confirmar programación",
-            onSave,
-            enabled = state.saved == null && state.localStatus != DraftSaveStatus.FAILED,
+                state.fields["frequency"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (input.frequency == ChecklistFrequency.DAILY && input.locationId.isNotEmpty()) {
+                    Text("¿Para un turno específico?", style = BpmType.bodyStrong)
+                    when {
+                        shiftsLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                        shiftsFailed -> Text("No pudimos cargar los turnos de la sede. Vuelve a elegir la sede para reintentar.", color = MaterialTheme.colorScheme.error)
+                        else -> Column(Modifier.selectableGroup()) {
+                            BpmChoiceRow("Todo el día (sin turno)", input.shiftId == null, state.editable) { onShift(null) }
+                            shifts.forEach { shift ->
+                                BpmChoiceRow(
+                                    "${shift.name} (${shift.startTime}-${shift.endTime})",
+                                    input.shiftId == shift.id,
+                                    state.editable,
+                                    supportingText = if (shift.openNow) "Abierto ahora" else null,
+                                ) { onShift(shift.id) }
+                            }
+                            if (shifts.isEmpty()) Text("La sede no tiene turnos activos; la programación será de día completo.", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Text("Con un turno, la revisión solo puede iniciarse mientras el turno está abierto, y cada turno tiene su propia revisión del día.", style = MaterialTheme.typography.bodySmall)
+                    state.fields["shiftId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+                },
+                BpmFormStep("¿A qué hora?", description = "Revisa la programación antes de confirmarla.") {
+                    BpmDetailFields(listOf(
+                        BpmDetailField("Plantilla", template.name),
+                        BpmDetailField("Sede", state.locationName),
+                        BpmDetailField("Frecuencia", input.frequency?.let(::frequencyLabel)),
+                    ))
+                if (input.shiftId == null) BpmTextField(
+                    input.dueTime,
+                    onTime,
+                    "Hora de referencia (opcional)",
+                    enabled = state.editable,
+                    error = state.fields["dueTime"],
+                    rule = AssignmentInputRules.time,
+                    placeholder = "08:30",
+                    supportingText = "Formato de 24 horas, en la zona horaria de la sede.",
+                    navigation = navigation["dueTime"],
+                )
+                },
+            ),
+            step, { step = it },
+            submitLabel = if (state.pending) "Comprobar programación" else "Confirmar programación",
+            onSubmit = onSave,
             busy = state.busy,
             busyLabel = "Confirmando…",
+            submitEnabled = state.saved == null && state.localStatus != DraftSaveStatus.FAILED,
         )
         if (!state.pending) {
             if (discarding) DiscardDraftConfirmation(onKeep = { discarding = false }, onDiscard = onDiscard, enabled = !state.busy)
