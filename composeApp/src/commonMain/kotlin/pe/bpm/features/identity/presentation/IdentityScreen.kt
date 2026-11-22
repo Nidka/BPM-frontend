@@ -99,15 +99,12 @@ fun IdentityScreen(
                 Text("Al volver a entrar con tu misma cuenta podrás recuperar los borradores conservados en este dispositivo.", style = MaterialTheme.typography.bodySmall)
             }
             if (profile == null && state.mode in listOf(AuthMode.Login, AuthMode.Register)) {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium).padding(4.dp)) {
-                    listOf(AuthMode.Login to "Entrar", AuthMode.Register to "Crear cuenta").forEach { (mode, label) ->
-                        Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.small,
-                            color = if (state.mode == mode) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.outlineVariant,
-                            shadowElevation = if (state.mode == mode) 2.dp else 0.dp) {
-                            BpmTextButton(onClick = { changeMode(mode) }, enabled = !state.busy) { Text(label, style = BpmType.bodyStrong) }
-                        }
-                    }
-                }
+                // Mismo selector segmentado que el resto de la app; no se cambia de modo mientras hay una petición en curso.
+                BpmSegmentedTabs(
+                    options = listOf(BpmTabOption(AuthMode.Login.name, "Entrar"), BpmTabOption(AuthMode.Register.name, "Crear cuenta")),
+                    selectedId = state.mode.name,
+                    onSelect = { if (!state.busy) changeMode(AuthMode.valueOf(it)) },
+                )
             }
             Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -145,7 +142,7 @@ fun IdentityScreen(
                                     rule = InputRule { if (it == password) null else "Las contraseñas no coinciden." },
                                     autofillType = ContentType.NewPassword, navigation = navigation["confirmation"])
                             }
-                            BpmTextButton(onClick = { visible = !visible }, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
+                            AuthLink(onClick = { visible = !visible }, enabled = !state.busy) {
                                 Text(if (visible) "Ocultar contraseña" else "Mostrar contraseña")
                             }
                         }
@@ -188,13 +185,13 @@ fun IdentityScreen(
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.mode == AuthMode.Verification && needsVerificationEmail)
-                            BpmTextButton(onClick = onConfirmEmail, enabled = !state.busy) { Text(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo") }
+                            AuthLink(onClick = onConfirmEmail, enabled = !state.busy) { Text(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo") }
                         if (state.mode == AuthMode.Register && state.errors.any { it.code == "REGISTRATION_REJECTED" }) {
                             BpmSecondaryButton(onClick = { changeMode(AuthMode.Login) }, modifier = Modifier.fillMaxWidth()) { Text("Ir a iniciar sesión") }
-                            BpmTextButton(onClick = { changeMode(AuthMode.Recovery) }) { Text("Recuperar contraseña") }
+                            AuthLink(onClick = { changeMode(AuthMode.Recovery) }) { Text("Recuperar contraseña") }
                         }
-                        if (state.mode == AuthMode.Login) BpmTextButton(onClick = { changeMode(AuthMode.Recovery) }, enabled = !state.busy) { Text("¿Olvidaste tu contraseña?") }
-                        if (state.mode in listOf(AuthMode.Recovery, AuthMode.Verification)) BpmTextButton(onClick = { changeMode(AuthMode.Login) }, enabled = !state.busy) { Text("Volver a iniciar sesión") }
+                        if (state.mode == AuthMode.Login) AuthLink(onClick = { changeMode(AuthMode.Recovery) }, enabled = !state.busy) { Text("¿Olvidaste tu contraseña?") }
+                        if (state.mode in listOf(AuthMode.Recovery, AuthMode.Verification)) AuthLink(onClick = { changeMode(AuthMode.Login) }, enabled = !state.busy) { Text("Volver a iniciar sesión") }
                     }
                 }
             }
@@ -222,4 +219,10 @@ private fun AuthField(value: String, onValue: (String) -> Unit, label: String, e
 @Composable
 private fun AuthButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     RaisedButton(label, onClick, modifier = Modifier.fillMaxWidth(), enabled = enabled)
+}
+
+/** Enlace de texto del formulario: sin relleno lateral para que su borde coincida con el de los campos y botones de la tarjeta. */
+@Composable
+private fun AuthLink(onClick: () -> Unit, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) {
+    BpmTextButton(onClick = onClick, enabled = enabled, contentPadding = PaddingValues(0.dp), content = content)
 }

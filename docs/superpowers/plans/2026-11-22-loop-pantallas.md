@@ -49,7 +49,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 
 | # | Pantallas (rutas) | Estado |
 |---|---|---|
-| 1 | Acceso: Ingreso `acceso`, Conexión `conexion`, Verificar constancia `verificar/{codigo}`, Elegir organización `organizaciones`, Aceptar invitación `cuenta/invitacion` | pendiente |
+| 1 | Acceso: Ingreso `acceso`, Conexión `conexion`, Verificar constancia `verificar/{codigo}`, Elegir organización `organizaciones`, Aceptar invitación `cuenta/invitacion` | hecha |
 | 2 | Inicio `inicio` (panel e indicadores) | pendiente |
 | 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | pendiente |
 | 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | pendiente |
@@ -83,4 +83,15 @@ _Vacío._
 
 ## Registro de ejecución
 
-_Sin iteraciones todavía._
+
+### Iteración 1: Acceso (22/11/2026)
+
+- **Capturas:** `docs/diseno-loop/1/antes` y `despues` (hojas de 390/768/1280). Se añadió `AccessScreens.kt` al arnés (ingreso en 5 modos, conexión en 2 estados, verificación de constancia válida/inválida, selector de organización, aceptar invitación) y el filtro `BPM_SCREENSHOTS_ONLY=prefijo1,prefijo2` (con `--rerun` en Gradle para que no salte la prueba por caché).
+- **Hallazgos y cambios:**
+  - Ingreso (`IdentityScreen.kt`): el selector «Entrar / Crear cuenta» era una copia manual de `BpmSegmentedTabs` → ahora usa el componente del sistema (48 dp, `Role.Tab`); no cambia de modo con una petición en curso.
+  - Ingreso: «¿Olvidaste tu contraseña?», «Volver a iniciar sesión», «Recuperar contraseña» y «Ya confirmé mi correo» quedaban sangrados 12 dp respecto a los campos y a «Mostrar contraseña» → `AuthLink` (enlace con relleno lateral 0, 48 dp de alto) para todos.
+  - Verificar constancia (`CertificateVerificationScreen.kt`): los cuatro datos de la constancia estaban a la misma distancia que el título y el código → agrupados con 4 dp entre líneas.
+  - Sin cambios: conexión, selector de organización e invitación cumplen la lista (un título, margen único, botones de talla correcta, texto ≥ 14 sp).
+- **Falsos positivos descartados:** «0.9 %» en la constancia era mi fixture (la app usa escala 0–100); el alto de 3600 px del ingreso a 1280 es de la captura «completa», no de la pantalla.
+- **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde; 33 capturas sin fallos.
+- **Para decidir (no tocado):** `PageNavigation` (Anterior/Siguiente) mide 44 dp y convive con botones de 52 dp en la misma tarjeta del selector de organización; es un componente compartido, se revisa en la pasada transversal (iteración 14).

@@ -268,12 +268,13 @@ class WorkerScreenshots {
         // Sin la propiedad (corrida normal de jvmTest) no hace nada: solo se activa al pedirlo por nombre.
         val dir = System.getProperty("bpm.screenshots.dir")?.let(::File) ?: return
         dir.mkdirs()
-        dir.listFiles { f -> f.extension == "png" || f.name == "_report.txt" }?.forEach { it.delete() }
+        // Con BPM_SCREENSHOTS_ONLY solo se regeneran las pedidas y se conservan las demás capturas.
+        if (System.getenv("BPM_SCREENSHOTS_ONLY").isNullOrBlank()) dir.listFiles { f -> f.extension == "png" || f.name == "_report.txt" }?.forEach { it.delete() }
         Dispatchers.setMain(Dispatchers.Unconfined)
         val report = StringBuilder()
         val failures = mutableListOf<String>()
         try {
-            for (spec in workerScreens) {
+            for (spec in selectedScreens()) {
                 val sheetImages = mutableListOf<Pair<String, BufferedImage>>()
                 for (size in ScreenshotSizes) {
                     try {
@@ -304,4 +305,11 @@ class WorkerScreenshots {
         }
         assertTrue(failures.isEmpty(), "Capturas con error:\n" + failures.joinToString("\n"))
     }
+}
+
+/** Todas las pantallas, o solo las que empiezan por alguno de los prefijos de `BPM_SCREENSHOTS_ONLY` (separados por comas). */
+private fun selectedScreens(): List<ScreenSpec> {
+    val prefixes = System.getenv("BPM_SCREENSHOTS_ONLY")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+    val all = workerScreens + accessScreens
+    return if (prefixes.isEmpty()) all else all.filter { spec -> prefixes.any { spec.name.startsWith(it) } }
 }
