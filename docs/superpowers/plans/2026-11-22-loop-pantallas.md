@@ -50,7 +50,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 | # | Pantallas (rutas) | Estado |
 |---|---|---|
 | 1 | Acceso: Ingreso `acceso`, Conexión `conexion`, Verificar constancia `verificar/{codigo}`, Elegir organización `organizaciones`, Aceptar invitación `cuenta/invitacion` | hecha |
-| 2 | Inicio `inicio` (panel e indicadores) | pendiente |
+| 2 | Inicio `inicio` (panel e indicadores) | hecha |
 | 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | pendiente |
 | 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | pendiente |
 | 5 | Aprender `aprender`, Curso / lección `aprender/{courseId}`, Logros, Rutas | pendiente |
@@ -79,7 +79,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 
 ## Para decidir (el loop no lo decide solo)
 
-_Vacío._
+- Inicio de ADMIN y CHEF (iteración 2): el panel suma dos rejillas de tarjetas con columnas distintas (indicadores de cumplimiento en 4 columnas y «Sedes / Cursos / Controles» en 3), más la tarjeta de bienvenida «Capacitación y buenas prácticas» y «Estado de tu espacio». Los conteos «Sedes / Cursos / Controles» no aparecen en otro lugar; quitar o fusionar estos bloques es una decisión de producto, no de espaciado. Decidir si se mantienen.
 
 ## Registro de ejecución
 
@@ -95,3 +95,13 @@ _Vacío._
 - **Falsos positivos descartados:** «0.9 %» en la constancia era mi fixture (la app usa escala 0–100); el alto de 3600 px del ingreso a 1280 es de la captura «completa», no de la pantalla.
 - **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde; 33 capturas sin fallos.
 - **Para decidir (no tocado):** `PageNavigation` (Anterior/Siguiente) mide 44 dp y convive con botones de 52 dp en la misma tarjeta del selector de organización; es un componente compartido, se revisa en la pasada transversal (iteración 14).
+
+### Iteración 2: Inicio (22/11/2026)
+
+- **Capturas:** `docs/diseno-loop/2/antes` (ADMIN, CHEF y WORKER «Hoy») y `despues` (ADMIN y CHEF). Se parametrizó el `Shell` del arnés por rol (`role`) y se añadió `HomeScreens.kt` (`inicio-admin` con indicadores y controles de hoy, `inicio-chef` sin bloque de capacitación). Se corre con `BPM_SCREENSHOTS_ONLY=inicio,hoy`.
+- **Hallazgos y cambios:**
+  - `ChecklistAssignmentScreen.kt`: en cada tarjeta de «Controles de hoy» el título, la sede, la frecuencia, la hora, el estado y el botón iban a la misma distancia, sin agrupar → los datos descriptivos van agrupados con 4 dp entre líneas (`bpm-spacing §1.3`). El cambio alcanza también a «Controles de tus sedes» y a la lista de programaciones, que usan la misma tarjeta: se revisarán en las iteraciones 8 y 10.
+  - Inicio WORKER («Hoy»): cumple la lista (un título, tarjeta destacada única, filas planas, chips de estado, acción secundaria al pie); sin cambios.
+  - Indicadores (`DashboardPanel`): filas con tarjetas del mismo alto, texto ≥ 14 sp; sin cambios. En 390 dp el séptimo indicador queda solo en su fila (siete tarjetas en dos columnas): se acepta.
+- **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde; 6 capturas nuevas sin fallos.
+- **Para decidir:** ver arriba (Inicio de ADMIN y CHEF).

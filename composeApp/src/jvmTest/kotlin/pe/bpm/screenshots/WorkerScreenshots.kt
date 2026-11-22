@@ -117,7 +117,7 @@ private fun courseScreen(navigatorOpen: Boolean = false, drive: (TrainingViewMod
 
 /** El shell real del WORKER con los mismos parámetros que `App.kt`; cada pantalla aporta su contenido. */
 @Composable
-private fun Shell(
+internal fun Shell(
     section: WorkspaceDestination,
     homeContent: (@Composable () -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
@@ -128,10 +128,11 @@ private fun Shell(
     secondaryWideOnExpanded: Boolean = false,
     focusMode: Boolean = false,
     focusTitle: String? = null,
+    role: String = "WORKER",
 ) {
     WorkspaceScreen(
         viewer = WorkspaceViewer(F.USER, F.DISPLAY_NAME, "lucia.quispe@cocinaandina.pe", false),
-        state = workspaceState, section = section, onNavigate = {},
+        state = if (role == "WORKER") workspaceState else workspaceState.copy(workspace = F.workspace.copy(role = role)), section = section, onNavigate = {},
         onVerifySession = {}, sessionBusy = false, sessionMessage = null, sessionConfirmation = null,
         onSelect = {}, onRefresh = {}, onClear = {}, onLogout = {},
         formDraft = WorkspaceFormState(), onSubmitForm = {}, onFormRetryAccount = {}, onFormSelectAccount = {}, onFormEdit = {},
@@ -310,6 +311,6 @@ class WorkerScreenshots {
 /** Todas las pantallas, o solo las que empiezan por alguno de los prefijos de `BPM_SCREENSHOTS_ONLY` (separados por comas). */
 private fun selectedScreens(): List<ScreenSpec> {
     val prefixes = System.getenv("BPM_SCREENSHOTS_ONLY")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
-    val all = workerScreens + accessScreens
+    val all = workerScreens + accessScreens + homeScreens
     return if (prefixes.isEmpty()) all else all.filter { spec -> prefixes.any { spec.name.startsWith(it) } }
 }
