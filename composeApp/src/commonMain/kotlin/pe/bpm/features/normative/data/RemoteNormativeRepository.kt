@@ -2,7 +2,6 @@ package pe.bpm.features.normative.data
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
@@ -22,9 +21,8 @@ import pe.bpm.features.normative.domain.*
 @Serializable internal data class Envelope<T>(val data: T)
 @Serializable internal data class ErrorItem(val code: String = "", val fields: Map<String, String> = emptyMap())
 @Serializable internal data class ErrorsEnvelope(val errors: List<ErrorItem> = emptyList())
-@Serializable internal data class StatusDto(val enabled: Boolean, val documents: Int, val questionsPerHour: Int = 20)
-@Serializable internal data class CitationDto(val documentId: String = "", val documentTitle: String, val citedText: String)
-@Serializable internal data class AnswerDto(val answer: String, val citations: List<CitationDto>, val supported: Boolean)
+@Serializable internal data class StatusDto(val documents: Int)
+@Serializable internal data class MatchDto(val documentId: String, val documentTitle: String, val documentSource: String = "", val text: String)
 @Serializable internal data class DocumentDto(
     val id: String, val title: String, val source: String = "", val status: String, val characters: Int,
     val createdAt: String = "", val updatedAt: String, val content: String = "",
@@ -35,10 +33,7 @@ import pe.bpm.features.normative.domain.*
     }
 }
 
-/**
- * Adaptador Ktor del agente normativo. No registra preguntas, respuestas ni tokens. La consulta espera hasta
- * dos minutos: el servidor envía toda la normativa activa al modelo.
- */
+/** Adaptador Ktor del buscador de normativa. No registra búsquedas ni tokens. */
 class RemoteNormativeRepository(
     private val client: HttpClient,
     private val config: AppConfig,
@@ -49,19 +44,17 @@ class RemoteNormativeRepository(
 
     override suspend fun status(): NormativeResult<NormativeStatus> = guarded {
         val dto = request("status").body<Envelope<StatusDto>>().data
-        require(dto.documents >= 0 && dto.questionsPerHour > 0)
-        NormativeStatus(dto.enabled, dto.documents, dto.questionsPerHour)
+        require(dto.documents >= 0)
+        NormativeStatus(dto.documents)
     }.let { result ->
-        // Un servidor anterior a V17 no tiene la ruta: equivale a un asistente no activado.
-        if (result is NormativeResult.Failure && result.reason == NormativeFailure.NOT_FOUND) NormativeResult.Success(NormativeStatus(false, 0, 20)) else result
+        // Un servidor anterior a V17 no tiene la ruta: el buscador aún no está disponible.
+        if (result is NormativeResult.Failure && result.reason == NormativeFailure.NOT_FOUND) NormativeResult.Success(NormativeStatus(0, available = false)) else result
     }
 
-    override suspend fun ask(question: String): NormativeResult<NormativeAnswer> = guarded {
-        val body = buildJsonObject { put("question", question.trim()) }
-        val dto = request("questions", HttpMethod.Post, body) {
-            timeout { requestTimeoutMillis = 130_000L; socketTimeoutMillis = 130_000L }
-        }.body<Envelope<AnswerDto>>().data
-        NormativeAnswer(question.trim(), dto.answer, dto.citations.map { NormativeCitation(it.documentTitle, it.citedText) }, dto.supported)
+    override suspend fun search(query: String): NormativeResult<List<NormativeMatch>> = guarded {
+        val items = request("search", query = listOf("q" to query.trim())).body<Envelope<List<MatchDto>>>().data
+        require(items.size <= 50)
+        items.map { NormativeMatch(uuid(it.documentId), it.documentTitle, it.documentSource, it.text) }
     }
 
     override suspend fun documents(archived: Boolean): NormativeResult<List<NormativeDocument>> = guarded {
@@ -91,7 +84,7 @@ class RemoteNormativeRepository(
 
     private suspend fun request(
         resource: String, verb: HttpMethod = HttpMethod.Get, body: JsonObject? = null,
-        query: List<Pair<String, String>> = emptyList(), configure: HttpRequestBuilder.() -> Unit = {},
+        query: List<Pair<String, String>> = emptyList(),
     ): HttpResponse {
         val access = token()?.takeIf { it.isNotBlank() } ?: throw TransportFailure(NormativeFailure.SESSION)
         currentCoroutineContext().ensureActive()
@@ -100,30 +93,25 @@ class RemoteNormativeRepository(
             bearerAuth(access)
             query.forEach { (name, value) -> parameter(name, value) }
             if (body != null) { contentType(ContentType.Application.Json); setBody(body) }
-            configure()
         }
         onSessionResponse(response)
         currentCoroutineContext().ensureActive()
         if (!response.status.isSuccess()) {
             if (response.status.value == 401) onSessionRejected(access)
-            val error = if (response.status.value in setOf(404, 409, 422, 429, 503))
+            val error = if (response.status.value in setOf(404, 422))
                 try { response.body<ErrorsEnvelope>().errors.firstOrNull() } catch (c: CancellationException) { throw c } catch (_: Exception) { null } else null
-            throw TransportFailure(failureFor(response.status.value, error?.code.orEmpty()), error?.fields.orEmpty().filterKeys { it in setOf("title", "source", "content", "question") })
+            throw TransportFailure(failureFor(response.status.value), error?.fields.orEmpty().filterKeys { it in setOf("title", "source", "content", "q") })
         }
         return response
     }
 }
 
-/** Traduce estado HTTP y código público a un motivo. */
-internal fun failureFor(status: Int, code: String): NormativeFailure = when (status) {
+/** Traduce estado HTTP a un motivo público. */
+internal fun failureFor(status: Int): NormativeFailure = when (status) {
     401 -> NormativeFailure.SESSION
     403 -> NormativeFailure.DENIED
     404 -> NormativeFailure.NOT_FOUND
-    409 -> if (code == "NORMATIVE_NO_DOCUMENTS") NormativeFailure.NO_DOCUMENTS else NormativeFailure.INVALID
-    422 -> if (code == "NORMATIVE_TOO_LARGE") NormativeFailure.TOO_LARGE else NormativeFailure.INVALID
-    429 -> NormativeFailure.RATE_LIMITED
-    503 -> if (code == "NORMATIVE_ASSISTANT_DISABLED") NormativeFailure.DISABLED else NormativeFailure.UNAVAILABLE
-    400 -> NormativeFailure.INVALID
+    400, 422 -> NormativeFailure.INVALID
     else -> NormativeFailure.UNAVAILABLE
 }
 

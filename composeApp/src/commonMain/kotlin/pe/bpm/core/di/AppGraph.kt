@@ -331,7 +331,7 @@ class AppGraph(
     private val normativeRepository = pe.bpm.features.normative.data.RemoteNormativeRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
-    /** Agente normativo (RF-46/47): consulta para todos y gestión de documentos para el administrador general. */
+    /** Buscador de normativa (RF-46/47): búsqueda para todos y gestión de documentos para el administrador general. */
     fun normativeViewModel() = pe.bpm.features.normative.presentation.NormativeViewModel(pe.bpm.features.normative.domain.NormativeUseCases(normativeRepository))
     private val webhookRepository = pe.bpm.features.webhooks.data.RemoteWebhookRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,

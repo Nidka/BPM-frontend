@@ -20,24 +20,24 @@ async function invoke(proxy, path, { method = 'GET', body, raw, requestHeaders =
 }
 
 test('normativa: rutas cerradas', () => {
-  for (const p of ['status', 'questions', 'documents', `documents/${id}`, `documents/${id}/archive`, `documents/${id}/restore`]) assert.equal(normativeRoute('/backend/api/v1/normative/' + p), true, p);
-  for (const p of ['questions/1', `status/${id}`, 'documents/x', `documents/${id}/delete`, 'export']) assert.equal(normativeRoute('/backend/api/v1/normative/' + p), false, p);
+  for (const p of ['status', 'search', 'documents', `documents/${id}`, `documents/${id}/archive`, `documents/${id}/restore`]) assert.equal(normativeRoute('/backend/api/v1/normative/' + p), true, p);
+  for (const p of ['questions', 'search/1', `status/${id}`, 'documents/x', `documents/${id}/delete`, 'export']) assert.equal(normativeRoute('/backend/api/v1/normative/' + p), false, p);
 });
 
-test('normativa: la consulta valida la pregunta, espera al modelo y proyecta citas', async () => {
-  const ok = await invoke(proxyNormative, '/backend/api/v1/normative/questions', { method: 'POST', body: { question: '¿Temperatura de refrigeración?' },
-    payload: { data: { answer: 'Entre 0 y 4 °C.', supported: true, citations: [{ documentId: id, documentTitle: 'NTS 142', citedText: 'de 0 °C a 4 °C', secret: 'x' }] } } });
-  assert.equal(ok.status, 200); assert.equal(ok.body.data.citations[0].documentTitle, 'NTS 142'); assert.equal(JSON.stringify(ok.body).includes('secret'), false);
-  assert.equal(JSON.parse(ok.calls[0].body).question, '¿Temperatura de refrigeración?');
-  for (const body of [{ question: 'a' }, { question: 'x'.repeat(1001) }, { question: 'válida', extra: 1 }])
-    assert.equal((await invoke(proxyNormative, '/backend/api/v1/normative/questions', { method: 'POST', body })).status, 400);
-  const duplicated = await invoke(proxyNormative, '/backend/api/v1/normative/questions', { method: 'POST', raw: '{"question":"uno dos","question":"tres"}' });
-  assert.equal(duplicated.status, 400); assert.equal(duplicated.calls.length, 0);
+test('normativa: la búsqueda valida q, la reenvía codificada y proyecta los párrafos', async () => {
+  const ok = await invoke(proxyNormative, '/backend/api/v1/normative/search?q=' + encodeURIComponent('temperatura refrigeración'),
+    { payload: { data: [{ documentId: id, documentTitle: 'NTS 142', documentSource: 'RM 822', text: 'de 0 °C a 4 °C', secret: 'x' }] } });
+  assert.equal(ok.status, 200); assert.equal(ok.body.data[0].text, 'de 0 °C a 4 °C'); assert.equal(JSON.stringify(ok.body).includes('secret'), false);
+  assert.ok(ok.calls[0].url.endsWith('/api/v1/normative/search?q=' + encodeURIComponent('temperatura refrigeración')));
+  for (const path of ['search', 'search?q=a', 'search?q=' + 'x'.repeat(201), 'search?q=pollo&q=res', 'search?q=pollo&extra=1'])
+    { const r = await invoke(proxyNormative, '/backend/api/v1/normative/' + path); assert.equal(r.status, 400, path); assert.equal(r.calls.length, 0); }
+  assert.equal((await invoke(proxyNormative, '/backend/api/v1/normative/search?q=pollo', { method: 'POST', body: {} })).status, 405);
+  assert.equal((await invoke(proxyNormative, '/backend/api/v1/normative/search?q=pollo', { payload: { data: [{ documentId: 'x', documentTitle: 't', text: 'y' }] } })).status, 503);
 });
 
-test('normativa: códigos de dominio pasan y el resto se generaliza', async () => {
-  const disabled = await invoke(proxyNormative, '/backend/api/v1/normative/questions', { method: 'POST', body: { question: 'pregunta' }, status: 503, payload: { errors: [{ code: 'NORMATIVE_ASSISTANT_DISABLED', message: 'x' }] } });
-  assert.equal(disabled.status, 503); assert.equal(disabled.body.errors[0].code, 'NORMATIVE_ASSISTANT_DISABLED');
+test('normativa: estado y errores generalizados', async () => {
+  const status = await invoke(proxyNormative, '/backend/api/v1/normative/status', { payload: { data: { documents: 3, enabled: true } } });
+  assert.deepEqual(status.body.data, { documents: 3 });
   const other = await invoke(proxyNormative, '/backend/api/v1/normative/documents', { status: 403, payload: { errors: [{ code: 'INTERNAL_DETAIL', message: 'x' }] } });
   assert.equal(other.body.errors[0].code, 'ACCESS_DENIED');
 });

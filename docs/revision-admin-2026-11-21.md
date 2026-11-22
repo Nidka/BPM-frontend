@@ -30,7 +30,7 @@ insumos y limpieza, e incidencias.
 | RF-39 Constancia interna | Cumple | Constancias con umbral configurable y verificación pública |
 | RF-40–44 Rutas y evaluaciones | Cumple | Rutas de aprendizaje, evaluación diagnóstica/por módulo/final |
 | **RF-45 Accesibilidad: subtítulos** | **Implementado (pendiente de desplegar V16)** | Subtítulos WebVTT por lección: pista nativa en Android y web, superpuesta en iOS, y transcripción |
-| **RF-46/47 Agente IA normativo** | **Implementado (pendiente de V17 y ANTHROPIC_API_KEY)** | Consulta con Claude solo sobre la normativa que carga el SUPER_ADMIN, con citas; 20 consultas/hora |
+| **RF-46/47 Consultas normativas** | **Implementado como buscador (pendiente de V17)** | Búsqueda en español sin tildes en la normativa que carga el SUPER_ADMIN; sin IA ni costo por consulta (decisión del equipo) |
 | RF-48 Integración n8n | Implementado (pendiente de V18) | Webhooks HTTPS firmados con HMAC por tipo de aviso, gestionados por el ADMIN |
 | RF-49 Tipo de establecimiento | Cumple | Restaurante, cafetín, catering, otro servicio |
 | RF-50 Necesidades detectadas | Cumple | Investigación (SUPER_ADMIN / investigación) |
@@ -58,8 +58,11 @@ Contrato completo: `specs/LAYOUT.md`.
 
 1. **Desplegar el backend en orden:** aplicar V16, V17 y V18 (`scripts/aplicar-migraciones.ps1`), luego desplegar
    la API y el worker, y al final el frontend. El frontend nuevo funciona contra el servidor actual: oculta los
-   subtítulos y muestra la normativa y las automatizaciones como «no activadas» hasta el despliegue.
-2. **Activar el agente normativo:** definir `ANTHROPIC_API_KEY` en la API (y opcionalmente `NORMATIVE_MODEL`) y
-   cargar la normativa (NTS 142, RM 822-2018/MINSA) desde «Consultar normativa → Normativa cargada».
+   subtítulos y muestra el buscador y las automatizaciones como «aún no disponibles» hasta el despliegue.
+2. **Cargar la normativa** (NTS 142, RM 822-2018/MINSA) desde «Buscar en la normativa → Normativa cargada».
 3. **Revisión visual con cuentas reales** por rol a 360, 600, 840, 1000, 1200 y 1600 dp, y reproducción de
    videos con subtítulos en un Android y un iPhone reales.
+4. **Base de datos de producción con `LC_CTYPE` UTF-8** (por ejemplo `en_US.UTF-8`, el valor por defecto en
+   Railway). Con locale `C`, la paginación por nombre de operación diaria pierde registros con tildes; lo detectó la
+   prueba de integración `TestDailyOperationsAllKeysetPagesAndLiteralQueries`.
+

@@ -1,12 +1,12 @@
 package pe.bpm.features.normative.domain
 
-/** Casos de uso del agente normativo: validan la entrada antes de llamar al servidor, que vuelve a validar. */
+/** Casos de uso del buscador de normativa: validan la entrada antes de llamar al servidor, que vuelve a validar. */
 class NormativeUseCases(private val repository: NormativeRepository) {
     suspend fun status() = repository.status()
 
-    suspend fun ask(question: String): NormativeResult<NormativeAnswer> {
-        NormativeRules.questionIssue(question)?.let { return NormativeResult.Failure(NormativeFailure.INVALID, mapOf("question" to it)) }
-        return repository.ask(question)
+    suspend fun search(query: String): NormativeResult<List<NormativeMatch>> {
+        NormativeRules.queryIssue(query)?.let { return NormativeResult.Failure(NormativeFailure.INVALID, mapOf("q" to it)) }
+        return repository.search(query.trim())
     }
 
     suspend fun documents(archived: Boolean) = repository.documents(archived)

@@ -3,6 +3,7 @@ package pe.bpm.features.normative.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,10 +18,11 @@ data class NormativeState(
     val userId: String = "",
     val status: NormativeStatus? = null,
     val loading: Boolean = false,
-    val question: String = "",
-    val asking: Boolean = false,
-    /** Consultas de esta sesión, la más reciente primero. No se guardan en el dispositivo. */
-    val answers: List<NormativeAnswer> = emptyList(),
+    val query: String = "",
+    val searching: Boolean = false,
+    /** Búsqueda cuyos resultados se muestran (null = aún no se busca). */
+    val searchedQuery: String? = null,
+    val results: List<NormativeMatch> = emptyList(),
     val failure: NormativeFailure? = null,
     val fields: Map<String, String> = emptyMap(),
     // Administración (solo SUPER_ADMIN; el servidor lo vuelve a validar).
@@ -34,11 +36,11 @@ data class NormativeState(
     val notice: String? = null,
 )
 
-/** Consulta de normativa y gestión de documentos. La UI observa [state] y emite acciones. */
+/** Buscador de normativa y gestión de documentos. La UI observa [state] y emite acciones. */
 class NormativeViewModel(private val useCases: NormativeUseCases) : ViewModel() {
     private val _state = MutableStateFlow(NormativeState())
     val state: StateFlow<NormativeState> = _state.asStateFlow()
-    private var asking: Job? = null
+    private var searching: Job? = null
 
     /** Cambiar de persona descarta las consultas de la sesión anterior. */
     fun open(userId: String) {
@@ -56,17 +58,26 @@ class NormativeViewModel(private val useCases: NormativeUseCases) : ViewModel() 
         }
     }
 
-    fun editQuestion(text: String) = _state.update { it.copy(question = text.take(NormativeRules.QUESTION_MAX), fields = it.fields - "question") }
+    /** Busca mientras se escribe, tras una pausa breve; una búsqueda nueva cancela la anterior. */
+    fun editQuery(text: String) {
+        _state.update { it.copy(query = text.take(NormativeRules.QUERY_MAX), fields = it.fields - "q") }
+        searching?.cancel()
+        if (NormativeRules.queryIssue(text) != null) { _state.update { it.copy(searching = false, searchedQuery = null, results = emptyList()) }; return }
+        searching = viewModelScope.launch { delay(350); runSearch(text) }
+    }
 
-    fun ask() {
-        val question = _state.value.question
-        if (_state.value.asking) return
-        _state.update { it.copy(asking = true, failure = null, fields = emptyMap()) }
-        asking = viewModelScope.launch {
-            when (val result = useCases.ask(question)) {
-                is NormativeResult.Success -> _state.update { it.copy(asking = false, question = "", answers = listOf(result.value) + it.answers.take(9)) }
-                is NormativeResult.Failure -> _state.update { it.copy(asking = false, failure = result.reason.takeIf { r -> r != NormativeFailure.INVALID || result.fields.isEmpty() }, fields = result.fields) }
-            }
+    /** Buscar de inmediato (Enter o botón). */
+    fun search() {
+        searching?.cancel()
+        val query = _state.value.query
+        searching = viewModelScope.launch { runSearch(query) }
+    }
+
+    private suspend fun runSearch(query: String) {
+        _state.update { it.copy(searching = true, failure = null) }
+        when (val result = useCases.search(query)) {
+            is NormativeResult.Success -> _state.update { it.copy(searching = false, searchedQuery = query.trim(), results = result.value) }
+            is NormativeResult.Failure -> _state.update { it.copy(searching = false, failure = result.reason.takeIf { r -> r != NormativeFailure.INVALID || result.fields.isEmpty() }, fields = result.fields) }
         }
     }
 
@@ -109,7 +120,7 @@ class NormativeViewModel(private val useCases: NormativeUseCases) : ViewModel() 
         viewModelScope.launch {
             when (val result = useCases.save(editor.id, editor.input)) {
                 is NormativeResult.Success -> {
-                    _state.update { it.copy(saving = false, editor = null, notice = if (editor.id == null) "Normativa cargada. Ya se usa en las respuestas." else "Cambios guardados.") }
+                    _state.update { it.copy(saving = false, editor = null, notice = if (editor.id == null) "Normativa cargada. Ya aparece en las búsquedas." else "Cambios guardados.") }
                     loadDocuments(); refresh()
                 }
                 is NormativeResult.Failure -> _state.update { s ->
@@ -130,7 +141,7 @@ class NormativeViewModel(private val useCases: NormativeUseCases) : ViewModel() 
         viewModelScope.launch {
             when (val result = useCases.setArchived(document.id, archive)) {
                 is NormativeResult.Success -> {
-                    _state.update { it.copy(saving = false, archiving = null, notice = if (archive) "Documento archivado: ya no se usa en las respuestas." else "Documento reactivado.") }
+                    _state.update { it.copy(saving = false, archiving = null, notice = if (archive) "Documento archivado: ya no aparece en las búsquedas." else "Documento reactivado.") }
                     loadDocuments(); refresh()
                 }
                 is NormativeResult.Failure -> _state.update { it.copy(saving = false, adminFailure = result.reason) }

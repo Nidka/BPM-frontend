@@ -147,4 +147,17 @@ class VisualCheckTest {
         }
         assertEquals("Ana Pérez Rojas", opened)
     }
+
+    /** Buscador de normativa con el campo compartido y resultados resaltados, a todos los anchos. */
+    @Test fun buscadorDeNormativa() = widths.forEach { w ->
+        shot("buscador", w) {
+            val matches = listOf(
+                pe.bpm.features.normative.domain.NormativeMatch("a", "NTS 142-MINSA/2018/DIGESA", "RM 822-2018/MINSA",
+                    "Artículo 12. Los alimentos refrigerados se conservan a temperaturas de 0 °C a 4 °C y se registra la refrigeración dos veces al día."),
+                pe.bpm.features.normative.domain.NormativeMatch("a", "NTS 142-MINSA/2018/DIGESA", "", "Artículo 13. Los productos congelados se mantienen a -18 °C o menos."),
+            )
+            pe.bpm.features.normative.presentation.NormativeSearchContent(pe.bpm.features.normative.domain.NormativeStatus(2), false,
+                "temperatura refrigeracion", false, "temperatura refrigeracion", matches, null, null, {}, {}, {})
+        }
+    }
 }

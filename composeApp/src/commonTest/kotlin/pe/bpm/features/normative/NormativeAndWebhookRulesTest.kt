@@ -6,10 +6,19 @@ import pe.bpm.features.webhooks.domain.WebhookRules
 import kotlin.test.*
 
 class NormativeAndWebhookRulesTest {
-    @Test fun questionMatchesServerLimits() {
-        assertNotNull(NormativeRules.questionIssue("  a "))
-        assertNull(NormativeRules.questionIssue("¿Cómo lavo verduras?"))
-        assertNotNull(NormativeRules.questionIssue("x".repeat(1001)))
+    @Test fun queryMatchesServerLimits() {
+        assertNotNull(NormativeRules.queryIssue("  a "))
+        assertNull(NormativeRules.queryIssue("pollo"))
+        assertNotNull(NormativeRules.queryIssue("x".repeat(201)))
+    }
+
+    @Test fun highlightsFollowStemsWithoutAccents() {
+        val text = "Los alimentos refrigerados se conservan en refrigeración entre 0 °C y 4 °C."
+        val terms = NormativeRules.terms("Refrigeracion de alimento")
+        assertEquals(listOf("refrigeracion", "alimento"), terms, "las palabras cortas como «de» no se resaltan")
+        val words = NormativeRules.highlights(text, terms).map { text.substring(it) }
+        assertEquals(listOf("alimentos", "refrigerados", "refrigeración"), words)
+        assertTrue(NormativeRules.highlights(text, emptyList()).isEmpty())
     }
 
     @Test fun documentNeedsTitleAndText() {
@@ -18,12 +27,11 @@ class NormativeAndWebhookRulesTest {
         assertTrue("title" in NormativeRules.documentIssues(NormativeDocumentInput("a\nb", "", "x")))
     }
 
-    @Test fun serverCodesMapToClearReasons() {
-        assertEquals(NormativeFailure.DISABLED, pe.bpm.features.normative.data.failureFor(503, "NORMATIVE_ASSISTANT_DISABLED"))
-        assertEquals(NormativeFailure.UNAVAILABLE, pe.bpm.features.normative.data.failureFor(503, "NORMATIVE_UNAVAILABLE"))
-        assertEquals(NormativeFailure.NO_DOCUMENTS, pe.bpm.features.normative.data.failureFor(409, "NORMATIVE_NO_DOCUMENTS"))
-        assertEquals(NormativeFailure.TOO_LARGE, pe.bpm.features.normative.data.failureFor(422, "NORMATIVE_TOO_LARGE"))
-        assertEquals(NormativeFailure.RATE_LIMITED, pe.bpm.features.normative.data.failureFor(429, ""))
+    @Test fun serverStatusesMapToClearReasons() {
+        assertEquals(NormativeFailure.SESSION, pe.bpm.features.normative.data.failureFor(401))
+        assertEquals(NormativeFailure.NOT_FOUND, pe.bpm.features.normative.data.failureFor(404))
+        assertEquals(NormativeFailure.INVALID, pe.bpm.features.normative.data.failureFor(422))
+        assertEquals(NormativeFailure.UNAVAILABLE, pe.bpm.features.normative.data.failureFor(503))
     }
 
     @Test fun webhookUrlMustBePublicHttps() {

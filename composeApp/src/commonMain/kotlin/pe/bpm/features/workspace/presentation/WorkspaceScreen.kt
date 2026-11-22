@@ -196,8 +196,8 @@ internal fun WorkspaceScreen(
                         // El personal (WORKER) ve solo su pantalla «Hoy»; el Home genérico de sedes/cursos/controles no le aplica.
                         WorkspaceDestination.Home -> {
                             if (current.role == "WORKER" && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
-                            // Agente normativo (RF-46/47): acceso para todos los roles.
-                            if (onNormative != null) BpmActionTile(BpmSymbol.Learn, "Consultar normativa", "Pregunta sobre BPM y recibe respuestas con la fuente de la norma.", onNormative)
+                            // Buscador de normativa (RF-46/47): acceso para todos los roles.
+                            if (onNormative != null) BpmActionTile(BpmSymbol.Learn, "Buscar en la normativa", "Encuentra lo que dice la norma sanitaria sobre temperaturas, higiene y más.", onNormative)
                         }
                         WorkspaceDestination.Company -> {
                             BpmCard(Modifier.fillMaxWidth()) {
