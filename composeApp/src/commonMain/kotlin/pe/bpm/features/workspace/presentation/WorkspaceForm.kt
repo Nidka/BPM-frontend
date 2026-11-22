@@ -53,7 +53,9 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
             onEdit, onDiscardDraft, onRetryDraft, onUserActivity, onPageSearch, onPageNext, onPagePrevious, onPageRetry)
         return
     }
-    Box(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) {
+    Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
+        // Título de la página fuera de la tarjeta, igual que en los formularios por pasos.
+        BpmPageHeader(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" })
         val shortWindow = currentWindowHeight < 560.dp
         LaunchedEffect(state.errors, check.errors, shortWindow) {
             if (shortWindow && (state.errors.isNotEmpty() || check.errors.isNotEmpty())) formScroll.scrollTo(formScroll.maxValue)
@@ -63,8 +65,6 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
             .then(if (shortWindow) Modifier.verticalScroll(formScroll) else Modifier)) {
             Column(if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(formScroll),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Eyebrow("CRECER EN EQUIPO")
-                Text(when (kind) { WorkspaceFormKind.Organization -> "Nueva organización"; WorkspaceFormKind.Location -> "Nueva sede"; WorkspaceFormKind.Member -> "Agregar al equipo" }, style = MaterialTheme.typography.headlineSmall)
                 if (formState.recovered) Text("Recuperamos tu borrador. Revisa los datos antes de guardar.")
                 DraftSaveNotice(formState.localStatus, onRetryDraft)
                 if (discarding) DiscardDraftConfirmation({ discarding = false }, onDiscardDraft, enabled = !saving)

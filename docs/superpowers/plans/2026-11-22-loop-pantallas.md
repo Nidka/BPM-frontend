@@ -52,7 +52,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 | 1 | Acceso: Ingreso `acceso`, Conexión `conexion`, Verificar constancia `verificar/{codigo}`, Elegir organización `organizaciones`, Aceptar invitación `cuenta/invitacion` | hecha |
 | 2 | Inicio `inicio` (panel e indicadores) | hecha |
 | 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | hecha |
-| 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | pendiente |
+| 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | hecha |
 | 5 | Aprender `aprender`, Curso / lección `aprender/{courseId}`, Logros, Rutas | pendiente |
 | 6 | Academia (gestión) `empresa/academia`, Encuesta del estudio `estudio`, Investigación `investigacion` | pendiente |
 | 7 | Control `control`, Catálogo de plantillas, Detalle de plantilla | pendiente |
@@ -120,3 +120,15 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
   - Mi cuenta (ADMIN y WORKER): cumple la lista; sin cambios.
 - **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest`, `assembleDebug` y `wasmJsBrowserDistribution` en verde; 12 capturas sin fallos.
 - **Sin comprobar (solo código):** el panel de notificaciones push (`pushControls`) del listado de avisos, que necesita el ViewModel de dispositivos de notificaciones.
+
+### Iteración 4: Empresa, Equipo, formularios de alta y Cuentas y equipo (22/11/2026)
+
+- **Capturas:** `docs/diseno-loop/4/antes` y `despues` (Empresa, Equipo, formulario de sede, Aceptar invitación; los formularios de persona y organización solo «antes»). Nuevo `CompanyScreens.kt` en el arnés; `Shell` admite ahora `team` (workspace con sedes y personas), `form` y `formDraft`. Sin `formDraft` los formularios salen en blanco: el arnés los pinta con un borrador vacío.
+- **Cambios:**
+  - Empresa (`WorkspaceScreen.kt`): los datos de la organización y los de cada sede (dirección, distrito, teléfono) van agrupados a 4 dp, separados del nombre. `SectionHeading` pone la acción «Agregar sede» a la derecha del título, como en `BpmPageHeader`.
+  - Equipo: «Gestionar roles, invitaciones y bajas» usa `bpmPrimaryButtonWidth()` igual que «Agregar persona»; en 390 dp ya miden lo mismo (antes uno a todo el ancho y otro a contenido).
+  - Formulario «Nueva sede» (`WorkspaceForm.kt`): era el único con el título dentro de la tarjeta y un rótulo «CRECER EN EQUIPO»; ahora lleva `BpmPageHeader` fuera de la tarjeta, como los formularios por pasos de persona y organización.
+  - Cuentas y equipo (`AccountsScreens.kt`): no tenía título de página → `BpmPageHeader("Cuentas y equipo")`. Aceptar invitación: título de página fuera de la tarjeta y se quita el «Aceptar una invitación» repetido dentro (revisión de la iteración 1, que se había capturado fuera del shell).
+  - Formularios de persona y organización (por pasos): cumplen la lista; sin cambios.
+- **Sin comprobar a la vista:** las tres pestañas de Cuentas y equipo (Equipo, Invitaciones, Organización y sedes) y el formulario de edición de sede: necesitan ViewModels con repositorio de cuentas (se leyó el código: ya usan `BpmRecordCard`, `BpmFormLayout`, `BpmDetailPane` y `BpmListToolbar`).
+- **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde.

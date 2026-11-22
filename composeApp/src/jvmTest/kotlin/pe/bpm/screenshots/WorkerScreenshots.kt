@@ -130,15 +130,18 @@ internal fun Shell(
     focusTitle: String? = null,
     role: String = "WORKER",
     secondaryTitle: String? = null,
+    team: Workspace? = null,
+    form: WorkspaceFormKind? = null,
+    formDraft: WorkspaceFormState = WorkspaceFormState(),
 ) {
     WorkspaceScreen(
         viewer = WorkspaceViewer(F.USER, F.DISPLAY_NAME, "lucia.quispe@cocinaandina.pe", false),
-        state = if (role == "WORKER") workspaceState else workspaceState.copy(workspace = F.workspace.copy(role = role)), section = section, onNavigate = {},
+        state = if (team != null) workspaceState.copy(workspace = team.copy(role = role)) else if (role == "WORKER") workspaceState else workspaceState.copy(workspace = F.workspace.copy(role = role)), section = section, onNavigate = {},
         onVerifySession = {}, sessionBusy = false, sessionMessage = null, sessionConfirmation = null,
         onSelect = {}, onRefresh = {}, onClear = {}, onLogout = {},
-        formDraft = WorkspaceFormState(), onSubmitForm = {}, onFormRetryAccount = {}, onFormSelectAccount = {}, onFormEdit = {},
+        formDraft = formDraft, onSubmitForm = {}, onFormRetryAccount = {}, onFormSelectAccount = {}, onFormEdit = {},
         onFormRetry = {}, onFormDiscard = {},
-        form = null, onOpenForm = {}, onCloseForm = {},
+        form = form, onOpenForm = {}, onCloseForm = {},
         choosingOrganization = false, onChooseOrganization = {}, checklistContent = {}, onManageTemplates = {},
         homeContent = homeContent, onOpenCourse = {}, learnHeader = learnHeader,
         hiddenCourseIds = F.assignments.map { it.course.id }.toSet(),
@@ -312,6 +315,6 @@ class WorkerScreenshots {
 /** Todas las pantallas, o solo las que empiezan por alguno de los prefijos de `BPM_SCREENSHOTS_ONLY` (separados por comas). */
 private fun selectedScreens(): List<ScreenSpec> {
     val prefixes = System.getenv("BPM_SCREENSHOTS_ONLY")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
-    val all = workerScreens + accessScreens + homeScreens + accountScreens
+    val all = workerScreens + accessScreens + homeScreens + accountScreens + companyScreens
     return if (prefixes.isEmpty()) all else all.filter { spec -> prefixes.any { spec.name.startsWith(it) } }
 }

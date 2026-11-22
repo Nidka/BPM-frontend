@@ -97,7 +97,14 @@ internal val accessScreens: List<ScreenSpec> = listOf(
     },
     ScreenSpec("invitacion") {
         val viewModel = InvitationAcceptViewModel(AcceptInvitation(unusedAccountsRepository))
-        val content: @Composable () -> Unit = { BpmAccessScreen(scrollable = false) { InvitationAcceptScreen(viewModel, onContinue = {}) } }
+        // Alojada en el shell como en App.kt (patrón Acceso, `secondaryEditor`): la cabecera la pone la propia pantalla.
+        val content: @Composable () -> Unit = {
+            Shell(
+                pe.bpm.features.workspace.presentation.WorkspaceDestination.Account, role = "ADMIN", secondaryTitle = "Aceptar invitación",
+                secondaryEditor = true, secondaryPattern = pe.bpm.core.designsystem.BpmPattern.Access,
+                secondaryContent = { InvitationAcceptScreen(viewModel, onContinue = {}) },
+            )
+        }
         content
     },
 )

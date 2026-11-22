@@ -48,9 +48,9 @@ import pe.bpm.features.workspace.domain.*
 }
 
 @Composable internal fun SectionHeading(title: String, action: String?, onAction: () -> Unit) {
-    // Título y acción en una misma fila, alineados al centro; sin el «+» pegado como texto.
+    // Título y acción en una misma fila, alineados al centro; la acción va a la derecha, como en el encabezado de página.
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-        Text(title, style = MaterialTheme.typography.titleLarge)
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
         if (action != null) BpmSecondaryButton(onClick = onAction) { Text(action) }
     }
 }
