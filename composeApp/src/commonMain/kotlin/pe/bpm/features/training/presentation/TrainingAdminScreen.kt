@@ -116,7 +116,9 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
                     supportingText = "${lesson.content.length} de ${TrainingLimits.LESSON_CONTENT_MAX} caracteres")
                 KeyPointsEditor(lesson, enabled, issue(DraftIssueKind.KEY_POINTS, lesson.id), viewModel)
                 LessonVideoEditor(editor, lesson, viewModel)
-                CaptionsEditor(lesson, enabled, issue(DraftIssueKind.CAPTIONS, lesson.id), viewModel)
+                if (draft.captionsSupported) CaptionsEditor(lesson, enabled, issue(DraftIssueKind.CAPTIONS, lesson.id), viewModel)
+                else Text("Los subtítulos del video se podrán agregar cuando el servidor esté actualizado (o después de guardar la primera lección).",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, -1) } }, enabled = enabled && number > 0) { Text("Subir") }
                     BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, 1) } }, enabled = enabled && number < draft.lessons.lastIndex) { Text("Bajar") }

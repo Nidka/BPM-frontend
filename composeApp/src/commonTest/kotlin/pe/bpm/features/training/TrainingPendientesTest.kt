@@ -114,6 +114,36 @@ class TrainingPendientesTest {
         assertEquals(100, TrainingProgress(ProgressStatus.COMPLETED, null, 100, 10, STAMP, totalLessons = 4).withCompletedLesson(LESSON_1).percent)
     }
 
+    // ---- Borrador: subtítulos (RF-45) solo con un servidor que los conoce ---------------------
+
+    @Test fun captionsAreSentOnlyWhenTheServerKnowsThem() = runTest {
+        val seen = mutableListOf<JsonObject>()
+        fun response(captions: String) = """{"data":{"course":{"id":"$COURSE_ID","code":"M-01","title":"Higiene","description":"d","estimatedDurationMinutes":15},
+            "version":{"id":"$VERSION_ID","versionNumber":3,"passingScore":80,"rowVersion":"v2"},
+            "lessons":[{"id":"$LESSON_1","title":"Paso a paso","content":"Texto","displayOrder":1,"videoMediaId":null$captions}],"questions":[]}}"""
+        var reply = response("")
+        val (repository, clients) = remote(MockEngine { request ->
+            if (request.method == HttpMethod.Put) seen += Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+            respond(reply, HttpStatusCode.OK, json)
+        })
+        try {
+            // Servidor anterior (sin V16): no manda el campo, no se ofrece y no se envía (lo rechazaría).
+            val old = (repository.draft("org", COURSE_ID) as TrainingResult.Success).value
+            assertFalse(old.captionsSupported)
+            repository.saveDraft("org", COURSE_ID, old.copy(questions = emptyList()))
+            assertFalse("captionsVtt" in seen.last()["lessons"]!!.jsonArray.single().jsonObject)
+            // Servidor con V16: se leen y se envían normalizados.
+            reply = response(""","captionsVtt":"WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHola\n"""")
+            val current = (repository.draft("org", COURSE_ID) as TrainingResult.Success).value
+            assertTrue(current.captionsSupported)
+            assertEquals(1, WebVtt.parse(current.lessons.single().captionsVtt).size)
+            repository.saveDraft("org", COURSE_ID, current.copy(questions = emptyList(),
+                lessons = listOf(current.lessons.single().copy(captionsVtt = "\r\nWEBVTT\r\n\r\n00:00:01.000 --> 00:00:03.000\r\nAdiós\r\n"))))
+            assertEquals("WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nAdiós\n",
+                seen.last()["lessons"]!!.jsonArray.single().jsonObject["captionsVtt"]!!.jsonPrimitive.content)
+        } finally { clients.forEach { it.close() } }
+    }
+
     // ---- Borrador: keyPoints de lectura y escritura ------------------------------------------
 
     @Test fun draftReadsKeyPointsAndAlwaysSendsThemOnSave() = runTest {

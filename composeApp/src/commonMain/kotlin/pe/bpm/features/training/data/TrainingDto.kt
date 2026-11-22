@@ -227,7 +227,8 @@ internal data class AdminCourseDto(val id: String, val code: String, val title: 
     val videoMediaId: String? = null,
     val externalVideo: ExternalVideoDto? = null,
     val keyPoints: List<String> = emptyList(),
-    val captionsVtt: String = "",
+    /** `null` = servidor anterior a V16 (no envía el campo y rechaza recibirlo). */
+    val captionsVtt: String? = null,
 )
 
 @Serializable
@@ -259,13 +260,14 @@ internal data class DraftDto(
             lessons.map {
                 require(it.videoMediaId == null || it.externalVideo == null)
                 DraftLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.videoMediaId?.let(::trainingId), it.externalVideo?.domain()?.videoId,
-                    checkedKeyPoints(it.keyPoints), checkedCaptions(it.captionsVtt))
+                    checkedKeyPoints(it.keyPoints), checkedCaptions(it.captionsVtt.orEmpty()))
             }.sortedBy { it.displayOrder },
             questions.map {
                 trainingId(it.id)
                 require(it.options.size in TrainingLimits.MIN_OPTIONS..TrainingLimits.MAX_OPTIONS && it.correctOption in it.options.indices)
                 DraftQuestion(it.id, it.lessonId?.let(::trainingId), it.questionText, it.options, it.correctOption, it.explanation, it.displayOrder)
-            }.sortedBy { it.displayOrder })
+            }.sortedBy { it.displayOrder },
+            captionsSupported = lessons.any { it.captionsVtt != null })
     }
 }
 

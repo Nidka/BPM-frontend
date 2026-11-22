@@ -47,6 +47,11 @@ data class TrainingDraft(
     val rowVersion: String,
     val lessons: List<DraftLesson>,
     val questions: List<DraftQuestion>,
+    /**
+     * El servidor ya conoce los subtítulos (V16): los incluyó en el borrador. Un servidor anterior rechaza campos
+     * desconocidos, así que solo entonces se envían y se ofrece editarlos.
+     */
+    val captionsSupported: Boolean = false,
 )
 
 /** Datos de una reserva de video; los bytes y la firma nunca salen de la operación de subida. */
