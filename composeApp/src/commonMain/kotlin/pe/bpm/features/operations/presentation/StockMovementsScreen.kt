@@ -72,47 +72,43 @@ fun StockMovementsScreen(viewModel: StockMovementsViewModel, modifier: Modifier 
 private fun StockFormContent(state: StockState, form: StockForm, vm: StockMovementsViewModel) {
     val enabled = !state.busy && !form.uncertain
     val lot = form.lot
-    Text("Registrar movimiento", style = MaterialTheme.typography.titleLarge)
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text(lot.productName, style = MaterialTheme.typography.titleMedium)
-        Text("Lote ${lot.batchCode} · Recibido: ${lot.receivedQuantity.ifEmpty { "sin dato" }} ${lot.unit}")
-        Text("Saldo disponible: ${lot.quantityAvailable} ${lot.unit}" + if (lot.expired) " · Vencido" else "")
-    }
-    if (form.uncertain)
-        Text("No pudimos confirmar el registro. Reintenta para comprobar el mismo movimiento; no se descontará dos veces.")
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BpmFilterChip(form.type == StockMovementType.CONSUMPTION, { vm.change(type = StockMovementType.CONSUMPTION) }, label = { Text("Consumo") }, enabled = enabled)
-        BpmFilterChip(form.type == StockMovementType.DISCARD, { vm.change(type = StockMovementType.DISCARD) }, label = { Text("Descarte") }, enabled = enabled)
-    }
-    state.fields["type"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    BpmTextField(form.quantity, { vm.change(quantity = it) }, "Cantidad (${lot.unit})", error = state.fields["quantity"], enabled = enabled, inputKind = BpmInputKind.Decimal, placeholder = "Ej.: 0,5")
-    if (form.type == StockMovementType.DISCARD) {
-        Text("Motivo del descarte")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DiscardReason.entries.forEach { reason ->
-                BpmFilterChip(form.reason == reason, { vm.change(reason = reason) }, label = { Text(reasonLabel(reason)) }, enabled = enabled)
-            }
+    BpmFormLayout(actions = { BpmFormActions(if (form.uncertain) "Comprobar el mismo movimiento" else "Registrar", vm::submit, busy = state.busy, busyLabel = "Registrando…", onCancel = vm::closeForm) }) {
+        Text("Registrar movimiento", style = MaterialTheme.typography.titleLarge)
+        BpmSection(lot.productName) {
+            Text("Lote ${lot.batchCode} · Recibido: ${lot.receivedQuantity.ifEmpty { "sin dato" }} ${lot.unit}")
+            Text("Saldo disponible: ${lot.quantityAvailable} ${lot.unit}" + if (lot.expired) " · Vencido" else "")
         }
-        state.fields["reason"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        BpmTextField(
-            form.note,
-            { vm.change(note = it) },
-            if (form.reason == DiscardReason.OTHER) "Explica el motivo" else "Nota (opcional)",
-            error = state.fields["note"],
-            enabled = enabled,
-            singleLine = false,
-        )
+        BpmSection("Movimiento") {
+            if (form.uncertain)
+                Text("No pudimos confirmar el registro. Reintenta para comprobar el mismo movimiento; no se descontará dos veces.")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BpmFilterChip(form.type == StockMovementType.CONSUMPTION, { vm.change(type = StockMovementType.CONSUMPTION) }, label = { Text("Consumo") }, enabled = enabled)
+                BpmFilterChip(form.type == StockMovementType.DISCARD, { vm.change(type = StockMovementType.DISCARD) }, label = { Text("Descarte") }, enabled = enabled)
+            }
+            state.fields["type"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            BpmTextField(form.quantity, { vm.change(quantity = it) }, "Cantidad (${lot.unit})", error = state.fields["quantity"], enabled = enabled, inputKind = BpmInputKind.Decimal, placeholder = "Ej.: 0,5")
+            if (form.type == StockMovementType.DISCARD) {
+                Text("Motivo del descarte")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DiscardReason.entries.forEach { reason ->
+                        BpmFilterChip(form.reason == reason, { vm.change(reason = reason) }, label = { Text(reasonLabel(reason)) }, enabled = enabled)
+                    }
+                }
+                state.fields["reason"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                BpmTextField(
+                    form.note,
+                    { vm.change(note = it) },
+                    if (form.reason == DiscardReason.OTHER) "Explica el motivo" else "Nota (opcional)",
+                    error = state.fields["note"],
+                    enabled = enabled,
+                    singleLine = false,
+                )
+            }
+            state.fields["lotId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (state.failure == OperationsFailure.LOT_EXPIRED)
+                BpmSecondaryButton(vm::suggestExpiredDiscard, enabled = !state.busy) { Text("Registrar descarte por vencido") }
+        }
     }
-    state.fields["lotId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    if (state.failure == OperationsFailure.LOT_EXPIRED)
-        BpmSecondaryButton(vm::suggestExpiredDiscard, enabled = !state.busy) { Text("Registrar descarte por vencido") }
-    RaisedButton(
-        if (state.busy) "Registrando…" else if (form.uncertain) "Comprobar el mismo movimiento" else "Registrar",
-        vm::submit,
-        Modifier.fillMaxWidth(),
-        enabled = !state.busy,
-    )
-    BpmTextButton(vm::closeForm, enabled = enabled) { Text("Cancelar") }
 }
 
 internal fun reasonLabel(reason: DiscardReason) =

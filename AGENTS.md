@@ -3,6 +3,8 @@
 Leer `specs/ARCHITECTURE.md`, `specs/DEVELOPMENT.md`, `specs/OFFLINE.md`,
 `specs/FEATURES.md`, `specs/IDENTITY.md` y `RAILWAY.md` antes de cambiar la base.
 Para UI, tenant y formularios de empresa/equipo leer también `specs/WORKSPACE.md`.
+Toda pantalla nueva o cambiada sigue `specs/LAYOUT.md` (listado, formulario y detalle con medidas exactas y
+componentes compartidos `BpmRecordCard`, `BpmPagedList`, `BpmFormLayout`/`BpmSection`/`BpmFormActions`, `BpmDetailPane`).
 
 - Escribir comentarios, KDoc, GoDoc y documentación nueva en español; conservar los identificadores técnicos y nombres de API.
 - KMP + Compose Multiplatform, MVVM, Clean Architecture por features.

@@ -23,7 +23,7 @@ fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewMo
     var tab by rememberSaveable { mutableStateOf(AccountsTab.Team.name) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
-        StatusFilter(AccountsTab.entries.map { it.name to it.label }, tab, true) { tab = it }
+        BpmFilterChips(AccountsTab.entries.map { it.name to it.label }, tab) { tab = it }
         when (tab) {
             AccountsTab.Invitations.name -> InvitationsPane(invitations)
             AccountsTab.Organization.name -> OrganizationPane(organization)
@@ -40,20 +40,17 @@ fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
         Text("Estos son los dispositivos de tus organizaciones que reciben avisos. Si no reconoces alguno, revócalo.")
         AccountMessages(state.failure, state.notice)
         state.revoking?.let { device ->
-            ConfirmCard("¿Revocar ${device.platform.label}?", state.busy, "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke) {
+            BpmConfirmPanel("¿Revocar ${device.platform.label}?", "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke, busy = state.busy) {
                 Text("Dejará de recibir avisos de ${device.organizationName.ifBlank { "tu organización" }}. Podrás activarlo de nuevo iniciando sesión en ese dispositivo.")
             }
         }
         PagedBlock(state.page, empty = { EmptyState("Sin dispositivos", "No tienes dispositivos activos con avisos.") },
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
             BpmGridLayout(state.page.items) { device, cardModifier ->
-                BpmCard(cardModifier) {
-                    Text(device.platform.label, style = MaterialTheme.typography.titleMedium)
-                    Text(device.organizationName.ifBlank { "Organización" })
-                    Text(device.lastSeenAt?.let { "Última actividad: ${displayDateTime(it)}" } ?: "Sin actividad registrada", style = MaterialTheme.typography.bodySmall)
-                    Text("Registrado: ${displayDateTime(device.createdAt)}", style = MaterialTheme.typography.bodySmall)
-                    BpmSecondaryButton(onClick = { viewModel.askRevoke(device) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Revocar") }
-                }
+                BpmRecordCard(device.platform.label, cardModifier, subtitle = device.organizationName.ifBlank { "Organización" },
+                    details = listOf(device.lastSeenAt?.let { "Última actividad: ${displayDateTime(it)}" } ?: "Sin actividad registrada",
+                        "Registrado: ${displayDateTime(device.createdAt)}"),
+                    textActions = listOf("Revocar" to { viewModel.askRevoke(device) }), enabled = !state.busy)
             }
         }
     }
@@ -63,7 +60,7 @@ fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
 @Composable
 fun InvitationAcceptScreen(viewModel: InvitationAcceptViewModel, onContinue: () -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 640.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         val accepted = state.accepted
         if (accepted != null) {
             BpmCard(Modifier.fillMaxWidth()) {

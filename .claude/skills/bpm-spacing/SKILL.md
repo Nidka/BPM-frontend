@@ -12,6 +12,11 @@ los tokens viven en `BpmSpacing` y `BpmTheme`
 ([BpmTheme.kt](../../../composeApp/src/commonMain/kotlin/pe/bpm/core/designsystem/BpmTheme.kt)).
 Antes de inventar un valor o un componente, buscar el token o componente existente.
 
+> **Contrato de pantallas:** listados, formularios y detalles se arman según
+> [specs/LAYOUT.md](../../../specs/LAYOUT.md), con medidas exactas y componentes compartidos. Las columnas, el
+> detalle junto a la lista y los campos en pares se deciden por el **ancho útil** (ventana − navegación −
+> márgenes), nunca por la clase de ventana.
+
 ## 1. Espaciado y alineación
 
 1. **Un solo margen lateral.** Cabecera y contenido comparten `BpmSpacing.gutter(wide)`
@@ -86,7 +91,8 @@ node scripts/check-spacing.mjs --strict
 ```
 
 El verificador falla con código 1 por: R1 márgenes con literales, R4 relleno duplicado en
-pantalla alojada; y en `--strict` también por R2 valores fuera de escala, R3 controles
+pantalla alojada, R15 ancho fijo en una pantalla (`widthIn(max = N.dp)` sin `// medida:`), R16 listado
+paginado, confirmación o botones de formulario hechos a mano en un módulo; y en `--strict` también por R2 valores fuera de escala, R3 controles
 < 48 dp y R5 listas de tarjetas apiladas sin marcar. Después, revisar en el navegador
 (`node web/server.mjs`, http://localhost:3000) y en un móvil o emulador, a **360, 390, 600,
 840, 1200 y 1600 dp**, con especial atención en los umbrales (599/600, 949/950):

@@ -171,7 +171,7 @@ private fun AssignedCourses(state: LearnerState, onOpenCourse: (String) -> Unit,
 @Composable
 fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 860.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         Text("Mis logros", style = MaterialTheme.typography.headlineMedium)
         if (state.achievementsLoading && state.achievements == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.achievementsFailure?.let {
@@ -224,7 +224,7 @@ internal fun pathStatusLabel(status: PathStatus) = when (status) {
 @Composable
 fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (String) -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 860.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         val detail = state.pathDetail
         if (state.pathDetailLoading || state.pathsLoading && state.paths.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (detail != null) { PathDetail(detail, onOpenCourse, viewModel::closePath); return@Column }
@@ -280,7 +280,7 @@ private fun ColumnScope.PathDetail(path: LearningPath, onOpenCourse: (String) ->
 @Composable
 fun CertificateVerificationScreen(viewModel: CertificateVerificationViewModel, onHome: () -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize().widthIn(max = 640.dp).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         Text("Verificar constancia", style = MaterialTheme.typography.headlineMedium)
         Text("Escribe el código de 24 caracteres que figura en la constancia de Academia BPM.")
         BpmTextField(state.input, viewModel::edit, "Código de verificación", enabled = !state.checking)

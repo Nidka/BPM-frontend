@@ -36,30 +36,37 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
         if (state.form != null) InviteFormCard(state.form!!, state, viewModel)
         else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
         state.revoking?.let { invitation ->
-            ConfirmCard("¿Revocar la invitación de ${invitation.email}?", state.busy, "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke) {
+            BpmConfirmPanel("¿Revocar la invitación de ${invitation.email}?", "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke, busy = state.busy) {
                 Text("El enlace dejará de funcionar. Puedes invitar de nuevo a esa persona cuando quieras.")
             }
         }
-        StatusFilter(listOf<Pair<InvitationStatus?, String>>(null to "Todas") + InvitationStatus.entries.map { it to it.label },
-            state.status, !state.busy, viewModel::selectStatus)
-        BpmSearchField(state.page.request.query, viewModel::search, "Buscar por correo", enabled = !state.busy, loading = state.page.loading)
+        BpmListToolbar(
+            filters = { BpmFilterChips(listOf<Pair<InvitationStatus?, String>>(null to "Todas") + InvitationStatus.entries.map { it to it.label },
+                state.status, !state.busy, viewModel::selectStatus) },
+            search = { m -> BpmSearchField(state.page.request.query, viewModel::search, "Buscar por correo", m, enabled = !state.busy, loading = state.page.loading) },
+        )
         PagedBlock(state.page, empty = { EmptyState("Sin invitaciones", "No hay invitaciones con este filtro. Usa «Invitar por correo» para sumar personas.") },
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
             BpmGridLayout(state.page.items) { invitation, cardModifier ->
-                BpmCard(cardModifier) {
-                    Text(invitation.email, style = BpmType.bodyStrong)
-                    Eyebrow(invitation.status.label + " · " + invitation.role.label)
-                    Text(if (invitation.role == MemberRole.ADMIN) "Todas las sedes" else locationNames(invitation.locationIds, state.locations), style = MaterialTheme.typography.bodySmall)
-                    Text(statusLine(invitation), style = MaterialTheme.typography.bodySmall)
-                    val wait = state.resendWait(invitation)
-                    if (AccountsRules.canResend(invitation.status)) BpmSecondaryButton(onClick = { viewModel.resend(invitation) }, enabled = !state.busy && wait == 0L, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (wait > 0) "Reenviar en ${wait} s" else "Reenviar")
-                    }
-                    if (AccountsRules.canRevoke(invitation.status)) BpmTextButton(onClick = { viewModel.askRevoke(invitation) }, enabled = !state.busy) { Text("Revocar") }
-                }
+                val wait = state.resendWait(invitation)
+                BpmRecordCard(invitation.email, cardModifier,
+                    status = BpmRecordStatus(invitation.status.label, invitationTone(invitation.status)),
+                    subtitle = invitation.role.label,
+                    details = listOf(if (invitation.role == MemberRole.ADMIN) "Todas las sedes" else locationNames(invitation.locationIds, state.locations), statusLine(invitation)),
+                    actionLabel = if (AccountsRules.canResend(invitation.status)) (if (wait > 0) "Reenviar en ${wait} s" else "Reenviar") else null,
+                    onAction = { if (wait == 0L) viewModel.resend(invitation) },
+                    textActions = if (AccountsRules.canRevoke(invitation.status)) listOf("Revocar" to { viewModel.askRevoke(invitation) }) else emptyList(),
+                    enabled = !state.busy)
             }
         }
     }
+}
+
+private fun invitationTone(status: InvitationStatus) = when (status) {
+    InvitationStatus.PENDING -> BpmTone.Info
+    InvitationStatus.ACCEPTED -> BpmTone.Success
+    InvitationStatus.EXPIRED -> BpmTone.Warning
+    InvitationStatus.REVOKED -> BpmTone.Neutral
 }
 
 /**
@@ -101,16 +108,14 @@ private fun statusLine(invitation: Invitation) = when (invitation.status) {
 }
 
 @Composable private fun InviteFormCard(form: InviteForm, state: InvitationsState, viewModel: InvitationsViewModel) {
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text("Invitar por correo", style = MaterialTheme.typography.titleMedium)
-        Text("La persona recibirá un enlace válido por 7 días. Debe iniciar sesión con ese mismo correo, ya verificado, para aceptarlo.", style = MaterialTheme.typography.bodySmall)
-        BpmTextField(form.email, viewModel::editEmail, "Correo electrónico *", Modifier.fillMaxWidth(), error = form.fields["email"], enabled = !state.busy,
-            inputKind = BpmInputKind.Email, rule = AccountsRules.email)
-        RolePicker(form.role, !state.busy, viewModel::editRole, form.fields["role"])
-        if (form.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, form.locationIds, !state.busy,
-            viewModel::toggleLocation, form.fields["locationIds"])
-        if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        RaisedButton(if (state.busy) "Enviando…" else "Enviar invitación", viewModel::submit, Modifier.fillMaxWidth(), enabled = !state.busy)
-        BpmSecondaryButton(onClick = viewModel::cancelForm, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+    BpmFormLayout(actions = { BpmFormActions("Enviar invitación", viewModel::submit, busy = state.busy, busyLabel = "Enviando…", onCancel = viewModel::cancelForm) }) {
+        BpmSection("Invitar por correo",
+            description = "La persona recibirá un enlace válido por 7 días. Debe iniciar sesión con ese mismo correo, ya verificado, para aceptarlo.") {
+            BpmTextField(form.email, viewModel::editEmail, "Correo electrónico *", Modifier.fillMaxWidth(), error = form.fields["email"], enabled = !state.busy,
+                inputKind = BpmInputKind.Email, rule = AccountsRules.email)
+            RolePicker(form.role, !state.busy, viewModel::editRole, form.fields["role"])
+            if (form.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, form.locationIds, !state.busy,
+                viewModel::toggleLocation, form.fields["locationIds"])
+        }
     }
 }

@@ -223,8 +223,8 @@ fun ChecklistAssignmentFormScreen(
     val input = state.input
     val navigation = rememberBpmFormNavigation(listOf("dueTime"))
     Column(
-        Modifier.widthIn(max = 700.dp).fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg),
     ) {
         if (state.loading) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -320,26 +320,17 @@ fun ChecklistAssignmentFormScreen(
             supportingText = "Formato de 24 horas, en la zona horaria de la sede.",
             navigation = navigation["dueTime"],
         )
-        RaisedButton(
-            when {
-                state.busy -> "Confirmando…"
-                state.pending -> "Comprobar programación"
-                else -> "Confirmar programación"
-            },
+        BpmFormActions(
+            if (state.pending) "Comprobar programación" else "Confirmar programación",
             onSave,
-            Modifier.fillMaxWidth(),
-            enabled =
-                !state.busy && state.saved == null && state.localStatus != DraftSaveStatus.FAILED,
+            enabled = state.saved == null && state.localStatus != DraftSaveStatus.FAILED,
+            busy = state.busy,
+            busyLabel = "Confirmando…",
         )
         if (!state.pending) {
-            if (discarding) {
-                Text("¿Descartar esta programación sin guardar?")
-                BpmSecondaryButton(onClick = onDiscard, enabled = !state.busy) {
-                    Text("Descartar borrador")
-                }
-                BpmTextButton(onClick = { discarding = false }) { Text("Seguir editando") }
-            } else
-                BpmTextButton(onClick = { discarding = true }, enabled = !state.busy) {
+            if (discarding) DiscardDraftConfirmation(onKeep = { discarding = false }, onDiscard = onDiscard, enabled = !state.busy)
+            else
+                BpmTextButton(onClick = { discarding = true }, enabled = !state.busy, modifier = Modifier.heightIn(min = BpmSpacing.touch)) {
                     Text("Descartar borrador")
                 }
         }

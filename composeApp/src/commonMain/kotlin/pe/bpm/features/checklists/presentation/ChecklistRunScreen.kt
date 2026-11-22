@@ -22,7 +22,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
     var location by remember(state.organizationId, template?.id) { mutableStateOf<String?>(null) }
     var locationName by remember(state.organizationId, template?.id) { mutableStateOf("") }
     var confirmReload by remember(state.run?.id, state.failure) { mutableStateOf(false) }
-    Column(Modifier.widthIn(max = 860.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         if (state.dirty || state.pending || state.localStatus == pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             DraftSaveNotice(state.localStatus, onProtectDraft)

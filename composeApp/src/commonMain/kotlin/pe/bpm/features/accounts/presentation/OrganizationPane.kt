@@ -22,34 +22,33 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
             state.organizationForm != null -> OrganizationFormCard(state.organizationForm!!, state.busy, viewModel)
             state.locationForm != null -> LocationFormCard(state.locationForm!!, state.busy, viewModel)
             else -> state.organization?.let { organization ->
-                BpmCard(Modifier.fillMaxWidth()) {
-                    Eyebrow("ORGANIZACIÓN")
-                    Text(organization.tradeName.ifBlank { organization.legalName }, style = MaterialTheme.typography.titleLarge)
-                    Text(organization.legalName)
-                    Text("Tipo de establecimiento: ${organization.businessType.label}")
-                    if (organization.taxId.isNotBlank()) Text("RUC / identificación fiscal: ${organization.taxId}")
-                    if (organization.contactName.isNotBlank()) Text("Contacto: ${organization.contactName}")
-                    if (organization.contactEmail.isNotBlank()) Text(organization.contactEmail)
-                    if (organization.contactPhone.isNotBlank()) Text(organization.contactPhone)
-                    BpmSecondaryButton(onClick = viewModel::editOrganization, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Editar organización") }
+                BpmDetailPane(organization.tradeName.ifBlank { organization.legalName }, subtitle = organization.legalName,
+                    actions = { BpmSecondaryButton(onClick = viewModel::editOrganization, enabled = !state.busy) { Text("Editar organización") } }) {
+                    BpmSection("Datos de la organización") {
+                        BpmDetailFields(listOf(
+                            BpmDetailField("Tipo de establecimiento", organization.businessType.label),
+                            BpmDetailField("RUC / identificación fiscal", organization.taxId),
+                            BpmDetailField("Persona de contacto", organization.contactName),
+                            BpmDetailField("Correo de contacto", organization.contactEmail),
+                            BpmDetailField("Teléfono de contacto", organization.contactPhone),
+                        ))
+                    }
                 }
             }
         }
         Text("Sedes", style = MaterialTheme.typography.titleLarge)
-        StatusFilter(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.locationStatus, !state.busy, viewModel::selectLocationStatus)
-        BpmSearchField(state.locations.request.query, viewModel::searchLocations, "Buscar sedes", enabled = !state.busy, loading = state.locations.loading)
+        BpmListToolbar(
+            filters = { BpmFilterChips(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.locationStatus, !state.busy, viewModel::selectLocationStatus) },
+            search = { m -> BpmSearchField(state.locations.request.query, viewModel::searchLocations, "Buscar sedes", m, enabled = !state.busy, loading = state.locations.loading) },
+        )
         PagedBlock(state.locations, empty = { EmptyState("Sin sedes para mostrar", "No hay sedes con este filtro. Puedes agregar una desde la sección Empresa.") },
             onRetry = viewModel::retryLocations, onPrevious = viewModel::previousLocations, onNext = viewModel::nextLocations) {
             BpmGridLayout(state.locations.items) { location, cardModifier ->
-                BpmCard(cardModifier) {
-                    Text(location.name, style = MaterialTheme.typography.titleMedium)
-                    Text(location.address)
-                    if (location.district.isNotBlank()) Text(location.district)
-                    if (location.contactPhone.isNotBlank()) Text(location.contactPhone)
-                    Text("Zona horaria: ${location.timezone}", style = MaterialTheme.typography.bodySmall)
-                    Eyebrow(if (location.status == RecordStatus.ACTIVE) "Activa" else "Inactiva")
-                    BpmSecondaryButton(onClick = { viewModel.editLocation(location) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Editar sede") }
-                }
+                BpmRecordCard(location.name, cardModifier,
+                    status = if (location.status == RecordStatus.ACTIVE) BpmRecordStatus("Activa", BpmTone.Success) else BpmRecordStatus("Inactiva", BpmTone.Neutral),
+                    subtitle = listOf(location.address, location.district).filter { it.isNotBlank() }.joinToString(" · "),
+                    details = listOfNotNull(location.contactPhone.takeIf { it.isNotBlank() }, "Zona horaria: ${location.timezone}"),
+                    actionLabel = "Editar sede", onAction = { viewModel.editLocation(location) }, enabled = !state.busy)
             }
         }
     }
@@ -57,8 +56,8 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 
 @Composable private fun OrganizationFormCard(form: OrganizationForm, busy: Boolean, viewModel: OrganizationViewModel) {
     val value = form.value
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text("Editar organización", style = MaterialTheme.typography.titleMedium)
+    BpmFormLayout(actions = { BpmFormActions("Guardar organización", viewModel::saveOrganization, busy = busy, onCancel = viewModel::cancelOrganization) }) {
+    BpmSection("Editar organización") {
         BpmTextField(value.legalName, { v -> viewModel.changeOrganization { it.copy(legalName = v) } }, "Razón social *", Modifier.fillMaxWidth(), error = form.fields["legalName"], enabled = !busy, rule = AccountsRules.legalName)
         BpmTextField(value.tradeName, { v -> viewModel.changeOrganization { it.copy(tradeName = v) } }, "Nombre comercial", Modifier.fillMaxWidth(), error = form.fields["tradeName"], enabled = !busy, rule = AccountsRules.tradeName)
         BpmTextField(value.taxId, { v -> viewModel.changeOrganization { it.copy(taxId = v) } }, "RUC / identificación fiscal", Modifier.fillMaxWidth(), error = form.fields["taxId"], enabled = !busy, rule = AccountsRules.taxId)
@@ -71,9 +70,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
             inputKind = BpmInputKind.Email, rule = AccountsRules.contactEmail)
         BpmTextField(value.contactPhone, { v -> viewModel.changeOrganization { it.copy(contactPhone = v) } }, "Teléfono de contacto", Modifier.fillMaxWidth(), error = form.fields["contactPhone"], enabled = !busy,
             inputKind = BpmInputKind.Phone, rule = AccountsRules.contactPhone)
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        RaisedButton(if (busy) "Guardando…" else "Guardar organización", viewModel::saveOrganization, Modifier.fillMaxWidth(), enabled = !busy)
-        BpmSecondaryButton(onClick = viewModel::cancelOrganization, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+    }
     }
 }
 
@@ -85,11 +82,12 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 
 @Composable private fun LocationFormCard(form: LocationForm, busy: Boolean, viewModel: OrganizationViewModel) {
     val value = form.value
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text("Editar sede", style = MaterialTheme.typography.titleMedium)
+    BpmFormLayout(actions = { BpmFormActions("Guardar sede", viewModel::saveLocation, busy = busy, onCancel = viewModel::cancelLocation) }) {
+    BpmSection("Editar sede") {
         BpmTextField(value.name, { v -> viewModel.changeLocation { it.copy(name = v) } }, "Nombre de la sede *", Modifier.fillMaxWidth(), error = form.fields["name"], enabled = !busy, rule = AccountsRules.locationName)
-        BpmTextField(value.address, { v -> viewModel.changeLocation { it.copy(address = v) } }, "Dirección *", Modifier.fillMaxWidth(), error = form.fields["address"], enabled = !busy, rule = AccountsRules.address)
-        BpmTextField(value.district, { v -> viewModel.changeLocation { it.copy(district = v) } }, "Distrito", Modifier.fillMaxWidth(), error = form.fields["district"], enabled = !busy, rule = AccountsRules.district)
+        BpmShortFields(
+            { m -> BpmTextField(value.address, { v -> viewModel.changeLocation { it.copy(address = v) } }, "Dirección *", m, error = form.fields["address"], enabled = !busy, rule = AccountsRules.address) },
+            { m -> BpmTextField(value.district, { v -> viewModel.changeLocation { it.copy(district = v) } }, "Distrito", m, error = form.fields["district"], enabled = !busy, rule = AccountsRules.district) })
         BpmTextField(value.contactPhone, { v -> viewModel.changeLocation { it.copy(contactPhone = v) } }, "Teléfono de contacto", Modifier.fillMaxWidth(), error = form.fields["contactPhone"], enabled = !busy,
             inputKind = BpmInputKind.Phone, rule = AccountsRules.contactPhone)
         BpmTextField(value.timezone, { v -> viewModel.changeLocation { it.copy(timezone = v) } }, "Zona horaria *", Modifier.fillMaxWidth(), error = form.fields["timezone"], enabled = !busy,
@@ -97,8 +95,6 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
         Text("Estado", style = MaterialTheme.typography.labelLarge)
         BpmChoiceRow("Activa", value.status == RecordStatus.ACTIVE, !busy, "Aparece para asignar a las personas del equipo.") { viewModel.changeLocation { it.copy(status = RecordStatus.ACTIVE) } }
         BpmChoiceRow("Inactiva", value.status == RecordStatus.INACTIVE, !busy, "No se borra ni se reasigna a nadie, pero ya no puede asignarse.") { viewModel.changeLocation { it.copy(status = RecordStatus.INACTIVE) } }
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        RaisedButton(if (busy) "Guardando…" else "Guardar sede", viewModel::saveLocation, Modifier.fillMaxWidth(), enabled = !busy)
-        BpmSecondaryButton(onClick = viewModel::cancelLocation, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+    }
     }
 }

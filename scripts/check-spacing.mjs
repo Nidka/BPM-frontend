@@ -49,6 +49,20 @@ for (const file of walk(source)) {
   if (!exempt.test(file))
     for (const match of text.matchAll(/BpmCard\(Modifier\.fillMaxWidth\(\)\)\s*\{\s*\n\s*Text\([^\n]*\n\s*\}/g))
       warnings.push(`${rel}:${lineOf(match.index)} R11 tarjeta de ancho completo con un solo Text; usar BpmInlineNotice o una fila`);
+  const inFeature = /(?:features|app)[\\/]/.test(rel);
+  // R16 (specs/LAYOUT.md §1.3): un módulo no rehace un componente del sistema. Su listado paginado delega en BpmPagedList
+  // y sus acciones de formulario/confirmación usan BpmFormActions/BpmConfirmPanel (botón principal + «Cancelar»).
+  if (inFeature) {
+    for (const match of withoutComments.matchAll(/fun\s+(?:<[^>]*>\s*)?(\w*Paged\w*)\s*\(/g)) {
+      const body = withoutComments.slice(match.index, match.index + 1600);
+      if (!/\bBpmPagedList\s*\(/.test(body))
+        errors.push(`${rel}:${lineOf(match.index)} R16 ${match[1]} propio; delegar en BpmPagedList (estados y paginación del sistema)`);
+    }
+    for (const match of withoutComments.matchAll(/fun\s+(\w*Confirm\w*Card|ConfirmCard)\s*\(/g))
+      errors.push(`${rel}:${lineOf(match.index)} R16 ${match[1]} propio; usar BpmConfirmPanel`);
+    for (const match of withoutComments.matchAll(/\bRaisedButton\((?:[^\n]*\n){0,4}?[^\n]*Text\("Cancelar"\)/g))
+      errors.push(`${rel}:${lineOf(match.index)} R16 botón principal + «Cancelar» a mano; usar BpmFormActions`);
+  }
   text.split('\n').forEach((line, index) => {
     const at = `${rel}:${index + 1}`;
     const code = line.replace(/\/\/.*$/, '');
@@ -72,6 +86,10 @@ for (const file of walk(source)) {
     // Se exime con `// medida: motivo` cuando el componente mide su propio contenedor (ilustración, ventana modal) y no la ventana.
     if (!inDesignSystem && /\bBoxWithConstraints\(/.test(code) && !line.includes('medida:') && !/workspace[\\/]presentation[\\/]WorkspaceScreen\.kt$/.test(file))
       warnings.push(`${at} R12 BoxWithConstraints en pantalla; usar un patrón (BpmScreen) y LocalBpmWindowClass`);
+    // R15 (specs/LAYOUT.md §1.2): las pantallas no fijan anchos; la columna de 720/440/360 la pone el patrón (BpmPatternRules).
+    // Se exime con `// medida: motivo` (ventana modal, cabecera, ingreso dividido).
+    if (inFeature && /\bwidthIn\(\s*max\s*=\s*\d+(?:\.\d+)?\.dp/.test(code) && !line.includes('medida:'))
+      errors.push(`${at} R15 ancho fijo en pantalla; usar el patrón (BpmFormLayout, BpmStepFlow, BpmListDetail) o BpmPatternRules`);
     // R13: toda rejilla de pantalla usa un patrón (BpmGridLayout o BpmPanelLayout), no BpmCardGrid directo.
     if (!inDesignSystem && /\bBpmCardGrid\(/.test(code) && !line.includes('patrón:'))
       errors.push(`${at} R13 BpmCardGrid directo; usar BpmGridLayout/BpmPanelLayout o marcar // patrón: motivo`);

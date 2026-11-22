@@ -46,7 +46,7 @@ import pe.bpm.core.domain.DecimalInput
     }
     LaunchedEffect(state.failure) { if (state.failure != null) scroll.scrollTo(0) }
     Box(Modifier.fillMaxSize()) {
-    Column(Modifier.align(Alignment.TopStart).widthIn(max = 900.dp).fillMaxWidth().verticalScroll(scroll).padding(bottom = 96.dp),
+    Column(Modifier.align(Alignment.TopStart).widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth().verticalScroll(scroll).padding(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(when (state.step) {
             TemplateEditorStep.Edit -> "Nueva plantilla de control"
@@ -90,12 +90,10 @@ import pe.bpm.core.domain.DecimalInput
                             }
                         }
                     }
-                    BpmCard(Modifier.fillMaxWidth()) {
-                        Text("Datos del control", style = MaterialTheme.typography.titleMedium)
+                    BpmSection("Datos del control", description = "Tu equipo verá este control después de que lo revises y publiques.") {
                         EditorField(state.name, onName, "Nombre del control *", state.fields["name"], placeholder = "Ej.: Control de apertura", rule = ChecklistInputRules.name, navigation = navigation["name"])
                         EditorField(state.area, onArea, "Área que se revisará *", state.fields["area"], placeholder = "Ej.: Cocina", rule = ChecklistInputRules.area, navigation = navigation["area"])
                         EditorField(state.description, onDescription, "Descripción (opcional)", state.fields["description"], singleLine = false, placeholder = "Ej.: Revisión antes de comenzar el turno", rule = ChecklistInputRules.description, navigation = navigation["description"])
-                        Text("Tu equipo verá este control después de que lo revises y publiques.", style = MaterialTheme.typography.bodySmall)
                     }
                     Text(if (state.questions.size == 1) "1 pregunta" else "${state.questions.size} preguntas", style = MaterialTheme.typography.titleLarge)
                     state.questions.forEachIndexed { index, input -> key(input.id) {
@@ -105,8 +103,8 @@ import pe.bpm.core.domain.DecimalInput
                     } }
                     if (state.questions.size >= 100) Text("Llegaste al máximo de 100 preguntas por control.")
                     BpmSecondaryButton(onClick = onAdd, enabled = state.questions.size < 100) { Text("Agregar otra pregunta") }
-                    RaisedButton("Revisar plantilla", onReview)
-                    BpmTextButton(onClick = onDiscard) { Text("Descartar borrador") }
+                    BpmFormActions("Revisar plantilla", onReview)
+                    BpmTextButton(onClick = onDiscard, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text("Descartar borrador") }
                 } else {
                     BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                         Text(state.name.trim(), style = MaterialTheme.typography.titleLarge)
@@ -120,17 +118,16 @@ import pe.bpm.core.domain.DecimalInput
                         Text(if (question.required) "Respuesta obligatoria" else "Respuesta opcional")
                         if (question.minimumValue != null) Text("Criterio: ${question.minimumValue} a ${question.maximumValue} ${question.unit}")
                     } }
-                    if (state.publishing) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    RaisedButton(if (state.publishing) "Comprobando publicación…" else if (state.uncertain) "Comprobar y reintentar" else "Publicar plantilla",
-                        onPublish, enabled = !state.publishing && state.failure != PublicationFailure.CONFLICT)
-                    BpmSecondaryButton(onClick = onEdit, enabled = state.editable) { Text("Volver a editar") }
+                    BpmFormActions(if (state.uncertain) "Comprobar y reintentar" else "Publicar plantilla", onPublish,
+                        enabled = state.failure != PublicationFailure.CONFLICT, busy = state.publishing, busyLabel = "Comprobando publicación…",
+                        cancelLabel = "Volver a editar", onCancel = if (state.editable) onEdit else null)
                     if (state.uncertain) BpmTextButton(onClick = onClose, enabled = !state.publishing) { Text("Volver sin descartar") }
                     else BpmTextButton(onClick = onDiscard, enabled = !state.publishing) { Text("Descartar borrador") }
                 }
             }
         }
     }
-    SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).widthIn(max = 600.dp).padding(16.dp))
+    SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).widthIn(max = 600.dp).padding(16.dp)) // medida: aviso flotante
     }
 }
 

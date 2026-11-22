@@ -30,7 +30,7 @@ internal fun IdentityWelcomePane(modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) { // medida: panel de bienvenida del ingreso dividido
                     Brand()
                     Text("Buenas prácticas de manipulación",
                         style = if (compact) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displaySmall)

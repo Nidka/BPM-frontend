@@ -18,28 +18,12 @@ import pe.bpm.features.accounts.domain.*
     notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
 }
 
-@Composable internal fun <T> StatusFilter(options: List<Pair<T, String>>, selected: T, enabled: Boolean, onSelect: (T) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        options.forEach { (value, label) -> BpmFilterChip(selected = value == selected, onClick = { onSelect(value) }, enabled = enabled, label = { Text(label) }) }
-    }
-}
-
-/** Lista de una página con carga, error reintentable y navegación sin total inventado. */
+/** Adapta una [AccountPage] al listado paginado del sistema (specs/LAYOUT.md §3.3). */
 @Composable internal fun <T> PagedBlock(page: AccountPage<T>, empty: @Composable () -> Unit, onRetry: () -> Unit,
-    onPrevious: () -> Unit, onNext: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        when {
-            page.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando…") }
-            page.failure != null -> {
-                Text(accountFailureMessage(page.failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }
-            }
-            page.items.isEmpty() -> empty()
-            else -> content()
-        }
-        PageNavigation(page.number, page.previous.isNotEmpty(), page.nextToken.isNotEmpty(), page.loading || page.failure != null, onPrevious, onNext)
-    }
-}
+    onPrevious: () -> Unit, onNext: () -> Unit, content: @Composable ColumnScope.() -> Unit) =
+    BpmPagedList(loading = page.loading, failure = page.failure?.let { accountFailureMessage(it) }, isEmpty = page.items.isEmpty(),
+        pageNumber = page.number, canPrevious = page.previous.isNotEmpty(), canNext = page.nextToken.isNotEmpty(),
+        onRetry = onRetry, onPrevious = onPrevious, onNext = onNext, empty = empty, content = content)
 
 @Composable internal fun RolePicker(selected: MemberRole, enabled: Boolean, onSelect: (MemberRole) -> Unit, error: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -62,18 +46,6 @@ import pe.bpm.features.accounts.domain.*
             else -> locations.forEach { location -> BpmCheckboxRow(location.name, location.id in selected, enabled) { onToggle(location.id) } }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-    }
-}
-
-/** Confirmación en línea (sin ventana emergente) para acciones con efectos que conviene entender. */
-@Composable internal fun ConfirmCard(title: String, busy: Boolean, confirmLabel: String, onConfirm: () -> Unit, onCancel: () -> Unit,
-    confirmEnabled: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
-    BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        content()
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        RaisedButton(if (busy) "Guardando…" else confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = !busy && confirmEnabled)
-        BpmSecondaryButton(onClick = onCancel, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
     }
 }
 

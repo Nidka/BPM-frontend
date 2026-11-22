@@ -7,7 +7,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import pe.bpm.core.designsystem.PageNavigation
+import pe.bpm.core.designsystem.BpmPagedList
+import pe.bpm.core.designsystem.BpmSpacing
 import pe.bpm.core.designsystem.BpmSearchField
 import pe.bpm.features.workspace.domain.WorkspaceResource
 
@@ -25,14 +26,12 @@ import pe.bpm.features.workspace.domain.WorkspaceResource
         WorkspaceResource.Courses -> "Buscar capacitaciones"
         WorkspaceResource.Incidents -> "Buscar incidencias"
     }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
         BpmSearchField(page.request.query, { onSearch(resource, it) }, label, enabled = !state.loading && !state.saving, loading = page.loading, fullWidth = fullWidthSearch)
-        when {
-            page.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando resultados…") }
-            page.errors.isNotEmpty() -> { Errors(page.errors); BpmSecondaryButton(onClick = { onRetry(resource) }) { Text("Reintentar") } }
-            else -> content()
-        }
-        PageNavigation(page.number, page.previous.isNotEmpty(), page.nextToken.isNotEmpty(), page.loading || page.errors.isNotEmpty(),
-            onPrevious = { onPrevious(resource) }, onNext = { onNext(resource) })
+        // Estados y paginación del sistema (specs/LAYOUT.md §3.3); el vacío lo decide cada lista dentro de [content].
+        BpmPagedList(loading = page.loading, failure = page.errors.takeIf { it.isNotEmpty() }?.joinToString("\n") { it.message },
+            isEmpty = false, pageNumber = page.number, canPrevious = page.previous.isNotEmpty(), canNext = page.nextToken.isNotEmpty(),
+            onRetry = { onRetry(resource) }, onPrevious = { onPrevious(resource) }, onNext = { onNext(resource) },
+            loadingLabel = "Cargando resultados…", empty = {}, content = content)
     }
 }

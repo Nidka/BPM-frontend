@@ -93,7 +93,7 @@ internal fun PrivateEvidenceHost(
                 )
                 Surface(
                     Modifier.padding(16.dp)
-                        .widthIn(max = 640.dp)
+                        .widthIn(max = 640.dp) // medida: ventana modal de evidencias
                         .fillMaxWidth()
                         .heightIn(max = overlayHeight)
                         .focusRequester(focus)
@@ -134,7 +134,7 @@ internal fun PrivateEvidenceHost(
         } else
             Dialog(onDismissRequest = dismiss) {
                 Surface(
-                    Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(max = 760.dp),
+                    Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(max = 760.dp), // medida: ventana modal de evidencias
                     shape = MaterialTheme.shapes.large,
                 ) {
                     Column {

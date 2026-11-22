@@ -30,7 +30,7 @@ fun SurveyScreen(viewModel: SurveyViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scroll = rememberScrollState()
     LaunchedEffect(state.screen, state.index) { scroll.scrollTo(0) }
-    Column(modifier.fillMaxSize().widthIn(max = 760.dp).verticalScroll(scroll).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(scroll).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (state.loading && state.participation == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             BpmCard(Modifier.fillMaxWidth()) {

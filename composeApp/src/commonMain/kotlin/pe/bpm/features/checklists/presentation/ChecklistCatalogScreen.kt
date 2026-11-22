@@ -1,5 +1,7 @@
 package pe.bpm.features.checklists.presentation
 
+import pe.bpm.core.designsystem.*
+
 import pe.bpm.core.designsystem.BpmListDetail
 import pe.bpm.core.designsystem.BpmSpacing
 import pe.bpm.core.designsystem.BpmType
@@ -88,33 +90,32 @@ fun ChecklistCatalogScreen(
 
 @Composable
 private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, onSelect: () -> Unit) {
-    BpmCard(modifier) {
-        Text(template.area, color = MaterialTheme.colorScheme.primary, style = BpmType.bodyStrong)
-        Text(template.name, style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() })
-        if (template.description.isNotBlank()) Text(template.description)
-        Text("Versión ${template.versionNumber} · Publicada", style = MaterialTheme.typography.bodyMedium)
-        Text("Preguntas: ${template.items.size} · Obligatorias: ${template.items.count { it.required }}", style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.weight(1f))
-        RaisedButton("Abrir plantilla", onSelect, Modifier.fillMaxWidth())
-    }
+    BpmRecordCard(template.name, modifier, status = BpmRecordStatus("Versión ${template.versionNumber}", BpmTone.Success),
+        subtitle = template.area,
+        details = listOfNotNull(template.description.takeIf { it.isNotBlank() },
+            "Preguntas: ${template.items.size} · Obligatorias: ${template.items.count { it.required }}"),
+        onOpen = onSelect, actionLabel = "Abrir plantilla")
 }
 
 /** Consulta de una versión publicada; la raíz coordina su ruta y el regreso al catálogo. */
 @Composable
 private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> Unit)?, onAssign: ((String) -> Unit)?, onVersions: ((String) -> Unit)? = null) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (onStart != null) RaisedButton("Preparar revisión", { onStart(template.id) })
-        if (onAssign != null) RaisedButton("Programar en una sede", { onAssign(template.id) }, Modifier.fillMaxWidth())
-        if (onVersions != null) BpmSecondaryButton(onClick = { onVersions(template.id) }) { Text("Editar preguntas y ver versiones") }
-        BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-            Text("DETALLE DEL CONTROL", style = BpmType.bodyMediumStrong)
-            Text(template.name, style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { heading() })
-            Text("${template.area} · Versión ${template.versionNumber}")
+    // Detalle del registro (specs/LAYOUT.md §5): un solo botón principal; programar y versiones quedan como secundarios.
+    BpmDetailPane(template.name, status = BpmRecordStatus("Versión ${template.versionNumber}"), subtitle = template.area,
+        actions = if (onStart == null && onAssign == null && onVersions == null) null else ({
+            when {
+                onStart != null -> RaisedButton("Preparar revisión", { onStart(template.id) }, Modifier.bpmPrimaryButtonWidth())
+                onAssign != null -> RaisedButton("Programar en una sede", { onAssign(template.id) }, Modifier.bpmPrimaryButtonWidth())
+            }
+            if (onStart != null && onAssign != null) BpmSecondaryButton(onClick = { onAssign(template.id) }) { Text("Programar en una sede") }
+            if (onVersions != null) BpmSecondaryButton(onClick = { onVersions(template.id) }) { Text("Editar preguntas y ver versiones") }
+        })) {
+        BpmSection("Sobre este control") {
             if (template.description.isNotBlank()) Text(template.description)
-            Text(if (onStart != null) "Para responder estas preguntas, pulsa Preparar revisión y elige la sede." else "Tu equipo utilizará estas preguntas al realizar el control desde su sección Control.", style = MaterialTheme.typography.bodyMedium)
+            Text(if (onStart != null) "Para responder estas preguntas, pulsa Preparar revisión y elige la sede." else "Tu equipo utilizará estas preguntas al realizar el control desde su sección Control.",
+                style = MaterialTheme.typography.bodyMedium)
         }
+        Text(if (template.items.size == 1) "1 pregunta" else "${template.items.size} preguntas", style = MaterialTheme.typography.titleMedium)
         template.items.forEach { item -> Question(item) }
     }
 }

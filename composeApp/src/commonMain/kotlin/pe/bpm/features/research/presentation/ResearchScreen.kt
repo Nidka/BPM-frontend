@@ -82,11 +82,7 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
             singleLine = false, minLines = 8, error = if (form.showIssues && form.text.isBlank()) "Escribe el texto del consentimiento." else null, enabled = !state.documentBusy,
             supportingText = "${form.text.length} de ${ResearchLimits.CONSENT_TEXT_MAX} caracteres")
         ErrorLine(state.documentFailure)
-        if (state.documentBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Publicar versión", viewModel::publishDocument, Modifier.bpmPrimaryButtonWidth(), enabled = !state.documentBusy)
-            BpmSecondaryButton(onClick = viewModel::cancelDocument, enabled = !state.documentBusy) { Text("Cancelar") }
-        }
+        BpmFormActions("Publicar versión", viewModel::publishDocument, busy = state.documentBusy, onCancel = viewModel::cancelDocument)
         return
     }
     RaisedButton("Publicar nueva versión", viewModel::startDocument, Modifier.bpmPrimaryButtonWidth())
@@ -127,11 +123,7 @@ private fun InstrumentsTab(controller: InstrumentsController) {
         BpmTextField(form.text, controller::editImport, "Contenido del archivo JSON", Modifier.fillMaxWidth(), singleLine = false, minLines = 8,
             error = form.error, enabled = !form.busy)
         ErrorLine(form.failure)
-        if (form.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Importar como borrador", controller::confirmImport, Modifier.bpmPrimaryButtonWidth(), enabled = !form.busy && form.text.isNotBlank())
-            BpmSecondaryButton(onClick = controller::cancelImport, enabled = !form.busy) { Text("Cancelar") }
-        }
+        BpmFormActions("Importar como borrador", controller::confirmImport, enabled = form.text.isNotBlank(), busy = form.busy, onCancel = controller::cancelImport)
         return
     }
     RaisedButton("Importar cuestionario (JSON)", controller::startImport, Modifier.bpmPrimaryButtonWidth())
@@ -335,11 +327,7 @@ private fun NeedsTab(controller: AnalysisController) {
             singleLine = false, minLines = 4, enabled = !form.busy, error = if (form.showIssues && form.description.isBlank()) "Describe la necesidad." else null,
             supportingText = "${form.description.length} de ${ResearchLimits.NEED_DESCRIPTION_MAX} caracteres")
         ErrorLine(form.failure)
-        if (form.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RaisedButton("Registrar necesidad", controller::saveNeed, Modifier.bpmPrimaryButtonWidth(), enabled = !form.busy)
-            BpmSecondaryButton(onClick = controller::cancelNeed, enabled = !form.busy) { Text("Cancelar") }
-        }
+        BpmFormActions("Registrar necesidad", controller::saveNeed, busy = form.busy, onCancel = controller::cancelNeed)
         return
     }
     OrganizationFilter(state, controller, label = "Filtrar por empresa")

@@ -133,9 +133,10 @@ private fun bpmTypography(): Typography {
         headlineLarge = base.headlineLarge.heavy(), headlineMedium = base.headlineMedium.heavy(),
         headlineSmall = base.headlineSmall.heavy(), titleLarge = base.titleLarge.heavy(),
         titleMedium = base.titleMedium.copy(fontWeight = FontWeight.Bold),
-        // Texto de apoyo un punto más grande: 12 sp se lee pequeño en escritorio.
-        bodySmall = base.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-        labelMedium = base.labelMedium.copy(fontSize = 13.sp, lineHeight = 16.sp),
+        // RNF de usabilidad: ningún texto por debajo de 14 sp (apoyo, etiquetas y chips incluidos).
+        bodySmall = base.bodySmall.copy(fontSize = 14.sp, lineHeight = 20.sp),
+        labelMedium = base.labelMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
+        labelSmall = base.labelSmall.copy(fontSize = 14.sp, lineHeight = 18.sp),
         labelLarge = base.labelLarge.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
     )
 }

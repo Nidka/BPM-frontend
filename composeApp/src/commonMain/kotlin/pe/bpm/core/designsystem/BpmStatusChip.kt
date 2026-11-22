@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Píldora informativa de estado o vencimiento (no es interactiva). Texto de 12 sp en negrita y, si se indica,
+ * Píldora informativa de estado o vencimiento (no es interactiva). Texto de 14 sp en negrita (mínimo del RNF) y, si se indica,
  * un icono de 14 dp a la izquierda. El color sale del [tone]; el texto siempre dice el estado.
  */
 @Composable
@@ -32,6 +32,6 @@ fun BpmStatusChip(
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xs),
     ) {
         if (symbol != null) BpmIcon(symbol, tint = content, modifier = Modifier.size(14.dp))
-        Text(text, color = content, style = BpmType.labelStrong.copy(fontSize = 12.sp, lineHeight = 16.sp))
+        Text(text, color = content, style = BpmType.labelStrong)
     }
 }

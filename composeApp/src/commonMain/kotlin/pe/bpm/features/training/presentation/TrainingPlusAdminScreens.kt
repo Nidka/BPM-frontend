@@ -94,36 +94,37 @@ private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssig
 private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentForm, viewModel: TrainingAssignmentAdminViewModel, memberSelector: TargetSelector, locationSelector: TargetSelector) {
     val issues = if (form.showIssues) AssignmentFormRules.issues(form, Clock.System.now()) else emptyMap()
     val enabled = !state.saving
-    Text("Asignar un curso", style = MaterialTheme.typography.headlineMedium)
-    Text("Curso publicado", style = MaterialTheme.typography.titleMedium)
-    if (state.publishedCourses.isEmpty()) Text("No hay cursos publicados para asignar.")
-    state.publishedCourses.forEach { course ->
-        BpmChoiceRow("${course.code} · ${course.title}", form.courseId == course.id, enabled) { viewModel.edit { it.copy(courseId = course.id, courseTitle = course.title) } }
-    }
-    issues["course"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Text("¿A quién?", style = MaterialTheme.typography.titleMedium)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BpmFilterChip(form.kind == TargetKind.USER, { viewModel.edit { it.copy(kind = TargetKind.USER) } }, { Text("Una persona") }, enabled = enabled)
-        BpmFilterChip(form.kind == TargetKind.ROLE, { viewModel.edit { it.copy(kind = TargetKind.ROLE) } }, { Text("Un rol") }, enabled = enabled)
-        BpmFilterChip(form.kind == TargetKind.LOCATION, { viewModel.edit { it.copy(kind = TargetKind.LOCATION) } }, { Text("Una sede") }, enabled = enabled)
-    }
-    when (form.kind) {
-        TargetKind.USER -> memberSelector(form.userId, form.userName, enabled) { id, name -> viewModel.edit { it.copy(userId = id, userName = name) } }
-        TargetKind.LOCATION -> locationSelector(form.locationId, form.locationName, enabled) { id, name -> viewModel.edit { it.copy(locationId = id, locationName = name) } }
-        TargetKind.ROLE -> {
-            listOf("WORKER", "CHEF", "ADMIN").forEach { role -> BpmChoiceRow(roleName(role), form.role == role, enabled) { viewModel.edit { it.copy(role = role) } } }
-            Text("Sede (opcional): si eliges una, solo recibe quien pertenece a ella.", style = MaterialTheme.typography.bodySmall)
-            locationSelector(form.locationId, form.locationName, enabled) { id, name -> viewModel.edit { it.copy(locationId = id, locationName = name) } }
-            if (form.locationId != null) BpmTextButton(onClick = { viewModel.edit { it.copy(locationId = null, locationName = "") } }, enabled = enabled) { Text("Quitar sede (todo el rol)") }
+    BpmFormLayout(actions = { BpmFormActions("Crear asignación", viewModel::create, busy = state.saving, onCancel = viewModel::cancelCreate) }) {
+        Text("Asignar un curso", style = MaterialTheme.typography.titleLarge)
+        BpmSection("Curso publicado") {
+            if (state.publishedCourses.isEmpty()) Text("No hay cursos publicados para asignar.")
+            state.publishedCourses.forEach { course ->
+                BpmChoiceRow("${course.code} · ${course.title}", form.courseId == course.id, enabled) { viewModel.edit { it.copy(courseId = course.id, courseTitle = course.title) } }
+            }
+            issues["course"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
+        BpmSection("¿A quién?") {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                BpmFilterChip(form.kind == TargetKind.USER, { viewModel.edit { it.copy(kind = TargetKind.USER) } }, { Text("Una persona") }, enabled = enabled)
+                BpmFilterChip(form.kind == TargetKind.ROLE, { viewModel.edit { it.copy(kind = TargetKind.ROLE) } }, { Text("Un rol") }, enabled = enabled)
+                BpmFilterChip(form.kind == TargetKind.LOCATION, { viewModel.edit { it.copy(kind = TargetKind.LOCATION) } }, { Text("Una sede") }, enabled = enabled)
+            }
+            when (form.kind) {
+                TargetKind.USER -> memberSelector(form.userId, form.userName, enabled) { id, name -> viewModel.edit { it.copy(userId = id, userName = name) } }
+                TargetKind.LOCATION -> locationSelector(form.locationId, form.locationName, enabled) { id, name -> viewModel.edit { it.copy(locationId = id, locationName = name) } }
+                TargetKind.ROLE -> {
+                    listOf("WORKER", "CHEF", "ADMIN").forEach { role -> BpmChoiceRow(roleName(role), form.role == role, enabled) { viewModel.edit { it.copy(role = role) } } }
+                    Text("Sede (opcional): si eliges una, solo recibe quien pertenece a ella.", style = MaterialTheme.typography.bodySmall)
+                    locationSelector(form.locationId, form.locationName, enabled) { id, name -> viewModel.edit { it.copy(locationId = id, locationName = name) } }
+                    if (form.locationId != null) BpmTextButton(onClick = { viewModel.edit { it.copy(locationId = null, locationName = "") } }, enabled = enabled) { Text("Quitar sede (todo el rol)") }
+                }
+            }
+            issues["target"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            BpmTextField(form.dueDate, { v -> viewModel.edit { it.copy(dueDate = v.filter { c -> c.isDigit() || c == '-' }.take(10)) } }, "Fecha límite (AAAA-MM-DD, opcional)",
+                error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (hora universal).")
+        }
+        Failure(state.formFailure)
     }
-    issues["target"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    BpmTextField(form.dueDate, { v -> viewModel.edit { it.copy(dueDate = v.filter { c -> c.isDigit() || c == '-' }.take(10)) } }, "Fecha límite (AAAA-MM-DD, opcional)",
-        error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (hora universal).")
-    Failure(state.formFailure)
-    if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Crear asignación", viewModel::create, Modifier.bpmPrimaryButtonWidth(), enabled = enabled)
-    BpmTextButton(onClick = viewModel::cancelCreate, enabled = enabled) { Text("Cancelar") }
 }
 
 // ---- Insignias -------------------------------------------------------------------------------
@@ -139,21 +140,20 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
         if (editor != null) {
             val shown = if (editor.showIssues) editor.issues else emptyList()
             val enabled = !state.saving
-            Text("Editar insignia", style = MaterialTheme.typography.headlineMedium)
-            Text("${criterionLabel(editor.achievement)}. El tipo de criterio no se puede cambiar.", style = MaterialTheme.typography.bodySmall)
-            BpmTextField(editor.name, { v -> viewModel.edit { it.copy(name = v) } }, "Nombre", enabled = enabled)
-            BpmTextField(editor.description, { v -> viewModel.edit { it.copy(description = v) } }, "Descripción", singleLine = false, minLines = 2, enabled = enabled)
-            BpmTextField(editor.points, { v -> viewModel.edit { it.copy(points = v.filter(Char::isDigit).take(4)) } }, "Puntos (0 a ${AchievementRules.POINTS_MAX})", inputKind = BpmInputKind.Integer, enabled = enabled)
-            BpmTextField(editor.threshold, { v -> viewModel.edit { it.copy(threshold = v.filter(Char::isDigit).take(3)) } }, "Umbral (1 a ${AchievementRules.THRESHOLD_MAX})", inputKind = BpmInputKind.Integer, enabled = enabled)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Switch(editor.active, { v -> viewModel.edit { it.copy(active = v) } }, enabled = enabled)
-                Text(if (editor.active) "Activa: se otorga a quien cumpla el criterio" else "Inactiva: deja de otorgarse (las ya otorgadas se conservan)")
+            BpmFormLayout(actions = { BpmFormActions("Guardar insignia", viewModel::save, busy = state.saving, onCancel = viewModel::cancelEdit) }) {
+                BpmSection("Editar insignia", description = "${criterionLabel(editor.achievement)}. El tipo de criterio no se puede cambiar.") {
+                    BpmTextField(editor.name, { v -> viewModel.edit { it.copy(name = v) } }, "Nombre", enabled = enabled)
+                    BpmTextField(editor.description, { v -> viewModel.edit { it.copy(description = v) } }, "Descripción", singleLine = false, minLines = 2, enabled = enabled)
+                    BpmTextField(editor.points, { v -> viewModel.edit { it.copy(points = v.filter(Char::isDigit).take(4)) } }, "Puntos (0 a ${AchievementRules.POINTS_MAX})", inputKind = BpmInputKind.Integer, enabled = enabled)
+                    BpmTextField(editor.threshold, { v -> viewModel.edit { it.copy(threshold = v.filter(Char::isDigit).take(3)) } }, "Umbral (1 a ${AchievementRules.THRESHOLD_MAX})", inputKind = BpmInputKind.Integer, enabled = enabled)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Switch(editor.active, { v -> viewModel.edit { it.copy(active = v) } }, enabled = enabled)
+                        Text(if (editor.active) "Activa: se otorga a quien cumpla el criterio" else "Inactiva: deja de otorgarse (las ya otorgadas se conservan)")
+                    }
+                    shown.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
+                    Failure(state.saveFailure)
+                }
             }
-            shown.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
-            Failure(state.saveFailure)
-            if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-            RaisedButton("Guardar insignia", viewModel::save, Modifier.bpmPrimaryButtonWidth(), enabled = enabled)
-            BpmTextButton(onClick = viewModel::cancelEdit, enabled = enabled) { Text("Cancelar") }
         } else {
             Text("Catálogo de logros", style = MaterialTheme.typography.headlineMedium)
             Text("Quienes aprenden ganan estas insignias de forma automática. Puedes ajustar nombre, puntos, umbral y vigencia.")
@@ -241,7 +241,7 @@ private fun PathEditorPanel(state: PathAdminState, editor: PathEditor, viewModel
     }
     RaisedButton("Guardar ruta", viewModel::save, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && (editor.dirty || editor.isNew))
     if (!editor.isNew && editor.status == PathStatus.DRAFT)
-        BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.dirty, modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth()) { Text("Publicar ruta") }
+        BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.dirty, modifier = Modifier.bpmPrimaryButtonWidth()) { Text("Publicar ruta") }
     if (!editor.isNew && editor.status != PathStatus.ARCHIVED)
         BpmTextButton(onClick = viewModel::archive, enabled = enabled) { Text("Archivar ruta") }
     BpmTextButton(onClick = viewModel::closeEditor, enabled = !state.busy) { Text("Volver a la lista de rutas") }

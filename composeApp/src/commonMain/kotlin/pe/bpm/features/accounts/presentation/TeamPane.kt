@@ -19,55 +19,53 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String) {
         AccountMessages(state.failure, state.notice)
         state.editor?.let { MemberEditorCard(it, state, viewModel) }
         state.action?.let { ActionCard(it, state, viewModel) }
-        StatusFilter(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.status, !state.busy, viewModel::selectStatus)
-        BpmSearchField(state.page.request.query, viewModel::search, "Buscar personas", enabled = !state.busy, loading = state.page.loading)
+        BpmListToolbar(
+            filters = { BpmFilterChips(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.status, !state.busy, viewModel::selectStatus) },
+            search = { m -> BpmSearchField(state.page.request.query, viewModel::search, "Buscar personas", m, enabled = !state.busy, loading = state.page.loading) },
+        )
         PagedBlock(state.page, empty = {
             EmptyState(if (state.status == RecordStatus.ACTIVE) "Sin personas activas" else "Sin personas inactivas",
                 "No hay personas para esta búsqueda. Invita a alguien desde la pestaña Invitaciones.")
         }, onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
             BpmGridLayout(state.page.items) { member, cardModifier ->
-                BpmCard(cardModifier) {
-                    Text(member.name, style = BpmType.bodyStrong)
-                    Text(member.email)
-                    Eyebrow(member.role.label + if (member.status == RecordStatus.INACTIVE) " · Inactiva" else "")
-                    Text(if (member.role == MemberRole.ADMIN) "Todas las sedes de esta organización" else locationNames(member.locationIds, state.locations),
-                        style = MaterialTheme.typography.bodySmall)
-                    val self = member.id == currentUserId
-                    BpmSecondaryButton(onClick = { viewModel.edit(member) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Editar rol y sedes") }
-                    if (member.status == RecordStatus.ACTIVE) {
-                        if (member.role != MemberRole.ADMIN && !self) BpmSecondaryButton(onClick = { viewModel.askTransfer(member) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Transferir administración") }
-                        BpmTextButton(onClick = { viewModel.askDeactivate(member) }, enabled = !state.busy) { Text("Desactivar") }
-                    } else BpmSecondaryButton(onClick = { viewModel.askReactivate(member) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Reactivar") }
-                }
+                val self = member.id == currentUserId
+                val active = member.status == RecordStatus.ACTIVE
+                BpmRecordCard(member.name, cardModifier,
+                    status = if (active) BpmRecordStatus(member.role.label) else BpmRecordStatus("Inactiva", BpmTone.Neutral),
+                    subtitle = member.email,
+                    details = listOf(if (member.role == MemberRole.ADMIN) "Todas las sedes de esta organización" else locationNames(member.locationIds, state.locations)),
+                    actionLabel = if (active) "Editar rol y sedes" else "Reactivar",
+                    onAction = { if (active) viewModel.edit(member) else viewModel.askReactivate(member) },
+                    textActions = if (!active) emptyList() else buildList {
+                        if (member.role != MemberRole.ADMIN && !self) add("Transferir administración" to { viewModel.askTransfer(member) })
+                        add("Desactivar" to { viewModel.askDeactivate(member) })
+                    },
+                    enabled = !state.busy)
             }
         }
     }
 }
 
 @Composable private fun MemberEditorCard(editor: MemberEditor, state: TeamState, viewModel: TeamViewModel) {
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text("Editar a ${editor.member.name}", style = MaterialTheme.typography.titleMedium)
-        Text(editor.member.email, style = MaterialTheme.typography.bodySmall)
-        RolePicker(editor.role, !state.busy, viewModel::editRole, editor.fields["role"])
-        if (editor.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, editor.locationIds, !state.busy,
-            viewModel::toggleLocation, editor.fields["locationIds"])
-        else Text("Un administrador ve todas las sedes; no hace falta elegirlas.", style = MaterialTheme.typography.bodySmall)
-        if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        RaisedButton(if (state.busy) "Guardando…" else "Guardar cambios", viewModel::saveEditor, Modifier.fillMaxWidth(), enabled = !state.busy)
-        BpmSecondaryButton(onClick = viewModel::cancelEdit, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+    BpmFormLayout(actions = { BpmFormActions("Guardar cambios", viewModel::saveEditor, busy = state.busy, onCancel = viewModel::cancelEdit) }) {
+        BpmSection("Editar a ${editor.member.name}", description = editor.member.email) {
+            RolePicker(editor.role, !state.busy, viewModel::editRole, editor.fields["role"])
+            if (editor.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, editor.locationIds, !state.busy,
+                viewModel::toggleLocation, editor.fields["locationIds"])
+            else Text("Un administrador ve todas las sedes; no hace falta elegirlas.", style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 
 @Composable private fun ActionCard(action: MemberAction, state: TeamState, viewModel: TeamViewModel) {
     when (action) {
-        is MemberAction.Deactivate -> ConfirmCard("¿Desactivar a ${action.member.name}?", state.busy, "Sí, desactivar", viewModel::confirmAction, viewModel::cancelAction) {
+        is MemberAction.Deactivate -> BpmConfirmPanel("¿Desactivar a ${action.member.name}?", "Sí, desactivar", viewModel::confirmAction, viewModel::cancelAction, busy = state.busy) {
             Text("La persona perderá el acceso a esta organización y sus dispositivos dejarán de recibir avisos. Sus registros se conservan y puedes reactivarla cuando quieras.")
         }
-        is MemberAction.Reactivate -> ConfirmCard("¿Reactivar a ${action.member.name}?", state.busy, "Sí, reactivar", viewModel::confirmAction, viewModel::cancelAction) {
+        is MemberAction.Reactivate -> BpmConfirmPanel("¿Reactivar a ${action.member.name}?", "Sí, reactivar", viewModel::confirmAction, viewModel::cancelAction, busy = state.busy) {
             Text("Recuperará el rol y las sedes que tenía. Si su rol exige sedes y ya no hay ninguna activa, edítala primero.")
         }
-        is MemberAction.Transfer -> ConfirmCard("Transferir la administración a ${action.member.name}", state.busy, "Transferir administración",
-            viewModel::confirmAction, viewModel::cancelAction) {
+        is MemberAction.Transfer -> BpmConfirmPanel("Transferir la administración a ${action.member.name}", "Transferir administración", viewModel::confirmAction, viewModel::cancelAction, busy = state.busy) {
             Text("${action.member.name} pasará a ser administrador" + if (state.actorIsMember) " y tú dejarás de serlo. Elige el rol que tendrás después." else ".")
             if (state.actorIsMember) {
                 RolePickerForActor(action, state, viewModel)

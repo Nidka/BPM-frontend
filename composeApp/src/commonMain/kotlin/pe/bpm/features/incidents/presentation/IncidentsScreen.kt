@@ -264,81 +264,88 @@ private fun IncidentDetailContent(
 ) {
     val d = s.detail ?: return
     val i = d.summary
-    Text(i.name, style = MaterialTheme.typography.titleLarge)
-    pe.bpm.core.offline.PendingBadge(i.id)
-    Text(
-        "${incidentStatusLabel(i.status.name)} · ${i.area} · Riesgo ${incidentRiskLabel(i.riskLevel)}"
-    )
-    Text(i.description)
-    Text(
-        "Criterio aplicado · Versión ${d.catalogVersion}",
-        style = MaterialTheme.typography.titleMedium,
-    )
-    Text(d.normativeCriterion)
-    Text("Reportó ${i.reportedByName} · ${displayDateTime(i.createdAt)}")
-    val supervisor = s.role in setOf("CHEF", "ADMIN", "SUPER_ADMIN")
-    val beforeWritable =
-        (supervisor || d.reportedBy == s.userId) &&
-            i.status in
-                setOf(IncidentStatus.OPEN, IncidentStatus.ASSIGNED, IncidentStatus.IN_PROGRESS)
-    BpmSecondaryButton({ onEvidence(i.id, null, "BEFORE", beforeWritable) }) {
-        Text("Fotos antes (${d.beforeCount})")
-    }
-    d.actions.forEach { action -> // lista-apilada: acciones del detalle en orden
-        BpmCard(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Responsable: ${action.responsibleName}",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(action.description)
-                Text("Plazo: ${displayDateTime(action.dueAt)}")
-                Text("Estado de la acción: ${incidentStatusLabel(action.status)}")
-                if (action.selfValidated) Eyebrow("Autovalidada")
-                action.resolutionNote
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { Text("Corrección realizada: $it") }
-                val writable =
-                    IncidentsAccess.canAttend(s.role) &&
-                        action.responsibleUserId == s.userId &&
-                        i.status == IncidentStatus.IN_PROGRESS &&
-                        action.status == "IN_PROGRESS"
-                BpmSecondaryButton({ onEvidence(i.id, action.id, "AFTER", writable) }) {
-                    Text("Fotos después")
+    val workflow = IncidentsAccess.visibleActions(d.allowedActions, i.status, d.actions, s.userId)
+    // Detalle del registro (specs/LAYOUT.md §5): la primera acción del flujo es la principal; las demás, secundarias.
+    BpmDetailPane(i.name, status = BpmRecordStatus(incidentStatusLabel(i.status.name), incidentStatusTone(i.status)),
+        subtitle = i.description, onBack = vm::closeDetail,
+        actions = {
+            workflow.forEachIndexed { index, type ->
+                val self = type == IncidentActionType.VERIFY && IncidentsAccess.isSelfVerification(d.actions, s.userId)
+                val label = if (self) "Validar sin otro validador" else incidentActionLabel(type)
+                if (index == 0) RaisedButton(label, { vm.action(type) }, Modifier.bpmPrimaryButtonWidth(), enabled = !s.loading)
+                else BpmSecondaryButton({ vm.action(type) }, enabled = !s.loading) { Text(label) }
+            }
+            BpmSecondaryButton(vm::history) { Text("Consultar historial") }
+        }) {
+        pe.bpm.core.offline.PendingBadge(i.id)
+        BpmSection("Datos de la incidencia") {
+            BpmDetailFields(listOf(
+                BpmDetailField("Área", i.area),
+                BpmDetailField("Riesgo", incidentRiskLabel(i.riskLevel).replaceFirstChar { it.uppercase() }),
+                BpmDetailField("Reportó", i.reportedByName),
+                BpmDetailField("Fecha del reporte", displayDateTime(i.createdAt)),
+            ))
+        }
+        BpmSection("Criterio aplicado", description = "Versión ${d.catalogVersion} del catálogo") { Text(d.normativeCriterion) }
+        val supervisor = s.role in setOf("CHEF", "ADMIN", "SUPER_ADMIN")
+        val beforeWritable =
+            (supervisor || d.reportedBy == s.userId) &&
+                i.status in
+                    setOf(IncidentStatus.OPEN, IncidentStatus.ASSIGNED, IncidentStatus.IN_PROGRESS)
+        BpmSecondaryButton({ onEvidence(i.id, null, "BEFORE", beforeWritable) }) {
+            Text("Fotos antes (${d.beforeCount})")
+        }
+        d.actions.forEach { action -> // lista-apilada: acciones del detalle en orden
+            BpmCard(Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Responsable: ${action.responsibleName}",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(action.description)
+                    Text("Plazo: ${displayDateTime(action.dueAt)}")
+                    Text("Estado de la acción: ${incidentStatusLabel(action.status)}")
+                    if (action.selfValidated) Eyebrow("Autovalidada")
+                    action.resolutionNote
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { Text("Corrección realizada: $it") }
+                    val writable =
+                        IncidentsAccess.canAttend(s.role) &&
+                            action.responsibleUserId == s.userId &&
+                            i.status == IncidentStatus.IN_PROGRESS &&
+                            action.status == "IN_PROGRESS"
+                    BpmSecondaryButton({ onEvidence(i.id, action.id, "AFTER", writable) }) {
+                        Text("Fotos después")
+                    }
                 }
             }
         }
-    }
-    if (d.evidenceRequired)
+        if (d.evidenceRequired)
+            Text(
+                "Para validar se necesita al menos una foto confirmada antes y una después de la acción."
+            )
+        Text("Siguiente paso", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Para validar se necesita al menos una foto confirmada antes y una después de la acción."
-        )
-    Text("Siguiente paso", style = MaterialTheme.typography.titleMedium)
-    Text(
-        when (i.status) {
-            IncidentStatus.OPEN -> "Un supervisor debe asignar responsable, plan y plazo."
-            IncidentStatus.ASSIGNED -> "La persona responsable debe iniciar la atención."
-            IncidentStatus.IN_PROGRESS ->
-                "La persona responsable debe realizar la corrección, adjuntar sus fotos y describir el resultado."
-            IncidentStatus.RESOLVED ->
-                "Otra persona supervisora debe revisar la corrección y validarla o devolverla con un motivo."
-            IncidentStatus.CLOSED -> "La corrección fue validada y la incidencia está cerrada."
-            IncidentStatus.VERIFIED -> "Esta incidencia conserva una validación histórica."
-        }
-    )
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        IncidentsAccess.visibleActions(d.allowedActions, i.status, d.actions, s.userId)
-            .forEach { type ->
-                val self = type == IncidentActionType.VERIFY && IncidentsAccess.isSelfVerification(d.actions, s.userId)
-                RaisedButton(if (self) "Validar sin otro validador" else incidentActionLabel(type), { vm.action(type) }, enabled = !s.loading)
+            when (i.status) {
+                IncidentStatus.OPEN -> "Un supervisor debe asignar responsable, plan y plazo."
+                IncidentStatus.ASSIGNED -> "La persona responsable debe iniciar la atención."
+                IncidentStatus.IN_PROGRESS ->
+                    "La persona responsable debe realizar la corrección, adjuntar sus fotos y describir el resultado."
+                IncidentStatus.RESOLVED ->
+                    "Otra persona supervisora debe revisar la corrección y validarla o devolverla con un motivo."
+                IncidentStatus.CLOSED -> "La corrección fue validada y la incidencia está cerrada."
+                IncidentStatus.VERIFIED -> "Esta incidencia conserva una validación histórica."
             }
+        )
     }
-    BpmSecondaryButton(vm::history) { Text("Consultar historial") }
-    BpmSecondaryButton(vm::closeDetail) { Text("Volver a la lista") }
 }
+
+internal fun incidentStatusTone(v: IncidentStatus) =
+    when (v) {
+        IncidentStatus.OPEN, IncidentStatus.RESOLVED -> BpmTone.Warning
+        IncidentStatus.ASSIGNED, IncidentStatus.IN_PROGRESS -> BpmTone.Info
+        IncidentStatus.CLOSED, IncidentStatus.VERIFIED -> BpmTone.Success
+    }
 
 internal fun incidentActionLabel(v: IncidentActionType) =
     when (v) {

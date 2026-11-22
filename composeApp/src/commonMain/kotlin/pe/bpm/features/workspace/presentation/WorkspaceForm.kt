@@ -120,14 +120,15 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
             }
             // La respuesta permanece junto a Guardar, fuera del área desplazable de campos.
             Errors(state.errors)
-            if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (formState.savedRemote) Text("El registro ya se guardó en el servidor. Estamos cerrando el borrador local.")
+            // Acciones del formulario (specs/LAYOUT.md §4.4): «Volver» conserva el borrador; la principal dice qué crea.
             if (kind != WorkspaceFormKind.Member || check.status == MemberEligibility.READY)
-                RaisedButton(if (saving) "Guardando…" else if (kind == WorkspaceFormKind.Member) "Agregar al equipo" else "Guardar",
-                    enabled = !saving && !state.loading && !check.loading &&
-                        (kind != WorkspaceFormKind.Member || draft.role == "ADMIN" || draft.locations.isNotEmpty()), onClick = onSubmit)
-            if (!formState.savedRemote) BpmTextButton(onClick = { discarding = true }, enabled = !saving) { Text("Descartar borrador") }
-            BpmTextButton(onClick = onClose, enabled = !state.saving && !formState.busy, modifier = Modifier.fillMaxWidth()) { Text("Volver y conservar borrador") }
+                BpmFormActions(when (kind) { WorkspaceFormKind.Organization -> "Crear organización"; WorkspaceFormKind.Location -> "Crear sede"; WorkspaceFormKind.Member -> "Agregar al equipo" },
+                    onSubmit, busy = saving, cancelLabel = "Volver",
+                    enabled = !state.loading && !check.loading && (kind != WorkspaceFormKind.Member || draft.role == "ADMIN" || draft.locations.isNotEmpty()),
+                    onCancel = if (state.saving || formState.busy) null else onClose)
+            else BpmTextButton(onClick = onClose, enabled = !state.saving && !formState.busy, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text("Volver y conservar borrador") }
+            if (!formState.savedRemote) BpmTextButton(onClick = { discarding = true }, enabled = !saving, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text("Descartar borrador") }
         }
     }
 }

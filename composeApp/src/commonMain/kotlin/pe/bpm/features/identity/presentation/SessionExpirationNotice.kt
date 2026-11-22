@@ -37,7 +37,7 @@ fun SessionExpirationNotice(status: SessionStatus, onContinue: () -> Unit, onLog
                 true
             } else false
         }, contentAlignment = Alignment.Center) {
-        Surface(Modifier.padding(16.dp).widthIn(max = 520.dp).fillMaxWidth().heightIn(max = maxHeight - 32.dp)
+        Surface(Modifier.padding(16.dp).widthIn(max = 520.dp).fillMaxWidth().heightIn(max = maxHeight - 32.dp) // medida: ventana modal
             .semantics { paneTitle = "Aviso de sesión"; dialog() }, shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {

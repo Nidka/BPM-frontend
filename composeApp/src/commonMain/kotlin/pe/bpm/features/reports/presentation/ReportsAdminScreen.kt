@@ -83,7 +83,7 @@ private fun SettingsSection(vm: ReportsAdminViewModel, state: AdminState) {
     if (state.settings == null) return
     BpmCard(Modifier.fillMaxWidth()) {
         Text("Configuración de reportes", style = MaterialTheme.typography.titleMedium)
-        BpmTextField(state.thresholdText, vm::editThreshold, "Umbral de constancia (1 a 100 %)", Modifier.widthIn(max = 320.dp),
+        BpmTextField(state.thresholdText, vm::editThreshold, "Umbral de constancia (1 a 100 %)", Modifier.widthIn(max = 320.dp), // medida: campo numérico corto (1 a 100)
             error = if (state.thresholdInvalid) "Escribe un número entre 1 y 100 con hasta 2 decimales." else null,
             supportingText = "Una constancia solo se emite si el cumplimiento promedio del período alcanza este valor.")
         BpmCheckboxRow("Enviar el correo semanal de cumplimiento a las personas administradoras", state.weeklyEnabled) { vm.toggleWeekly(it) }

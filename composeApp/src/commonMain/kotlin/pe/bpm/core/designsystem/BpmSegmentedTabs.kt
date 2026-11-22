@@ -62,7 +62,7 @@ fun BpmSegmentedTabs(
                             Box(Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer)
                                 .padding(horizontal = BpmSpacing.sm, vertical = 2.dp)) {
                                 Text(count.toString(), color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    style = BpmType.labelStrong.copy(fontSize = 12.sp, lineHeight = 16.sp))
+                                    style = BpmType.labelStrong)
                             }
                         }
                     }

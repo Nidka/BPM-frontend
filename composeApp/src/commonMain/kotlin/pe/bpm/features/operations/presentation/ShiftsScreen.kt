@@ -84,19 +84,15 @@ private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
 private fun ShiftForm(state: ShiftsState, vm: ShiftsViewModel) {
     val editor = state.editor!!
     val enabled = !state.busy && !editor.uncertain
-    Text(if (editor.editing == null) "Nuevo turno" else "Editar turno", style = MaterialTheme.typography.titleLarge)
-    if (editor.uncertain)
-        Text("No pudimos confirmar el guardado. Reintenta para comprobar el mismo turno.")
-    BpmTextField(editor.name, { vm.change(name = it) }, "Nombre del turno", error = state.fields["name"], enabled = enabled, placeholder = "Ej.: Mañana")
-    BpmTextField(editor.startTime, { vm.change(start = it) }, "Hora de inicio (HH:mm)", error = state.fields["startTime"], enabled = enabled, placeholder = "06:00")
-    BpmTextField(editor.endTime, { vm.change(end = it) }, "Hora de fin (HH:mm)", error = state.fields["endTime"], enabled = enabled, placeholder = "14:00")
-    if (ShiftRules.crossesMidnight(editor.startTime, editor.endTime))
-        Text("Este turno cruza la medianoche.", style = MaterialTheme.typography.bodySmall)
-    RaisedButton(
-        if (state.busy) "Guardando…" else if (editor.uncertain) "Comprobar el mismo turno" else "Guardar turno",
-        vm::save,
-        Modifier.fillMaxWidth(),
-        enabled = !state.busy,
-    )
-    BpmTextButton(vm::cancelEdit, enabled = enabled) { Text("Cancelar") }
+    BpmFormLayout(actions = { BpmFormActions(if (editor.uncertain) "Comprobar el mismo turno" else "Guardar turno", vm::save, busy = state.busy, onCancel = vm::cancelEdit) }) {
+        BpmSection(if (editor.editing == null) "Nuevo turno" else "Editar turno",
+            description = if (editor.uncertain) "No pudimos confirmar el guardado. Reintenta para comprobar el mismo turno." else null) {
+            BpmTextField(editor.name, { vm.change(name = it) }, "Nombre del turno", error = state.fields["name"], enabled = enabled, placeholder = "Ej.: Mañana")
+            BpmShortFields(
+                { m -> BpmTextField(editor.startTime, { vm.change(start = it) }, "Hora de inicio (HH:mm)", m, error = state.fields["startTime"], enabled = enabled, placeholder = "06:00") },
+                { m -> BpmTextField(editor.endTime, { vm.change(end = it) }, "Hora de fin (HH:mm)", m, error = state.fields["endTime"], enabled = enabled, placeholder = "14:00") })
+            if (ShiftRules.crossesMidnight(editor.startTime, editor.endTime))
+                Text("Este turno cruza la medianoche.", style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }

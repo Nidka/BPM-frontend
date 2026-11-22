@@ -2,6 +2,7 @@ package pe.bpm.core.designsystem
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -50,8 +53,35 @@ object BpmPatternRules {
     val readingWidth: Dp = 720.dp
     /** Tarjeta centrada de acceso. */
     val accessWidth: Dp = 440.dp
-    /** Ancho mínimo de una tarjeta en la rejilla automática de la clase expandida. */
+    /** Ancho mínimo de una tarjeta de rejilla (con separación de 16 dp): 1 columna < 616, 2 hasta 931, 3 desde 932. */
     val gridMinCard: Dp = 300.dp
+    /** Columnas máximas de una rejilla de registros. */
+    const val GRID_MAX_COLUMNS = 3
+    /** Ancho mínimo del detalle cuando va junto a la lista: con lista y separación, el detalle va al lado desde 864 dp útiles. */
+    val detailMinWidth: Dp = 480.dp
+    /** Ancho del formulario desde el que dos campos cortos van lado a lado sin cortar etiquetas ni errores. */
+    val pairMinWidth: Dp = 420.dp
+    /** Ancho del panel de detalle desde el que los datos se muestran en dos columnas. */
+    val detailPairMinWidth: Dp = 520.dp
+
+    /*
+     * Las reglas siguientes reciben el ANCHO ÚTIL (lo que mide el contenedor: ventana − navegación − márgenes),
+     * no la clase de ventana: con el menú lateral de 240 dp una ventana de 900 dp deja 596 dp útiles y debe
+     * comportarse como una pantalla compacta. La clase de ventana solo decide navegación y margen.
+     */
+
+    /** Columnas de la rejilla según el ancho útil: tantas tarjetas de [gridMinCard] como quepan, entre 1 y 3. */
+    fun gridColumns(available: Dp): Int =
+        ((available + BpmSpacing.grid) / (gridMinCard + BpmSpacing.grid)).toInt().coerceIn(1, GRID_MAX_COLUMNS)
+
+    /** El detalle va junto a la lista solo si caben la lista (360), la separación (24) y un detalle legible (480). */
+    fun detailBesideList(available: Dp): Boolean = available >= listWidth + BpmSpacing.xl + detailMinWidth
+
+    /** Dos campos cortos lado a lado desde [pairMinWidth] de ancho del formulario. */
+    fun shortFieldsSideBySide(available: Dp): Boolean = available >= pairMinWidth
+
+    /** Columnas de datos de un detalle: 1 en paneles angostos, 2 desde [detailPairMinWidth]. */
+    fun detailFieldColumns(available: Dp): Int = if (available >= detailPairMinWidth) 2 else 1
 
     /** Ancho máximo del contenido; [Dp.Unspecified] significa «todo el ancho disponible». */
     fun contentMax(pattern: BpmPattern, windowClass: BpmWindowClass, preview: Boolean = true): Dp = when (pattern) {
@@ -75,23 +105,8 @@ object BpmPatternRules {
     fun indicatorColumns(windowClass: BpmWindowClass, count: Int = 4, fontScale: Float = 1f): Int =
         if (windowClass == BpmWindowClass.Compact) (if (count == 3 && fontScale < LARGE_FONT_SCALE) 3 else 2) else count.coerceIn(1, 4)
 
-    /** Columnas fijas de la rejilla; `null` = automática con [gridMinCard] (clase expandida). */
-    fun gridColumns(windowClass: BpmWindowClass): Int? = when (windowClass) {
-        BpmWindowClass.Compact -> 1
-        BpmWindowClass.Medium -> 2
-        BpmWindowClass.Expanded -> null
-        BpmWindowClass.Large -> 3
-    }
-
-    /** El detalle va junto a la lista desde la clase expandida; antes ocupa toda la pantalla. */
-    fun detailBesideList(windowClass: BpmWindowClass): Boolean =
-        windowClass == BpmWindowClass.Expanded || windowClass == BpmWindowClass.Large
-
-    /** El panel reparte principal 2/3 y apoyo 1/3 solo en la clase grande. */
+    /** El panel reparte principal 2/3 y apoyo 1/3 solo en la clase grande (≥ 960 dp útiles con el menú). */
     fun panelSplit(windowClass: BpmWindowClass): Boolean = windowClass == BpmWindowClass.Large
-
-    /** Campos cortos en dos columnas desde la clase media. */
-    fun formTwoColumns(windowClass: BpmWindowClass): Boolean = windowClass != BpmWindowClass.Compact
 
     /** Vista previa junto al formulario solo en la clase grande. */
     fun formPreview(windowClass: BpmWindowClass): Boolean = windowClass == BpmWindowClass.Large
@@ -166,9 +181,15 @@ fun BpmPanelLayout(
 }
 
 /**
- * Lista–detalle. Con [detail] nulo se ve la lista; en clases compacta y media un detalle abierto ocupa toda
- * la pantalla (quien llama ofrece «Volver»); desde la expandida la lista mide 360 dp y el detalle va al lado
- * ([emptyDetail] se muestra mientras no hay selección).
+ * `true` dentro del detalle de un [BpmListDetail] que va junto a la lista; `false` cuando el detalle ocupa la
+ * pantalla (entonces [BpmDetailPane] muestra «Volver a la lista»).
+ */
+val LocalBpmDetailBeside = compositionLocalOf { false }
+
+/**
+ * Lista–detalle. Con [detail] nulo se ve la lista. Si el ancho útil alcanza para lista (360), separación (24) y
+ * un detalle legible (480) —desde 864 dp—, el detalle va al lado ([emptyDetail] mientras no hay selección);
+ * si no, un detalle abierto ocupa toda la pantalla con un tope de 720 dp y su «Volver».
  */
 @Composable
 fun BpmListDetail(
@@ -177,17 +198,24 @@ fun BpmListDetail(
     emptyDetail: (@Composable () -> Unit)? = null,
     list: @Composable () -> Unit,
 ) {
-    if (BpmPatternRules.detailBesideList(currentWindowClass)) {
-        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
-            // La lista mide 360 dp: dentro de ella los componentes se comportan como en pantalla compacta (una columna).
-            Column(Modifier.width(BpmPatternRules.listWidth)) { ProvideBpmWindowClass(BpmWindowClass.Compact) { list() } }
-            Column(Modifier.weight(1f)) { (detail ?: emptyDetail)?.invoke() }
-        }
-    } else Column(modifier.fillMaxWidth()) { if (detail != null) detail() else list() }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        if (BpmPatternRules.detailBesideList(maxWidth)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
+                // La lista mide 360 dp: dentro de ella los componentes se comportan como en pantalla compacta (una columna).
+                Column(Modifier.width(BpmPatternRules.listWidth)) { ProvideBpmWindowClass(BpmWindowClass.Compact) { list() } }
+                Column(Modifier.weight(1f)) { CompositionLocalProvider(LocalBpmDetailBeside provides true) { (detail ?: emptyDetail)?.invoke() } }
+            }
+        } else if (detail != null) {
+            Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) {
+                CompositionLocalProvider(LocalBpmDetailBeside provides false) { detail() }
+            }
+        } else Column(Modifier.fillMaxWidth()) { list() }
+    }
 }
 
 /**
- * Rejilla de tarjetas: 1 columna en compacta, 2 en media, automática (mínimo 300 dp) en expandida y 3 en grande.
+ * Rejilla de tarjetas según el ancho útil del contenedor: 1 columna < 616 dp, 2 hasta 931 y 3 desde 932
+ * (tarjeta mínima de 300 dp). Nunca se decide por la ventana: con el menú lateral el ancho útil es menor.
  */
 @Composable
 fun <T> BpmGridLayout(
@@ -195,13 +223,12 @@ fun <T> BpmGridLayout(
     modifier: Modifier = Modifier,
     content: @Composable (T, Modifier) -> Unit,
 ) {
-    val fixed = BpmPatternRules.gridColumns(currentWindowClass)
-    BpmCardGrid(items, modifier, minCardWidth = BpmPatternRules.gridMinCard, maxColumns = 4, fixedColumns = fixed, content = content)
+    BpmCardGrid(items, modifier, minCardWidth = BpmPatternRules.gridMinCard, maxColumns = BpmPatternRules.GRID_MAX_COLUMNS, content = content)
 }
 
 /**
  * Flujo por pasos: una columna con el contenido y la barra de acción ([actionBar]) al final. En compacta ocupa
- * toda la pantalla; desde media, una columna centrada de 720 dp (el tope lo pone [BpmScreen]).
+ * toda la pantalla; desde media, una columna de 720 dp alineada con el título.
  */
 @Composable
 fun BpmStepFlow(
@@ -209,15 +236,16 @@ fun BpmStepFlow(
     actionBar: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
+    Column(modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg), content = content)
         actionBar()
     }
 }
 
 /**
- * Formulario: una columna; los campos cortos se agrupan con [BpmShortFields] (dos columnas desde media);
- * en la clase grande el formulario mide hasta 720 dp y la vista previa ([preview]) va a su derecha.
+ * Formulario de creación o edición (specs/LAYOUT.md §4): una columna de hasta 720 dp alineada a la izquierda
+ * bajo el título, con secciones ([BpmSection]), pares de campos cortos ([BpmShortFields]) y las acciones
+ * ([BpmFormActions]) al final. En la clase grande la vista previa ([preview]) va a su derecha.
  */
 @Composable
 fun BpmFormLayout(
@@ -228,7 +256,7 @@ fun BpmFormLayout(
 ) {
     val form: @Composable (Modifier) -> Unit = { m ->
         Column(m, verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg), content = content)
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl), content = content)
             actions()
         }
     }
@@ -237,22 +265,27 @@ fun BpmFormLayout(
             form(Modifier.weight(1f).widthIn(max = BpmPatternRules.readingWidth))
             Column(Modifier.weight(1f)) { preview() }
         }
-    } else form(modifier.fillMaxWidth())
+    } else form(modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth())
 }
 
-/** Dos campos cortos: en dos columnas desde la clase media, apilados en compacta. */
+/**
+ * Dos campos cortos relacionados (desde/hasta, dirección/distrito): lado a lado si el contenedor mide al menos
+ * 420 dp, apilados si no, para no cortar etiquetas ni mensajes de error.
+ */
 @Composable
 fun BpmShortFields(
     first: @Composable (Modifier) -> Unit,
     second: @Composable (Modifier) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (BpmPatternRules.formTwoColumns(currentWindowClass)) {
-        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
-            first(Modifier.weight(1f)); second(Modifier.weight(1f))
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        if (BpmPatternRules.shortFieldsSideBySide(maxWidth)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
+                first(Modifier.weight(1f)); second(Modifier.weight(1f))
+            }
+        } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
+            first(Modifier.fillMaxWidth()); second(Modifier.fillMaxWidth())
         }
-    } else Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
-        first(Modifier.fillMaxWidth()); second(Modifier.fillMaxWidth())
     }
 }
 
@@ -280,7 +313,7 @@ fun BpmAccessScreen(
     scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
         ProvideBpmWindowClass(windowClass, maxHeight) {
             val max = BpmPatternRules.contentMax(pattern, windowClass, preview = false)

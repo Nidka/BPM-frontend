@@ -34,7 +34,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
     val scroll = rememberLazyListState()
     LaunchedEffect(noticeVisible) { if (noticeVisible) scroll.scrollToItem(0) }
     val matches = organizations
-    Box(Modifier.widthIn(max = 640.dp).heightIn(max = 680.dp).fillMaxWidth()) {
+    Box(Modifier.heightIn(max = 680.dp).fillMaxWidth()) {
     val shortWindow = currentWindowHeight < 560.dp
     BpmCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
