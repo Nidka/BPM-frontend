@@ -172,7 +172,8 @@ private fun AssignedCourses(state: LearnerState, onOpenCourse: (String) -> Unit,
 fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        Text("Mis logros", style = MaterialTheme.typography.headlineMedium)
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): cada una lleva la suya.
+        BpmPageHeader("Mis logros")
         if (state.achievementsLoading && state.achievements == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.achievementsFailure?.let {
             FailureText(it)
@@ -182,8 +183,10 @@ fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier =
         state.achievements?.let { mine ->
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Eyebrow("PUNTOS DE EXPERIENCIA")
-                Text("${mine.totals.experiencePoints} XP", style = MaterialTheme.typography.headlineMedium)
-                Text("Cursos: ${mine.totals.courseExperiencePoints} · Lecciones: ${mine.totals.moduleExperiencePoints} · Insignias: ${mine.totals.achievementPoints}", style = MaterialTheme.typography.bodySmall)
+                Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                    Text("${mine.totals.experiencePoints} XP", style = MaterialTheme.typography.headlineMedium)
+                    Text("Cursos: ${mine.totals.courseExperiencePoints} · Lecciones: ${mine.totals.moduleExperiencePoints} · Insignias: ${mine.totals.achievementPoints}", style = MaterialTheme.typography.bodySmall)
+                }
             }
             Text("Insignias obtenidas (${mine.earned.size})", style = MaterialTheme.typography.titleLarge)
             if (mine.earned.isEmpty()) Text("Todavía no obtienes insignias. Completa cursos y evaluaciones para ganarlas.")
@@ -208,8 +211,10 @@ private fun AchievementCard(a: Achievement, modifier: Modifier) {
         Eyebrow(if (a.awardedAt != null) "OBTENIDA" else "POR LOGRAR")
         Text(a.name, style = MaterialTheme.typography.titleMedium)
         if (a.description.isNotBlank()) Text(a.description)
-        Text(criterionLabel(a) + " · ${a.points} XP", style = MaterialTheme.typography.bodySmall)
-        a.awardedAt?.let { Text("Obtenida el ${dateLabel(it)}", style = MaterialTheme.typography.bodySmall) }
+        Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+            Text(criterionLabel(a) + " · ${a.points} XP", style = MaterialTheme.typography.bodySmall)
+            a.awardedAt?.let { Text("Obtenida el ${dateLabel(it)}", style = MaterialTheme.typography.bodySmall) }
+        }
     }
 }
 
@@ -228,8 +233,7 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
         val detail = state.pathDetail
         if (state.pathDetailLoading || state.pathsLoading && state.paths.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (detail != null) { PathDetail(detail, onOpenCourse, viewModel::closePath); return@Column }
-        Text("Rutas de aprendizaje", style = MaterialTheme.typography.headlineMedium)
-        Text("Una ruta ordena varios cursos para que avances paso a paso.")
+        BpmPageHeader("Rutas de aprendizaje", description = "Una ruta ordena varios cursos para que avances paso a paso.")
         FailureText(state.pathDetailFailure ?: state.pathsFailure)
         if (state.pathsFailure != null) BpmSecondaryButton(onClick = viewModel::loadPaths) { Text("Volver a intentar") }
         if (state.pathsLoaded && state.paths.isEmpty() && state.pathsFailure == null) EmptyState("Sin rutas", "Tu organización todavía no publicó rutas de aprendizaje.")
@@ -238,8 +242,11 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
                 Text(path.title, style = MaterialTheme.typography.titleMedium)
                 if (path.description.isNotBlank()) Text(path.description)
                 path.progress?.let {
-                    LinearProgressIndicator(progress = { it.percent / 100f }, modifier = Modifier.fillMaxWidth())
-                    Text("${it.completedCourses} de ${it.totalCourses} cursos · ${it.percent} %", style = MaterialTheme.typography.bodySmall)
+                    // La barra y su texto forman un solo dato: van juntos (4 dp) y con la barra del sistema, como en las filas de curso.
+                    Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                        BpmProgressBar(it.percent / 100f)
+                        Text("${it.completedCourses} de ${it.totalCourses} cursos · ${it.percent} %", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 BpmSecondaryButton(onClick = { viewModel.openPath(path.id) }, modifier = Modifier.fillMaxWidth()) { Text("Ver ruta") }
             }
@@ -250,13 +257,14 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
 
 @Composable
 private fun ColumnScope.PathDetail(path: LearningPath, onOpenCourse: (String) -> Unit, onBack: () -> Unit) {
-    Text(path.title, style = MaterialTheme.typography.headlineMedium)
-    if (path.description.isNotBlank()) Text(path.description)
+    BpmPageHeader(path.title, description = path.description.takeIf { it.isNotBlank() })
     path.progress?.let {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
             Eyebrow("TU AVANCE")
-            LinearProgressIndicator(progress = { it.percent / 100f }, modifier = Modifier.fillMaxWidth())
-            Text("${it.completedCourses} de ${it.totalCourses} cursos completados (${it.percent} %)", style = BpmType.bodyStrong)
+            Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+                BpmProgressBar(it.percent / 100f)
+                Text("${it.completedCourses} de ${it.totalCourses} cursos completados (${it.percent} %)", style = BpmType.bodyStrong)
+            }
             if (it.nextCourseId == null && it.totalCourses > 0) Text("¡Terminaste esta ruta!")
         }
     }
@@ -271,7 +279,7 @@ private fun ColumnScope.PathDetail(path: LearningPath, onOpenCourse: (String) ->
             else Text("Este curso no está disponible por ahora.", style = MaterialTheme.typography.bodySmall)
         }
     }
-    BpmTextButton(onClick = onBack) { Text("Volver a las rutas") }
+    BpmTextButton(onClick = onBack, contentPadding = PaddingValues(0.dp)) { Text("Volver a las rutas") }
 }
 
 // ---- Verificación pública de constancias -----------------------------------------------------

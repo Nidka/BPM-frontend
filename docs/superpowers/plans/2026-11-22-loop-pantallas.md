@@ -53,7 +53,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 | 2 | Inicio `inicio` (panel e indicadores) | hecha |
 | 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | hecha |
 | 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | hecha |
-| 5 | Aprender `aprender`, Curso / lección `aprender/{courseId}`, Logros, Rutas | pendiente |
+| 5 | Aprender `aprender`, Curso / lección `aprender/{courseId}`, Logros, Rutas | hecha |
 | 6 | Academia (gestión) `empresa/academia`, Encuesta del estudio `estudio`, Investigación `investigacion` | pendiente |
 | 7 | Control `control`, Catálogo de plantillas, Detalle de plantilla | pendiente |
 | 8 | Revisión de tu sede (ejecución por pasos), Mis revisiones, Controles en este dispositivo, Control programado | pendiente |
@@ -82,6 +82,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 - Inicio de ADMIN y CHEF (iteración 2): el panel suma dos rejillas de tarjetas con columnas distintas (indicadores de cumplimiento en 4 columnas y «Sedes / Cursos / Controles» en 3), más la tarjeta de bienvenida «Capacitación y buenas prácticas» y «Estado de tu espacio». Los conteos «Sedes / Cursos / Controles» no aparecen en otro lugar; quitar o fusionar estos bloques es una decisión de producto, no de espaciado. Decidir si se mantienen.
 - Enlaces de texto sin alinear (iteración 1 y 3): `BpmTextButton` lleva 12 dp de relleno lateral y, aun con relleno 0, Material centra el texto en un ancho mínimo de 58 dp. Los textos cortos («Volver») quedan unos 4 dp a la derecha del borde y los enlaces de `BpmRecordCard` («Revocar», «Descartar») unos 10 dp. Se corrigió en el ingreso con `AuthLink`; un arreglo común sería una opción `flushStart` en `BpmTextButton` y que `BpmRecordCard` la use, lo que cambia todas las pantallas con enlaces.
 - Título truncado en tarjetas con chip largo (iteración 3): en 390 dp «Registro de limpieza de campana» queda cortado a dos líneas junto a «Necesita tu revisión». Opciones: chip debajo del título en compacta, o aceptar el recorte.
+- Filtros del catálogo (iteración 5): `CatalogFilterRow` es una fila con scroll horizontal por decisión documentada en su comentario, y en 390 dp corta el último chip («Com…»); el resto de filtros (avisos, equipo, sedes) se parten en varias líneas con `BpmFilterChips`. Decidir si el catálogo también se parte.
 
 ## Registro de ejecución
 
@@ -132,3 +133,16 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
   - Formularios de persona y organización (por pasos): cumplen la lista; sin cambios.
 - **Sin comprobar a la vista:** las tres pestañas de Cuentas y equipo (Equipo, Invitaciones, Organización y sedes) y el formulario de edición de sede: necesitan ViewModels con repositorio de cuentas (se leyó el código: ya usan `BpmRecordCard`, `BpmFormLayout`, `BpmDetailPane` y `BpmListToolbar`).
 - **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde.
+
+### Iteración 5: Aprender, curso, logros y rutas (22/11/2026)
+
+- **Capturas:** `docs/diseno-loop/5/antes` y `despues` (Aprender, curso, lección, estudio, evaluación, resultado, logros, rutas, detalle de ruta). Nuevo `LearnScreens.kt` en el arnés (logros, rutas y detalle de ruta alojadas con `secondaryEditor`) y `learnerVm()` pasa a `internal`.
+- **Hallazgo principal:** en 390 dp cada fila de curso de Aprender («Asignadas a ti» y el catálogo) medía unos 250 dp con el contenido flotando en medio. Causa: `BpmRowGrid` envolvía cada fila en `Row(height(IntrinsicSize.Min))` incluso con una sola columna, y el diseño propio de `BpmTaskRow` (con el chip bajo el título en filas de menos de 360 dp) no responde bien a esa medida. Con una columna ya no se piden medidas intrínsecas.
+- **Cambios** (`TrainingLearnerScreens.kt` y `BpmRowGrid.kt`):
+  - Logros y Rutas: título con `BpmPageHeader` (con semántica de encabezado y la descripción como subtítulo); la pantalla alojada lleva su cabecera.
+  - Rutas: la barra de avance pasa de `LinearProgressIndicator` (pista color melocotón con un punto al final) a `BpmProgressBar`, la misma de las filas de curso, y se agrupa con su texto a 4 dp; igual en «Tu avance» del detalle.
+  - Logros: la cifra de XP y su desglose, y los datos de cada insignia, agrupados a 4 dp.
+  - Detalle de ruta: «Volver a las rutas» sin relleno lateral.
+  - Curso, lección, estudio y evaluación: cumplen la lista; sin cambios.
+- **Para decidir:** ver «Filtros del catálogo» arriba.
+- **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde; 30 capturas sin fallos.
