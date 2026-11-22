@@ -124,6 +124,8 @@ fun App(
     val reportsDashboard = viewModel<pe.bpm.features.reports.presentation.DashboardViewModel> { owner.graph.reportsDashboardViewModel() }
     val reportsDashboardState by reportsDashboard.state.collectAsStateWithLifecycle()
     val reportsView = viewModel<pe.bpm.features.reports.presentation.ReportsViewModel> { owner.graph.reportsViewModel() }
+    val normative = viewModel<pe.bpm.features.normative.presentation.NormativeViewModel> { owner.graph.normativeViewModel() }
+    val webhooks = viewModel<pe.bpm.features.webhooks.presentation.WebhooksViewModel> { owner.graph.webhooksViewModel() }
     val reportsAdmin = viewModel<pe.bpm.features.reports.presentation.ReportsAdminViewModel> { owner.graph.reportsAdminViewModel() }
     val usage = viewModel<pe.bpm.features.usage.presentation.UsageViewModel> { owner.graph.usageViewModel() }
     fun resetReports() { reportsDashboard.reset(); reportsView.reset(); reportsAdmin.reset() }
@@ -388,8 +390,8 @@ fun App(
                     WorkspaceDestination.Learn -> listOf(destination.route, TRAINING_COURSE, TRAINING_ACHIEVEMENTS, TRAINING_PATHS)
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
-                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS)
-                    WorkspaceDestination.Company -> listOf(destination.route, ACCOUNTS_MANAGEMENT, TEMPLATE_VERSIONS, TRAINING_MANAGEMENT, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE)
+                    WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, ACCOUNTS_MANAGEMENT, TEMPLATE_VERSIONS, TRAINING_MANAGEMENT, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT)
                     else -> listOf(destination.route)
@@ -403,6 +405,8 @@ fun App(
                     listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val alertRoute=route in listOf(ALERT_INBOX,ALERT_RULES)
                     val reportsRoute = route == REPORTS
+                    val normativeRoute = route == NORMATIVE
+                    val managingWebhooks = route == WEBHOOKS_MANAGEMENT
                     val learningCourse = route == TRAINING_COURSE
                     // La vista general del curso usa el patrón amplio (temario + panel de apoyo); lección, estudio y evaluación, el de lectura.
                     val courseOverview by remember(training) { training.state.map { it.screen == pe.bpm.features.training.presentation.TrainingPane.OVERVIEW }.distinctUntilChanged() }.collectAsStateWithLifecycle(true)
@@ -515,7 +519,7 @@ fun App(
                         val waiting = workspaceState.loading && workspaceState.workspace == null
                         if ((destination !in available || formKind != null || studySurvey || researching || managingTraining || managingTemplates || managingAssignments || managingDaily || daily || alertRoute || managingAccounts || reportsRoute) && waiting) {
                             RestoringSession()
-                        } else if (destination !in available || reportsRoute && !pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || (managingTraining || managingTemplates || managingAssignments || managingDaily || managingAlerts || managingAccounts) && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
+                        } else if (destination !in available || reportsRoute && !pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || (managingTraining || managingTemplates || managingAssignments || managingDaily || managingAlerts || managingAccounts || managingWebhooks) && workspaceState.workspace?.canManage != true || formKind?.isAllowed(profile.platformRole == "SUPER_ADMIN", workspaceState.workspace?.canManage == true) == false) {
                             LaunchedEffect(destination, available) {
                                 if (entry?.id == routeEntry.id) {
                                     if (workspaceState.errors.none { it.code == "ACCESS_DENIED" })
@@ -611,6 +615,8 @@ fun App(
                                 onAlerts=if(currentWorkspace!=null) ({leaveRun{nav.navigate(ALERT_INBOX){launchSingleTop=true}}}) else null,
                                 unreadAlertCount=alertsState.unreadCount,
                                 onAlertRules={nav.navigate(ALERT_RULES){launchSingleTop=true}},
+                                onWebhooks = { nav.navigate(WEBHOOKS_MANAGEMENT) { launchSingleTop = true } },
+                                onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
                                 onTraining = { nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
@@ -695,6 +701,14 @@ fun App(
                                             "TRAINING_ASSIGNMENT"->nav.navigate(WorkspaceDestination.Learn.route){launchSingleTop=true}
                                         }
                                     })
+                                }) else if (normativeRoute) ({
+                                    pe.bpm.core.offline.ServerOnly {
+                                        pe.bpm.features.normative.presentation.NormativeScreen(normative, profile.id, profile.platformRole == "SUPER_ADMIN")
+                                    }
+                                }) else if (managingWebhooks) ({
+                                    pe.bpm.core.offline.ServerOnly {
+                                        pe.bpm.features.webhooks.presentation.WebhooksScreen(webhooks, workspaceState.selected.orEmpty())
+                                    }
                                 }) else if (reportsRoute) ({
                                     pe.bpm.core.offline.ServerOnly {
                                     ReportsContent(profile.id, workspaceState.selected.orEmpty(), reportRole,
@@ -758,7 +772,7 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
                                     }) }) else managementContent,
-                                secondaryEditor = studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryEditor = studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
                                     learningCourse && courseOverview -> BpmPattern.Panel
@@ -770,7 +784,7 @@ fun App(
                                 secondaryWideOnExpanded = learningCourse && courseWidePane,
                                 focusMode = learningCourse && courseFocus,
                                 focusTitle = courseTitle,
-                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Consultar normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -978,3 +992,5 @@ private val Int.hours get() = kotlin.time.Duration.parse("PT${this}H")
 private const val ALERT_INBOX="avisos"
 private const val ALERT_RULES="empresa/avisos"
 private const val REPORTS = "reportes"
+private const val NORMATIVE = "normativa"
+private const val WEBHOOKS_MANAGEMENT = "empresa/automatizaciones"

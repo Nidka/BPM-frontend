@@ -14,6 +14,8 @@ enum class BpmInputKind {
   Phone,
   Decimal,
   Integer,
+  /** Dirección web (https://…): teclado de URL, sin mayúsculas ni autocorrección. */
+  Url,
 }
 
 internal fun BpmInputKind.keyboardOptions() =
@@ -31,6 +33,8 @@ internal fun BpmInputKind.keyboardOptions() =
       KeyboardOptions(keyboardType = KeyboardType.Number, autoCorrectEnabled = false)
     BpmInputKind.Decimal ->
       KeyboardOptions(keyboardType = KeyboardType.Decimal, autoCorrectEnabled = false)
+    BpmInputKind.Url ->
+      KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false)
   }
 
 /** Compose 1.11 usa Unspecified como valor inicial, distinto de Default. */

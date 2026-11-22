@@ -36,7 +36,7 @@ internal fun WorkspaceScreen(
     onOpenCourse: ((String) -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
     hiddenCourseIds: Set<String> = emptySet(),
- onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={},
+ onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null,
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
@@ -194,7 +194,11 @@ internal fun WorkspaceScreen(
                         WorkspaceDestination.Tasks -> Unit
                         WorkspaceDestination.Account -> Unit
                         // El personal (WORKER) ve solo su pantalla «Hoy»; el Home genérico de sedes/cursos/controles no le aplica.
-                        WorkspaceDestination.Home -> if (current.role == "WORKER" && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
+                        WorkspaceDestination.Home -> {
+                            if (current.role == "WORKER" && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
+                            // Agente normativo (RF-46/47): acceso para todos los roles.
+                            if (onNormative != null) BpmActionTile(BpmSymbol.Learn, "Consultar normativa", "Pregunta sobre BPM y recibe respuestas con la fuente de la norma.", onNormative)
+                        }
                         WorkspaceDestination.Company -> {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
@@ -211,6 +215,7 @@ internal fun WorkspaceScreen(
                                 { m -> BpmActionTile(BpmSymbol.Alert, "Incidencias y correcciones", "Atiende lo reportado y valida el cierre.", onIncidents, m) },
                                 { m -> BpmActionTile(BpmSymbol.Team, "Cuentas y equipo", "Roles, sedes, invitaciones y datos de la organización.", onAccounts, m) },
                                 { m -> BpmActionTile(BpmSymbol.Learn, "Academia BPM", "Cursos con lecciones, video y evaluaciones.", onTraining, m) },
+                                { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Envía los avisos a n8n u otra herramienta con webhooks firmados.", onWebhooks, m) },
                             )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {

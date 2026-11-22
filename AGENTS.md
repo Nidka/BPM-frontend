@@ -43,3 +43,6 @@ Requiere V12 del backend antes de activar la UI; no implica despliegue.
 Estudio CAP (consentimiento, encuesta pre/post e investigación): leer specs/RESEARCH.md. Requiere el backend V9.
 Reportes, constancias y registro de uso (RF-09/16/17/27/28/29/30/39): leer specs/REPORTS.md.
 Requiere el backend con V10; el guardado de CSV en Android/iOS no se compila sin SDK/macOS.
+
+Agente normativo (RF-46/47) y automatizaciones con webhooks para n8n (RF-48): leer specs/NORMATIVE.md.
+Requieren V17/V18 del backend y, para el agente, `ANTHROPIC_API_KEY` en el servidor; no implica despliegue.

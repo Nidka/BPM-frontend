@@ -328,6 +328,16 @@ class AppGraph(
     private val reportsRepository = pe.bpm.features.reports.data.RemoteReportsRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    private val normativeRepository = pe.bpm.features.normative.data.RemoteNormativeRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    /** Agente normativo (RF-46/47): consulta para todos y gestión de documentos para el administrador general. */
+    fun normativeViewModel() = pe.bpm.features.normative.presentation.NormativeViewModel(pe.bpm.features.normative.domain.NormativeUseCases(normativeRepository))
+    private val webhookRepository = pe.bpm.features.webhooks.data.RemoteWebhookRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    /** Webhooks salientes para n8n (RF-48), gestionados por el ADMIN. */
+    fun webhooksViewModel() = pe.bpm.features.webhooks.presentation.WebhooksViewModel(pe.bpm.features.webhooks.domain.WebhookUseCases(webhookRepository))
     fun reportsDashboardViewModel() = pe.bpm.features.reports.presentation.DashboardViewModel(pe.bpm.features.reports.domain.LoadKpis(reportsRepository))
     fun reportsViewModel() = pe.bpm.features.reports.presentation.ReportsViewModel(pe.bpm.features.reports.domain.LoadCompliance(reportsRepository),
         pe.bpm.features.reports.domain.LoadSummary(reportsRepository), pe.bpm.features.reports.domain.ExportComplianceCsv(reportsRepository))
