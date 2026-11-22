@@ -65,16 +65,21 @@ import pe.bpm.features.checklists.domain.*
         BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }; return
     }
     val run = state.detail ?: return
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
-            Text(run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.titleLarge)
-            if (run.locationName.isNotBlank()) Text(run.locationName)
-            if (run.performedByName.isNotBlank()) Text("Responsable: ${run.performedByName}")
-            Text(if (run.status == "SUBMITTED") "Revisión finalizada. Las respuestas están cerradas." else "Revisión en curso. Esta vista permite consultar las respuestas guardadas.")
-            if (run.createdAt.isNotBlank()) Text("Inicio: ${displayDateTime(run.createdAt)}")
-            run.submittedAt?.let { Text("Finalización: ${displayDateTime(it)}") }
-            run.compliancePercent?.let { Text("Cumplimiento: ${it.toString().removeSuffix(".0").replace('.', ',')} %") }
+    val finished = run.status == "SUBMITTED"
+    // Detalle del registro (specs/LAYOUT.md §5): datos en dos columnas desde 520 dp y respuestas en orden debajo.
+    BpmDetailPane(run.templateName.ifBlank { "Revisión BPM" },
+        status = if (finished) BpmRecordStatus("Finalizada", BpmTone.Success) else BpmRecordStatus("En curso", BpmTone.Info),
+        subtitle = if (finished) "Las respuestas están cerradas." else "Esta vista permite consultar las respuestas guardadas.") {
+        BpmSection("Datos de la revisión") {
+            BpmDetailFields(listOf(
+                BpmDetailField("Sede", run.locationName),
+                BpmDetailField("Responsable", run.performedByName),
+                BpmDetailField("Inicio", run.createdAt.takeIf { it.isNotBlank() }?.let(::displayDateTime)),
+                BpmDetailField("Finalización", run.submittedAt?.let(::displayDateTime)),
+                BpmDetailField("Cumplimiento", run.compliancePercent?.let { "${it.toString().removeSuffix(".0").replace('.', ',')} %" }),
+            ))
         }
+        Text(if (run.items.size == 1) "1 respuesta" else "${run.items.size} respuestas", style = MaterialTheme.typography.titleMedium)
         run.items.forEachIndexed { index, item ->
             val answer = run.answers.find { it.itemId == item.id }
             ChecklistAnswerReview(item, index, answer?.let { RunAnswerInput(it.complianceResult.ifEmpty { it.numericValue?.let(pe.bpm.core.domain.DecimalInput::format) ?: it.textValue }, it.observation) } ?: RunAnswerInput(), evidence)

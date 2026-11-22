@@ -170,21 +170,11 @@ fun OperationsScreen(
                 state.saved != null -> {
                     Text("Registro confirmado", style = MaterialTheme.typography.titleLarge)
                     OperationDetails(state.saved!!)
-                    RaisedButton(
-                        "Volver a la lista",
-                        viewModel::closeForm,
-                        Modifier.fillMaxWidth(),
-                        enabled = !state.busy,
-                    )
+                    RaisedButton("Volver a la lista", viewModel::closeForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
                 }
-                // Formulario: columna de lectura de 720 dp centrada.
-                state.form != null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) { OperationForm(state, viewModel) } }
-                state.detail != null -> BpmListDetail(list = listBody, detail = {
-                    Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
-                        OperationDetails(state.detail!!)
-                        BpmSecondaryButton(viewModel::closeDetail) { Text("Volver a la lista") }
-                    }
-                })
+                // Formulario: columna de lectura de 720 dp alineada con el título (specs/LAYOUT.md §4.1).
+                state.form != null -> Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) { OperationForm(state, viewModel) }
+                state.detail != null -> BpmListDetail(list = listBody, detail = { OperationDetails(state.detail!!, onBack = viewModel::closeDetail) })
                 else -> listBody()
             }
         }

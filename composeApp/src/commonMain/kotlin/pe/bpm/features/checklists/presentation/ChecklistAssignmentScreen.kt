@@ -151,43 +151,39 @@ fun ChecklistAssignmentDetailScreen(
     onStart: () -> Unit,
     onOpenRun: (AssignedChecklistRun) -> Unit,
 ) {
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text(
-            value.templateName,
-            style = MaterialTheme.typography.titleLarge,
-        )
-        Text(value.locationName, style = BpmType.bodyStrong)
-        Text(frequencyLabel(value.frequency))
-        Text(frequencyExplanation(value.frequency))
-        AssignmentShiftInfo(value)
-        if (value.dueTime.isNotEmpty()) Text("Hora de referencia en la sede: ${value.dueTime}")
-        val run = value.run
-        when {
-            !value.active -> Text("Esta programación ya no está activa.")
-            run == null -> {
-                Text("Pendiente en este período.")
-                if (!management)
-                    RaisedButton(
-                        "Comenzar revisión",
-                        onStart,
-                        Modifier.fillMaxWidth(),
-                        enabled = !busy,
-                    )
-            }
-            else -> {
-                Text(
-                    if (run.status == "SUBMITTED") "El control de este período ya está finalizado."
-                    else "Revisión en curso por ${run.performedByName}."
-                )
-                RaisedButton(
-                    if (!management && run.status == "DRAFT" && run.performedBy == userId)
-                        "Continuar revisión"
-                    else "Ver revisión",
-                    { onOpenRun(run) },
-                    Modifier.fillMaxWidth(),
-                    enabled = !busy,
-                )
-            }
+    val run = value.run
+    val status = when {
+        !value.active -> BpmRecordStatus("Inactiva", BpmTone.Neutral)
+        run == null -> BpmRecordStatus("Pendiente", BpmTone.Warning)
+        run.status == "SUBMITTED" -> BpmRecordStatus("Finalizado", BpmTone.Success)
+        else -> BpmRecordStatus("En curso", BpmTone.Info)
+    }
+    // Detalle del registro (specs/LAYOUT.md §5): una sola acción principal según el estado del período.
+    val primary: (@Composable () -> Unit)? = when {
+        !value.active -> null
+        run == null -> if (management) null else ({ RaisedButton("Comenzar revisión", onStart, Modifier.bpmPrimaryButtonWidth(), enabled = !busy) })
+        else -> ({
+            RaisedButton(
+                if (!management && run.status == "DRAFT" && run.performedBy == userId) "Continuar revisión" else "Ver revisión",
+                { onOpenRun(run) }, Modifier.bpmPrimaryButtonWidth(), enabled = !busy,
+            )
+        })
+    }
+    BpmDetailPane(value.templateName, status = status, subtitle = value.locationName, actions = primary) {
+        BpmSection("Programación", description = frequencyExplanation(value.frequency)) {
+            BpmDetailFields(listOf(
+                BpmDetailField("Frecuencia", frequencyLabel(value.frequency)),
+                BpmDetailField("Hora de referencia en la sede", value.dueTime),
+            ))
+            AssignmentShiftInfo(value)
+        }
+        BpmSection("Este período") {
+            Text(when {
+                !value.active -> "Esta programación ya no está activa."
+                run == null -> "Pendiente en este período."
+                run.status == "SUBMITTED" -> "El control de este período ya está finalizado."
+                else -> "Revisión en curso por ${run.performedByName}."
+            })
         }
     }
 }

@@ -8,55 +8,74 @@ import pe.bpm.core.domain.*
 import pe.bpm.core.presentation.displayDateTime
 import pe.bpm.features.operations.domain.*
 
+/**
+ * Detalle de un registro de operación diaria (specs/LAYOUT.md §5): título, resumen y datos etiqueta/valor en
+ * una o dos columnas según el ancho del panel. Con [onBack] muestra «Volver a la lista» cuando ocupa la pantalla.
+ */
 @Composable
-internal fun OperationDetails(entry: OperationsEntry) {
-    Text(entry.title(), style = MaterialTheme.typography.titleLarge)
-    Text(entry.subtitle())
-    when (entry) {
-        is OperationsEntry.SupplierEntry ->
-            with(entry.value) {
-                Text(
-                    "Identificación: ${taxId.ifEmpty{"Sin registrar"}}\nContacto: ${contactName.ifEmpty{"Sin registrar"}}\nTeléfono: ${contactPhone.ifEmpty{"Sin registrar"}}\nCorreo: ${contactEmail.ifEmpty{"Sin registrar"}}\nDirección: ${address.ifEmpty{"Sin registrar"}}"
-                )
-            }
-        is OperationsEntry.ProductEntry ->
-            Text(
-                "Categoría: ${entry.value.category.ifEmpty{"Sin categoría"}}\nUnidad: ${entry.value.unit}"
-            )
-        is OperationsEntry.ReceiptEntry ->
-            with(entry.value) {
-                Text(
-                    "Referencia: ${input.documentReference.ifEmpty{"Sin referencia"}}\nResponsable: ${receivedByName.ifEmpty{"Responsable registrado"}}\nConfirmado: ${displayDateTime(createdAt)}"
-                )
-                if (input.notes.isNotBlank()) Text(input.notes)
-                items.forEach {
-                    ReceiptItemSummary(it.input, it.productName)
-                    if (it.legacyPackaging)
-                        Text("Registro anterior: estado del envase sin información.")
-                    if (it.minimumTemperature != null && it.maximumTemperature != null)
-                        Text(
-                            "Criterio al recibir: ${it.minimumTemperature} a ${it.maximumTemperature} °C"
-                        )
+internal fun OperationDetails(entry: OperationsEntry, onBack: (() -> Unit)? = null) {
+    BpmDetailPane(entry.title(), subtitle = entry.subtitle(), onBack = onBack) {
+        when (entry) {
+            is OperationsEntry.SupplierEntry -> with(entry.value) {
+                BpmSection("Datos del proveedor") {
+                    BpmDetailFields(listOf(
+                        BpmDetailField("Identificación", taxId), BpmDetailField("Contacto", contactName),
+                        BpmDetailField("Teléfono", contactPhone), BpmDetailField("Correo", contactEmail),
+                        BpmDetailField("Dirección", address),
+                    ))
                 }
             }
-        is OperationsEntry.LotEntry ->
-            with(entry.value) {
-                Text(
-                    "Lote: $batchCode\nCantidad recibida: ${receivedQuantity.ifEmpty{"Sin información"}} $unit\nSaldo actual: $quantityAvailable $unit\nRecepción: ${displayDateTime(receivedAt)}\nVencimiento: ${displayDate(expirationDate)}\nUbicación: $storageLocation\nEtiqueta: ${label.ifEmpty{"Sin etiqueta"}}\nEstado: ${lotStatus(status)}"
-                )
+            is OperationsEntry.ProductEntry -> BpmSection("Datos del producto") {
+                BpmDetailFields(listOf(BpmDetailField("Categoría", entry.value.category), BpmDetailField("Unidad", entry.value.unit)))
             }
-        is OperationsEntry.PlanEntry ->
-            with(entry.value) {
-                Text(
-                    "Instrucciones: ${instructions.ifEmpty{"Sin instrucciones adicionales"}}\nFrecuencia: ${frequencyLabel(frequency)}\nProducto: ${productName.ifEmpty{"Sin producto indicado"}}\nHora: ${dueTime.ifEmpty{"Sin hora"}}\n${if(active)"Activo" else "Inactivo"}"
-                )
+            is OperationsEntry.ReceiptEntry -> with(entry.value) {
+                BpmSection("Datos de la recepción") {
+                    BpmDetailFields(listOf(
+                        BpmDetailField("Referencia", input.documentReference),
+                        BpmDetailField("Responsable", receivedByName.ifEmpty { "Responsable registrado" }),
+                        BpmDetailField("Confirmado", displayDateTime(createdAt)),
+                    ))
+                    if (input.notes.isNotBlank()) Text(input.notes)
+                }
+                BpmSection(if (items.size == 1) "1 producto recibido" else "${items.size} productos recibidos") {
+                    items.forEach {
+                        ReceiptItemSummary(it.input, it.productName)
+                        if (it.legacyPackaging) Text("Registro anterior: estado del envase sin información.")
+                        if (it.minimumTemperature != null && it.maximumTemperature != null)
+                            Text("Criterio al recibir: ${it.minimumTemperature} a ${it.maximumTemperature} °C")
+                    }
+                }
             }
-        is OperationsEntry.ExecutionEntry ->
-            with(entry.value) {
-                Text(
-                    "Responsable: ${responsibleName.ifEmpty{"Responsable registrado"}}\nTurno: ${shiftName.ifEmpty{"Sin turno"}}\nEjecutado: ${displayDateTime(input.executedAt)}\nConfirmado: ${displayDateTime(createdAt)}\nObservación: ${input.observation.ifEmpty{"Sin observaciones"}}"
-                )
+            is OperationsEntry.LotEntry -> with(entry.value) {
+                BpmSection("Datos del lote") {
+                    BpmDetailFields(listOf(
+                        BpmDetailField("Lote", batchCode), BpmDetailField("Estado", lotStatus(status)),
+                        BpmDetailField("Cantidad recibida", receivedQuantity.takeIf { it.isNotEmpty() }?.let { "$it $unit" }),
+                        BpmDetailField("Saldo actual", "$quantityAvailable $unit"),
+                        BpmDetailField("Recepción", displayDateTime(receivedAt)), BpmDetailField("Vencimiento", displayDate(expirationDate)),
+                        BpmDetailField("Ubicación", storageLocation), BpmDetailField("Etiqueta", label),
+                    ))
+                }
             }
+            is OperationsEntry.PlanEntry -> with(entry.value) {
+                BpmSection("Plan de limpieza") {
+                    BpmDetailFields(listOf(
+                        BpmDetailField("Frecuencia", frequencyLabel(frequency)), BpmDetailField("Estado", if (active) "Activo" else "Inactivo"),
+                        BpmDetailField("Producto", productName), BpmDetailField("Hora", dueTime),
+                        BpmDetailField("Instrucciones", instructions),
+                    ))
+                }
+            }
+            is OperationsEntry.ExecutionEntry -> with(entry.value) {
+                BpmSection("Ejecución") {
+                    BpmDetailFields(listOf(
+                        BpmDetailField("Responsable", responsibleName.ifEmpty { "Responsable registrado" }), BpmDetailField("Turno", shiftName),
+                        BpmDetailField("Ejecutado", displayDateTime(input.executedAt)), BpmDetailField("Confirmado", displayDateTime(createdAt)),
+                        BpmDetailField("Observación", input.observation),
+                    ))
+                }
+            }
+        }
     }
 }
 
