@@ -62,7 +62,7 @@ fun AssignmentAdminScreen(viewModel: TrainingAssignmentAdminViewModel, memberSel
 
 @Composable
 private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssignmentAdminViewModel) {
-    Text("Asignaciones", style = MaterialTheme.typography.headlineMedium)
+    Text("Asignaciones", style = MaterialTheme.typography.titleLarge)
     Text("Asigna cursos publicados a una persona, a un rol o a una sede, con fecha límite opcional. El aviso llega en el siguiente ciclo de notificaciones.")
     RaisedButton("Asignar un curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -181,7 +181,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
                 }
             }
         } else {
-            Text("Catálogo de logros", style = MaterialTheme.typography.headlineMedium)
+            Text("Catálogo de logros", style = MaterialTheme.typography.titleLarge)
             Text("Quienes aprenden ganan estas insignias de forma automática. Puedes ajustar nombre, puntos, umbral y vigencia.")
             if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin insignias", "El catálogo se crea la primera vez que alguien las necesita.")
             BpmGridLayout(state.items) { a, m ->
@@ -208,7 +208,7 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
         Notice(state.notice)
         val editor = state.editor
         if (editor != null) PathEditorPanel(state, editor, viewModel) else {
-            Text("Rutas de aprendizaje", style = MaterialTheme.typography.headlineMedium)
+            Text("Rutas de aprendizaje", style = MaterialTheme.typography.titleLarge)
             Text("Agrupa cursos en un orden recomendado. Solo las rutas publicadas las ven quienes aprenden.")
             RaisedButton("Crear ruta", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

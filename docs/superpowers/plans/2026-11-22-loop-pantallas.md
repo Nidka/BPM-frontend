@@ -54,7 +54,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 | 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | hecha |
 | 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | hecha |
 | 5 | Aprender `aprender`, Curso / lección `aprender/{courseId}`, Logros, Rutas | hecha |
-| 6 | Academia (gestión) `empresa/academia`, Encuesta del estudio `estudio`, Investigación `investigacion` | pendiente |
+| 6 | Academia (gestión) `empresa/academia`, Encuesta del estudio `estudio`, Investigación `investigacion` | hecha |
 | 7 | Control `control`, Catálogo de plantillas, Detalle de plantilla | pendiente |
 | 8 | Revisión de tu sede (ejecución por pasos), Mis revisiones, Controles en este dispositivo, Control programado | pendiente |
 | 9 | Seguimiento `seguimiento`, Detalle de revisión | pendiente |
@@ -146,3 +146,15 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
   - Curso, lección, estudio y evaluación: cumplen la lista; sin cambios.
 - **Para decidir:** ver «Filtros del catálogo» arriba.
 - **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde; 30 capturas sin fallos.
+
+### Iteración 6: Academia (gestión), encuesta del estudio e Investigación (22/11/2026)
+
+- **Sin capturas (solo código):** estas pantallas dependen de varios ViewModels con repositorios (`TrainingAssignmentAdminViewModel`, `LearningPathAdminViewModel`, `TrainingAchievementAdminViewModel`, `ResearchViewModel` con sus controladores, `SurveyViewModel`). Ampliar el arnés con ellos queda para una pasada posterior; los cambios siguen patrones ya comprobados a la vista en las iteraciones 3 a 5.
+- **Hallazgo:** los dos centros con pestañas (Academia BPM e Investigación) empezaban por los chips de pestañas y luego mostraban un título `headlineMedium` por pestaña; no había título de página arriba (convención de la iteración 3).
+- **Cambios:**
+  - `TrainingContent.kt` (`TrainingPlusAdminContent`): `BpmPageHeader("Academia BPM")` antes de las pestañas y separación `lg` en lugar de 8 dp.
+  - `ResearchScreen.kt`: `BpmPageHeader("Investigación")` antes de las pestañas.
+  - Los títulos de cada pestaña (Cursos de Academia, Asignaciones, Catálogo de logros, Rutas de aprendizaje, Consentimiento informado, Cuestionarios, Resultados por empresa, Necesidades detectadas, Accesos de investigación) pasan de `headlineMedium` a `titleLarge`: son títulos de sección bajo el título de página.
+  - Encuesta del estudio (`SurveyScreen.kt`): título y descripción en un `BpmPageHeader`; la barra de avance de preguntas pasa de `LinearProgressIndicator` a `BpmProgressBar` (la del sistema).
+- **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest`, `assembleDebug` y `wasmJsBrowserDistribution` en verde.
+- **Sin revisar a la vista:** pestañas y formularios de edición de cursos, asignaciones, rutas, logros, consentimiento y cuestionarios; los editores de cursos y de cuestionarios tienen mucho contenido propio y conviene revisarlos con datos en la pasada 14.

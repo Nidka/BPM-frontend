@@ -1,6 +1,8 @@
 package pe.bpm.app
 
 import pe.bpm.core.designsystem.BpmFilterChip
+import pe.bpm.core.designsystem.BpmPageHeader
+import pe.bpm.core.designsystem.BpmSpacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -73,7 +75,9 @@ internal fun TrainingPlusAdminContent(
         assignments.open(organizationId, canManage); paths.open(organizationId, canManage); achievements.open(organizationId, canManage)
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): el título de página va primero y cada pestaña lleva un título de sección.
+        BpmPageHeader("Academia BPM")
         if (canManage && !tabsLocked) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Cursos", "Asignaciones", "Rutas", "Logros").forEachIndexed { index, label ->
                 BpmFilterChip(tab == index, { tab = index }, { Text(label) })

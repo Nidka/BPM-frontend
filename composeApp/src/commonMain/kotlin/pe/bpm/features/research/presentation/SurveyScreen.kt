@@ -56,8 +56,7 @@ fun SurveyScreen(viewModel: SurveyViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Overview(state: SurveyState, participation: Participation, viewModel: SurveyViewModel) {
-    Text("Encuesta del estudio", style = MaterialTheme.typography.headlineMedium)
-    Text("Tu participación es voluntaria. Respondemos de forma anónima: usamos un código en lugar de tu nombre y no mostramos puntajes individuales.")
+    BpmPageHeader("Encuesta del estudio", description = "Tu participación es voluntaria. Respondemos de forma anónima: usamos un código en lugar de tu nombre y no mostramos puntajes individuales.")
     val document = participation.consentDocument
     val submissionPending = LocalPendingMarks.current.forResource("research").isNotEmpty()
     PendingOperationsNotice("research")
@@ -147,7 +146,7 @@ private fun QuestionPanel(state: SurveyState, viewModel: SurveyViewModel) {
     val answered = state.answeredCount
     Text("Pregunta ${state.index + 1} de $total · $answered respondidas", style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.semantics { contentDescription = "Pregunta ${state.index + 1} de $total, $answered respondidas" })
-    LinearProgressIndicator(progress = { answered.toFloat() / total }, modifier = Modifier.fillMaxWidth())
+    BpmProgressBar(answered.toFloat() / total)
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow(dimensionTitle(question.dimension).uppercase())
         Text(question.text, style = MaterialTheme.typography.titleMedium)
