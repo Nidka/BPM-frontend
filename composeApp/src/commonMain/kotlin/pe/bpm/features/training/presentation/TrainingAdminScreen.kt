@@ -53,7 +53,7 @@ private fun statusLabel(status: CourseStatus) = when (status) {
 
 @Composable
 private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewModel) {
-    Text("Cursos de Academia", style = MaterialTheme.typography.headlineMedium)
+    Text("Cursos de Academia", style = MaterialTheme.typography.titleLarge)
     Text("Prepara lecciones con texto y video, escribe preguntas con su explicación y publica cuando todo esté listo. Quienes ya aprenden siguen viendo la versión publicada hasta que publiques otra.")
     RaisedButton("Crear curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

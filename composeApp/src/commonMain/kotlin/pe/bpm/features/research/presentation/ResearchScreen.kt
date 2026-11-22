@@ -35,6 +35,8 @@ private fun tabLabel(tab: ResearchTab) = when (tab) {
 fun ResearchScreen(viewModel: ResearchViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): el título de página va primero y cada pestaña lleva un título de sección.
+        BpmPageHeader("Investigación")
         if (state.accessLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             Text(researchFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -68,7 +70,7 @@ private fun ErrorLine(failure: ResearchFailure?) {
 
 @Composable
 private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
-    Text("Consentimiento informado", style = MaterialTheme.typography.headlineMedium)
+    Text("Consentimiento informado", style = MaterialTheme.typography.titleLarge)
     val form = state.documentForm
     if (form != null) {
         Text("Al publicar una versión nueva, la vigente se archiva y todas las personas participantes deberán aceptarla de nuevo.")
@@ -115,7 +117,7 @@ private fun InstrumentsTab(controller: InstrumentsController) {
     val state by controller.state.collectAsStateWithLifecycle()
     val editor = state.editor
     if (editor != null) { DraftEditor(editor, controller); return }
-    Text("Cuestionarios", style = MaterialTheme.typography.headlineMedium)
+    Text("Cuestionarios", style = MaterialTheme.typography.titleLarge)
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     val form = state.import
     if (form != null) {
@@ -206,7 +208,7 @@ private fun ResultsTab(controller: AnalysisController) {
     // La plataforma recibe el archivo una sola vez; después los bytes se descartan.
     LaunchedEffect(state.pendingExport) { state.pendingExport?.let { export -> saver.save(export.fileName, "text/csv", export.bytes.decodeToString()) { result -> controller.exportDelivered(saved = result == FileSaveResult.SAVED, failed = result == FileSaveResult.FAILED) } } }
     LaunchedEffect(Unit) { controller.loadOrganizations() }
-    Text("Resultados por empresa", style = MaterialTheme.typography.headlineMedium)
+    Text("Resultados por empresa", style = MaterialTheme.typography.titleLarge)
     Text("Comparación entre la encuesta inicial y la final. Los conocimientos van de 0 a 100; actitudes y prácticas, de 1 a 5. Las empresas con pocas personas participantes pueden dar promedios poco estables.")
     OrganizationFilter(state, controller, label = "Exportar respuestas de")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
@@ -306,7 +308,7 @@ private fun categoryLabel(category: NeedCategory) = when (category) {
 private fun NeedsTab(controller: AnalysisController) {
     val state by controller.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { controller.loadOrganizations() }
-    Text("Necesidades detectadas", style = MaterialTheme.typography.headlineMedium)
+    Text("Necesidades detectadas", style = MaterialTheme.typography.titleLarge)
     val form = state.needForm
     if (form != null) {
         Text("Registra una necesidad observada en una empresa durante el estudio.")
@@ -356,7 +358,7 @@ private fun NeedsTab(controller: AnalysisController) {
 
 @Composable
 private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
-    Text("Accesos de investigación", style = MaterialTheme.typography.headlineMedium)
+    Text("Accesos de investigación", style = MaterialTheme.typography.titleLarge)
     Text("Solo las personas con una concesión pueden ver resultados y exportaciones. Ni los administradores de empresa ni los administradores generales ven estos datos sin ella.")
     BpmTextField(state.grantEmail, viewModel::editGrantEmail, "Correo de la persona", Modifier.fillMaxWidth(), enabled = !state.grantBusy,
         error = if (state.grantEmailInvalid) "Escribe un correo válido." else null, inputKind = BpmInputKind.Email)

@@ -221,10 +221,13 @@ internal fun WorkspaceScreen(
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
                                 Text(current.organization.name, style = MaterialTheme.typography.titleLarge)
-                                // La razón social solo se muestra si difiere del nombre comercial.
-                                if (current.organization.legalName.isNotBlank() && current.organization.legalName != current.organization.name) Text(current.organization.legalName)
-                                if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
-                                if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
+                                // Los datos de la organización se agrupan (4 dp entre líneas) y se separan del nombre.
+                                Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                                    // La razón social solo se muestra si difiere del nombre comercial.
+                                    if (current.organization.legalName.isNotBlank() && current.organization.legalName != current.organization.name) Text(current.organization.legalName)
+                                    if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
+                                    if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
+                                }
                             }
                             if (current.canManage) BpmGridLayout(listOf<@Composable (Modifier) -> Unit>(
                                 { m -> BpmActionTile(BpmSymbol.Control, "Plantillas de control", "Prepara preguntas y publica los criterios de tu equipo.", onManageTemplates, m) },
@@ -240,9 +243,11 @@ internal fun WorkspaceScreen(
                             if (current.locations.isEmpty()) EmptyState("Sin sedes para mostrar", "No hay sedes disponibles para esta búsqueda y tus permisos actuales.")
                             BpmGridLayout(current.locations) { location, cardModifier -> BpmCard(cardModifier) {
                                 Text(location.name, style = MaterialTheme.typography.titleMedium)
-                                Text(location.address)
-                                if (location.district.isNotBlank()) Text(location.district, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (location.contactPhone.isNotBlank()) Text(location.contactPhone)
+                                Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                                    Text(location.address)
+                                    if (location.district.isNotBlank()) Text(location.district, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    if (location.contactPhone.isNotBlank()) Text(location.contactPhone)
+                                }
                             } }
                             }
                         }
@@ -251,7 +256,7 @@ internal fun WorkspaceScreen(
                             if (current.canManage) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.bpmPrimaryButtonWidth())
-                                BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
+                                BpmSecondaryButton(onClick = onAccounts, modifier = Modifier.bpmPrimaryButtonWidth()) { Text("Gestionar roles, invitaciones y bajas") }
                             }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")
                             else {

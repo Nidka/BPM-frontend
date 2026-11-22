@@ -20,6 +20,9 @@ import pe.bpm.core.designsystem.BpmSpacing
 import pe.bpm.core.designsystem.BpmCard
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
+import pe.bpm.core.designsystem.BpmRecordCard
+import pe.bpm.core.designsystem.BpmRecordStatus
+import pe.bpm.core.designsystem.BpmTone
 import pe.bpm.core.designsystem.EmptyState
 
 /** true cuando hay red. Las pantallas que exigen servidor deshabilitan sus acciones y lo explican. */
@@ -142,7 +145,8 @@ fun PendingChangesScreen(
     var confirming by remember { mutableStateOf<PendingItem?>(null) }
     // Ruta propia (no está alojada en el workspace): la cola de envío es una lista secuencial de una columna (720 dp).
     BpmAccessScreen(modifier, pattern = BpmPattern.StepFlow, scrollable = false) {
-        BpmTextButton(onBack) { Text("Volver") }
+        // Sin relleno lateral: «Volver» queda en el mismo borde que el título.
+        BpmTextButton(onBack, contentPadding = PaddingValues(0.dp)) { Text("Volver") }
         BpmPageHeader("Cambios pendientes",
             description = if (state.status.online) "Conectado" else "Sin conexión: se enviarán al recuperarla.")
         BpmSecondaryButton(onSync, Modifier.fillMaxWidth(), enabled = state.status.online && !state.syncing) {
@@ -173,18 +177,25 @@ fun PendingChangesScreen(
 
 @Composable
 private fun PendingCard(item: PendingItem, now: Long, onRetry: (String) -> Unit, onDiscard: () -> Unit) {
-    BpmCard(Modifier.fillMaxWidth()) {
-        Text(item.title, style = MaterialTheme.typography.titleMedium)
-        Text(item.state.label() + " · registrado ${relativeAge(now, item.createdAt)}", style = MaterialTheme.typography.bodyMedium)
-        if (item.message.isNotBlank()) Text(item.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (item.state != PendingState.SENT && item.state != PendingState.SENDING) {
-            // Con fuente grande o ancho compacto los dos botones pasan a dos líneas en lugar de cortarse.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (item.canRetry) BpmSecondaryButton({ onRetry(item.id) }) { Text("Reintentar") }
-                BpmTextButton(onDiscard) { Text(if (item.state == PendingState.NEEDS_REVIEW) "Descartar y recargar" else "Descartar") }
-            }
-        }
-    }
+    // Mismo ítem de listado que el resto de la app (specs/LAYOUT.md §3.4): el estado va como chip con su tono, no como texto suelto.
+    val actionable = item.state != PendingState.SENT && item.state != PendingState.SENDING
+    BpmRecordCard(
+        item.title, Modifier.fillMaxWidth(),
+        status = BpmRecordStatus(item.state.label(), item.state.tone()),
+        subtitle = "Registrado ${relativeAge(now, item.createdAt)}",
+        details = listOfNotNull(item.message.takeIf { it.isNotBlank() }),
+        actionLabel = if (actionable && item.canRetry) "Reintentar" else null,
+        onAction = { onRetry(item.id) },
+        textActions = if (actionable) listOf((if (item.state == PendingState.NEEDS_REVIEW) "Descartar y recargar" else "Descartar") to onDiscard) else emptyList(),
+    )
+}
+
+private fun PendingState.tone() = when (this) {
+    PendingState.WAITING, PendingState.SENDING -> BpmTone.Info
+    PendingState.SENT -> BpmTone.Success
+    PendingState.NEEDS_REVIEW -> BpmTone.Warning
+    PendingState.FAILED -> BpmTone.Danger
+    PendingState.PAUSED, PendingState.BLOCKED -> BpmTone.Neutral
 }
 
 /** Aviso discreto de cambios sin enviar de otra persona que usó este celular. */

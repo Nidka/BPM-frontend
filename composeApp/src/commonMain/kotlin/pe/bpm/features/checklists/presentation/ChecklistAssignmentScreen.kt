@@ -67,14 +67,17 @@ fun ChecklistAssignmentsScreen(
                             v.templateName,
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        Text(v.locationName)
-                        Text(frequencyLabel(v.frequency))
-                        AssignmentShiftInfo(v)
-                        if (v.dueTime.isNotEmpty())
-                            Text(
-                                "Hora de referencia en la sede: ${v.dueTime}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        // Los datos descriptivos de un mismo control se agrupan (4 dp entre líneas) y se separan del título y del estado.
+                        Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                            Text(v.locationName)
+                            Text(frequencyLabel(v.frequency))
+                            AssignmentShiftInfo(v)
+                            if (v.dueTime.isNotEmpty())
+                                Text(
+                                    "Hora de referencia en la sede: ${v.dueTime}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                        }
                         Text(
                             when (v.run?.status) {
                                 "DRAFT" -> "En curso · ${v.run.performedByName}"

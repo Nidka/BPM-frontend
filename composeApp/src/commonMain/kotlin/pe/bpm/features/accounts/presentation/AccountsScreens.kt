@@ -22,6 +22,8 @@ fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewMo
     val teamState by team.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(AccountsTab.Team.name) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): cada una lleva la suya.
+        BpmPageHeader("Cuentas y equipo")
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
         BpmFilterChips(AccountsTab.entries.map { it.name to it.label }, tab) { tab = it }
         when (tab) {
@@ -37,7 +39,8 @@ fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewMo
 fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        Text("Estos son los dispositivos de tus organizaciones que reciben avisos. Si no reconoces alguno, revócalo.")
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): cada una lleva la suya.
+        BpmPageHeader("Mis dispositivos", description = "Estos son los dispositivos de tus organizaciones que reciben avisos. Si no reconoces alguno, revócalo.")
         AccountMessages(state.failure, state.notice)
         state.revoking?.let { device ->
             BpmConfirmPanel("¿Revocar ${device.platform.label}?", "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke, busy = state.busy) {
@@ -61,6 +64,8 @@ fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
 fun InvitationAcceptScreen(viewModel: InvitationAcceptViewModel, onContinue: () -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): el título va fuera de la tarjeta.
+        BpmPageHeader("Aceptar invitación")
         val accepted = state.accepted
         if (accepted != null) {
             BpmCard(Modifier.fillMaxWidth()) {
@@ -69,7 +74,6 @@ fun InvitationAcceptScreen(viewModel: InvitationAcceptViewModel, onContinue: () 
                 RaisedButton("Continuar", onContinue, Modifier.fillMaxWidth())
             }
         } else BpmCard(Modifier.fillMaxWidth()) {
-            Text("Aceptar una invitación", style = MaterialTheme.typography.titleLarge)
             Text("Inicia sesión con el correo que recibió la invitación y pega aquí el código o el enlace del correo.")
             BpmTextField(state.input, viewModel::edit, "Código o enlace de la invitación", Modifier.fillMaxWidth(), error = state.fieldError, enabled = !state.busy)
             AccountMessages(state.failure, null)

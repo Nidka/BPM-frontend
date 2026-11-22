@@ -32,10 +32,13 @@ fun CertificateVerificationScreen(code: String, viewModel: CertificateVerificati
                 BpmCard(Modifier.fillMaxWidth()) {
                     Eyebrow("CONSTANCIA VÁLIDA")
                     Text(cert.organizationName, style = MaterialTheme.typography.titleLarge)
-                    Text("Período: ${longDate(cert.periodStart)} al ${longDate(cert.periodEnd)}")
-                    Text("Cumplimiento promedio: ${formatPercent(cert.averageCompliance)}")
-                    Text("Umbral exigido: ${formatPercent(cert.threshold)}")
-                    Text("Emitida el ${longDate(cert.issuedAt)}")
+                    // Los datos de una misma constancia se agrupan (4 dp entre líneas) para distinguirlos del título.
+                    Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                        Text("Período: ${longDate(cert.periodStart)} al ${longDate(cert.periodEnd)}")
+                        Text("Cumplimiento promedio: ${formatPercent(cert.averageCompliance)}")
+                        Text("Umbral exigido: ${formatPercent(cert.threshold)}")
+                        Text("Emitida el ${longDate(cert.issuedAt)}")
+                    }
                     Text("Código: ${cert.verificationCode}", style = BpmType.bodyStrong)
                 }
             }
