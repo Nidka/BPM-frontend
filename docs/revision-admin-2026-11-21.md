@@ -29,9 +29,9 @@ insumos y limpieza, e incidencias.
 | RF-35–38 Incidencias y acciones correctivas | Cumple | Catálogo por norma, plan con responsable y plazo, fotos antes/después, validación |
 | RF-39 Constancia interna | Cumple | Constancias con umbral configurable y verificación pública |
 | RF-40–44 Rutas y evaluaciones | Cumple | Rutas de aprendizaje, evaluación diagnóstica/por módulo/final |
-| **RF-45 Accesibilidad: subtítulos** | **No cumple** | Los videos no tienen pistas de subtítulos (ni en el modelo ni en el reproductor). Contraste y teclado sí |
-| **RF-46/47 Agente IA normativo** | **No implementado** | No existe en frontend ni backend. Es función del SUPER_ADMIN («configura agente IA») |
-| RF-48 Integración n8n | No implementado | Opcional según el documento |
+| **RF-45 Accesibilidad: subtítulos** | **Implementado (pendiente de desplegar V16)** | Subtítulos WebVTT por lección: pista nativa en Android y web, superpuesta en iOS, y transcripción |
+| **RF-46/47 Agente IA normativo** | **Implementado (pendiente de V17 y ANTHROPIC_API_KEY)** | Consulta con Claude solo sobre la normativa que carga el SUPER_ADMIN, con citas; 20 consultas/hora |
+| RF-48 Integración n8n | Implementado (pendiente de V18) | Webhooks HTTPS firmados con HMAC por tipo de aviso, gestionados por el ADMIN |
 | RF-49 Tipo de establecimiento | Cumple | Restaurante, cafetín, catering, otro servicio |
 | RF-50 Necesidades detectadas | Cumple | Investigación (SUPER_ADMIN / investigación) |
 | **RNF Usabilidad: mínimo 14 sp** | **Corregido** | Texto de apoyo y etiquetas estaban en 13 sp y los chips en 12 sp; ahora 14 sp |
@@ -54,11 +54,12 @@ insumos y limpieza, e incidencias.
 
 Contrato completo: `specs/LAYOUT.md`.
 
-## Pendientes recomendados antes de producción
+## Pendientes antes de producción
 
-1. **Subtítulos de video (RF-45):** campo de subtítulos (WebVTT) por lección en el backend, carga en la autoría
-   y pistas en ExoPlayer/AVPlayer/`<video>`.
-2. **Agente IA normativo (RF-46/47):** decidir si entra en el alcance del piloto; hoy no existe.
-3. **Detalles aún con estructura propia:** control programado, revisión (historial) y operación diaria siguen sin
-   `BpmDetailPane`; migrarlos con el mismo patrón.
-4. **Revisión visual con datos reales** por rol a 360, 600, 840, 1000, 1200 y 1600 dp (faltan cuentas de prueba).
+1. **Desplegar el backend en orden:** aplicar V16, V17 y V18 (`scripts/aplicar-migraciones.ps1`), luego desplegar
+   la API y el worker, y al final el frontend. El frontend nuevo funciona contra el servidor actual: oculta los
+   subtítulos y muestra la normativa y las automatizaciones como «no activadas» hasta el despliegue.
+2. **Activar el agente normativo:** definir `ANTHROPIC_API_KEY` en la API (y opcionalmente `NORMATIVE_MODEL`) y
+   cargar la normativa (NTS 142, RM 822-2018/MINSA) desde «Consultar normativa → Normativa cargada».
+3. **Revisión visual con cuentas reales** por rol a 360, 600, 840, 1000, 1200 y 1600 dp, y reproducción de
+   videos con subtítulos en un Android y un iPhone reales.

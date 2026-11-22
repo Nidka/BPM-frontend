@@ -10,7 +10,7 @@ data class WebhookList(val items: List<Webhook>, val eventTypes: List<String>, v
 data class WebhookInput(val url: String, val eventTypes: Set<String>, val active: Boolean = true)
 data class WebhookTest(val delivered: Boolean, val status: Int)
 
-enum class WebhookFailure { SESSION, DENIED, NOT_FOUND, LIMIT, INVALID, CONNECTION, UNAVAILABLE, INVALID_RESPONSE }
+enum class WebhookFailure { SESSION, DENIED, NOT_FOUND, NOT_DEPLOYED, LIMIT, INVALID, CONNECTION, UNAVAILABLE, INVALID_RESPONSE }
 
 sealed interface WebhookResult<out T> {
     data class Success<T>(val value: T) : WebhookResult<T>
@@ -58,6 +58,7 @@ object WebhookRules {
         WebhookFailure.SESSION -> "Tu sesión venció. Inicia sesión nuevamente."
         WebhookFailure.DENIED -> "Solo el administrador de la empresa gestiona sus automatizaciones."
         WebhookFailure.NOT_FOUND -> "El webhook ya no existe."
+        WebhookFailure.NOT_DEPLOYED -> "Las automatizaciones estarán disponibles cuando se actualice el servidor."
         WebhookFailure.LIMIT -> "Puedes registrar hasta $max webhooks."
         WebhookFailure.INVALID -> "Revisa los datos indicados."
         WebhookFailure.CONNECTION -> "No pudimos conectar. Revisa tu conexión e inténtalo otra vez."

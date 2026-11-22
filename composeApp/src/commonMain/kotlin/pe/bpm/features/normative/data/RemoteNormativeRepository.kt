@@ -51,6 +51,9 @@ class RemoteNormativeRepository(
         val dto = request("status").body<Envelope<StatusDto>>().data
         require(dto.documents >= 0 && dto.questionsPerHour > 0)
         NormativeStatus(dto.enabled, dto.documents, dto.questionsPerHour)
+    }.let { result ->
+        // Un servidor anterior a V17 no tiene la ruta: equivale a un asistente no activado.
+        if (result is NormativeResult.Failure && result.reason == NormativeFailure.NOT_FOUND) NormativeResult.Success(NormativeStatus(false, 0, 20)) else result
     }
 
     override suspend fun ask(question: String): NormativeResult<NormativeAnswer> = guarded {

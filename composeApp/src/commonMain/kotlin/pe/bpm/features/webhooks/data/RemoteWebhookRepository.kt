@@ -40,9 +40,12 @@ class RemoteWebhookRepository(
     private val onSessionResponse: (HttpResponse) -> Unit = {},
     private val token: suspend () -> String?,
 ) : WebhookRepository {
-    override suspend fun list(org: String) = guarded {
+    override suspend fun list(org: String): WebhookResult<WebhookList> = guarded {
         val dto = request(org, "").body<Envelope<ListDto>>().data
         WebhookList(dto.items.map { it.domain() }, dto.eventTypes, dto.maxEndpoints)
+    }.let { result ->
+        // Un servidor anterior a V18 no tiene la ruta: la función aún no está disponible.
+        if (result is WebhookResult.Failure && result.reason == WebhookFailure.NOT_FOUND) WebhookResult.Failure(WebhookFailure.NOT_DEPLOYED) else result
     }
     override suspend fun create(org: String, input: WebhookInput) = guarded { request(org, "", HttpMethod.Post, input.json()).body<Envelope<WebhookDto>>().data.domain() }
     override suspend fun update(org: String, id: String, input: WebhookInput) = guarded { request(org, "/${uuid(id)}", HttpMethod.Put, input.json()).body<Envelope<WebhookDto>>().data.domain() }
