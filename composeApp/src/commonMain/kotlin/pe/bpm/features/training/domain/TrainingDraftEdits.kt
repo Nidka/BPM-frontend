@@ -10,6 +10,10 @@ object TrainingDraftEdits {
     fun updateLesson(draft: TrainingDraft, id: String, title: String? = null, content: String? = null): TrainingDraft =
         draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(title = title ?: it.title, content = content ?: it.content) else it })
 
+    /** Reemplaza los subtítulos WebVTT de la lección (RF-45); vacío los quita. */
+    fun setCaptions(draft: TrainingDraft, id: String, text: String): TrainingDraft =
+        draft.copy(lessons = draft.lessons.map { if (it.id == id) it.copy(captionsVtt = text) else it })
+
     /** Agrega una idea vacía a «Lo esencial» de la lección (tope [TrainingLimits.KEY_POINTS_MAX]). */
     fun addKeyPoint(draft: TrainingDraft, id: String): TrainingDraft =
         draft.copy(lessons = draft.lessons.map { if (it.id == id && it.keyPoints.size < TrainingLimits.KEY_POINTS_MAX) it.copy(keyPoints = it.keyPoints + "") else it })

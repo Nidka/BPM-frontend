@@ -146,6 +146,8 @@ class RemoteTrainingRepository(
                     put("id", trainingId(lesson.id)); put("title", lesson.title); put("content", lesson.content)
                     put("displayOrder", lesson.displayOrder)
                     // «Lo esencial»: ausente conserva lo previo en el servidor y [] lo vacía; al editar siempre se envía.
+                    // Subtítulos (RF-45): siempre se envían; "" los quita en el servidor.
+                    put("captionsVtt", WebVtt.normalize(lesson.captionsVtt).let { if (it.isEmpty()) it else it + "\n" })
                     putJsonArray("keyPoints") { lesson.keyPoints.map { it.trim() }.filter { it.isNotEmpty() }.forEach { add(it) } }
                     put("videoMediaId", lesson.videoMediaId?.let { JsonPrimitive(trainingId(it)) } ?: JsonNull)
                     // Video privado y de YouTube son excluyentes; se envía el identificador normalizado.

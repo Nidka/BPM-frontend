@@ -27,6 +27,7 @@ internal data class OfflineLessonDto(
     val externalVideo: ExternalVideoDto? = null,
     val offlineAvailable: Boolean = true,
     val keyPoints: List<String> = emptyList(),
+    val captionsVtt: String = "",
 )
 
 /** Un curso del catálogo: igual que la vista de aprender pero sin progreso ni constancia. */
@@ -47,7 +48,7 @@ internal data class OfflineCourseDto(
             val video = it.video?.domain()
             TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, video, it.externalVideo?.domain(),
                 offlineAvailable = it.externalVideo == null && it.offlineAvailable && (video == null || video.sha256 != null),
-                keyPoints = checkedKeyPoints(it.keyPoints))
+                keyPoints = checkedKeyPoints(it.keyPoints), captionsVtt = checkedCaptions(it.captionsVtt))
         }
         require(mappedLessons.map { it.id }.distinct().size == mappedLessons.size)
         val lessonIds = mappedLessons.map { it.id }.toSet()

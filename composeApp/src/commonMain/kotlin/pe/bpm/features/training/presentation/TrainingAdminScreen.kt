@@ -116,6 +116,7 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
                     supportingText = "${lesson.content.length} de ${TrainingLimits.LESSON_CONTENT_MAX} caracteres")
                 KeyPointsEditor(lesson, enabled, issue(DraftIssueKind.KEY_POINTS, lesson.id), viewModel)
                 LessonVideoEditor(editor, lesson, viewModel)
+                CaptionsEditor(lesson, enabled, issue(DraftIssueKind.CAPTIONS, lesson.id), viewModel)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, -1) } }, enabled = enabled && number > 0) { Text("Subir") }
                     BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, 1) } }, enabled = enabled && number < draft.lessons.lastIndex) { Text("Bajar") }
@@ -173,6 +174,27 @@ private fun KeyPointsEditor(lesson: DraftLesson, enabled: Boolean, issue: String
             ?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.addKeyPoint(it, lesson.id) } },
             enabled = enabled && lesson.keyPoints.size < TrainingLimits.KEY_POINTS_MAX) { Text("+ Agregar idea") }
+    }
+}
+
+/**
+ * Subtítulos del video (RF-45): se pega el contenido de un archivo WebVTT. Se valida al instante con las mismas
+ * reglas del servidor y muestra cuántos subtítulos se reconocieron.
+ */
+@Composable
+private fun CaptionsEditor(lesson: DraftLesson, enabled: Boolean, issue: String?, viewModel: TrainingAuthoringViewModel) {
+    val local = WebVtt.validationIssue(lesson.captionsVtt)
+    val count = if (local == null) WebVtt.parse(lesson.captionsVtt).size else 0
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Subtítulos del video (recomendado)", style = BpmType.bodyStrong)
+        Text("Pega el contenido del archivo .vtt. Quien aprende los verá sobre el video y como transcripción.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BpmTextField(lesson.captionsVtt, { v -> viewModel.edit { TrainingDraftEdits.setCaptions(it, lesson.id, v) } }, "Subtítulos WebVTT",
+            enabled = enabled, singleLine = false, minLines = 4, error = local ?: issue,
+            placeholder = "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nLávate las manos antes de empezar.",
+            supportingText = if (lesson.captionsVtt.isBlank()) "Sin subtítulos" else if (local == null) "$count subtítulos reconocidos" else null)
+        if (lesson.captionsVtt.isNotBlank()) BpmTextButton(onClick = { viewModel.edit { TrainingDraftEdits.setCaptions(it, lesson.id, "") } }, enabled = enabled,
+            modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text("Quitar subtítulos") }
     }
 }
 

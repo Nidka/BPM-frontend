@@ -60,7 +60,11 @@ internal data class LessonDto(
     val video: VideoDto? = null,
     val externalVideo: ExternalVideoDto? = null,
     val keyPoints: List<String> = emptyList(),
+    val captionsVtt: String = "",
 )
+
+/** Subtítulos recibidos: se acotan al máximo del servidor; un servidor anterior no los envía. */
+internal fun checkedCaptions(text: String): String { require(text.length <= WebVtt.MAX_LENGTH); return text }
 
 /** Valida «Lo esencial» de una lección; un servidor anterior no lo envía y equivale a vacío. */
 internal fun checkedKeyPoints(points: List<String>): List<String> {
@@ -123,7 +127,7 @@ internal data class CourseDetailDto(
         val mappedLessons = lessons.map {
             require(it.video == null || it.externalVideo == null)
             TrainingLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.video?.domain(), it.externalVideo?.domain(),
-                keyPoints = checkedKeyPoints(it.keyPoints))
+                keyPoints = checkedKeyPoints(it.keyPoints), captionsVtt = checkedCaptions(it.captionsVtt))
         }
         require(mappedLessons.map { it.id }.distinct().size == mappedLessons.size)
         val lessonIds = mappedLessons.map { it.id }.toSet()
@@ -223,6 +227,7 @@ internal data class AdminCourseDto(val id: String, val code: String, val title: 
     val videoMediaId: String? = null,
     val externalVideo: ExternalVideoDto? = null,
     val keyPoints: List<String> = emptyList(),
+    val captionsVtt: String = "",
 )
 
 @Serializable
@@ -254,7 +259,7 @@ internal data class DraftDto(
             lessons.map {
                 require(it.videoMediaId == null || it.externalVideo == null)
                 DraftLesson(trainingId(it.id), it.title, it.content, it.displayOrder, it.videoMediaId?.let(::trainingId), it.externalVideo?.domain()?.videoId,
-                    checkedKeyPoints(it.keyPoints))
+                    checkedKeyPoints(it.keyPoints), checkedCaptions(it.captionsVtt))
             }.sortedBy { it.displayOrder },
             questions.map {
                 trainingId(it.id)

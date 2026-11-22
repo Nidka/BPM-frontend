@@ -13,11 +13,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.core.offline.LocalOnline
@@ -104,7 +109,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
             }
             VideoState.Loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Preparando el video…") }
             is VideoState.Ready -> {
-                LessonVideoPlayer(video.ticket.url, video.ticket.mimeType, viewModel::onVideoError, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+                LessonVideoPlayer(video.ticket.url, video.ticket.mimeType, viewModel::onVideoError, Modifier.fillMaxWidth().aspectRatio(16f / 9f), lesson.captionsVtt)
                 BpmTextButton(onClick = viewModel::closeVideo) { Text("Ocultar video") }
             }
             is VideoState.Failed -> BpmCard(Modifier.fillMaxWidth()) {
@@ -113,6 +118,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
             }
         }
     }
+    if (lesson.video != null && lesson.captionsVtt.isNotBlank()) VideoTranscript(lesson.id, lesson.captionsVtt)
     if (lesson.keyPoints.isNotEmpty()) KeyPointsCard(lesson.keyPoints)
     // El texto de la lección hace de transcripción accesible del video y de lectura sin video.
     BpmCard(Modifier.fillMaxWidth()) {
@@ -252,5 +258,23 @@ internal fun KeyPointsCard(points: List<String>, modifier: Modifier = Modifier) 
                 }
             }
         }
+    }
+}
+
+/**
+ * Transcripción del video a partir de sus subtítulos (RF-45): plegada para no alargar la lección; se abre con un
+ * botón de texto accesible por teclado y lector de pantalla.
+ */
+@Composable
+private fun VideoTranscript(lessonId: String, captionsVtt: String) {
+    val transcript = remember(captionsVtt) { WebVtt.transcript(WebVtt.parse(captionsVtt)) }
+    if (transcript.isBlank()) return
+    var open by androidx.compose.runtime.saveable.rememberSaveable(lessonId) { mutableStateOf(false) }
+    BpmCard(Modifier.fillMaxWidth()) {
+        BpmTextButton(onClick = { open = !open }, modifier = Modifier.heightIn(min = BpmSpacing.touch)
+            .semantics { stateDescription = if (open) "Abierta" else "Cerrada" }) {
+            Text(if (open) "Ocultar transcripción del video" else "Ver transcripción del video")
+        }
+        if (open) Text(transcript, style = MaterialTheme.typography.bodyMedium)
     }
 }

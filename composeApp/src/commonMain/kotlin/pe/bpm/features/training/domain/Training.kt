@@ -34,6 +34,8 @@ data class TrainingLesson(
     val offlineAvailable: Boolean = true,
     /** «Lo esencial»: hasta 5 ideas clave de la lección; vacío en servidores anteriores. */
     val keyPoints: List<String> = emptyList(),
+    /** Subtítulos WebVTT del video (RF-45); vacío si la lección no tiene o el servidor es anterior. */
+    val captionsVtt: String = "",
 )
 
 /** Pregunta de la vista de aprendizaje: por contrato nunca trae la respuesta ni la explicación. */

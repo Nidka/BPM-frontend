@@ -23,6 +23,8 @@ data class DraftLesson(
     val externalVideoId: String? = null,
     /** «Lo esencial» de la lección (hasta 5 ideas de 1..200 caracteres); siempre se envía al guardar. */
     val keyPoints: List<String> = emptyList(),
+    /** Subtítulos WebVTT del video (RF-45); vacío = sin subtítulos. Siempre se envía al guardar. */
+    val captionsVtt: String = "",
 )
 
 data class DraftQuestion(

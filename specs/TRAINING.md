@@ -235,3 +235,14 @@ Contrato: «Catálogo descargable offline» de `Backend/specs/TRAINING.md` (`GET
   migración y límite con videos ajenos), `VerifiedDownloaderTest` (SHA correcto, corrupto, reanudación, `Range` ignorado),
   `TrainingViewModelOfflineTest`, `web/training-proxy.test.mjs`.
 - **Pendiente.** Reproducir `file://` y escribir con `NSFileHandle` en dispositivo; descargas en segundo plano con la app cerrada.
+
+## Subtítulos de video (RF-45)
+
+Cada lección admite subtítulos WebVTT (`captionsVtt`, hasta 100 000 caracteres; requiere V16 del backend). El
+administrador pega el contenido del archivo `.vtt` en la lección; `WebVtt.validationIssue` aplica las mismas
+reglas que el servidor (cabecera `WEBVTT` y tiempos `00:00:01.000 --> 00:00:04.000`) y muestra cuántos subtítulos
+reconoce. Quien aprende los ve activos por defecto: pista nativa en Android (ExoPlayer, URI `data:`) y web
+(`<track>` con botón CC), y texto superpuesto sincronizado en iOS (AVPlayer no admite pistas externas en MP4).
+Debajo del video, «Ver transcripción del video» muestra el texto completo. Viajan en el catálogo offline. Los
+videos de YouTube usan los subtítulos de YouTube. Android e iOS compilan; la reproducción con subtítulos se
+verifica en dispositivo.

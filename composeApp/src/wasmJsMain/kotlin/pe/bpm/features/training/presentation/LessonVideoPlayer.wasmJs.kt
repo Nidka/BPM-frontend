@@ -21,10 +21,15 @@ import androidx.compose.ui.platform.LocalDensity
  * El video sale directamente de la URL firmada de R2 (la CSP lo permite con `media-src`).
  */
 @Composable
-actual fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit, modifier: Modifier) {
+actual fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit, modifier: Modifier, captionsVtt: String) {
     val density = LocalDensity.current.density
     val currentOnError = rememberUpdatedState(onError)
-    val element = remember(url) { createVideoElement(url) { currentOnError.value() } }
+    val element = remember(url, captionsVtt) {
+        createVideoElement(url) { currentOnError.value() }.also { video ->
+            // Subtítulos (RF-45): pista <track> nativa (botón CC del navegador), activa por defecto.
+            if (captionsVtt.isNotBlank()) addCaptionsTrack(video, captionsVtt)
+        }
+    }
     DisposableEffect(element) { onDispose { removeVideoElement(element) } }
     Box(modifier.onGloballyPositioned { coordinates ->
         val origin = coordinates.positionInWindow()
@@ -72,5 +77,17 @@ private external fun createVideoElement(url: String, onError: () -> Unit): JsAny
 }""")
 private external fun placeVideoElement(video: JsAny, x: Double, y: Double, width: Double, height: Double, top: Double, right: Double, bottom: Double, left: Double, shown: Boolean)
 
-@JsFun("(video) => { video.pause(); video.removeAttribute('src'); video.load(); video.remove(); }")
+@JsFun("""(video, vtt) => {
+    const track = document.createElement('track');
+    track.kind = 'subtitles';
+    track.srclang = 'es';
+    track.label = 'Español';
+    track.default = true;
+    track.src = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
+    video.appendChild(track);
+    track.addEventListener('load', () => { track.track.mode = 'showing'; });
+}""")
+private external fun addCaptionsTrack(video: JsAny, vtt: String)
+
+@JsFun("(video) => { video.pause(); video.querySelectorAll('track').forEach(t => URL.revokeObjectURL(t.src)); video.removeAttribute('src'); video.load(); video.remove(); }")
 private external fun removeVideoElement(video: JsAny)

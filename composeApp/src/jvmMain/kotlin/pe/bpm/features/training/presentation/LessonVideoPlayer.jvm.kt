@@ -14,7 +14,7 @@ import pe.bpm.features.training.domain.VideoSelectionFailure
 
 /** JVM es el host de pruebas y desarrollo: ofrece abrir el video en el navegador del sistema. */
 @Composable
-actual fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit, modifier: Modifier) {
+actual fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit, modifier: Modifier, captionsVtt: String) {
     val failed = rememberUpdatedState(onError)
     Column(modifier) {
         Text("La reproducción integrada no está disponible en este equipo.", Modifier.padding(bottom = 8.dp))

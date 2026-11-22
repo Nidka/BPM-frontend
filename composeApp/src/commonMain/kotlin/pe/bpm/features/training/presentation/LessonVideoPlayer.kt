@@ -13,9 +13,13 @@ import pe.bpm.features.training.domain.VideoSelection
  * - iOS: AVPlayerViewController (AVKit).
  * - Web (wasmJs): elemento HTML `<video controls>` superpuesto y sincronizado con el área.
  * - JVM (solo pruebas/escritorio de desarrollo): abre el video en el navegador del sistema.
+ *
+ * [captionsVtt] son los subtítulos WebVTT de la lección (RF-45), activos por defecto: pista nativa en Android
+ * (ExoPlayer) y web (`<track>`), y texto superpuesto sincronizado en iOS (AVPlayer no admite pistas externas
+ * en MP4). Vacío = sin subtítulos.
  */
 @Composable
-expect fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit, modifier: Modifier = Modifier)
+expect fun LessonVideoPlayer(url: String, mimeType: String, onError: () -> Unit, modifier: Modifier = Modifier, captionsVtt: String = "")
 
 /**
  * Abre el selector de archivos del sistema para un video MP4/WebM de una lección. La acción

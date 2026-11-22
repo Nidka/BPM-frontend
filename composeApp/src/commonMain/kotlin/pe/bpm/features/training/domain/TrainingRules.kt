@@ -30,7 +30,7 @@ object TrainingLimits {
 }
 
 enum class DraftIssueKind {
-    COURSE_CODE, COURSE_TITLE, COURSE_DESCRIPTION, COURSE_DURATION, PASSING_SCORE, LESSON_COUNT, LESSON_TITLE, LESSON_CONTENT, KEY_POINTS,
+    COURSE_CODE, COURSE_TITLE, COURSE_DESCRIPTION, COURSE_DURATION, PASSING_SCORE, LESSON_COUNT, LESSON_TITLE, LESSON_CONTENT, KEY_POINTS, CAPTIONS,
     QUESTION_COUNT, EXTERNAL_VIDEO, QUESTION_TEXT, OPTION_COUNT, OPTION_TEXT, CORRECT_OPTION, EXPLANATION, QUESTION_LESSON, DUPLICATE_ID, DUPLICATE_OPTION, BODY_SIZE,
 }
 
@@ -67,11 +67,12 @@ object TrainingDraftRules {
             if (lesson.content.textLength() > TrainingLimits.LESSON_CONTENT_MAX)
                 add(DraftIssue(DraftIssueKind.LESSON_CONTENT, lesson.id, "El contenido admite hasta ${TrainingLimits.LESSON_CONTENT_MAX} caracteres."))
             keyPointsIssue(lesson.keyPoints)?.let { add(DraftIssue(DraftIssueKind.KEY_POINTS, lesson.id, it)) }
+            WebVtt.validationIssue(lesson.captionsVtt)?.let { add(DraftIssue(DraftIssueKind.CAPTIONS, lesson.id, it)) }
             if (lesson.externalVideoId != null && (lesson.videoMediaId != null || !YouTubeLinks.isVideoId(lesson.externalVideoId)))
                 add(DraftIssue(DraftIssueKind.EXTERNAL_VIDEO, lesson.id, "Usa un video subido o un enlace de YouTube, no ambos."))
         }
         // El servidor limita el cuerpo completo a 1 MiB; se valida un tamaño aproximado con margen.
-        val approxBytes = draft.lessons.sumOf { it.title.encodeToByteArray().size + it.content.encodeToByteArray().size + it.keyPoints.sumOf { p -> p.encodeToByteArray().size + 4 } + 200 } +
+        val approxBytes = draft.lessons.sumOf { it.title.encodeToByteArray().size + it.content.encodeToByteArray().size + it.keyPoints.sumOf { p -> p.encodeToByteArray().size + 4 } + it.captionsVtt.encodeToByteArray().size + 200 } +
             draft.questions.sumOf { q -> q.questionText.encodeToByteArray().size + q.explanation.encodeToByteArray().size + q.options.sumOf { it.encodeToByteArray().size + 4 } + 250 }
         if (approxBytes > TrainingLimits.DRAFT_BODY_MAX_BYTES) add(DraftIssue(DraftIssueKind.BODY_SIZE, message = "El curso es demasiado extenso. Reduce el texto de lecciones o preguntas."))
         val lessonIds = draft.lessons.map { it.id }.toSet()
