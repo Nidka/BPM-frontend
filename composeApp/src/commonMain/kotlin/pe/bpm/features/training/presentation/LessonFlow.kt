@@ -91,6 +91,37 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
     }
     if (state.progressNotSaved) Text("No pudimos guardar tu avance. Puedes seguir leyendo; se guardará al abrir otra lección.", color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+    LessonVideoSection(state, lesson, viewModel)
+    if (lesson.keyPoints.isNotEmpty()) KeyPointsCard(lesson.keyPoints)
+    // El texto de la lección hace de transcripción accesible del video y de lectura sin video.
+    BpmCard(Modifier.fillMaxWidth()) {
+        Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
+        Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
+    }
+    val questionCount = course.questions.count { it.lessonId == lesson.id }
+    if (questionCount > 0) BpmCard(Modifier.fillMaxWidth()) {
+        Text("Comprueba lo aprendido", style = MaterialTheme.typography.titleMedium)
+        Text(if (questionCount == 1) "1 pregunta de esta lección" else "$questionCount preguntas de esta lección", style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val practice: @Composable () -> Unit = { BpmSecondaryButton(onClick = { viewModel.startStudy(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Practicar · no califica") } }
+        val evaluate: @Composable () -> Unit = { BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Evaluar lección · suma XP") } }
+        if (compact) { practice(); if (state.canPersist) evaluate() }
+        else BpmInlineActions(secondary = if (state.canPersist) evaluate else null, primary = practice)
+    }
+    BpmActionBar {
+        val last = index >= course.lessons.lastIndex
+        BpmInlineActions(compactSecondaryFixed = true,
+            secondary = { BackButton("Anterior", "Lección anterior", viewModel::previousLesson, enabled = index > 0) },
+            primary = { RaisedButton(if (last) "Terminar lecciones" else "Siguiente lección", { if (last) { viewModel.finishLessons() } else viewModel.nextLesson() }, Modifier.fillMaxWidth()) })
+    }
+}
+
+/**
+ * Video de la lección (privado o de YouTube) con su estado de carga, error y transcripción. Lo usan la lección
+ * clásica y el paso de video de la lección del personal.
+ */
+@Composable
+internal fun ColumnScope.LessonVideoSection(state: TrainingState, lesson: TrainingLesson, viewModel: TrainingViewModel) {
     lesson.externalVideo?.let { external ->
         // Video de YouTube: se incrusta sin cookies de seguimiento y solo funciona con conexión.
         val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
@@ -119,28 +150,6 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
         }
     }
     if (lesson.video != null && lesson.captionsVtt.isNotBlank()) VideoTranscript(lesson.id, lesson.captionsVtt)
-    if (lesson.keyPoints.isNotEmpty()) KeyPointsCard(lesson.keyPoints)
-    // El texto de la lección hace de transcripción accesible del video y de lectura sin video.
-    BpmCard(Modifier.fillMaxWidth()) {
-        Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
-        Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
-    }
-    val questionCount = course.questions.count { it.lessonId == lesson.id }
-    if (questionCount > 0) BpmCard(Modifier.fillMaxWidth()) {
-        Text("Comprueba lo aprendido", style = MaterialTheme.typography.titleMedium)
-        Text(if (questionCount == 1) "1 pregunta de esta lección" else "$questionCount preguntas de esta lección", style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val practice: @Composable () -> Unit = { BpmSecondaryButton(onClick = { viewModel.startStudy(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Practicar · no califica") } }
-        val evaluate: @Composable () -> Unit = { BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Evaluar lección · suma XP") } }
-        if (compact) { practice(); if (state.canPersist) evaluate() }
-        else BpmInlineActions(secondary = if (state.canPersist) evaluate else null, primary = practice)
-    }
-    BpmActionBar {
-        val last = index >= course.lessons.lastIndex
-        BpmInlineActions(compactSecondaryFixed = true,
-            secondary = { BackButton("Anterior", "Lección anterior", viewModel::previousLesson, enabled = index > 0) },
-            primary = { RaisedButton(if (last) "Terminar lecciones" else "Siguiente lección", { if (last) { viewModel.finishLessons() } else viewModel.nextLesson() }, Modifier.fillMaxWidth()) })
-    }
 }
 
 /** Posición en una secuencia: rótulo («Lección 3 de 5») y barra segmentada fina; juntos son un solo indicador (regla G1). */

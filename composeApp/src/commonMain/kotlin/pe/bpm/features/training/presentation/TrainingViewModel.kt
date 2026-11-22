@@ -152,6 +152,18 @@ class TrainingViewModel(
         }
     }
 
+    /**
+     * Marca [lessonId] como terminada sin cambiar de pantalla (fin de lección del juego del personal: la celebración
+     * se muestra mientras el avance se guarda). Sin membresía no guarda nada.
+     */
+    fun completeLesson(lessonId: String) {
+        val s = mutable.value
+        val course = s.course ?: return
+        val org = s.organizationId ?: return
+        if (!s.canPersist || course.lessons.none { it.id == lessonId }) return
+        saveLastLesson(org, course.course.id, lessonId, completedLessonId = lessonId)
+    }
+
     /** «Siguiente lección»: marca la actual como terminada y abre la siguiente en la misma petición de avance. */
     fun nextLesson() = moveLesson(1, completeCurrent = true)
     fun previousLesson() = moveLesson(-1)
@@ -243,8 +255,11 @@ class TrainingViewModel(
 
     // ---- Modo estudio ------------------------------------------------------------------------
 
-    /** Practica las preguntas de la lección indicada o, sin ella, todas las del curso. */
-    fun startStudy(lessonId: String? = null) {
+    /**
+     * Practica las preguntas de la lección indicada o, sin ella, todas las del curso. Con [repeatMissed] (juego del
+     * personal) cada pregunta fallada se añade una vez al final para repasarla.
+     */
+    fun startStudy(lessonId: String? = null, repeatMissed: Boolean = false) {
         val course = mutable.value.course ?: return
         val scoped = lessonId?.let { id -> course.questions.filter { it.lessonId == id } }.orEmpty()
         val questions = scoped.ifEmpty { course.questions }
@@ -253,7 +268,7 @@ class TrainingViewModel(
             return
         }
         studyJob?.cancel()
-        mutable.value = mutable.value.copy(screen = TrainingPane.STUDY, study = StudyState(questions, lessonId.takeIf { scoped.isNotEmpty() }), video = VideoState.Idle)
+        mutable.value = mutable.value.copy(screen = TrainingPane.STUDY, study = StudyState(questions, lessonId.takeIf { scoped.isNotEmpty() }, repeatMissed = repeatMissed), video = VideoState.Idle)
     }
 
     /** Responde y muestra de inmediato si fue correcta y por qué; no suma puntos ni crea intentos. */
@@ -273,7 +288,14 @@ class TrainingViewModel(
             val current = mutable.value
             val active = current.study?.takeIf { it.current?.id == question.id } ?: return@launch
             mutable.value = current.copy(study = when (result) {
-                is TrainingResult.Success -> active.copy(checking = false, feedback = result.value)
+                is TrainingResult.Success -> {
+                    val feedback = result.value
+                    val repeat = !feedback.correct && active.repeatMissed && question.id !in active.repeated
+                    active.copy(checking = false, feedback = feedback,
+                        firstTryCorrect = active.firstTryCorrect + if (feedback.correct && active.index < active.originalCount) 1 else 0,
+                        questions = if (repeat) active.questions + question else active.questions,
+                        repeated = if (repeat) active.repeated + question.id else active.repeated)
+                }
                 is TrainingResult.Failure -> active.copy(checking = false, selected = null, failure = result.reason)
             })
         }
@@ -299,7 +321,7 @@ class TrainingViewModel(
         mutable.value = mutable.value.copy(study = study.copy(index = study.index + 1, selected = null, feedback = null, failure = null))
     }
 
-    fun restartStudy() { startStudy(mutable.value.study?.lessonId) }
+    fun restartStudy() { val study = mutable.value.study; startStudy(study?.lessonId, study?.repeatMissed == true) }
 
     // ---- Modo evaluación ---------------------------------------------------------------------
 

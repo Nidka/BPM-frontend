@@ -2,6 +2,10 @@ package pe.bpm.screenshots
 
 import pe.bpm.core.domain.Page
 import pe.bpm.core.domain.PageRequest
+import pe.bpm.core.domain.DraftOwner
+import pe.bpm.features.incidents.data.prepareIncident
+import pe.bpm.features.operations.data.encodeOperation
+import pe.bpm.features.incidents.domain.*
 import pe.bpm.features.operations.domain.*
 import pe.bpm.features.training.domain.*
 import pe.bpm.features.workspace.domain.Entry
@@ -72,7 +76,7 @@ internal object WorkerFixtures {
         TrainingVersionInfo(VERSION, 3, 80),
         lessonTexts.mapIndexed { i, (title, content) ->
             TrainingLesson(lessonIds[i], title, content, i + 1,
-                video = if (i == 0 || i == 2) LessonVideo("70000000-0000-4000-8000-00000000000${i + 1}", "video/mp4", 18_400_000) else null,
+                video = if (i == 0) LessonVideo("70000000-0000-4000-8000-00000000000${i + 1}", "video/mp4", 18_400_000) else null,
                 keyPoints = if (i == 2) listOf(
                     "Zona de peligro: entre 5 °C y 60 °C.",
                     "Frío a 5 °C o menos; caliente a 60 °C o más.",
@@ -141,6 +145,28 @@ internal object WorkerFixtures {
             PathCourse("10000000-0000-4000-8000-0000000000a2", "ALE-110", "Alérgenos: qué debes saber", 2, CourseStatus.PUBLISHED, ProgressStatus.NOT_STARTED),
         ), PathProgress(ProgressStatus.IN_PROGRESS, 0, 2, 20, COURSE)))
 
+    /** Un curso asignado con su propio avance: el principal en curso, el resto sin iniciar y el último completado. */
+    fun courseFor(courseId: String): TrainingCourse {
+        val base = course()
+        val assignment = assignments.firstOrNull { it.course.id == courseId } ?: return base
+        return when (assignment.progressStatus) {
+            ProgressStatus.IN_PROGRESS -> base
+            ProgressStatus.COMPLETED -> base.copy(course = assignment.course, progress = TrainingProgress(ProgressStatus.COMPLETED, null, 92, 120, assignment.completedAt,
+                completedLessonIds = lessonIds, completedLessons = 5, totalLessons = 5, percent = 100))
+            ProgressStatus.NOT_STARTED -> base.copy(course = assignment.course, lessons = base.lessons.take(3), progress = TrainingProgress(ProgressStatus.NOT_STARTED, null, null, 0, null,
+                totalLessons = 3))
+        }
+    }
+
+    /** Repositorio de cursos para el camino: devuelve el curso pedido con el avance de su asignación. */
+    class CourseRepository : TrainingRepository {
+        override suspend fun course(org: String, courseId: String) = TrainingResult.Success(courseFor(courseId))
+        override suspend fun videoTicket(org: String, courseId: String, lessonId: String): TrainingResult<VideoTicket> = TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
+        override suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String?): TrainingResult<TrainingProgress> = TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
+        override suspend fun checkStudyAnswer(org: String, courseId: String, questionId: String, selected: Int): TrainingResult<StudyFeedback> = TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
+        override suspend fun submitAttempt(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome> = TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
+    }
+
     class LearnerRepository : TrainingLearnerRepository {
         override suspend fun myAssignments(org: String, pageToken: String?) = TrainingResult.Success(TrainingPage(assignments, null))
         override suspend fun myAchievements(org: String) = TrainingResult.Success(achievements)
@@ -204,14 +230,15 @@ internal object WorkerFixtures {
         execution(5, todayPlans[4], "08:10", CleaningResult.COMPLETED),
     )
 
-    class OperationsFixtureRepository : OperationsRepository {
+    /** [empty] simula una sede sin tareas para hoy («¡Todo al día!»). */
+    class OperationsFixtureRepository(private val empty: Boolean = false) : OperationsRepository {
         override suspend fun authorize(org: String, site: String?, role: String, resource: OperationsResource) = OperationsResult.Success(Unit)
         override suspend fun suppliers(org: String, page: PageRequest): OperationsResult<Page<Supplier>> = OperationsResult.Success(Page(emptyList()))
         override suspend fun products(org: String, page: PageRequest): OperationsResult<Page<Product>> = OperationsResult.Success(Page(emptyList()))
         override suspend fun receipts(org: String, site: String, page: PageRequest): OperationsResult<Page<SupplyReceipt>> = OperationsResult.Success(Page(emptyList()))
         override suspend fun lots(org: String, site: String, page: PageRequest): OperationsResult<Page<StorageLot>> = OperationsResult.Success(Page(emptyList()))
         override suspend fun plans(org: String, site: String, page: PageRequest) = OperationsResult.Success(Page(todayPlans.map { it.copy(today = null) }))
-        override suspend fun todayPlans(org: String, site: String, page: PageRequest) = OperationsResult.Success(Page(WorkerFixtures.todayPlans))
+        override suspend fun todayPlans(org: String, site: String, page: PageRequest) = OperationsResult.Success(Page(if (empty) emptyList() else WorkerFixtures.todayPlans))
         override suspend fun executions(org: String, site: String, page: PageRequest) = OperationsResult.Success(Page(WorkerFixtures.executions))
         override suspend fun receipt(org: String, id: String): OperationsResult<SupplyReceipt> = OperationsResult.Failure(OperationsFailure.NOT_FOUND)
         override suspend fun execution(org: String, id: String): OperationsResult<CleaningExecution> = OperationsResult.Failure(OperationsFailure.NOT_FOUND)
@@ -223,8 +250,50 @@ internal object WorkerFixtures {
         override suspend fun createExecution(org: String, input: CleaningExecutionInput, key: String): OperationsResult<CleaningExecution> = OperationsResult.Failure(OperationsFailure.DENIED)
     }
 
+    /**
+     * Transporte que confirma el envío de una limpieza al instante (la celebración de «¡Tarea hecha!» sale del flujo
+     * real: validar, guardar el borrador, enviar y recibir la ejecución). El resto de operaciones se rechaza.
+     */
     object NoopTransport : OperationsTransport {
-        override fun prepare(command: OperationsCommand, key: String) = PendingOperation(OperationsResource.EXECUTIONS, "", key, "{}")
-        override suspend fun submit(org: String, pending: PendingOperation): OperationsResult<OperationsEntry> = OperationsResult.Failure(OperationsFailure.DENIED)
+        private val prepared = mutableMapOf<String, OperationsCommand>()
+        override fun prepare(command: OperationsCommand, key: String): PendingOperation {
+            prepared[key] = command
+            // El borrador valida que el envío pendiente sea exactamente la codificación real del comando.
+            return encodeOperation(command, key)
+        }
+        override suspend fun submit(org: String, pending: PendingOperation): OperationsResult<OperationsEntry> {
+            val input = (prepared[pending.key] as? OperationsCommand.Execute)?.input ?: return OperationsResult.Failure(OperationsFailure.DENIED)
+            val plan = todayPlans.first { it.id == input.cleaningPlanId }
+            return OperationsResult.Success(OperationsEntry.ExecutionEntry(
+                CleaningExecution(input, plan.area, plan.task, USER, DISPLAY_NAME, input.executedAt)))
+        }
+    }
+
+    // ---- Incidencias (Reportar) ---------------------------------------------------------------------
+
+    private fun catalogItem(n: Int, name: String, area: String, risk: IncidentRisk, evidence: Boolean = true) =
+        IncidentCatalog("i1000000-0000-4000-8000-00000000000$n", "CAT-$n", name, area, "Criterio normativo de $name.", risk, evidence, 1)
+
+    val incidentCatalog = listOf(
+        catalogItem(1, "Temperatura fuera de rango", "Cocina", IncidentRisk.HIGH),
+        catalogItem(2, "Plagas", "General", IncidentRisk.CRITICAL),
+        catalogItem(3, "Equipo malogrado", "Cocina", IncidentRisk.MEDIUM, evidence = false),
+        catalogItem(4, "Insumo en mal estado", "Almacén", IncidentRisk.HIGH),
+        catalogItem(5, "Agua o desagüe", "General", IncidentRisk.MEDIUM),
+        catalogItem(6, "Otro problema", "General", IncidentRisk.LOW, evidence = false),
+    )
+
+    /** Repositorio, transporte y borradores de incidencias en memoria para el arnés de capturas. */
+    class IncidentsFixture : IncidentsRepository, IncidentTransport, IncidentDraftRepository {
+        override suspend fun authorize(org: String, site: String, role: String) = IncidentsResult.Success(Unit)
+        override suspend fun catalog(org: String, page: PageRequest) = IncidentsResult.Success(Page(incidentCatalog))
+        override suspend fun incidents(org: String, site: String, status: IncidentStatus?, page: PageRequest) = IncidentsResult.Success(Page<IncidentSummary>(emptyList()))
+        override suspend fun detail(org: String, id: String): IncidentsResult<IncidentDetail> = IncidentsResult.Failure(IncidentsFailure.NOT_FOUND)
+        override suspend fun assignees(org: String, id: String, page: PageRequest) = IncidentsResult.Success(Page<IncidentAssignee>(emptyList()))
+        override suspend fun history(org: String, id: String, page: PageRequest) = IncidentsResult.Success(Page<IncidentEvent>(emptyList()))
+        override suspend fun read(owner: DraftOwner, site: String): IncidentDraft? = null
+        override suspend fun write(owner: DraftOwner, site: String, draft: IncidentDraft?) = Unit
+        override fun prepare(form: IncidentForm, site: String, key: String) = prepareIncident(form, site, key)
+        override suspend fun submit(org: String, site: String, form: IncidentForm, pending: PendingIncident): IncidentsResult<IncidentSaved> = IncidentsResult.Failure(IncidentsFailure.UNAVAILABLE)
     }
 }

@@ -124,7 +124,7 @@ internal fun BackButton(label: String, description: String, onClick: () -> Unit,
 
 /** Envío en curso, error y nota de reintento: iguales en la pregunta y en la revisión. */
 @Composable
-private fun EvaluationNotices(evaluation: EvaluationState) {
+internal fun EvaluationNotices(evaluation: EvaluationState) {
     if (evaluation.submitting) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Enviando tu evaluación…") }
     evaluation.failure?.let { failure ->
         Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

@@ -21,9 +21,20 @@ data class StudyState(
     val feedback: StudyFeedback? = null,
     val checking: Boolean = false,
     val failure: TrainingFailure? = null,
+    /** Juego del personal: la pregunta fallada se añade una vez al final para repasarla. */
+    val repeatMissed: Boolean = false,
+    /** Preguntas de la práctica antes de añadir repeticiones; el porcentaje de aciertos se calcula sobre ellas. */
+    val originalCount: Int = questions.size,
+    /** Preguntas acertadas al primer intento (las repeticiones no suman). */
+    val firstTryCorrect: Int = 0,
+    /** Preguntas ya añadidas al final para repasar (cada una se repite una sola vez). */
+    val repeated: Set<String> = emptySet(),
 ) {
     val finished: Boolean get() = index >= questions.size
     val current: TrainingQuestion? get() = questions.getOrNull(index)
+
+    /** Porcentaje de aciertos al primer intento (0..100); nulo si la práctica no tiene preguntas. */
+    val accuracyPercent: Int? get() = if (originalCount <= 0) null else (firstTryCorrect * 100) / originalCount
 }
 
 /**

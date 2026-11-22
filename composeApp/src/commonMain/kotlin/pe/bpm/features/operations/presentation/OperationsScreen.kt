@@ -28,21 +28,27 @@ fun OperationsScreen(
     onCleaningPhotos: ((CleaningExecution) -> Unit)? = null,
     /** Cabecera del personal (WORKER): va dentro del desplazamiento; recibe si la lista está visible (sin formulario ni detalle). */
     workerHeader: (@Composable (listVisible: Boolean) -> Unit)? = null,
+    /** Personal (WORKER): abre «Reportar un problema»; la raíz lo conecta. Sin él no hay botón flotante. */
+    onReport: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsState()
     // El personal (WORKER) tiene su propia presentación; ADMIN y CHEF siguen como antes.
     val worker = state.role == "WORKER"
+    // Registro rápido de una tarea (modo enfoque, pantalla completa): reemplaza a toda la lista mientras dura.
+    if (worker && (state.form != null || state.taskDone != null)) {
+        WorkerQuickTask(viewModel, onCleaningPhotos, "Volver a Tareas", modifier.fillMaxSize())
+        return
+    }
     val listVisible =
         state.form == null && state.detail == null && state.saved == null && state.picker == null
     // La cabecera del personal usa todo el ancho; lo demás (pestañas, lista, avisos) va en máx. 840 dp.
+    Box(modifier.fillMaxWidth()) {
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(if (worker) BpmSpacing.md else 12.dp),
     ) {
         if (!worker)
             Text("Operación diaria", style = MaterialTheme.typography.headlineSmall)
-        // El personal: «Registrar limpieza» (acción principal) vive en la cabecera, fija abajo en clase compacta.
-        if (worker) workerHeader?.invoke(listVisible)
         val body: @Composable () -> Unit = {
             if (worker && state.form == null && state.detail == null) {
                 BpmSegmentedTabs(
@@ -178,8 +184,16 @@ fun OperationsScreen(
                 else -> listBody()
             }
         }
-        // El personal: columna de lectura de máx. 840 dp alineada a la izquierda con el título.
-        if (worker) Column(Modifier.widthIn(max = WorkerTasksMaxWidth).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) { body() } else body()
+        // El personal: columna central de la maqueta (480/600 dp) con su cabecera y la lista de tareas por grupos.
+        if (worker) BpmPlayColumns(Modifier.padding(bottom = if (listVisible) 96.dp else 0.dp)) { _ ->
+            workerHeader?.invoke(listVisible)
+            val detail = state.detail
+            if (detail != null) OperationDetails(detail, onBack = viewModel::closeDetail)
+            else WorkerTasksBody(state, viewModel, onCleaningPhotos)
+        } else body()
+    }
+    // Botón flotante coral «Reportar»: sobre la columna, a su derecha, sin tapar la última fila.
+    if (worker && listVisible && onReport != null) WorkerReportButton(onReport, enabled = !state.loading && !state.busy, Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -225,7 +239,7 @@ internal val WorkerTasksMaxWidth = 840.dp
 
 /** Pide los planes de hoy de la sede una vez por sede: «Por hacer» y «Hechas · Hoy» salen del mismo `view=today`. */
 @Composable
-private fun LoadToday(state: OperationsState, viewModel: OperationsViewModel) {
+internal fun LoadToday(state: OperationsState, viewModel: OperationsViewModel) {
     LaunchedEffect(state.siteId, state.resource) {
         if (!state.todayLoaded && !state.todayLoading) viewModel.refreshToday()
     }
@@ -233,7 +247,7 @@ private fun LoadToday(state: OperationsState, viewModel: OperationsViewModel) {
 
 /** Título de sección de la lista del personal («Hoy», «Historial»). */
 @Composable
-private fun WorkerSectionTitle(text: String) {
+internal fun WorkerSectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
 }
 
@@ -264,7 +278,7 @@ private fun WorkerTodayList(state: OperationsState, viewModel: OperationsViewMod
  * historial de limpiezas registradas (con búsqueda y páginas), sin repetir las que ya están en «Hoy».
  */
 @Composable
-private fun WorkerDoneList(state: OperationsState, viewModel: OperationsViewModel, onCleaningPhotos: ((CleaningExecution) -> Unit)?) {
+internal fun WorkerDoneList(state: OperationsState, viewModel: OperationsViewModel, onCleaningPhotos: ((CleaningExecution) -> Unit)?) {
     LoadToday(state, viewModel)
     val doneToday = donePlans(state.todayPlans)
     val history = withoutDoneToday(state.rows, doneToday) { (it as? OperationsEntry.ExecutionEntry)?.value?.input?.id.orEmpty() }

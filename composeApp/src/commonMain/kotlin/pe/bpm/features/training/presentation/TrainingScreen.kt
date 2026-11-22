@@ -31,11 +31,12 @@ import pe.bpm.features.training.domain.*
 
 /**
  * Aprender: detalle del curso, lección con video, modo estudio y modo evaluación. [onOpenCourse] abre otro curso
- * (el «Siguiente curso» del resultado); si es nulo ese botón no se muestra.
+ * (el «Siguiente curso» del resultado); si es nulo ese botón no se muestra. Con [worker] (rol WORKER) la lección, la
+ * práctica, la evaluación y su resultado usan las pantallas de juego (`PlayCoursePane`) y la vista general es la guía del curso.
  */
 // patrón: detalle de curso alojado por TrainingCourseContent; el marco del shell pone los márgenes y aquí solo se centra la lectura o se usa todo el ancho.
 @Composable
-fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null) {
+fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null, worker: WorkerCourseContext? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scroll = rememberScrollState()
     // Cada cambio de pantalla interna vuelve al inicio del contenido.
@@ -43,7 +44,13 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, 
     // Vista general: todo el ancho del patrón. Lección y evaluación por preguntas con panel lateral (clase expandida en adelante):
     // columna de lectura (720 dp) más panel (300 dp) centrados como grupo (regla G3); el resto, solo la columna de lectura.
     val sideBySide = currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large
+    val playCourse = state.course
+    if (worker != null && playCourse != null && state.screen != TrainingPane.OVERVIEW) {
+        PlayCoursePane(state, playCourse, viewModel, worker, onOpenCourse)
+        return
+    }
     val maxWidth = when {
+        worker != null -> BpmPatternRules.readingWidth
         state.screen == TrainingPane.OVERVIEW -> BpmSpacing.contentMax
         sideBySide && wantsWidePane(state) -> BpmPatternRules.readingWidth + BpmSpacing.grid + 300.dp
         else -> BpmPatternRules.readingWidth
@@ -65,7 +72,7 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, 
         }
         val course = state.course ?: return@Column
         when (state.screen) {
-            TrainingPane.OVERVIEW -> CourseOverview(course, state, viewModel)
+            TrainingPane.OVERVIEW -> if (worker != null) { if (worker.intent == null) PlayCourseGuide(course, state, viewModel) } else CourseOverview(course, state, viewModel)
             TrainingPane.LESSON -> state.lesson?.let { LessonViewer(state, course, it, viewModel) }
             TrainingPane.STUDY -> state.study?.let { StudyPractice(it, viewModel) }
             TrainingPane.EVALUATION -> state.evaluation?.let { EvaluationPanel(state, course, it, viewModel, onOpenCourse) }

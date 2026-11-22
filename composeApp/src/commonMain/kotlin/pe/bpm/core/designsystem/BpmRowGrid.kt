@@ -19,6 +19,9 @@ import androidx.compose.ui.Modifier
 @Composable
 fun <T> BpmRowGrid(items: List<T>, columns: Int, modifier: Modifier = Modifier, content: @Composable (T, Modifier) -> Unit) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+        // Con una sola columna no hay nada que igualar: sin medidas intrínsecas, que estiraban las filas en el teléfono
+        // (la fila mide su ancho restante contra un ancho mínimo y el texto se partía en cientos de líneas).
+        if (columns <= 1) { items.forEach { item -> content(item, Modifier) }; return@Column }
         items.chunked(columns.coerceAtLeast(1)).forEach { row ->
             // Las filas de una misma fila de la rejilla miden lo mismo: cada celda llena la altura de la más alta.
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {

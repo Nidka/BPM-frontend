@@ -17,12 +17,13 @@ enum class WorkspaceDestination(val route: String, val label: String) {
 }
 
 /**
- * Etiqueta visible de un destino según el rol. El personal (WORKER) ve «Hoy» y «Tareas»; el resto de roles
+ * Etiqueta visible de un destino según el rol. El personal (WORKER) ve «Hoy», «Tareas» y «Perfil»; el resto de roles
  * conserva [WorkspaceDestination.label]. Solo cambia el texto: la ruta y el control de acceso no dependen de él.
  */
 fun destinationLabel(destination: WorkspaceDestination, role: String?): String = when {
     role == "WORKER" && destination == WorkspaceDestination.Home -> "Hoy"
     role == "WORKER" && destination == WorkspaceDestination.Tasks -> "Tareas"
+    role == "WORKER" && destination == WorkspaceDestination.Account -> "Perfil"
     else -> destination.label
 }
 
@@ -32,18 +33,19 @@ fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<Workspace
         platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "ADMIN" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Learn, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "CHEF" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Learn, WorkspaceDestination.Account)
-        role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Tasks, WorkspaceDestination.Learn, WorkspaceDestination.Account)
+        role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Tasks, WorkspaceDestination.Account)
         else -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Account)
     }
 }
 
 /**
  * Navegación principal de máximo cinco entradas. «Mi cuenta» sale de ella y va en el avatar de la cabecera;
- * si aún sobran, Equipo se omite (el ADMIN lo alcanza desde Empresa, «Cuentas y equipo») y luego Aprender.
+ * (salvo en el personal, donde «Perfil» es un destino propio); si aún sobran, Equipo se omite (el ADMIN lo alcanza desde Empresa, «Cuentas y equipo») y luego Aprender.
  * Todas las rutas disponibles siguen permitidas.
  */
-fun workspacePrimaryDestinations(available: List<WorkspaceDestination>): List<WorkspaceDestination> {
-    var primary = available.filter { it != WorkspaceDestination.Account }
+fun workspacePrimaryDestinations(available: List<WorkspaceDestination>, role: String? = null): List<WorkspaceDestination> {
+    // El personal (WORKER) tiene «Perfil» como cuarto destino de la barra: Hoy · Aprender · Tareas · Perfil.
+    var primary = available.filter { it != WorkspaceDestination.Account || (role == "WORKER" && WorkspaceDestination.Tasks in available) }
     if (primary.size > 5) primary = primary.filter { it != WorkspaceDestination.Team }
     if (primary.size > 5) primary = primary.filter { it != WorkspaceDestination.Learn }
     return primary

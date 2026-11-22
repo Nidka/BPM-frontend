@@ -102,6 +102,8 @@ class AppGraph(
     // Offline-first: el motor HTTP guarda lecturas y difiere escrituras; la Outbox las envía al volver la red.
     private val offlineRuntime = OfflineRuntime(offline)
     private val localFirst = pe.bpm.core.offline.LocalFirstReader.Cached
+    /** Sonido y vibración del estilo de juego (Perfil): preferencia local de la cuenta activa, sin servidor. */
+    val feedbackPreferences = pe.bpm.core.presentation.FeedbackPreferences(offlineRuntime.store)
     private val platformEngine = if (httpClientOverride == null) platformHttpEngine() else null
     private val offlineEngine = platformEngine?.let { OfflineHttpEngine(it, offlineRuntime.http, config.apiBaseUrl) }
     private val httpClient: HttpClient = httpClientOverride ?: createHttpClient(offlineEngine!!)
@@ -298,7 +300,8 @@ class AppGraph(
         token = identityRepository::validSessionToken)
     fun trainingLearnerViewModel() = pe.bpm.features.training.presentation.TrainingLearnerViewModel(
         pe.bpm.features.training.domain.LoadMyAssignments(trainingPlusRepository), pe.bpm.features.training.domain.LoadMyAchievements(trainingPlusRepository),
-        pe.bpm.features.training.domain.LoadLearningPaths(trainingPlusRepository), syncCatalog = { org -> syncTrainingCatalog(org) }, localFirst = localFirst)
+        pe.bpm.features.training.domain.LoadLearningPaths(trainingPlusRepository), syncCatalog = { org -> syncTrainingCatalog(org) }, localFirst = localFirst,
+        loadCourse = pe.bpm.features.training.domain.LoadTrainingCourse(offlineTrainingRepository))
     @OptIn(ExperimentalUuidApi::class)
     fun trainingAssignmentAdminViewModel() = pe.bpm.features.training.presentation.TrainingAssignmentAdminViewModel(
         pe.bpm.features.training.domain.ListTrainingAssignments(trainingPlusRepository), pe.bpm.features.training.domain.CreateTrainingAssignment(trainingPlusRepository),

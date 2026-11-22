@@ -45,6 +45,8 @@ data class OperationsState(
     val todayLoading: Boolean = false,
     val todayLoaded: Boolean = false,
     val todayFailure: OperationsFailure? = null,
+    /** Personal: la tarea que se acaba de registrar (en línea o guardada sin conexión); alimenta la celebración. */
+    val taskDone: TaskDone? = null,
 ) {
     val editable
         get() =
@@ -58,3 +60,9 @@ data class OperationsState(
     val saving
         get() = busy || localStatus == DraftSaveStatus.SAVING
 }
+
+/**
+ * Una tarea que el personal acaba de registrar desde el registro rápido: el plan ([planId], [planName]), cuándo
+ * ([executedAt], UTC) y si quedó solo [queued] en el dispositivo (sin conexión, se enviará al sincronizar).
+ */
+data class TaskDone(val planId: String, val planName: String, val executedAt: String, val queued: Boolean)

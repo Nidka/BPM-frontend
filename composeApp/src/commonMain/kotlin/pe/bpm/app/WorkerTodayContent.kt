@@ -1,46 +1,70 @@
 package pe.bpm.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.operations.presentation.OperationsViewModel
-import pe.bpm.features.operations.presentation.TodayPlanRow
-import pe.bpm.features.operations.presentation.homeTodayPlans
+import pe.bpm.features.operations.presentation.PlanMission
+import pe.bpm.features.operations.presentation.ShiftProgress
+import pe.bpm.features.operations.presentation.dailyGoal
+import pe.bpm.features.operations.presentation.failureText
+import pe.bpm.features.operations.presentation.goalPhrase
+import pe.bpm.features.operations.presentation.missionOrder
+import pe.bpm.features.operations.presentation.nextTaskText
+import pe.bpm.features.operations.presentation.shiftProgress
+import pe.bpm.features.operations.presentation.shiftTitle
+import pe.bpm.features.operations.presentation.tasksText
 import pe.bpm.features.training.domain.AssignmentProgress
+import pe.bpm.features.training.domain.MyAchievements
 import pe.bpm.features.training.domain.MyAssignment
 import pe.bpm.features.training.presentation.TrainingLearnerViewModel
-import pe.bpm.features.training.presentation.assignmentChip
-import pe.bpm.features.training.presentation.learnerSummary
-import pe.bpm.features.training.presentation.assignmentsForToday
-import pe.bpm.features.training.presentation.criterionLabel
-import pe.bpm.features.training.presentation.nextAssignment
-import pe.bpm.features.training.presentation.readableDate
 import pe.bpm.features.training.presentation.assignmentProgress
+import pe.bpm.features.training.presentation.nextAssignment
 import pe.bpm.features.training.presentation.trainingFailureMessage
 import pe.bpm.features.workspace.domain.Location
+import pe.bpm.resources.Res
+import pe.bpm.resources.mascot_done
+import pe.bpm.resources.mascot_ready
+
+/** Cuántas misiones del turno muestra Hoy antes de remitir a «Tareas». */
+private const val MISSION_LIMIT = 6
 
 /**
- * Pantalla «Hoy» del personal (WORKER). Solo muestra datos reales: la asignación que toca continuar o empezar,
- * «Tareas de hoy» (hasta 4 planes de limpieza con su estado del servidor, de la primera sede asignada), los accesos
- * del turno si no hay sede o planes, las capacitaciones asignadas, la racha y el resumen de logros.
+ * Pantalla «Hoy» del personal (WORKER), estilo de juego: tres contadores (racha, XP, meta), el tomate con una frase que
+ * dice lo que falta, la tarjeta «Meta de hoy» (barra dorada), «Tu turno» con las tareas como misiones (vencidas primero,
+ * luego por hora, hechas al final en verde) y «Sigue aprendiendo» → camino. Solo datos reales: tareas `view=today` de
+ * la sede, racha y XP de los logros y la asignación que toca. La meta ([dailyGoal]) suma 1 lección (actividad de hoy)
+ * y las tareas del turno.
  *
- * Pide al [learner] las asignaciones y los logros al abrirse, y a [operations] los planes de hoy de la sede
- * (`view=today`). En compacta el orden es siguiente paso, tareas/turno, asignadas, racha, recompensas y reportar;
- * desde media la racha, los logros y «Reportar un problema» van en el panel lateral.
+ * El círculo de una misión (o tocar la fila) abre el registro rápido con ese plan ([OperationsViewModel.newCleaningFor]);
+ * la raíz lo muestra en modo enfoque. Desde la clase expandida los contadores, la meta, el turno y la próxima insignia
+ * pasan a un panel derecho de 330 dp.
  */
 @Composable
 internal fun WorkerTodayContent(
@@ -55,12 +79,13 @@ internal fun WorkerTodayContent(
     onReport: () -> Unit,
     onAchievements: () -> Unit,
     modifier: Modifier = Modifier,
+    displayName: String = "",
 ) {
     LaunchedEffect(userId, organizationId) {
         learner.open(userId, organizationId, member = true)
         learner.loadAchievements()
     }
-    // Una sola sede asignada es «la sede»; con varias se usa la primera y «Ver todas» lleva a Tareas.
+    // Una sola sede asignada es «la sede»; con varias se usa la primera y «Tareas» permite cambiarla.
     val site = locations.firstOrNull()
     LaunchedEffect(userId, organizationId, site?.id) {
         if (site != null) {
@@ -70,119 +95,144 @@ internal fun WorkerTodayContent(
     }
     val state by learner.state.collectAsStateWithLifecycle()
     val ops by operations.state.collectAsStateWithLifecycle()
-    val next = nextAssignment(state.assignments)
     val achievements = state.achievements
-    val todayPlans = if (site != null && ops.userId == userId && ops.siteId == site.id && ops.todayLoaded) homeTodayPlans(ops.todayPlans) else emptyList()
-    // Sin panel de apoyo (compacta y media) la racha, el XP y las insignias van en una franja bajo «Tu siguiente paso».
-    val singleColumn = supportPaneWidth(currentWindowClass) == null
-    BpmSupportPaneLayout(
-        modifier,
-        support = {
-            if (!singleColumn) {
-                achievements?.streak?.let { BpmStreakBadge(it.currentDays, it.activeToday, longestDays = it.longestDays) }
-                if (achievements != null) {
-                    BpmRewardSummary(
-                        experiencePoints = achievements.totals.experiencePoints,
-                        earnedBadges = achievements.earned.size,
-                        totalBadges = achievements.achievements.size,
-                        nextBadgeTitle = achievements.pending.firstOrNull()?.name,
-                        nextBadgeHint = achievements.pending.firstOrNull()?.let { criterionLabel(it) },
-                        onOpen = onAchievements,
-                    )
-                }
-            }
-        },
-        main = {
-            state.assignmentsFailure?.let { failure ->
-                BpmInlineNotice(trainingFailureMessage(failure), onDismiss = learner::refreshAssignments, dismissLabel = "Reintentar", warning = true)
-            }
-            when {
-                next != null -> NextStep(next, onOpenCourse)
-                !state.assignmentsLoaded && state.assignmentsFailure == null -> BpmCard(Modifier.fillMaxWidth(), variant = BpmCardVariant.Compact) {
-                    Eyebrow("TU SIGUIENTE PASO")
-                    Text("Buscando tus capacitaciones…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                state.assignmentsLoaded -> AllCaughtUp(onLearn)
-            }
-            if (singleColumn && achievements != null) BpmSummaryStrip(learnerSummary(achievements), onClick = onAchievements)
-            if (todayPlans.isNotEmpty() && site != null) BpmCard(Modifier.fillMaxWidth()) {
-                val more = ops.todayPlans.size > todayPlans.size || locations.size > 1
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Tareas de hoy", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    if (more) BpmTextButton(onTasks) { Text("Ver todas") }
-                }
-                if (locations.size > 1) Text("Sede: ${site.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                // Filas planas separadas por un divisor: nada de tarjetas dentro de tarjetas (G5).
-                Column(Modifier.fillMaxWidth()) {
-                    todayPlans.forEachIndexed { index, plan ->
-                        if (index > 0) BpmRowDivider()
-                        TodayPlanRow(plan, onClick = onTasks, framed = false)
-                    }
-                }
-            }
-            // La que ya es «Tu siguiente paso» no se repite en la lista.
-            val otherAssignments = assignmentsForToday(state.assignments).filter { it.assignmentId != next?.assignmentId }
-            if (otherAssignments.isNotEmpty()) {
-                BpmCard(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Asignadas a ti", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        if (state.assignments.size > 3) BpmTextButton(onLearn) { Text("Ver todas") }
-                    }
-                    Column(Modifier.fillMaxWidth()) {
-                        otherAssignments.forEachIndexed { index, assignment ->
-                            if (index > 0) BpmRowDivider()
-                            val (chip, tone) = assignmentChip(assignment)
-                            BpmTaskRow(
-                                assignment.course.title, BpmSymbol.Book,
-                                detail = assignment.course.code,
-                                tone = if (assignment.status == AssignmentProgress.COMPLETED) BpmTone.Success else BpmTone.Info,
-                                trailing = { BpmStatusChip(chip, tone) },
-                                onClick = { onOpenCourse(assignment.course.id) },
-                                framed = false,
-                            )
-                        }
-                    }
-                }
-            }
-            // Una sola acción rápida: «Reportar un problema» (incidencias y correcciones abren la misma pantalla).
-            // En compacta ocupa el ancho de la columna; desde la media va a la derecha, con ancho de contenido.
-            BpmInlineActions(primary = {
-                BpmSecondaryButton(onClick = onReport, modifier = Modifier.fillMaxWidth()) {
-                    BpmIcon(BpmSymbol.Camera, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(BpmSpacing.sm))
-                    Text("Reportar un problema")
+    val ready = site != null && ops.userId == userId && ops.siteId == site.id && ops.todayLoaded
+    val plans = if (ready) ops.todayPlans else emptyList()
+    val progress = shiftProgress(plans)
+    val goal = dailyGoal(achievements?.streak?.activeToday == true, progress.done, progress.total)
+    val next = nextAssignment(state.assignments)
+    BpmPlayColumns(modifier, rail = { TodayRail(achievements, goal.label, goal.progress, goal.chip, plans.isNotEmpty(), progress, shiftTitle(plans), onAchievements) }) { railVisible ->
+        if (!railVisible) TodayPills(achievements, goal.label, goal.chip)
+        // El tomate habla cuando ya hay con qué calcular la frase (logros y tareas cargados); sin tareas, lo hace el estado vacío.
+        if (achievements != null && (ready || site == null) && !(ready && plans.isEmpty())) {
+            BpmMascotRow(Res.drawable.mascot_ready, buildAnnotatedString {
+                goalPhrase(goal, displayName.substringBefore(' ')).forEach { part ->
+                    if (part.bold) withStyle(BpmPlayType.strong) { append(part.text) } else append(part.text)
                 }
             })
-        },
-    )
-}
-
-/** Tarjeta principal: continuar la capacitación en curso o empezar la más urgente. */
-@Composable
-private fun NextStep(assignment: MyAssignment, onOpenCourse: (String) -> Unit) {
-    val started = assignment.status == AssignmentProgress.IN_PROGRESS || assignment.progressStatus == pe.bpm.features.training.domain.ProgressStatus.IN_PROGRESS
-    val due = assignment.dueAt?.let { readableDate(it) }?.takeIf { it.isNotEmpty() }
-    BpmNextStepCard(
-        eyebrow = "TU SIGUIENTE PASO",
-        title = (if (started) "Continúa: " else "Empieza: ") + assignment.course.title,
-        actionLabel = if (started) "Continuar curso" else "Empezar curso",
-        onAction = { onOpenCourse(assignment.course.id) },
-        supporting = due?.let { (if (assignment.status == AssignmentProgress.OVERDUE) "Venció el " else "Vence el ") + it },
-        progress = assignmentProgress(assignment),
-    )
-}
-
-/** Sin capacitaciones pendientes: refuerzo positivo y salida hacia el catálogo. */
-@Composable
-private fun AllCaughtUp(onLearn: () -> Unit) {
-    BpmCard(Modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
-                Text("Todo al día", style = MaterialTheme.typography.titleLarge)
-                Text("No tienes capacitaciones pendientes. Puedes seguir aprendiendo cuando quieras.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                BpmSecondaryButton(onClick = onLearn) { Text("Explorar cursos") }
+        }
+        if (!railVisible) GoalCard(goal.chip, goal.progress, goal.complete)
+        state.assignmentsFailure?.takeIf { state.assignments.isEmpty() }?.let { failure ->
+            Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            BpmChunkyButton("Volver a intentar", learner::refreshAssignments, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+        }
+        // «Tu turno»: las tareas del día como misiones.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            Text("Tu turno", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+            if (plans.isNotEmpty()) Text("${shiftTitle(plans)} · ${tasksText(plans.size)}", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+        }
+        when {
+            site == null -> PlayNote("Todavía no tienes una sede asignada. Pide a tu administrador que te agregue a una.")
+            ops.todayFailure != null -> {
+                Text(failureText(ops.todayFailure!!), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
+                BpmChunkyButton("Reintentar", operations::refreshToday, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !ops.todayLoading)
             }
-            Mascot(Modifier.size(96.dp))
+            !ready -> PlayNote("Buscando tus tareas…")
+            plans.isEmpty() -> BpmPlayEmpty(Res.drawable.mascot_done, "¡Todo al día!", "Hoy no tienes tareas de limpieza en esta sede. Aprovecha para seguir aprendiendo.",
+                action = { BpmChunkyButton("Ver el camino", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White) })
+            else -> {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    missionOrder(plans).take(MISSION_LIMIT).forEach { plan -> PlanMission(plan, operations) }
+                }
+                if (plans.size > MISSION_LIMIT) BpmChunkyButton("Ver todas las tareas", onTasks, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+            }
+        }
+        LearnCard(next, state.assignmentsLoaded, onLearn)
+        BpmChunkyButton("Reportar un problema", onReport, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert)
+    }
+}
+
+/** Racha, XP y meta del día en una fila; no muestra nada hasta que llegan los logros. */
+@Composable
+private fun TodayPills(achievements: MyAchievements?, goalLabel: String, goalChip: String) {
+    if (achievements == null) return
+    val streak = achievements.streak
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        streak?.let { BpmStatPill(BpmSymbol.Flame, it.currentDays.toString(), BpmPlayTone.Streak, contentDescription = "Racha de ${it.currentDays} días") }
+        BpmStatPill(BpmSymbol.Bolt, achievements.totals.experiencePoints.toString(), BpmPlayTone.Gold, contentDescription = "${achievements.totals.experiencePoints} puntos de experiencia")
+        Spacer(Modifier.weight(1f))
+        BpmStatPill(BpmSymbol.Target, goalLabel, BpmPlayTone.Action, contentDescription = "Meta de hoy: $goalChip")
+    }
+}
+
+/** «Meta de hoy»: ficha con lo hecho («2 de 3») y la barra dorada. */
+@Composable
+private fun GoalCard(chip: String, progress: Float, complete: Boolean) {
+    BpmPlayCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Meta de hoy", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+            BpmPlayChip(chip, if (complete) BpmPlayTone.Correct else BpmPlayTone.Gold)
+        }
+        BpmChunkyProgress(progress, Modifier.fillMaxWidth(), BpmPlayTone.Gold, contentDescription = "Meta de hoy: $chip")
+    }
+}
+
+/** Texto de apoyo en una línea (cargando, vacío, sin sede). */
+@Composable
+private fun PlayNote(text: String) {
+    Text(text, style = BpmPlayType.sub, color = BpmPlayColors.muted, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
+}
+
+/** «Sigue aprendiendo»: la capacitación que toca (con su avance) y un botón al camino; sin pendientes, un refuerzo. */
+@Composable
+private fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit) {
+    if (next == null && !loaded) return
+    BpmPlayCard {
+        Text("Sigue aprendiendo", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+        if (next != null) {
+            val started = next.status == AssignmentProgress.IN_PROGRESS
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(48.dp).background(BpmPlayColors.action.soft, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                    BpmIcon(BpmSymbol.Book, tint = BpmPlayColors.action.face, modifier = Modifier.size(24.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(next.course.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2)
+                    Text(next.course.code, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+                }
+            }
+            assignmentProgress(next)?.let { BpmChunkyProgress(it, Modifier.fillMaxWidth(), contentDescription = "Avance del curso") }
+            BpmChunkyButton(if (started) "Continuar" else "Empezar", onLearn, Modifier.fillMaxWidth())
+        } else {
+            Text("No tienes capacitaciones pendientes. Puedes seguir aprendiendo cuando quieras.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+            BpmChunkyButton("Ver el camino", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+        }
+    }
+}
+
+/** Panel derecho (clase expandida): contadores, meta de hoy, el avance del turno y la próxima insignia por ganar. */
+@Composable
+private fun ColumnScope.TodayRail(
+    achievements: MyAchievements?,
+    goalLabel: String,
+    goalProgress: Float,
+    goalChip: String,
+    hasTasks: Boolean,
+    shift: ShiftProgress,
+    shiftName: String,
+    onAchievements: () -> Unit,
+) {
+    TodayPills(achievements, goalLabel, goalChip)
+    GoalCard(goalChip, goalProgress, goalProgress >= 1f)
+    if (hasTasks) BpmPlayCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(shiftName, style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.weight(1f))
+            BpmPlayChip(shift.label, BpmPlayTone.Correct)
+        }
+        BpmChunkyProgress(shift.progress, Modifier.fillMaxWidth(), contentDescription = "Avance del turno: ${shift.label}")
+        Text(shift.next?.let { "Te falta: ${nextTaskText(it)}" } ?: "¡Terminaste las tareas del turno!", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    }
+    achievements?.pending?.minByOrNull { it.criterionThreshold }?.let { badge ->
+        BpmPlayCard(Modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick = onAchievements)) {
+            Text("Próxima insignia", style = BpmPlayType.h2, color = BpmPlayColors.ink)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(52.dp).clip(CircleShape).background(BpmPlayColors.streak.face), contentAlignment = Alignment.Center) {
+                    BpmIcon(BpmSymbol.Award, tint = Color.White, modifier = Modifier.size(28.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(badge.name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
+                    if (badge.description.isNotBlank()) Text(badge.description, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+                }
+            }
         }
     }
 }

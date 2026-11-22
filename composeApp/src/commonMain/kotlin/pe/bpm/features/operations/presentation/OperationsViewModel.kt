@@ -847,6 +847,7 @@ class OperationsViewModel(
                                 dirty = false,
                                 saved = result.value,
                                 failure = if (cleared) null else OperationsFailure.LOCAL,
+                                taskDone = doneOf(form, s.selectedPlan, result.value, queued = false),
                             )
                         // Una limpieza registrada cambia «hecho/pendiente»: se vuelve a pedir el estado de hoy.
                         if (result.value is OperationsEntry.ExecutionEntry && mutable.value.todayLoaded) refreshToday()
@@ -861,7 +862,11 @@ class OperationsViewModel(
                             return@launch
                         }
                         finishForm()
-                        mutable.value = mutable.value.copy(notice = "Guardado en este dispositivo. Se enviará cuando recuperes la conexión.")
+                        mutable.value =
+                            mutable.value.copy(
+                                notice = "Guardado en este dispositivo. Se enviará cuando recuperes la conexión.",
+                                taskDone = doneOf(form, s.selectedPlan, null, queued = true),
+                            )
                     } else {
                         if (hideIfAccessRejected(result.reason)) return@launch
                         val uncertain = !result.reason.definitive
@@ -921,8 +926,42 @@ class OperationsViewModel(
                 failure = null,
                 detail = null,
                 busy = false,
+                taskDone = null,
             )
         refresh()
+    }
+
+    /** La tarea registrada para la celebración del personal: nombre del plan y hora; nulo si no es una limpieza. */
+    private fun doneOf(form: OperationsForm, plan: CleaningPlan?, saved: OperationsEntry?, queued: Boolean): TaskDone? {
+        val id = form.values["cleaningPlanId"] ?: return null
+        val name = plan?.task ?: (saved as? OperationsEntry.ExecutionEntry)?.value?.task ?: form.values["planName"].orEmpty()
+        val at = (saved as? OperationsEntry.ExecutionEntry)?.value?.input?.executedAt ?: form.values["dateTime"] ?: form.createdAt
+        return TaskDone(id, name, at, queued)
+    }
+
+    /**
+     * Registro rápido del personal: cierra la confirmación de la tarea hecha y, con [next], abre el registro de esa
+     * siguiente tarea sin pasar por la lista. No hace nada si el registro aún no terminó o está guardando.
+     */
+    fun finishTask(next: CleaningPlan? = null) {
+        val s = mutable.value
+        if (s.busy || (s.form != null && s.saved == null)) return
+        if (s.form != null) {
+            writer?.finish()?.let { draining += it }
+            writer = null
+            mutable.value =
+                s.copy(form = null, pending = null, picker = null, dirty = false, review = false, fields = emptyMap(), saved = null, failure = null, detail = null, taskDone = null)
+        } else mutable.value = s.copy(taskDone = null)
+        refreshToday()
+        if (next != null) newCleaningFor(next) else refresh()
+    }
+
+    /**
+     * Registro rápido del personal: la X. Descarta el borrador de la tarea; si ya hay un envío sin confirmar lo
+     * conserva (guardar y salir), porque el servidor aún puede haberlo recibido.
+     */
+    fun cancelTask() {
+        if (mutable.value.pending == null) discard() else closeForm()
     }
 
     fun discard() {

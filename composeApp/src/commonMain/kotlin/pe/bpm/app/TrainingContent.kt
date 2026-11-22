@@ -4,6 +4,7 @@ import pe.bpm.core.designsystem.BpmFilterChip
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import pe.bpm.core.designsystem.BpmChoiceOption
@@ -26,10 +27,21 @@ import pe.bpm.features.training.presentation.TrainingViewModel
  * solo mientras la pantalla está abierta: al salir se descartan lecciones, URL de video y respuestas.
  */
 @Composable
-internal fun TrainingCourseContent(userId: String, organizationId: String, courseId: String, canPersist: Boolean, training: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null) {
+internal fun TrainingCourseContent(userId: String, organizationId: String, courseId: String, canPersist: Boolean, training: TrainingViewModel, modifier: Modifier = Modifier, onOpenCourse: ((String) -> Unit)? = null, worker: WorkerCourseContext? = null) {
     LaunchedEffect(userId, organizationId, courseId, canPersist) { training.open(userId, organizationId, courseId, canPersist) }
     DisposableEffect(training, userId, organizationId, courseId) { onDispose { training.reset() } }
-    TrainingScreen(training, modifier, onOpenCourse)
+    // Desde el camino de Aprender (WORKER) se llega con una intención: al cargar el curso abre la lección o la evaluación final.
+    val loaded = training.state.collectAsStateWithLifecycle().value.course?.course?.id
+    LaunchedEffect(loaded, worker?.intent) {
+        val intent = worker?.intent ?: return@LaunchedEffect
+        if (loaded == null || !loaded.equals(courseId, ignoreCase = true)) return@LaunchedEffect
+        when (intent) {
+            is CourseIntent.Lesson -> training.selectLesson(intent.lessonId)
+            CourseIntent.FinalEvaluation -> training.startEvaluation(pe.bpm.features.training.domain.AttemptType.FINAL)
+        }
+        worker.onIntentHandled()
+    }
+    TrainingScreen(training, modifier, onOpenCourse, worker)
 }
 
 /** Autoría de Academia; el backend vuelve a validar el rol de cada operación. */

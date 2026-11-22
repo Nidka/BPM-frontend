@@ -50,18 +50,26 @@ class WorkspaceNavigationTest {
     }
 
     @Test fun accountLivesInTheHeaderAndChefHasNoTeamList() {
-        for (role in listOf("ADMIN", "CHEF", "WORKER")) {
+        for (role in listOf("ADMIN", "CHEF")) {
             val primary = workspacePrimaryDestinations(workspaceDestinations(role, false))
             assertFalse(WorkspaceDestination.Account in primary, role)
             assertTrue(WorkspaceDestination.Account in workspaceDestinations(role, false), role)
         }
         assertFalse(WorkspaceDestination.Team in workspaceDestinations("CHEF", false))
-        assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Tasks, WorkspaceDestination.Learn),
-            workspacePrimaryDestinations(workspaceDestinations("WORKER", false)))
+        assertTrue(WorkspaceDestination.Account in workspaceDestinations("WORKER", false))
+    }
+
+    @Test fun workerNavigationIsTodayLearnTasksProfile() {
+        val primary = workspacePrimaryDestinations(workspaceDestinations("WORKER", false), "WORKER")
+        assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Tasks, WorkspaceDestination.Account), primary)
+        assertEquals(listOf("Hoy", "Aprender", "Tareas", "Perfil"), primary.map { destinationLabel(it, "WORKER") })
+        // Los demás roles conservan sus etiquetas y «Mi cuenta» en la cabecera.
+        assertEquals("Mi cuenta", destinationLabel(WorkspaceDestination.Account, "CHEF"))
+        assertEquals("Mis tareas", destinationLabel(WorkspaceDestination.Tasks, "CHEF"))
     }
 
     private fun nav(role: String?, platform: Boolean, research: Boolean = false, grants: Boolean = false) =
-        workspaceNavigation(workspacePrimaryDestinations(workspaceDestinations(role, platform)), workspaceShortcuts(role, platform, research, grants))
+        workspaceNavigation(workspacePrimaryDestinations(workspaceDestinations(role, platform), role), workspaceShortcuts(role, platform, research, grants))
             .map { when (it) { is WorkspaceNavItem.Section -> destinationLabel(it.destination, role); is WorkspaceNavItem.Shortcut -> it.shortcut.label } }
 
     @Test fun chefGetsIncidentsAsItsOwnDestinationAndNoTeam() {
@@ -81,7 +89,7 @@ class WorkspaceNavigationTest {
     @Test fun everyRoleAndShortcutCombinationFitsFiveEntriesWithoutTruncation() {
         for (role in listOf(null, "WORKER", "CHEF", "ADMIN", "OWNER")) for (platform in listOf(false, true))
             for (research in listOf(false, true)) for (grants in listOf(false, true)) {
-                val primary = workspacePrimaryDestinations(workspaceDestinations(role, platform))
+                val primary = workspacePrimaryDestinations(workspaceDestinations(role, platform), role)
                 val shortcuts = workspaceShortcuts(role, platform, research, grants)
                 val merged = workspaceNavigation(primary, shortcuts)
                 val label = "rol=$role plataforma=$platform investigación=$research accesos=$grants"
@@ -97,6 +105,6 @@ class WorkspaceNavigationTest {
 
     @Test fun adminAndWorkerHaveNoShortcuts() {
         assertEquals(5, nav("ADMIN", false).size)
-        assertEquals(listOf("Hoy", "Tareas", "Aprender"), nav("WORKER", false))
+        assertEquals(listOf("Hoy", "Aprender", "Tareas", "Perfil"), nav("WORKER", false))
     }
 }

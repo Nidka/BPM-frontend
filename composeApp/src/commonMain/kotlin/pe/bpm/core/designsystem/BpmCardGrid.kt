@@ -31,6 +31,8 @@ fun <T> BpmCardGrid(
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val columns = fixedColumns ?: ((maxWidth + BpmSpacing.grid) / (minCardWidth + BpmSpacing.grid)).toInt().coerceIn(1, maxColumns)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
+            // Una columna: cada tarjeta mide lo que mide su contenido (sin igualar alturas ni estirar).
+            if (columns == 1) { items.forEachIndexed { index, item -> content(item, Modifier.fillMaxWidth().bpmAppear(index)) }; return@Column }
             items.chunked(columns).forEachIndexed { rowIndex, row ->
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
                     row.forEachIndexed { column, item -> content(item, Modifier.weight(1f).fillMaxHeight().bpmAppear(rowIndex * columns + column)) }

@@ -23,6 +23,8 @@ internal fun IncidentsContent(
     incidents: IncidentsViewModel,
     onEvidence: (String, String?, String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** Personal (WORKER): sale del reporte (la X y «Listo»). Con él el WORKER ve el reporte rápido en modo enfoque. */
+    onClose: (() -> Unit)? = null,
 ) {
     val org = workspace.workspace?.organization?.id ?: return
     var siteId by rememberSaveable(userId, org) { mutableStateOf<String?>(null) }
@@ -35,8 +37,37 @@ internal fun IncidentsContent(
         incidents.open(userId, org, role, siteId, zone)
     }
     DisposableEffect(incidents, userId, org) { onDispose { incidents.reset() } }
+    // El personal con una sola sede reporta sin elegirla; con varias elige una vez.
+    val worker = role == "WORKER" && onClose != null
+    val onlySite = if (worker) workspace.workspace?.locations?.singleOrNull() else null
+    LaunchedEffect(onlySite?.id) {
+        if (onlySite != null && siteId == null) {
+            siteId = onlySite.id
+            siteName = onlySite.name
+            zone = onlySite.timezone
+            choosing = false
+        }
+    }
+    if (worker && !choosing && siteId != null) {
+        val ready = state.userId == userId && state.organizationId == org && state.siteId == siteId && state.role == role
+        var showList by rememberSaveable(userId, org) { mutableStateOf(false) }
+        when {
+            !ready -> LinearProgressIndicator(modifier.fillMaxWidth())
+            showList && editor.form == null -> Column(modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                BpmTextButton({ showList = false }, modifier = Modifier.heightIn(min = BpmSpacing.touch)) {
+                    BpmIcon(BpmSymbol.Back)
+                    Spacer(Modifier.width(BpmSpacing.sm))
+                    Text("Volver a reportar")
+                }
+                IncidentsScreen(incidents, Modifier.weight(1f), onEvidence)
+            }
+            else -> pe.bpm.features.incidents.presentation.WorkerReportContent(incidents, onClose!!, onEvidence,
+                onOpenList = { incidents.picker(null); showList = true }, modifier = modifier.fillMaxSize())
+        }
+        return
+    }
     Column(
-        modifier.fillMaxSize(),
+        modifier.fillMaxSize().then(if (worker) Modifier.padding(16.dp) else Modifier),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (choosing) {

@@ -33,7 +33,7 @@ internal fun DailyOperationsContent(
     shifts: ShiftsViewModel? = null,
     stock: StockMovementsViewModel? = null,
     onCleaningPhotos: ((CleaningExecution) -> Unit)? = null,
-    /** Personal (WORKER): abre «Incidencias y correcciones» desde la cabecera de «Mis tareas». */
+    /** Personal (WORKER): abre «Reportar un problema» desde el botón flotante de «Tareas». */
     onIncidents: (() -> Unit)? = null,
 ) {
     val org = workspace.workspace?.organization?.id ?: return
@@ -77,7 +77,7 @@ internal fun DailyOperationsContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (choosingSite) {
-            if (role == "WORKER") Text("Mis tareas", style = MaterialTheme.typography.headlineMedium)
+            if (role == "WORKER") Text("Tareas", style = BpmPlayType.h1, color = BpmPlayColors.ink)
             Text("¿En qué sede trabajarás?", style = MaterialTheme.typography.titleLarge)
             WorkspaceSiteSelector(
                 workspace,
@@ -126,12 +126,11 @@ internal fun DailyOperationsContent(
                     Modifier.weight(1f),
                     onLotMovement = if (showStock && stock != null) { lot -> stock.start(lot); section = "stock" } else null,
                     onCleaningPhotos = onCleaningPhotos,
+                    onReport = if (role == "WORKER") onIncidents else null,
                     workerHeader = if (role == "WORKER") { listVisible ->
                         WorkerTasksHeader(
                             siteName = siteName.takeIf { siteId != null },
                             onChangeSite = { choosingSite = true },
-                            onRegister = if (siteId != null) operations::newCleaning else null,
-                            onIncidents = onIncidents,
                             enabled = !state.loading && !state.busy,
                             showActions = listVisible,
                         )

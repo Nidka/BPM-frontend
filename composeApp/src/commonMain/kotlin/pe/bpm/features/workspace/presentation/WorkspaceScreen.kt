@@ -35,7 +35,14 @@ internal fun WorkspaceScreen(
     homeContent: (@Composable () -> Unit)? = null,
     onOpenCourse: ((String) -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
+    /**
+     * Aprender del personal (camino): reemplaza por completo la cabecera, el filtro y el título del catálogo. Recibe el
+     * catálogo paginado de cursos como contenido para mostrarlo al final («Más cursos»).
+     */
+    workerLearn: (@Composable (catalog: @Composable () -> Unit) -> Unit)? = null,
     hiddenCourseIds: Set<String> = emptySet(),
+    /** Perfil del personal (WORKER): reemplaza por completo la pantalla «Mi cuenta» (avatar, racha, insignias, ajustes y cuenta). */
+    workerProfile: (@Composable () -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null,
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -52,6 +59,11 @@ internal fun WorkspaceScreen(
      */
     focusMode: Boolean = false,
     focusTitle: String? = null,
+    /**
+     * Con [focusMode]: la pantalla de juego del personal dibuja su propia barra (X y avance) y su pie, así que el shell
+     * no pone cabecera ni márgenes y le entrega todo el espacio.
+     */
+    playFocus: Boolean = false,
     screenNotice: @Composable () -> Unit = {},
     noticeVisible: Boolean = false,
     onUserActivity: () -> Unit = {},
@@ -62,7 +74,9 @@ internal fun WorkspaceScreen(
 ) {
     val role = state.workspace?.role
     val available = workspaceDestinations(role, viewer.canCreateOrganization)
-    val navItems = workspaceNavigation(workspacePrimaryDestinations(available), shortcuts)
+    val navItems = workspaceNavigation(workspacePrimaryDestinations(available, role), shortcuts)
+    // El personal (WORKER) usa la navegación de juego: barra inferior hasta 839 dp y menú grande desde 840 dp (sin riel).
+    val playNav = role == "WORKER" && WorkspaceDestination.Tasks in available
     val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     val contentScroll = rememberScrollState()
     val actionSlot = remember { BpmActionBarSlot() }
@@ -76,7 +90,8 @@ internal fun WorkspaceScreen(
         // BpmAppShell: la clase de ancho se calcula aquí una sola vez y baja por LocalBpmWindowClass.
         // Con altura baja (móvil horizontal) la navegación lateral no cabe: se usa la barra inferior.
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
-        val navMode = BpmNavigationMode.of(windowClass, maxHeight)
+        val navMode = BpmNavigationMode.of(windowClass, maxHeight).let { if (playNav && it == BpmNavigationMode.Rail) BpmNavigationMode.BottomBar else it }
+        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(role), item.playSymbol(), item.isSelected(section, activeShortcut)) { item.open(navigate, onShortcut) } }
         val wide = navMode != BpmNavigationMode.BottomBar
         ProvideBpmWindowClass(windowClass, maxHeight) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
@@ -94,7 +109,8 @@ internal fun WorkspaceScreen(
                     }
                 }
             }
-            if (navMode == BpmNavigationMode.SideMenu && !focusMode) Surface(Modifier.width(navMode.width).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
+            if (navMode == BpmNavigationMode.SideMenu && !focusMode && playNav) BpmPlaySideMenu(BpmBrand.name, playItems)
+            else if (navMode == BpmNavigationMode.SideMenu && !focusMode) Surface(Modifier.width(navMode.width).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Brand()
                     Spacer(Modifier.height(32.dp))
@@ -113,8 +129,8 @@ internal fun WorkspaceScreen(
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                WorkspaceTopBar(workspace?.organization?.name, wide, windowClass,
-                    onAccount = if (section == WorkspaceDestination.Account || WorkspaceDestination.Account !in available) null else ({ navigate(WorkspaceDestination.Account) }),
+                if (!(focusMode && playFocus)) WorkspaceTopBar(workspace?.organization?.name, wide, windowClass,
+                    onAccount = if (section == WorkspaceDestination.Account || WorkspaceDestination.Account !in available || playNav) null else ({ navigate(WorkspaceDestination.Account) }),
                     canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin),
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
@@ -122,7 +138,8 @@ internal fun WorkspaceScreen(
                     focusTitle = if (focusMode) focusTitle ?: "" else null,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel) { taskContent() }
+                if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel, bare = focusMode && playFocus) { taskContent() }
+                else if (focusMode && playFocus && secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth()) { secondaryContent() }
                 else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(),
                     if (secondaryWideOnExpanded && secondaryPattern == BpmPattern.StepFlow && (windowClass == BpmWindowClass.Expanded || windowClass == BpmWindowClass.Large)) BpmPattern.Panel else secondaryPattern,
                     preview = secondaryPattern != BpmPattern.Form) { secondaryContent() }
@@ -139,11 +156,12 @@ internal fun WorkspaceScreen(
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
                 } else key(section, secondaryTitle) { Box(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll)) { BpmScreenFrame(if (secondaryContent != null) secondaryPattern else BpmPattern.Panel) {
                     // El título de la pantalla va primero; los avisos y accesos de apoyo se muestran debajo.
-                    BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, role))
+                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(playNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, role))
                     screenNotice()
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
                     state.notice?.let { notice -> key(notice) { BpmReveal { Text(notice, color = MaterialTheme.colorScheme.primary) } } }
-                    if (section == WorkspaceDestination.Account) {
+                    if (section == WorkspaceDestination.Account && workerProfile != null) workerProfile()
+                    else if (section == WorkspaceDestination.Account) {
                         BpmPanelLayout(support = {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Text("Acciones", style = MaterialTheme.typography.titleMedium)
@@ -247,7 +265,11 @@ internal fun WorkspaceScreen(
                                 }
                             }
                         }
-                        WorkspaceDestination.Learn -> {
+                        WorkspaceDestination.Learn -> if (workerLearn != null) workerLearn {
+                            WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry, fullWidthSearch = true) {
+                                Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse, hiddenCourseIds, CatalogFilter.All)
+                            }
+                        } else {
                             // Con la cabecera del alumno ya hay un saludo contextual: la introducción solo se usa sin ella.
                             if (learnHeader == null) BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
                             else learnHeader()
@@ -269,7 +291,8 @@ internal fun WorkspaceScreen(
                 BpmActionBarHost(actionSlot)
                 // Los atajos (incidencias, investigación, empresas, acceso) son destinos de la barra: al abrirlos, la barra sigue visible y los marca.
                 val keepNavigation = activeShortcut != null
-                if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) NavigationBar {
+                if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization)) && playNav) BpmPlayBottomBar(playItems)
+                else if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) NavigationBar {
                     navItems.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
                         NavigationBarItem(selected = item.isSelected(section, activeShortcut),
                         onClick = { item.open(navigate, onShortcut) }, icon = { item.Icon() },
@@ -291,11 +314,13 @@ internal fun WorkspaceScreen(
  * Contenedor común de las pantallas alojadas (formularios, selector, gestión): mismo margen que la
  * cabecera, ancho máximo del patrón ([BpmPatternRules.contentMax]) y centrado.
  */
-@Composable private fun HostedContent(modifier: Modifier, pattern: BpmPattern, preview: Boolean = true, content: @Composable () -> Unit) {
+@Composable private fun HostedContent(modifier: Modifier, pattern: BpmPattern, preview: Boolean = true, bare: Boolean = false, content: @Composable () -> Unit) {
     val windowClass = currentWindowClass
     val max = BpmPatternRules.contentMax(pattern, windowClass, preview)
-    Box(modifier.padding(BpmSpacing.gutter(windowClass)), contentAlignment = Alignment.TopCenter) {
-        Box(Modifier.widthIn(max = max).fillMaxSize()) { content() }
+    // [bare] (modo enfoque del personal): sin margen ni tope de ancho, pero con el mismo árbol de composición, así el
+    // contenido conserva su estado al entrar y salir del modo enfoque.
+    Box(if (bare) modifier else modifier.padding(BpmSpacing.gutter(windowClass)), contentAlignment = Alignment.TopCenter) {
+        Box((if (bare) Modifier else Modifier.widthIn(max = max)).fillMaxSize()) { content() }
     }
 }
 
@@ -361,6 +386,17 @@ private fun WorkspaceNavItem.isSelected(section: WorkspaceDestination, active: W
 private fun WorkspaceNavItem.open(navigate: (WorkspaceDestination) -> Unit, onShortcut: (WorkspaceShortcut) -> Unit) = when (this) {
     is WorkspaceNavItem.Section -> navigate(destination)
     is WorkspaceNavItem.Shortcut -> onShortcut(shortcut)
+}
+
+/** Iconos de la navegación de juego: Aprender usa el camino y Tareas el tablero de control. */
+private fun WorkspaceNavItem.playSymbol(): BpmSymbol = when (this) {
+    is WorkspaceNavItem.Section -> when (destination) {
+        WorkspaceDestination.Home -> BpmSymbol.Home
+        WorkspaceDestination.Learn -> BpmSymbol.Route
+        WorkspaceDestination.Account -> BpmSymbol.Account
+        else -> BpmSymbol.Control
+    }
+    is WorkspaceNavItem.Shortcut -> BpmSymbol.Alert
 }
 
 @Composable private fun WorkspaceNavItem.Icon() = when (this) {

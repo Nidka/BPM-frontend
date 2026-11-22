@@ -10,6 +10,18 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import pe.bpm.resources.Res
+import pe.bpm.resources.mascot_learning
+import pe.bpm.resources.mascot_welcome
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import java.awt.image.BufferedImage
@@ -23,9 +35,16 @@ import kotlinx.coroutines.test.setMain
 import pe.bpm.app.DailyOperationsContent
 import pe.bpm.app.TrainingCourseContent
 import pe.bpm.app.TrainingLearnerHeader
+import pe.bpm.app.WorkerProfileContent
 import pe.bpm.app.WorkerTodayContent
 import pe.bpm.core.designsystem.BpmPattern
 import pe.bpm.core.storage.TestDraftStorage
+import pe.bpm.features.incidents.domain.ManageIncidents
+import pe.bpm.features.incidents.presentation.IncidentPicker
+import pe.bpm.features.incidents.presentation.IncidentsViewModel
+import pe.bpm.features.incidents.presentation.WorkerReportContent
+import pe.bpm.features.operations.presentation.QuickStep
+import pe.bpm.features.operations.presentation.WorkerQuickTask
 import pe.bpm.features.operations.data.LocalOperationsDraftRepository
 import pe.bpm.features.operations.domain.ManageOperations
 import pe.bpm.features.operations.domain.ManageOperationsDraft
@@ -49,7 +68,8 @@ import pe.bpm.screenshots.WorkerFixtures as F
  *   - `sheet-<pantalla>.png`          los tres anchos lado a lado (máx. 2000 px).
  * Para agregar una pantalla basta con añadir un [ScreenSpec] a [workerScreens].
  */
-internal class ScreenSpec(val name: String, val build: () -> @Composable () -> Unit)
+/** [full] en falso omite la captura «completa»: las pantallas de juego llenan la ventana y desplazan por dentro. */
+internal class ScreenSpec(val name: String, val full: Boolean = true, val build: () -> @Composable () -> Unit)
 
 private var idCounter = 0
 private fun nextId() = "00000000-0000-4000-8000-%012d".format(++idCounter)
@@ -64,13 +84,13 @@ private val workspaceState = WorkspaceState(
 
 private fun learnerVm(): TrainingLearnerViewModel {
     val repo = F.LearnerRepository()
-    return TrainingLearnerViewModel(LoadMyAssignments(repo), LoadMyAchievements(repo), LoadLearningPaths(repo))
-        .also { it.open(F.USER, F.ORG, member = true); it.loadAchievements() }
+    return TrainingLearnerViewModel(LoadMyAssignments(repo), LoadMyAchievements(repo), LoadLearningPaths(repo), loadCourse = LoadTrainingCourse(F.CourseRepository()))
+        .also { it.open(F.USER, F.ORG, member = true); it.loadAchievements(); it.loadPathCourses() }
 }
 
-private fun operationsVm(resource: OperationsResource? = null): OperationsViewModel =
+private fun operationsVm(resource: OperationsResource? = null, empty: Boolean = false): OperationsViewModel =
     OperationsViewModel(
-        ManageOperations(F.OperationsFixtureRepository(), F.NoopTransport),
+        ManageOperations(F.OperationsFixtureRepository(empty), F.NoopTransport),
         ManageOperationsDraft(LocalOperationsDraftRepository(TestDraftStorage(), "https://example.test")),
         ::nextId, { NOW },
     ).also {
@@ -85,7 +105,7 @@ private fun workspaceVm(): WorkspaceViewModel {
 }
 
 /** Curso de Academia ya cargado en el ViewModel y puesto en la pantalla que pide [drive]. */
-private fun courseScreen(navigatorOpen: Boolean = false, drive: (TrainingViewModel, FakeTrainingRepository) -> Unit): @Composable () -> Unit {
+private fun courseScreen(initialPick: Int? = null, drive: (TrainingViewModel, FakeTrainingRepository) -> Unit): @Composable () -> Unit {
     val repo = FakeTrainingRepository().apply {
         course = TrainingResult.Success(F.course())
         study = { questionId, selected ->
@@ -100,16 +120,16 @@ private fun courseScreen(navigatorOpen: Boolean = false, drive: (TrainingViewMod
     drive(vm, repo)
     val state = vm.state.value
     return {
-      androidx.compose.runtime.CompositionLocalProvider(LocalInitialNavigatorOpen provides navigatorOpen) {
+      androidx.compose.runtime.CompositionLocalProvider(LocalInitialPick provides initialPick) {
         Shell(
             WorkspaceDestination.Learn,
-            secondaryContent = { TrainingCourseContent(F.USER, F.ORG, F.COURSE, true, vm, onOpenCourse = {}) },
+            secondaryContent = { TrainingCourseContent(F.USER, F.ORG, F.COURSE, true, vm, onOpenCourse = {}, worker = WorkerCourseContext(onClose = {}, streakDays = 7, moduleNumber = 1, moduleTotal = 4)) },
             secondaryEditor = true,
             // Igual que App.kt: la vista general es un panel; lo demás, un flujo por pasos.
             secondaryPattern = if (state.screen == TrainingPane.OVERVIEW) BpmPattern.Panel else BpmPattern.StepFlow,
             secondaryWideOnExpanded = wantsWidePane(state),
             // Igual que App.kt: modo enfoque fuera de la vista general (sin navegación; cabecera con X y nombre del curso).
-            focusMode = isFocusMode(state), focusTitle = state.course?.course?.title,
+            focusMode = isFocusMode(state), focusTitle = state.course?.course?.title, playFocus = true,
         )
       }
     }
@@ -128,6 +148,9 @@ private fun Shell(
     secondaryWideOnExpanded: Boolean = false,
     focusMode: Boolean = false,
     focusTitle: String? = null,
+    playFocus: Boolean = false,
+    workerLearn: (@Composable (@Composable () -> Unit) -> Unit)? = null,
+    workerProfile: (@Composable () -> Unit)? = null,
 ) {
     WorkspaceScreen(
         viewer = WorkspaceViewer(F.USER, F.DISPLAY_NAME, "lucia.quispe@cocinaandina.pe", false),
@@ -144,7 +167,7 @@ private fun Shell(
         taskContent = taskContent,
         secondaryContent = secondaryContent, secondaryEditor = secondaryEditor, secondaryPattern = secondaryPattern,
         secondaryWideOnExpanded = secondaryWideOnExpanded,
-        focusMode = focusMode, focusTitle = focusTitle,
+        focusMode = focusMode, focusTitle = focusTitle, playFocus = playFocus, workerLearn = workerLearn, workerProfile = workerProfile,
         onOrganizationSearch = {}, onOrganizationNext = {}, onOrganizationPrevious = {}, onOrganizationRetry = {},
         onPageSearch = { _, _ -> }, onPageNext = {}, onPagePrevious = {}, onPageRetry = {},
     )
@@ -154,74 +177,117 @@ private fun Shell(
 
 internal val workerScreens: List<ScreenSpec> = listOf(
     ScreenSpec("u1-componentes") { { U1Components() } },
+    ScreenSpec("j1-componentes") { { J1Components(part = 1) } },
+    ScreenSpec("j1-componentes-b") { { J1Components(part = 2) } },
     ScreenSpec("hoy") {
         val learner = learnerVm()
         val operations = operationsVm()
         val content: @Composable () -> Unit = {
             Shell(WorkspaceDestination.Home, homeContent = {
                 WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
-                    onOpenCourse = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {})
+                    onOpenCourse = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
             })
         }
         content
     },
-    ScreenSpec("tareas-por-hacer") {
-        val operations = operationsVm(OperationsResource.PLANS)
-        val workspace = workspaceVm()
-        val content: @Composable () -> Unit = { Shell(WorkspaceDestination.Tasks, taskContent = { Tasks(operations, workspace) }) }
+    ScreenSpec("hoy-vacio") {
+        val learner = learnerVm()
+        val operations = operationsVm(empty = true)
+        val content: @Composable () -> Unit = {
+            Shell(WorkspaceDestination.Home, homeContent = {
+                WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
+                    onOpenCourse = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
+            })
+        }
         content
     },
-    ScreenSpec("tareas-hechas") {
-        val operations = operationsVm(OperationsResource.EXECUTIONS)
-        val workspace = workspaceVm()
-        val content: @Composable () -> Unit = { Shell(WorkspaceDestination.Tasks, taskContent = { Tasks(operations, workspace) }) }
-        content
-    },
-    ScreenSpec("aprender") {
+    ScreenSpec("perfil") {
         val learner = learnerVm()
         val content: @Composable () -> Unit = {
-            Shell(WorkspaceDestination.Learn, learnHeader = {
-                TrainingLearnerHeader(F.USER, F.ORG, true, learner, onOpenCourse = {}, onAchievements = {}, onPaths = {})
+            Shell(WorkspaceDestination.Account, workerProfile = {
+                WorkerProfileContent(learner, F.USER, F.ORG, F.DISPLAY_NAME, "Cocina Andina", BpmFeedbackSettings(sound = true, vibration = false),
+                    onSound = {}, onVibration = {}, onOpenCourse = {}, onLearn = {}, onDevices = {}, onAcceptInvitation = {}, onLogout = {})
             })
         }
         content
     },
-    ScreenSpec("curso") { courseScreen { _, _ -> } },
-    ScreenSpec("leccion") { courseScreen { vm, _ -> vm.selectLesson(F.lessonIds[2]) } },
-    ScreenSpec("estudio") {
+    ScreenSpec("tareas") {
+        val operations = operationsVm()
+        val workspace = workspaceVm()
+        val content: @Composable () -> Unit = { Shell(WorkspaceDestination.Tasks, taskContent = { Tasks(operations, workspace) }) }
+        content
+    },
+    ScreenSpec("tarea-paso1", full = false) { quickTask(QuickStep.Result) { } },
+    ScreenSpec("tarea-nota", full = false) { quickTask(QuickStep.Note) { it.field("result", "OBSERVED"); it.field("observation", "Falta detergente en el dispensador.") } },
+    ScreenSpec("tarea-foto", full = false) { quickTask(QuickStep.Photo) { } },
+    ScreenSpec("tarea-lista", full = false) { quickTask(QuickStep.Result) { it.save() } },
+    ScreenSpec("reportar", full = false) {
+        val fixture = F.IncidentsFixture()
+        val incidents = IncidentsViewModel(ManageIncidents(fixture, fixture, fixture), ::nextId, { NOW })
+        incidents.open(F.USER, F.ORG, "WORKER", F.SITE, "America/Lima")
+        incidents.picker(IncidentPicker.CATALOG)
+        incidents.newReport()
+        incidents.editor.selectCatalog(F.incidentCatalog[1])
+        val content: @Composable () -> Unit = {
+            Shell(
+                WorkspaceDestination.Tasks,
+                secondaryContent = { WorkerReportContent(incidents, onClose = {}, onEvidence = { _, _, _, _ -> }, onOpenList = {}, modifier = Modifier.fillMaxSize()) },
+                secondaryEditor = true, focusMode = true, playFocus = true,
+            )
+        }
+        content
+    },
+    ScreenSpec("camino") {
+        val learner = learnerVm()
+        val content: @Composable () -> Unit = {
+            Shell(WorkspaceDestination.Learn, workerLearn = { catalog ->
+                WorkerLearnContent(learner, F.USER, F.ORG, true, { _, _ -> }, {}, {}, catalog)
+            })
+        }
+        content
+    },
+    ScreenSpec("guia-curso") { courseScreen { _, _ -> } },
+    ScreenSpec("idea", full = false) { courseScreen { vm, _ -> vm.selectLesson(F.lessonIds[2]) } },
+    ScreenSpec("pregunta", full = false) {
+        courseScreen(initialPick = 0) { vm, _ -> vm.startStudy(F.lessonIds[2], repeatMissed = true) }
+    },
+    ScreenSpec("pregunta-correcta", full = false) {
         courseScreen { vm, _ ->
-            vm.startStudy(F.lessonIds[2])
-            // Respuesta equivocada: muestra la retroalimentación con la explicación.
-            vm.answerStudy(1)
+            vm.startStudy(F.lessonIds[2], repeatMissed = true)
+            vm.answerStudy(F.correctOptions[4])
         }
     },
-    ScreenSpec("evaluacion") {
+    ScreenSpec("pregunta-incorrecta", full = false) {
+        courseScreen { vm, _ ->
+            vm.startStudy(F.lessonIds[2], repeatMissed = true)
+            vm.answerStudy(2)
+        }
+    },
+    ScreenSpec("fin-leccion", full = false) {
+        courseScreen { vm, _ ->
+            vm.startStudy(F.lessonIds[2], repeatMissed = true)
+            vm.answerStudy(F.correctOptions[4]); vm.nextStudyQuestion()
+            vm.answerStudy(F.correctOptions[5]); vm.nextStudyQuestion()
+        }
+    },
+    ScreenSpec("evaluacion", full = false) {
         courseScreen { vm, _ ->
             vm.startEvaluation(AttemptType.FINAL)
             vm.answerEvaluation(F.questionIds[0], 2)
             vm.answerEvaluation(F.questionIds[1], 1)
+            vm.answerEvaluation(F.questionIds[2], 0)
             vm.answerEvaluation(F.questionIds[4], 0)
             vm.goToQuestion(2) // pregunta 3 de 8
         }
     },
-    // La hoja inferior con el navegador de preguntas abierta (clase compacta y media; en expandida vive en el panel).
-    ScreenSpec("evaluacion-hoja") {
-        courseScreen(navigatorOpen = true) { vm, _ ->
-            vm.startEvaluation(AttemptType.FINAL)
-            vm.answerEvaluation(F.questionIds[0], 2)
-            vm.answerEvaluation(F.questionIds[1], 1)
-            vm.answerEvaluation(F.questionIds[4], 0)
-            vm.goToQuestion(2)
-        }
-    },
-    ScreenSpec("revision") {
+    ScreenSpec("revision", full = false) {
         courseScreen { vm, _ ->
             vm.startEvaluation(AttemptType.FINAL)
             F.questionIds.forEachIndexed { i, id -> if (i != 5) vm.answerEvaluation(id, F.correctOptions[i]) } // la 6 queda sin responder
             vm.openReview()
         }
     },
-    ScreenSpec("resultado") {
+    ScreenSpec("resultado", full = false) {
         courseScreen { vm, _ ->
             vm.startEvaluation(AttemptType.FINAL)
             F.questionIds.forEachIndexed { i, id -> vm.answerEvaluation(id, if (i == 5) 0 else F.correctOptions[i]) } // 7 de 8
@@ -229,6 +295,20 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         }
     },
 )
+
+/** Registro rápido de una tarea (la vencida del turno) en el shell real, en modo enfoque; [drive] lleva el ViewModel al estado deseado. */
+private fun quickTask(step: QuickStep, drive: (OperationsViewModel) -> Unit): @Composable () -> Unit {
+    val operations = operationsVm()
+    operations.newCleaningFor(F.todayPlans[1])
+    drive(operations)
+    return {
+        Shell(
+            WorkspaceDestination.Home,
+            secondaryContent = { WorkerQuickTask(operations, null, "Volver a Hoy", Modifier.fillMaxSize(), initialStep = step) },
+            secondaryEditor = true, focusMode = true, playFocus = true,
+        )
+    }
+}
 
 /** Piezas del paquete U1 (filas planas, fila de curso, acciones en línea) en los tres anchos, para revisarlas a la vista. */
 @Composable
@@ -250,6 +330,100 @@ private fun U1Components() {
             }
         }
     }
+}
+
+/**
+ * Piezas del paquete J1 (estilo de juego de Personal) con todos sus estados, en los tres anchos. La parte 1 reúne
+ * botones, opciones, fichas, misiones, contadores y avance; la parte 2, respuesta, celebración, tomate, camino y navegación.
+ */
+@Composable
+private fun J1Components(part: Int) {
+    BpmTheme {
+        BpmWindowBox(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White)) { windowClass, _ ->
+            Row(Modifier.fillMaxSize()) {
+                if (windowClass >= BpmWindowClass.Expanded) BpmPlaySideMenu(BpmBrand.name, listOf(
+                    BpmPlayNavItem("Hoy", BpmSymbol.Home, true) {}, BpmPlayNavItem("Aprender", BpmSymbol.Route, false) {},
+                    BpmPlayNavItem("Tareas", BpmSymbol.Control, false) {}, BpmPlayNavItem("Perfil", BpmSymbol.Account, false) {}))
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (part == 1) J1PartOne() else J1PartTwo()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun J1Label(text: String) = Text(text.uppercase(), style = BpmPlayType.label, color = BpmPlayColors.muted)
+
+@Composable
+private fun J1PartOne() {
+    Text("Tipografía de juego", style = BpmPlayType.h1, color = BpmPlayColors.ink)
+    Text("h2 Nunito 900 · 17 sp", style = BpmPlayType.h2, color = BpmPlayColors.ink)
+    Text("Texto de lectura Nunito 700 · 15 sp con acentos: ñ á é í ó ú ¿?", style = BpmPlayType.text, color = BpmPlayColors.ink)
+    Text("Apoyo gris Nunito 600 · 14 sp", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    J1Label("Botones gruesos")
+    BpmChunkyButton("Continuar", {}, Modifier.fillMaxWidth())
+    BpmChunkyButton("Correcto", {}, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Correct)
+    BpmChunkyButton("Entendido", {}, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Error)
+    BpmChunkyButton("Reportar", {}, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report, icon = BpmSymbol.Camera)
+    BpmChunkyButton("Ahora no", {}, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+    BpmChunkyButton("Comprobar", {}, Modifier.fillMaxWidth(), enabled = false)
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { BpmChunkyButton("Siguiente", {}, icon = BpmSymbol.Play); BpmChunkyButton("Listo", {}, tone = BpmChunkyTone.Correct) }
+    J1Label("Opciones de respuesta")
+    BpmOptionTile("Guardarlo a 5 °C o menos", "1", BpmOptionState.Idle, {}, Modifier.fillMaxWidth())
+    BpmOptionTile("Dejarlo a temperatura ambiente una hora", "2", BpmOptionState.Selected, {}, Modifier.fillMaxWidth())
+    BpmOptionTile("Cubrir la herida con apósito impermeable y guante, y avisar al jefe de cocina", "3", BpmOptionState.Correct, {}, Modifier.fillMaxWidth())
+    BpmOptionTile("Seguir trabajando sin cubrirla", "4", BpmOptionState.Wrong, {}, Modifier.fillMaxWidth())
+    J1Label("Fichas con icono")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        BpmChoiceTile("Bien", BpmSymbol.Check, BpmPlayTone.Correct, true, {}, Modifier.weight(1f))
+        BpmChoiceTile("Con observación", BpmSymbol.Eye, BpmPlayTone.Gold, false, {}, Modifier.weight(1f))
+    }
+    BpmChoiceTile("No se pudo hacer", BpmSymbol.Close, BpmPlayTone.Streak, false, {}, Modifier.fillMaxWidth(), horizontal = true)
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        BpmChoiceTile("Temperatura", BpmSymbol.Thermometer, BpmPlayTone.Streak, false, {}, Modifier.weight(1f))
+        BpmChoiceTile("Equipo malogrado", BpmSymbol.Wrench, BpmPlayTone.Action, false, {}, Modifier.weight(1f))
+    }
+    J1Label("Misiones")
+    BpmMissionRow("Desinfectar mesas de preparación", "Venció a las 10:00", BpmSymbol.Spray, BpmPlayTone.Streak, done = false, late = true, onCheck = {}, onOpen = {})
+    BpmMissionRow("Temperatura de la cámara", "Hasta las 12:00", BpmSymbol.Thermometer, BpmPlayTone.Action, done = false, late = false, onCheck = {}, onOpen = {})
+    BpmMissionRow("Lavado de manos al ingresar", "Hecho 8:05", BpmSymbol.Drop, BpmPlayTone.Correct, done = true, late = false, onCheck = {}, onOpen = {})
+    BpmMissionRow("Revisar fechas de vencimiento", "Hasta las 15:00", BpmSymbol.Box, BpmPlayTone.Gold, done = false, late = false, onCheck = {}, onOpen = {})
+    J1Label("Contadores y avance")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        BpmStatPill(BpmSymbol.Flame, "6", BpmPlayTone.Streak); BpmStatPill(BpmSymbol.Bolt, "560", BpmPlayTone.Gold); BpmStatPill(BpmSymbol.Target, "2/3", BpmPlayTone.Action)
+    }
+    BpmChunkyProgress(0.66f, Modifier.fillMaxWidth())
+    BpmChunkyProgress(0.375f, Modifier.fillMaxWidth(), tone = BpmPlayTone.Gold)
+    BpmChunkyProgress(0.05f, Modifier.fillMaxWidth())
+    BpmChunkyProgress(0f, Modifier.fillMaxWidth())
+    BpmStepDots(3, 2)
+}
+
+@Composable
+private fun J1PartTwo() {
+    J1Label("Franja de respuesta")
+    BpmFeedbackSheet(true, "¡Muy bien!", "A 5 °C o menos las bacterias casi no se multiplican.", "Continuar", {}, Modifier.fillMaxWidth())
+    BpmFeedbackSheet(false, "Casi", "Una herida abierta contamina los alimentos. Se cubre con apósito impermeable y guante.", "Entendido", {}, Modifier.fillMaxWidth())
+    J1Label("Celebración")
+    BpmCelebration(Res.drawable.mascot_welcome, "¡Lección completa!", "Sigue así, vas muy bien", listOf(
+        BpmStatTileSpec("XP", "15", BpmPlayTone.Gold, BpmSymbol.Bolt), BpmStatTileSpec("Racha", "7", BpmPlayTone.Streak, BpmSymbol.Flame),
+        BpmStatTileSpec("Aciertos", "90%", BpmPlayTone.Correct, BpmSymbol.Target)))
+    J1Label("Tomate que habla")
+    BpmMascotRow(Res.drawable.mascot_learning, buildAnnotatedString {
+        append("¡Hola, Lucía! Te faltan "); withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append("2 tareas") }
+        append(" y "); withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append("1 lección") }; append(" para cerrar el día.")
+    })
+    J1Label("Camino")
+    BpmUnitBanner("Módulo 1 · Sección 2", "Higiene y manipulación", BpmPlayColors.unitColors[0], {})
+    BpmLearningPath(listOf(
+        BpmPathNodeSpec(BpmPathNodeState.Done, {}), BpmPathNodeSpec(BpmPathNodeState.Done, {}), BpmPathNodeSpec(BpmPathNodeState.Current, {}),
+        BpmPathNodeSpec(BpmPathNodeState.Locked, {}), BpmPathNodeSpec(BpmPathNodeState.Trophy, {}, enabled = false)))
+    BpmUnitBanner("Módulo 2 · Sección 1", "Temperaturas seguras", BpmPlayColors.unitColors[1], {})
+    BpmUnitBanner("Módulo 3 · Sección 1", "Limpieza y desinfección", BpmPlayColors.unitColors[2], {})
+    J1Label("Navegación (barra inferior)")
+    BpmPlayBottomBar(listOf(BpmPlayNavItem("Hoy", BpmSymbol.Home, true) {}, BpmPlayNavItem("Aprender", BpmSymbol.Route, false) {},
+        BpmPlayNavItem("Tareas", BpmSymbol.Control, false) {}, BpmPlayNavItem("Perfil", BpmSymbol.Account, false) {}))
 }
 
 @Composable
@@ -281,8 +455,8 @@ class WorkerScreenshots {
                         check(looksRendered(base)) { "captura en blanco" }
                         writePng(base, File(dir, "${spec.name}-${size.label}.png"))
                         var shown = base
-                        val tall = collapseEmptyGap(renderOffscreen(size.widthDp, TALL_HEIGHT_DP, spec.build()), size.sideNavDp)
-                        val overflows = tall.height > base.height + 12
+                        val tall = if (spec.full) collapseEmptyGap(renderOffscreen(size.widthDp, TALL_HEIGHT_DP, spec.build()), size.sideNavDp) else base
+                        val overflows = spec.full && tall.height > base.height + 12
                         if (overflows) {
                             check(looksRendered(tall)) { "captura completa en blanco" }
                             writePng(tall, File(dir, "${spec.name}-${size.label}-full.png"))

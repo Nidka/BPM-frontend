@@ -66,7 +66,7 @@ for (const file of walk(source)) {
   text.split('\n').forEach((line, index) => {
     const at = `${rel}:${index + 1}`;
     const code = line.replace(/\/\/.*$/, '');
-    const isTheme = /designsystem[\\/](BpmTheme|BpmButtons|Components|BpmLayoutComponents|BpmFilterChip)\.kt$/.test(file);
+    const isTheme = /designsystem[\\/](BpmTheme|BpmButtons|Components|BpmLayoutComponents|BpmFilterChip|BpmPlayType|BpmPlayColors)\.kt$/.test(file);
     // R7: el botón principal solo mide a contenido (mínimo 160 dp) o a ancho completo.
     if (!isTheme && /RaisedButton\(/.test(code) && /\.(?:width|widthIn|sizeIn)\(/.test(code)
       && !/widthIn\(min\s*=\s*160\.dp\)/.test(code))

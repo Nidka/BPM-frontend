@@ -25,6 +25,12 @@ enum class BpmSymbol(internal val resource: DrawableResource) {
     ChevronRight(Res.drawable.ic_chevron_right), Close(Res.drawable.ic_x),
     Route(Res.drawable.ic_route), Book(Res.drawable.ic_book),
     Flame(Res.drawable.ic_flame),
+    // Iconos del estilo de juego de Personal (Lucide, licencia ISC).
+    Star(Res.drawable.ic_star), Trophy(Res.drawable.ic_trophy), Bolt(Res.drawable.ic_bolt),
+    Target(Res.drawable.ic_target), Thermometer(Res.drawable.ic_thermo), Spray(Res.drawable.ic_spray),
+    Box(Res.drawable.ic_box), Hand(Res.drawable.ic_hand), Bug(Res.drawable.ic_bug),
+    Wrench(Res.drawable.ic_wrench), Drop(Res.drawable.ic_drop), Eye(Res.drawable.ic_eye),
+    Dots(Res.drawable.ic_dots), WifiOff(Res.drawable.ic_wifi_off),
 }
 
 /** La etiqueta pertenece al control; los íconos decorativos reciben una descripción nula. */

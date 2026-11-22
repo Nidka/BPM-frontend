@@ -22,7 +22,7 @@ import pe.bpm.core.designsystem.BpmTheme
 /** Un ancho de ventana a capturar (en dp); el alto es el de una pantalla típica de ese tipo de dispositivo. */
 internal data class ScreenshotSize(val label: String, val widthDp: Int, val heightDp: Int) {
     /** Ancho (dp) ocupado por la navegación lateral: no cuenta como contenido al recortar el espacio vacío. */
-    val sideNavDp: Int get() = when { widthDp >= 840 -> 240; widthDp >= 600 -> 80; else -> 0 }
+    val sideNavDp: Int get() = when { widthDp >= 840 -> 230; else -> 0 }
 }
 
 internal val ScreenshotSizes = listOf(

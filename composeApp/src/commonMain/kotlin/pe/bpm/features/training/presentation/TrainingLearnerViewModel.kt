@@ -30,6 +30,11 @@ data class LearnerState(
     val pathDetail: LearningPath? = null,
     val pathDetailLoading: Boolean = false,
     val pathDetailFailure: TrainingFailure? = null,
+    /** Cursos asignados con sus lecciones y avance (camino de Aprender del personal), por id de curso. */
+    val pathCourses: Map<String, TrainingCourse> = emptyMap(),
+    /** Cursos asignados cuyo detalle no se pudo cargar (el camino ofrece abrirlos de otra forma). */
+    val pathCoursesFailed: Set<String> = emptySet(),
+    val pathCoursesLoading: Boolean = false,
 )
 
 /** «Mis capacitaciones», «Mis logros» y rutas de aprendizaje para quien aprende. */
@@ -40,6 +45,8 @@ class TrainingLearnerViewModel(
     /** Descarga el catálogo offline (ETag/304) al abrir «Mis capacitaciones» para poder estudiar sin conexión. */
     private val syncCatalog: (suspend (String) -> Unit)? = null,
     private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
+    /** Carga un curso completo (lecciones y avance) para dibujar el camino de Aprender; sin él no hay camino. */
+    private val loadCourse: LoadTrainingCourse? = null,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(LearnerState())
     val state: StateFlow<LearnerState> = mutable.asStateFlow()
@@ -115,6 +122,33 @@ class TrainingLearnerViewModel(
                 }
                 is TrainingResult.Failure -> mutable.value.copy(assignmentsLoading = false, assignmentsFailure = result.reason)
             }
+        }
+    }
+
+    /**
+     * Carga, una tras otra, las lecciones y el avance de los cursos asignados para dibujar el camino. Cada curso que
+     * llega se publica al momento; el que falla queda en [LearnerState.pathCoursesFailed]. No hace nada sin cargador,
+     * sin membresía o sin asignaciones.
+     */
+    fun loadPathCourses() {
+        val loader = loadCourse ?: return
+        val s = mutable.value
+        val org = s.organizationId ?: return
+        if (!s.member) return
+        val ids = s.assignments.map { it.course.id }.distinct()
+        if (ids.isEmpty()) return
+        mutable.value = s.copy(pathCoursesLoading = true)
+        launchJob("pathCourses") { expected ->
+            for (id in ids) {
+                val result = loader(org, id)
+                if (expected != generation) return@launchJob
+                val current = mutable.value
+                mutable.value = when (result) {
+                    is TrainingResult.Success -> current.copy(pathCourses = current.pathCourses + (id to result.value), pathCoursesFailed = current.pathCoursesFailed - id)
+                    is TrainingResult.Failure -> current.copy(pathCoursesFailed = current.pathCoursesFailed + id)
+                }
+            }
+            mutable.value = mutable.value.copy(pathCoursesLoading = false)
         }
     }
 
