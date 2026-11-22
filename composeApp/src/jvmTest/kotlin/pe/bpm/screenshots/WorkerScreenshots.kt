@@ -129,6 +129,7 @@ internal fun Shell(
     focusMode: Boolean = false,
     focusTitle: String? = null,
     role: String = "WORKER",
+    secondaryTitle: String? = null,
 ) {
     WorkspaceScreen(
         viewer = WorkspaceViewer(F.USER, F.DISPLAY_NAME, "lucia.quispe@cocinaandina.pe", false),
@@ -143,7 +144,7 @@ internal fun Shell(
         hiddenCourseIds = F.assignments.map { it.course.id }.toSet(),
         onAlerts = {}, unreadAlertCount = 2,
         taskContent = taskContent,
-        secondaryContent = secondaryContent, secondaryEditor = secondaryEditor, secondaryPattern = secondaryPattern,
+        secondaryContent = secondaryContent, secondaryTitle = secondaryTitle, secondaryEditor = secondaryEditor, secondaryPattern = secondaryPattern,
         secondaryWideOnExpanded = secondaryWideOnExpanded,
         focusMode = focusMode, focusTitle = focusTitle,
         onOrganizationSearch = {}, onOrganizationNext = {}, onOrganizationPrevious = {}, onOrganizationRetry = {},
@@ -311,6 +312,6 @@ class WorkerScreenshots {
 /** Todas las pantallas, o solo las que empiezan por alguno de los prefijos de `BPM_SCREENSHOTS_ONLY` (separados por comas). */
 private fun selectedScreens(): List<ScreenSpec> {
     val prefixes = System.getenv("BPM_SCREENSHOTS_ONLY")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
-    val all = workerScreens + accessScreens + homeScreens
+    val all = workerScreens + accessScreens + homeScreens + accountScreens
     return if (prefixes.isEmpty()) all else all.filter { spec -> prefixes.any { spec.name.startsWith(it) } }
 }

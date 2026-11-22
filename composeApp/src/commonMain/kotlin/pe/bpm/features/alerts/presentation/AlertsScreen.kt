@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -26,11 +27,8 @@ fun AlertsScreen(
     modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
     verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
-    Text("Mis avisos", style = MaterialTheme.typography.headlineSmall)
-    Text(
-      "Aquí solo ves los avisos dirigidos a tu cuenta.",
-      style = MaterialTheme.typography.bodyMedium,
-    )
+    // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): cada una lleva la suya (BpmPageHeader).
+    BpmPageHeader("Mis avisos", description = "Aquí solo ves los avisos dirigidos a tu cuenta.")
     pushControls()
     if (s.unreadCount != null) Text("Sin leer: ${s.unreadCount}")
     if (s.countFailure != null) {
@@ -43,35 +41,36 @@ fun AlertsScreen(
     if (a != null) {
       BpmCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-          Text(a.title, style = MaterialTheme.typography.titleLarge)
-          Text(alertStatusLabel(a))
+          // Título con su estado a la derecha (igual que las tarjetas del listado); los datos del aviso van agrupados.
+          Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.Top) {
+            Text(a.title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+            BpmStatusChip(alertStatusLabel(a), alertStatusTone(a))
+          }
           pe.bpm.core.offline.PendingBadge(a.id)
           Text(a.message)
-          Text(
-            "${alertTypeLabel(a.type)} · ${displayDateTime(a.createdAt)}",
-            style = MaterialTheme.typography.bodySmall,
-          )
-          if (a.locationName.isNotBlank()) Text("Sede: ${a.locationName}")
-          a.viewedAt?.let { Text("Visto: ${displayDateTime(it)}") }
-          a.attendedAt?.let { Text("Atendido: ${displayDateTime(it)}") }
+          Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+            Text(
+              "${alertTypeLabel(a.type)} · ${displayDateTime(a.createdAt)}",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (a.locationName.isNotBlank()) Text("Sede: ${a.locationName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            a.viewedAt?.let { Text("Visto: ${displayDateTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            a.attendedAt?.let { Text("Atendido: ${displayDateTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+          }
           if (s.actionBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
           s.actionFailure?.let { AlertError(it, viewModel::retryAction) }
           if (a.status != AlertStatus.CANCELLED) {
-            FlowRow(
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-              verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-              if (a.viewedAt == null)
-                BpmSecondaryButton(viewModel::markViewed, enabled = !s.actionBusy) {
-                  Text("Marcar como visto")
-                }
-              if (a.attendedAt == null)
-                RaisedButton(
-                  "Marcar como atendido",
-                  viewModel::markAttended,
-                  enabled = !s.actionBusy,
-                )
-            }
+            // Regla G7: el par de acciones va en línea (el secundario a la izquierda, el principal a la derecha), nunca a todo el ancho.
+            if (a.attendedAt == null)
+              BpmInlineActions(
+                secondary = if (a.viewedAt == null) ({
+                  BpmSecondaryButton(viewModel::markViewed, Modifier.fillMaxWidth(), enabled = !s.actionBusy) { Text("Marcar como visto") }
+                }) else null,
+                primary = { RaisedButton("Marcar como atendido", viewModel::markAttended, Modifier.fillMaxWidth(), enabled = !s.actionBusy) },
+              )
+            else if (a.viewedAt == null)
+              BpmInlineActions(primary = { RaisedButton("Marcar como visto", viewModel::markViewed, Modifier.fillMaxWidth(), enabled = !s.actionBusy) })
             Text(
               "Atender este aviso registra tu atención. La tarea del recurso se completa desde su propio módulo.",
               style = MaterialTheme.typography.bodySmall,
@@ -109,20 +108,16 @@ fun AlertsScreen(
       }
       if (s.inboxLoaded && s.inbox.rows.isEmpty() && !s.loading && s.failure == null)
         EmptyState("Sin avisos", "No hay avisos para esta consulta. Cambia la búsqueda o el filtro para ver otros.")
+      // Mismo ítem de listado que Dispositivos y Equipo (specs/LAYOUT.md §3.4): título con su estado, datos agrupados y una acción.
       BpmGridLayout(s.inbox.rows) { row, cardModifier ->
-        BpmCard(cardModifier) {
-          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(row.title, style = MaterialTheme.typography.titleMedium)
-            Text(alertStatusLabel(row))
-            pe.bpm.core.offline.PendingBadge(row.id)
-            Text(row.message)
-            if (row.locationName.isNotBlank()) Text(row.locationName)
-            Text(displayDateTime(row.createdAt), style = MaterialTheme.typography.bodySmall)
-            BpmSecondaryButton({ viewModel.detail(row.id) }, enabled = !s.loading) {
-              Text("Consultar aviso")
-            }
-          }
-        }
+        BpmRecordCard(
+          row.title, cardModifier,
+          status = BpmRecordStatus(alertStatusLabel(row), alertStatusTone(row)),
+          subtitle = row.message,
+          details = listOfNotNull(row.locationName.takeIf { it.isNotBlank() }, displayDateTime(row.createdAt)),
+          onOpen = { viewModel.detail(row.id) }, actionLabel = "Consultar aviso", enabled = !s.loading,
+          extra = { pe.bpm.core.offline.PendingBadge(row.id) },
+        )
       }
       if (s.inboxLoaded)
         PageNavigation(
@@ -154,6 +149,15 @@ internal fun alertStatusLabel(a: Alert) =
     a.attendedAt != null -> "Atendido"
     a.viewedAt != null -> "Visto"
     else -> "Sin leer"
+  }
+
+/** Tono del estado: sin leer llama la atención, atendido es correcto y lo demás es neutro. */
+internal fun alertStatusTone(a: Alert) =
+  when {
+    a.status == AlertStatus.CANCELLED -> BpmTone.Neutral
+    a.attendedAt != null -> BpmTone.Success
+    a.viewedAt != null -> BpmTone.Neutral
+    else -> BpmTone.Warning
   }
 
 internal fun alertTypeLabel(type: AlertType) =

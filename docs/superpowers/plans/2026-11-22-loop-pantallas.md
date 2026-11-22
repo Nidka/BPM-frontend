@@ -24,7 +24,7 @@ No se envían teclas ni clics a ventanas del usuario, y no hace falta iniciar se
 
 ## Lista de revisión por pantalla (criterio de salida)
 
-1. Un solo título de página y va primero; avisos y accesos después.
+1. Un solo título de página y va primero; avisos y accesos después. Las pantallas alojadas con `secondaryEditor` no reciben cabecera del shell: llevan su propio `BpmPageHeader`.
 2. Un solo margen lateral compartido por cabecera y contenido (`BpmSpacing.gutter`); la pantalla alojada no repite relleno.
 3. Separaciones solo de la escala de `bpm-spacing §1`; lo cercano se agrupa, lo distinto se separa.
 4. Columnas, detalle al lado y campos en pares por **ancho útil**, no por ventana; la pantalla no usa `BoxWithConstraints` ni `widthIn(max=)` sueltos (R12/R15 de `LAYOUT.md`).
@@ -51,7 +51,7 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 |---|---|---|
 | 1 | Acceso: Ingreso `acceso`, Conexión `conexion`, Verificar constancia `verificar/{codigo}`, Elegir organización `organizaciones`, Aceptar invitación `cuenta/invitacion` | hecha |
 | 2 | Inicio `inicio` (panel e indicadores) | hecha |
-| 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | pendiente |
+| 3 | Mi cuenta `cuenta`, Mis dispositivos `cuenta/dispositivos`, Cambios pendientes `cambios-pendientes`, Mis avisos `avisos` | hecha |
 | 4 | Empresa `empresa`, Nueva organización / sede, Equipo `equipo`, Agregar persona, Cuentas y equipo `empresa/cuentas` | pendiente |
 | 5 | Aprender `aprender`, Curso / lección `aprender/{courseId}`, Logros, Rutas | pendiente |
 | 6 | Academia (gestión) `empresa/academia`, Encuesta del estudio `estudio`, Investigación `investigacion` | pendiente |
@@ -75,11 +75,13 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
 6. Correr la verificación; capturar «después» en `docs/diseno-loop/<iteración>/despues/` y comprobar cada ítem de la lista.
 7. Anotar fecha, hallazgos, cambios, cifras del verificador, resultado de pruebas y commit en el registro; marcar la fila `hecha`; hacer un commit con el trabajo de la iteración (sin `push`). **Parar.**
 
-**Paradas:** cualquier verificación en rojo que no se arregle en la misma iteración, cambios sin commitear ajenos, una decisión que afecte a todas las pantallas, o un tope de 20 iteraciones. Ante cualquiera: dejar el registro al día y avisar al usuario.
+**Paradas:** cualquier verificación en rojo que no se arregle en la misma iteración, cambios sin commitear ajenos, una decisión global de la que dependa la iteración en curso, o un tope de 20 iteraciones. Las decisiones globales que no bloquean (componentes compartidos, tema) se acumulan en «Para decidir» y se preguntan juntas al llegar a la iteración 14. Ante cualquiera: dejar el registro al día y avisar al usuario.
 
 ## Para decidir (el loop no lo decide solo)
 
 - Inicio de ADMIN y CHEF (iteración 2): el panel suma dos rejillas de tarjetas con columnas distintas (indicadores de cumplimiento en 4 columnas y «Sedes / Cursos / Controles» en 3), más la tarjeta de bienvenida «Capacitación y buenas prácticas» y «Estado de tu espacio». Los conteos «Sedes / Cursos / Controles» no aparecen en otro lugar; quitar o fusionar estos bloques es una decisión de producto, no de espaciado. Decidir si se mantienen.
+- Enlaces de texto sin alinear (iteración 1 y 3): `BpmTextButton` lleva 12 dp de relleno lateral y, aun con relleno 0, Material centra el texto en un ancho mínimo de 58 dp. Los textos cortos («Volver») quedan unos 4 dp a la derecha del borde y los enlaces de `BpmRecordCard` («Revocar», «Descartar») unos 10 dp. Se corrigió en el ingreso con `AuthLink`; un arreglo común sería una opción `flushStart` en `BpmTextButton` y que `BpmRecordCard` la use, lo que cambia todas las pantallas con enlaces.
+- Título truncado en tarjetas con chip largo (iteración 3): en 390 dp «Registro de limpieza de campana» queda cortado a dos líneas junto a «Necesita tu revisión». Opciones: chip debajo del título en compacta, o aceptar el recorte.
 
 ## Registro de ejecución
 
@@ -105,3 +107,16 @@ Gradle se lanza con `./gradlew` desde **Git Bash** (no hay `gradlew.bat`). iOS n
   - Indicadores (`DashboardPanel`): filas con tarjetas del mismo alto, texto ≥ 14 sp; sin cambios. En 390 dp el séptimo indicador queda solo en su fila (siete tarjetas en dos columnas): se acepta.
 - **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest` y `assembleDebug` en verde; 6 capturas nuevas sin fallos.
 - **Para decidir:** ver arriba (Inicio de ADMIN y CHEF).
+
+### Iteración 3: Mi cuenta, dispositivos, cambios pendientes y avisos (22/11/2026)
+
+- **Capturas:** `docs/diseno-loop/3/antes` y `despues`. Nuevo `AccountScreens.kt` en el arnés (`cuenta-admin`, `cuenta-worker`, `dispositivos`, `pendientes`, `avisos-lista`, `avisos-detalle`) y parámetro `secondaryTitle` en `Shell`. Las pantallas alojadas se capturan con `secondaryEditor = true`, igual que `App.kt` (sin él, el scroll del shell rompe la medición).
+- **Hallazgo previo descartado:** creí que «Mis avisos» tenía el título duplicado; el shell no pone cabecera a las pantallas con `secondaryEditor`, así que el título interno era el único. La convención real es que cada pantalla alojada lleva su propio `BpmPageHeader` (ya la seguían Normativa y Automatizaciones). Se añadió a la lista de revisión.
+- **Cambios:**
+  - Mis dispositivos (`AccountsScreens.kt`): no tenía ningún título → `BpmPageHeader` con la explicación como descripción.
+  - Mis avisos (`AlertsScreen.kt`): título interno `headlineSmall` → `BpmPageHeader`; las tarjetas del listado pasan de `BpmCard` manual (todo a 8 dp, estado como texto) a `BpmRecordCard` (título con chip de estado con tono, datos agrupados, una acción); el detalle lleva el estado como chip, los datos agrupados a 4 dp y el par «Marcar como visto / atendido» en `BpmInlineActions` (regla G7) en lugar de un `FlowRow` con anchos desiguales.
+  - `BpmRecordCard`: parámetro opcional `extra` (aditivo, sin efecto en los usos actuales) para que el listado de avisos conserve `PendingBadge`.
+  - Cambios pendientes (`OfflineUi.kt`): «Volver» sin relleno lateral; las tarjetas usan `BpmRecordCard` con el estado como chip (azul en cola, ámbar si necesita revisión, rojo si falló).
+  - Mi cuenta (ADMIN y WORKER): cumple la lista; sin cambios.
+- **Verificación:** `check-spacing --strict` 0 errores y 0 avisos; `jvmTest`, `assembleDebug` y `wasmJsBrowserDistribution` en verde; 12 capturas sin fallos.
+- **Sin comprobar (solo código):** el panel de notificaciones push (`pushControls`) del listado de avisos, que necesita el ViewModel de dispositivos de notificaciones.

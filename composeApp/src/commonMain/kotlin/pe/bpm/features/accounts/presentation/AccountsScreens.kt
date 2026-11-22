@@ -37,7 +37,8 @@ fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewMo
 fun DevicesScreen(viewModel: DevicesViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        Text("Estos son los dispositivos de tus organizaciones que reciben avisos. Si no reconoces alguno, revócalo.")
+        // El shell no pone cabecera a las pantallas alojadas (`secondaryEditor`): cada una lleva la suya.
+        BpmPageHeader("Mis dispositivos", description = "Estos son los dispositivos de tus organizaciones que reciben avisos. Si no reconoces alguno, revócalo.")
         AccountMessages(state.failure, state.notice)
         state.revoking?.let { device ->
             BpmConfirmPanel("¿Revocar ${device.platform.label}?", "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke, busy = state.busy) {

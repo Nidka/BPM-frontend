@@ -127,6 +127,8 @@ fun BpmRecordCard(
     textActions: List<Pair<String, () -> Unit>> = emptyList(),
     enabled: Boolean = true,
     selected: Boolean = false,
+    /** Contenido propio entre los datos de apoyo y las acciones (por ejemplo, la marca de «Pendiente de enviar»). */
+    extra: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     BpmCard(modifier, variant = BpmCardVariant.Compact, onClick = onOpen, onClickLabel = actionLabel ?: "Ver detalle", enabled = enabled, selected = selected) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.Top) {
@@ -137,6 +139,7 @@ fun BpmRecordCard(
             subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             details.take(3).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
+        extra?.invoke(this)
         if (actionLabel != null || textActions.isNotEmpty()) {
             if (actionLabel != null) BpmSecondaryButton(onClick = onAction ?: onOpen ?: {}, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text(actionLabel) }
             // Apiladas: una fila que se parte (FlowRow) no informa bien su alto a la rejilla y la segunda acción quedaba recortada.
