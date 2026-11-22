@@ -16,7 +16,7 @@ class PlayContrastTest {
 
     private fun assertReadable(name: String, text: Color, background: Color) {
         val ratio = contrast(text, background)
-        assertTrue(ratio >= 4.5, "$name: contraste ${"%.2f".format(ratio)} < 4,5")
+        assertTrue(ratio >= 4.5, "$name: contraste ${kotlin.math.round(ratio * 100) / 100} < 4,5")
     }
 
     @Test fun chipsReadOnTheirSoftBackground() {
