@@ -73,7 +73,7 @@ fun BpmDetailScaffold(
     primaryAction: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.fillMaxWidth().widthIn(max = BpmPatternRules.readingWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         onBack?.let { BpmBackLink(label = backLabel, onClick = it) }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             eyebrow?.let { Text(it.uppercase(), style = BpmPlayType.kicker, color = BpmPlayColors.action.face) }

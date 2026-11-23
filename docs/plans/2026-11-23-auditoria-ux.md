@@ -38,7 +38,7 @@ ofrece el botón que lo arregla.
 | H4 | La píldora «0/2» arriba repetía la tarjeta Meta de hoy | Se quitó de Hoy; arriba quedan solo racha y XP | Hecho |
 | H5 | Encabezado «Tu turno · 1 tarea» redundante | «Tu turno» + ficha del turno abierto («TURNO TARDE») y, sin panel lateral, ficha de avance («2 DE 7») | Hecho |
 | H6 | La tarjeta derecha «Tu turno» repetía la lista de la izquierda | Ahora «Avance del turno»: barra, «5 tareas por hacer» y ficha roja «1 VENCIDA»; ya no repite la siguiente tarea | Hecho |
-| H7 | Inicio de sesión: Enter debe enviar el formulario en web; el mensaje de error desplaza el botón en móvil | Enter ya enviaba en los campos de acceso (verificado en `IdentityScreen`); el desplazamiento por el mensaje se mantiene (aceptado) | Hecho / aceptado |
+| H7 | Inicio de sesión: Enter debe enviar el formulario en web; el mensaje de error desplaza el botón en móvil | **Verificado en vivo que Enter NO enviaba** (solo cerraba el teclado; la primera versión de este informe lo daba por hecho sin probarlo). `BpmTextField` gana `onSubmit` y el último campo de cada modo (contraseña al entrar, confirmación al crear cuenta, correo al recuperar) envía el formulario; el desplazamiento del botón por el mensaje de error se acepta | Hecho (verificar en vivo tras el despliegue) |
 
 ## 3. Carga: esqueletos en lugar de barras y «Cargando…»
 

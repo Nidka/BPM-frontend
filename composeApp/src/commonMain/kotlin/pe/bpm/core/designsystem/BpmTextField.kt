@@ -54,6 +54,8 @@ fun BpmTextField(
     trailingIcon: (@Composable () -> Unit)? = null,
     inputKind: BpmInputKind = BpmInputKind.Text,
     rule: InputRule? = null,
+    /** Con «Listo» (Enter en el teclado de la web) envía el formulario además de cerrar el teclado; solo el último campo lo recibe. */
+    onSubmit: (() -> Unit)? = null,
 ) {
     // Conserva selección y composición del IME; la funcionalidad sigue siendo dueña del texto.
     var editing by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
@@ -104,7 +106,7 @@ fun BpmTextField(
             keyboardOptions = options,
             keyboardActions = keyboardActions ?: KeyboardActions(
                 onNext = { nextInput() },
-                onDone = { finishInput() },
+                onDone = { finishInput(); onSubmit?.invoke() },
                 onSearch = { finishInput() },
             ),
             interactionSource = interactions,

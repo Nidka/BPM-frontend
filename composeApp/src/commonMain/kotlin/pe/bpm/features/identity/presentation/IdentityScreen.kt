@@ -103,6 +103,15 @@ fun IdentityScreen(
                     if (state.mode == AuthMode.Login) "login" else "register",
                     { id -> if (!state.busy) changeMode(if (id == "login") AuthMode.Login else AuthMode.Register) })
             }
+            // Enter en el último campo envía el formulario (igual que el botón); no hace nada mientras ya se está enviando.
+            val submitForm: () -> Unit = {
+                if (!state.busy) when (state.mode) {
+                    AuthMode.Register -> onRegister(firstName, lastName, email, password, confirmation)
+                    AuthMode.Recovery -> onRecover(email)
+                    AuthMode.Login -> onLogin(email, password)
+                    else -> Unit
+                }
+            }
             BpmCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (profile != null) {
@@ -127,17 +136,19 @@ fun IdentityScreen(
                             AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, inputKind = BpmInputKind.PersonName, rule = IdentityInputRules.personName, navigation = navigation["lastName"])
                         }
                         AuthField(email, { email = it }, "Correo electrónico", fields["email"], !state.busy, BpmInputKind.Email, rule = IdentityInputRules.email,
-                            autofillType = (if (state.mode == AuthMode.Register) ContentType.NewUsername else ContentType.Username) + ContentType.EmailAddress, navigation = navigation["email"])
+                            autofillType = (if (state.mode == AuthMode.Register) ContentType.NewUsername else ContentType.Username) + ContentType.EmailAddress, navigation = navigation["email"],
+                            onSubmit = if (state.mode == AuthMode.Recovery) submitForm else null)
                         if (state.mode != AuthMode.Recovery) {
                             AuthField(password, { password = it }, "Contraseña", fields["password"], !state.busy, BpmInputKind.Password, !visible,
                                 rule = if (state.mode == AuthMode.Register) IdentityInputRules.registrationPassword else IdentityInputRules.loginPassword,
-                                autofillType = if (state.mode == AuthMode.Register) ContentType.NewPassword else ContentType.Password, navigation = navigation["password"])
+                                autofillType = if (state.mode == AuthMode.Register) ContentType.NewPassword else ContentType.Password, navigation = navigation["password"],
+                                onSubmit = if (state.mode == AuthMode.Login) submitForm else null)
                             if (state.mode == AuthMode.Register) {
                                 Text("Usa entre 8 y 128 caracteres. Combina letras, números y símbolos.", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 AuthField(confirmation, { confirmation = it }, "Confirmar contraseña", fields["confirmPassword"], !state.busy, BpmInputKind.Password, !visible,
                                     rule = InputRule { if (it == password) null else "Las contraseñas no coinciden." },
-                                    autofillType = ContentType.NewPassword, navigation = navigation["confirmation"])
+                                    autofillType = ContentType.NewPassword, navigation = navigation["confirmation"], onSubmit = submitForm)
                             }
                             BpmTextButton(onClick = { visible = !visible }, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
                                 Text(if (visible) "Ocultar contraseña" else "Mostrar contraseña")
@@ -205,8 +216,8 @@ fun IdentityScreen(
 @Composable
 private fun AuthField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,
     inputKind: BpmInputKind = BpmInputKind.Text, hidden: Boolean = false,
-    rule: InputRule? = null, autofillType: ContentType? = null, navigation: BpmFieldNavigation) {
-    BpmTextField(value, onValue, label, enabled = enabled, error = error, navigation = navigation,
+    rule: InputRule? = null, autofillType: ContentType? = null, navigation: BpmFieldNavigation, onSubmit: (() -> Unit)? = null) {
+    BpmTextField(value, onValue, label, enabled = enabled, error = error, navigation = navigation, onSubmit = onSubmit,
         modifier = if (autofillType != null) Modifier.semantics { contentType = autofillType } else Modifier,
         visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
         inputKind = inputKind, rule = rule)
