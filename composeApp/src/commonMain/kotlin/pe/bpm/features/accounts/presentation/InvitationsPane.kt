@@ -36,7 +36,7 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
         AccountMessages(state.failure, state.notice)
         state.share?.let { InvitationSharePanel(it, state.organizationName, viewModel::closeShare) }
         if (state.form != null) InviteFormCard(state.form!!, state, viewModel)
-        else RaisedButton("Invitar por correo", viewModel::openForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
+        else BpmChunkyButton("Invitar por correo", viewModel::openForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
         state.revoking?.let { invitation ->
             BpmConfirmPanel("¿Revocar la invitación de ${invitation.email}?", "Sí, revocar", viewModel::confirmRevoke, viewModel::cancelRevoke, busy = state.busy) {
                 Text("El enlace dejará de funcionar. Puedes invitar de nuevo a esa persona cuando quieras.")
@@ -87,15 +87,13 @@ internal fun InvitationSharePanel(share: ShareState, organizationName: String, o
         Text(share.share.value, style = MaterialTheme.typography.bodyMedium)
         Text(InvitationSharing.notice(share.email), style = MaterialTheme.typography.bodySmall)
         if (!isLink) Text("En Mi cuenta, elige «Aceptar una invitación» y pega este código.", style = MaterialTheme.typography.bodySmall)
-        BpmSecondaryButton(onClick = { sharer.copy(share.share.value) { feedback = if (it == ShareResult.COPIED) (if (isLink) "Enlace copiado." else "Código copiado.") else "No pudimos copiarlo. Selecciónalo y cópialo a mano." } },
-            modifier = Modifier.fillMaxWidth()) { Text(if (isLink) "Copiar enlace" else "Copiar código") }
-        BpmSecondaryButton(onClick = { runCatching { uriHandler.openUri(share.whatsappUrl(organizationName)) }.onFailure { feedback = "No pudimos abrir WhatsApp." } },
-            modifier = Modifier.fillMaxWidth()) { Text("Enviar por WhatsApp") }
-        BpmSecondaryButton(onClick = { sharer.share("Invitación a BPM", share.message(organizationName)) { feedback = when (it) {
+        BpmChunkyButton(if (isLink) "Copiar enlace" else "Copiar código", { sharer.copy(share.share.value) { feedback = if (it == ShareResult.COPIED) (if (isLink) "Enlace copiado." else "Código copiado.") else "No pudimos copiarlo. Selecciónalo y cópialo a mano." } }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+        BpmChunkyButton("Enviar por WhatsApp", { runCatching { uriHandler.openUri(share.whatsappUrl(organizationName)) }.onFailure { feedback = "No pudimos abrir WhatsApp." } }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+        BpmChunkyButton("Compartir", { sharer.share("Invitación a BPM", share.message(organizationName)) { feedback = when (it) {
             ShareResult.SHARED, ShareResult.CANCELLED -> null
             ShareResult.COPIED -> "Tu navegador no puede compartir; copiamos el mensaje."
             ShareResult.FAILED -> "No pudimos abrir la hoja de compartir."
-        } } }, modifier = Modifier.fillMaxWidth()) { Text("Compartir") }
+        } } }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         feedback?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         Text("No guardamos el enlace en este dispositivo ni aparece en la lista. Si lo pierdes, reenvía la invitación.", style = MaterialTheme.typography.bodySmall)
         BpmTextButton(onClick = onClose) { Text("Listo, cerrar") }

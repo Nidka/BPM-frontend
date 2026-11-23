@@ -41,7 +41,7 @@ fun WebhooksScreen(viewModel: WebhooksViewModel, organizationId: String, modifie
             }
         }
         BpmPageHeader("Automatizaciones", description = "Envía los avisos de tu empresa a n8n u otra herramienta mediante webhooks firmados.",
-            actions = if (list != null && list.items.size < list.maxEndpoints) ({ RaisedButton("Agregar webhook", viewModel::create, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy) }) else null)
+            actions = if (list != null && list.items.size < list.maxEndpoints) ({ BpmChunkyButton("Agregar webhook", viewModel::create, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy) }) else null)
         BpmPagedList(loading = state.loading && list == null, failure = null, isEmpty = list?.items.isNullOrEmpty(), pageNumber = 1, canPrevious = false, canNext = false,
             onRetry = viewModel::refresh, onPrevious = {}, onNext = {},
             empty = { EmptyState("Sin webhooks", "Agrega la dirección de un nodo Webhook de n8n para recibir los avisos de control, temperatura, inactividad y capacitación.") }) {
@@ -95,8 +95,7 @@ private fun SecretPanel(webhook: Webhook, onClose: () -> Unit) {
     BpmSection("Guarda este secreto", description = "Lo necesitas en n8n para verificar la firma. No volverá a mostrarse; si lo pierdes, rótalo.") {
         Text(webhook.secret.orEmpty(), style = BpmType.bodyStrong)
         BpmInlineActions(secondary = { BpmTextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Listo, ya lo guardé") } }) {
-            BpmSecondaryButton(onClick = { sharer.copy(webhook.secret.orEmpty()) { feedback = if (it == ShareResult.COPIED) "Secreto copiado." else "No pudimos copiarlo; selecciónalo y cópialo a mano." } },
-                modifier = Modifier.fillMaxWidth()) { Text("Copiar secreto") }
+            BpmChunkyButton("Copiar secreto", { sharer.copy(webhook.secret.orEmpty()) { feedback = if (it == ShareResult.COPIED) "Secreto copiado." else "No pudimos copiarlo; selecciónalo y cópialo a mano." } }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
         feedback?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     }

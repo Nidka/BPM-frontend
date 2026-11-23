@@ -62,15 +62,9 @@ fun AlertsScreen(
               verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
               if (a.viewedAt == null)
-                BpmSecondaryButton(viewModel::markViewed, enabled = !s.actionBusy) {
-                  Text("Marcar como visto")
-                }
+                BpmChunkyButton("Marcar como visto", viewModel::markViewed, tone = BpmChunkyTone.White, enabled = !s.actionBusy)
               if (a.attendedAt == null)
-                RaisedButton(
-                  "Marcar como atendido",
-                  viewModel::markAttended,
-                  enabled = !s.actionBusy,
-                )
+                BpmChunkyButton("Marcar como atendido", viewModel::markAttended, Modifier.fillMaxWidth(), enabled = !s.actionBusy)
             }
             Text(
               "Atender este aviso registra tu atención. La tarea del recurso se completa desde su propio módulo.",
@@ -78,9 +72,7 @@ fun AlertsScreen(
             )
           }
           if (a.sourceAvailable)
-            BpmSecondaryButton({ onOpenSource(a) }, enabled = !s.actionBusy) {
-              Text("Abrir recurso relacionado")
-            }
+            BpmChunkyButton("Abrir recurso relacionado", { onOpenSource(a) }, tone = BpmChunkyTone.White, enabled = !s.actionBusy)
           else Text("El recurso relacionado ya no está disponible para tu cuenta.")
         }
       }
@@ -118,9 +110,7 @@ fun AlertsScreen(
             Text(row.message)
             if (row.locationName.isNotBlank()) Text(row.locationName)
             Text(displayDateTime(row.createdAt), style = MaterialTheme.typography.bodySmall)
-            BpmSecondaryButton({ viewModel.detail(row.id) }, enabled = !s.loading) {
-              Text("Consultar aviso")
-            }
+            BpmChunkyButton("Consultar aviso", { viewModel.detail(row.id) }, tone = BpmChunkyTone.White, enabled = !s.loading)
           }
         }
       }

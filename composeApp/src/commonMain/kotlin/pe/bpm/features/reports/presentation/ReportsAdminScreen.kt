@@ -33,7 +33,7 @@ fun ReportsAdminScreen(viewModel: ReportsAdminViewModel, state: AdminState, modi
 private fun Failure(failure: ReportFailure, onRetry: () -> Unit, fields: Map<String, String> = emptyMap()) {
     BpmCard(Modifier.fillMaxWidth()) {
         Text(reportFailureMessage(failure, fields), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        if (failure.retryable) BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }
+        if (failure.retryable) BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)
     }
 }
 
@@ -52,7 +52,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
                 PercentBar(course.completionPercent)
                 Text("${course.completed} completaron · ${course.inProgress} en curso · ${course.enrolled} inscritas de ${course.assignable}", style = MaterialTheme.typography.bodySmall)
                 if (course.averageBestScore != null) Text("Puntaje promedio: ${formatPercent(course.averageBestScore)}", style = MaterialTheme.typography.bodySmall)
-                BpmSecondaryButton(onClick = { vm.filterCourse(course.courseId) }) { Text("Ver personas de este curso") }
+                BpmChunkyButton("Ver personas de este curso", { vm.filterCourse(course.courseId) }, tone = BpmChunkyTone.White)
             }
         }
         Text("Avance por persona", style = MaterialTheme.typography.titleLarge)
@@ -73,7 +73,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
             Text(person.lastActivityAt?.let { "Última actividad: ${longDate(it)}" } ?: "Sin actividad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    if (state.peopleToken.isNotEmpty()) BpmSecondaryButton(onClick = vm::loadMorePeople, enabled = !state.peopleLoading) { Text("Ver más personas") }
+    if (state.peopleToken.isNotEmpty()) BpmChunkyButton("Ver más personas", vm::loadMorePeople, tone = BpmChunkyTone.White, enabled = !state.peopleLoading)
 }
 
 @Composable
@@ -87,8 +87,7 @@ private fun SettingsSection(vm: ReportsAdminViewModel, state: AdminState) {
             error = if (state.thresholdInvalid) "Escribe un número entre 1 y 100 con hasta 2 decimales." else null,
             supportingText = "Una constancia solo se emite si el cumplimiento promedio del período alcanza este valor.")
         BpmCheckboxRow("Enviar el correo semanal de cumplimiento a las personas administradoras", state.weeklyEnabled) { vm.toggleWeekly(it) }
-        RaisedButton(if (state.settingsSaving) "Guardando…" else "Guardar configuración", vm::saveSettingsNow, Modifier.bpmPrimaryButtonWidth(),
-            enabled = !state.settingsSaving && state.settingsDirty)
+        BpmChunkyButton(if (state.settingsSaving) "Guardando…" else "Guardar configuración", vm::saveSettingsNow, Modifier.bpmPrimaryButtonWidth(), enabled = !state.settingsSaving && state.settingsDirty)
         if (state.settingsSaved) Text("Configuración guardada.", color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
 }
@@ -103,7 +102,7 @@ private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
                 error = state.certPeriodError?.let { ReportPeriodRules.message(it, ReportPeriodRules.SUMMARY_MAX_DAYS) }) },
             { m -> BpmTextField(state.certTo, vm::editCertTo, "Hasta (AAAA-MM-DD)", m) },
         )
-        RaisedButton(if (state.issuing) "Solicitando…" else "Solicitar constancia", vm::issue, Modifier.bpmPrimaryButtonWidth(), enabled = !state.issuing)
+        BpmChunkyButton(if (state.issuing) "Solicitando…" else "Solicitar constancia", vm::issue, Modifier.bpmPrimaryButtonWidth(), enabled = !state.issuing)
         state.issueFailure?.let { Text(reportFailureMessage(it, state.issueFields), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.issued?.let {
             Text(if (it.created) "Constancia emitida. Código: ${it.certificate.verificationCode}" else "Ese período ya tenía una constancia. Código: ${it.certificate.verificationCode}",
@@ -124,5 +123,5 @@ private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
             Text("Verificación pública: /verificar-cumplimiento/${certificate.verificationCode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    if (state.certificatesToken.isNotEmpty()) BpmSecondaryButton(onClick = { vm.loadCertificates(true) }, enabled = !state.certificatesLoading) { Text("Ver más constancias") }
+    if (state.certificatesToken.isNotEmpty()) BpmChunkyButton("Ver más constancias", { vm.loadCertificates(true) }, tone = BpmChunkyTone.White, enabled = !state.certificatesLoading)
 }

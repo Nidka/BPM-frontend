@@ -18,13 +18,17 @@ enum class WorkspaceDestination(val route: String, val label: String) {
 
 /**
  * Etiqueta visible de un destino según el rol. El personal (WORKER) ve «Hoy», «Tareas» y «Perfil»; el jefe de cocina
- * (CHEF) ve «Turno», «Controles» y «Perfil»; el resto de roles conserva [WorkspaceDestination.label]. Solo cambia el
+ * (CHEF) ve «Turno», «Controles» y «Perfil»; el administrador de la organización (ADMIN) ve «Controles» y «Academia» y la antigua sección de
+ * seguimiento se titula también «Controles» (sus revisiones del equipo son una sección de Controles); el resto de roles conserva [WorkspaceDestination.label]. Solo cambia el
  * texto: la ruta y el control de acceso no dependen de él.
  */
 fun destinationLabel(destination: WorkspaceDestination, role: String?): String = when {
     role == "CHEF" && destination == WorkspaceDestination.Home -> "Turno"
     role == "CHEF" && destination == WorkspaceDestination.Operations -> "Controles"
     role == "CHEF" && destination == WorkspaceDestination.Account -> "Perfil"
+    role == "ADMIN" && destination == WorkspaceDestination.Operations -> "Controles"
+    role == "ADMIN" && destination == WorkspaceDestination.Learn -> "Academia"
+    role == "ADMIN" && destination == WorkspaceDestination.Supervision -> "Controles"
     role == "WORKER" && destination == WorkspaceDestination.Home -> "Hoy"
     role == "WORKER" && destination == WorkspaceDestination.Tasks -> "Tareas"
     role == "WORKER" && destination == WorkspaceDestination.Account -> "Perfil"
@@ -35,7 +39,7 @@ fun destinationLabel(destination: WorkspaceDestination, role: String?): String =
 fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<WorkspaceDestination> {
     return when {
         platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
-        role == "ADMIN" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Learn, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
+        role == "ADMIN" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Supervision, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "CHEF" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Account)
         role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Tasks, WorkspaceDestination.Account)
         else -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Account)
@@ -50,7 +54,10 @@ fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<Workspace
 fun workspacePrimaryDestinations(available: List<WorkspaceDestination>, role: String? = null): List<WorkspaceDestination> {
     // El personal (WORKER) tiene «Perfil» como cuarto destino de la barra: Hoy · Aprender · Tareas · Perfil; el jefe de cocina
     // (CHEF), como quinto: Turno · Controles · Equipo · Aprender · Perfil.
-    var primary = available.filter { it != WorkspaceDestination.Account || profileInNavigation(role, available) }
+    // El administrador de la organización (con Controles) navega Inicio · Controles · Equipo · Academia · Empresa: «Seguimiento»
+    // deja de ser destino y sus revisiones viven dentro de Controles (la ruta sigue permitida).
+    val adminMember = role == "ADMIN" && WorkspaceDestination.Operations in available
+    var primary = available.filter { (it != WorkspaceDestination.Account || profileInNavigation(role, available)) && !(adminMember && it == WorkspaceDestination.Supervision) }
     if (primary.size > 5) primary = primary.filter { it != WorkspaceDestination.Team }
     if (primary.size > 5) primary = primary.filter { it != WorkspaceDestination.Learn }
     return primary

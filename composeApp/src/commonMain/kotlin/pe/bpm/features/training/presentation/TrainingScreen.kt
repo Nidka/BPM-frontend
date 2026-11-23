@@ -66,7 +66,7 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, 
         state.failure?.let { failure ->
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                if (failure.retryable || state.course == null) BpmSecondaryButton(onClick = viewModel::refresh) { Text("Volver a intentar") }
+                if (failure.retryable || state.course == null) BpmChunkyButton("Volver a intentar", viewModel::refresh, tone = BpmChunkyTone.White)
             }
         }
         state.notice?.let { notice ->
@@ -179,9 +179,7 @@ internal fun DownloadsRow(course: TrainingCourse, state: TrainingState, viewMode
                     Text("Descargando… ${formatBytes(progress)} de ${formatBytes(total)}", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                     BpmTextButton(onClick = viewModel::cancelDownload) { Text("Pausar descarga") }
                 } else if (done < videos.size) {
-                    BpmSecondaryButton(onClick = viewModel::downloadCourse, enabled = online, modifier = Modifier.bpmPrimaryButtonWidth()) {
-                        Text(if (downloads.videos.values.any { it.status == VideoDownloadStatus.PAUSED }) "Reanudar descarga" else "Descargar para ver sin conexión")
-                    }
+                    BpmChunkyButton(if (downloads.videos.values.any { it.status == VideoDownloadStatus.PAUSED }) "Reanudar descarga" else "Descargar para ver sin conexión", viewModel::downloadCourse, Modifier.bpmPrimaryButtonWidth(), tone = BpmChunkyTone.White, enabled = online)
                     if (!online) Text("Necesitas conexión para descargar.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 issue?.let {

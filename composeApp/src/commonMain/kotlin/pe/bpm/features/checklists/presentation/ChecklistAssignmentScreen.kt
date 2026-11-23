@@ -48,7 +48,7 @@ fun ChecklistAssignmentsScreen(
                     assignmentFailureMessage(state.failure),
                     color = MaterialTheme.colorScheme.error,
                 )
-                BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") }
+                BpmChunkyButton("Reintentar", onRefresh, tone = BpmChunkyTone.White)
             }
             state.items.isEmpty() ->
                 EmptyState(
@@ -83,18 +83,14 @@ fun ChecklistAssignmentsScreen(
                             },
                             style = BpmType.bodyStrong,
                         )
-                        BpmSecondaryButton(onClick = { onOpen(v) }, modifier = Modifier.fillMaxWidth(), enabled = !state.actionBusy) {
-                            Text(
-                                if (management) "Ver programación"
+                        BpmChunkyButton(if (management) "Ver programación"
                             else
                                 when {
                                     v.run == null -> "Revisar e iniciar"
                                     v.run.status == "DRAFT" && v.run.performedBy == state.userId ->
                                         "Continuar revisión"
                                     else -> "Ver revisión"
-                                }
-                            )
-                        }
+                                }, { onOpen(v) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !state.actionBusy)
                         if (management)
                             BpmTextButton(
                                 onClick = { onDeactivate(v.id) },
@@ -112,15 +108,8 @@ fun ChecklistAssignmentsScreen(
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             }
-                            BpmSecondaryButton(
-                                onClick = onConfirmDeactivate,
-                                enabled = !state.actionBusy,
-                            ) {
-                                Text(
-                                    if (state.actionBusy) "Confirmando…"
-                                    else "Confirmar fin de programación"
-                                )
-                            }
+                            BpmChunkyButton(if (state.actionBusy) "Confirmando…"
+                                    else "Confirmar fin de programación", onConfirmDeactivate, tone = BpmChunkyTone.White, enabled = !state.actionBusy)
                             BpmTextButton(
                                 onClick = { onDeactivate(null) },
                                 enabled = !state.actionBusy,
@@ -161,12 +150,9 @@ fun ChecklistAssignmentDetailScreen(
     // Detalle del registro (specs/LAYOUT.md §5): una sola acción principal según el estado del período.
     val primary: (@Composable () -> Unit)? = when {
         !value.active -> null
-        run == null -> if (management) null else ({ RaisedButton("Comenzar revisión", onStart, Modifier.bpmPrimaryButtonWidth(), enabled = !busy) })
+        run == null -> if (management) null else ({ BpmChunkyButton("Comenzar revisión", onStart, Modifier.bpmPrimaryButtonWidth(), enabled = !busy) })
         else -> ({
-            RaisedButton(
-                if (!management && run.status == "DRAFT" && run.performedBy == userId) "Continuar revisión" else "Ver revisión",
-                { onOpenRun(run) }, Modifier.bpmPrimaryButtonWidth(), enabled = !busy,
-            )
+            BpmChunkyButton(if (!management && run.status == "DRAFT" && run.performedBy == userId) "Continuar revisión" else "Ver revisión", { onOpenRun(run) }, Modifier.bpmPrimaryButtonWidth(), enabled = !busy)
         })
     }
     BpmDetailPane(value.templateName, status = status, subtitle = value.locationName, actions = primary) {
@@ -229,7 +215,7 @@ fun ChecklistAssignmentFormScreen(
         }
         if (input == null) {
             Text("No pudimos recuperar este formulario.")
-            BpmSecondaryButton(onClick = onRetryOpen) { Text("Reintentar") }
+            BpmChunkyButton("Reintentar", onRetryOpen, tone = BpmChunkyTone.White)
             return@Column
         }
         state.failure?.let {

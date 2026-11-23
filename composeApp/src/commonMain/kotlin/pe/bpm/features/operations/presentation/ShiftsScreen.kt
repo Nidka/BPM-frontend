@@ -37,7 +37,7 @@ fun ShiftsScreen(viewModel: ShiftsViewModel, modifier: Modifier = Modifier) {
 @Composable
 private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
     if (state.canManage) {
-        RaisedButton("Crear turno", vm::newShift, Modifier.fillMaxWidth(), enabled = !state.busy && !state.loading)
+        BpmChunkyButton("Crear turno", vm::newShift, Modifier.fillMaxWidth(), enabled = !state.busy && !state.loading)
         BpmFilterChip(
             state.showInactive,
             { vm.toggleInactive() },
@@ -49,12 +49,7 @@ private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
         BpmCard(Modifier.fillMaxWidth()) {
             Text("¿Desactivar el turno ${shift.name}?", style = MaterialTheme.typography.titleMedium)
             Text("Un turno desactivado no se reactiva; tendrás que crear otro. Si tiene controles programados activos, desactívalos antes.")
-            RaisedButton(
-                if (state.busy) "Desactivando…" else "Desactivar turno",
-                vm::confirmDeactivate,
-                Modifier.fillMaxWidth(),
-                enabled = !state.busy,
-            )
+            BpmChunkyButton(if (state.busy) "Desactivando…" else "Desactivar turno", vm::confirmDeactivate, Modifier.fillMaxWidth(), enabled = !state.busy)
             BpmTextButton(vm::cancelDeactivate, enabled = !state.busy) { Text("Conservar turno") }
         }
     }
@@ -73,7 +68,7 @@ private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
                 style = MaterialTheme.typography.bodySmall,
             )
             if (state.canManage && shift.active) {
-                BpmSecondaryButton({ vm.edit(shift) }, enabled = !state.busy) { Text("Editar") }
+                BpmChunkyButton("Editar", { vm.edit(shift) }, tone = BpmChunkyTone.White, enabled = !state.busy)
                 BpmTextButton({ vm.requestDeactivate(shift) }, enabled = !state.busy) { Text("Desactivar") }
             }
         }

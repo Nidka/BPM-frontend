@@ -1,6 +1,8 @@
 package pe.bpm.app
 
 import androidx.compose.foundation.layout.*
+import pe.bpm.core.designsystem.BpmChunkyButton
+import pe.bpm.core.designsystem.BpmChunkyTone
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
@@ -33,17 +35,12 @@ internal fun AlertScopeSelector(
       }
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     if (!choosing)
-      BpmSecondaryButton({ choosing = true }, enabled = enabled) { Text("Ámbito: $label") }
+      BpmChunkyButton("Ámbito: $label", { choosing = true }, tone = BpmChunkyTone.White, enabled = enabled)
     else {
-      BpmSecondaryButton(
-        {
+      BpmChunkyButton(companyLabel, {
           onSelect(null)
           choosing = false
-        },
-        enabled = enabled,
-      ) {
-        Text(companyLabel)
-      }
+        }, tone = BpmChunkyTone.White, enabled = enabled)
       WorkspaceSiteSelector(workspace, actions, selectedId, label, enabled) {
         onSelect(AlertLocation(it.id, it.name))
         choosing = false

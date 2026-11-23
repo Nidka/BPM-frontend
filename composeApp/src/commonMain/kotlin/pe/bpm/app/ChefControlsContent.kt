@@ -2,6 +2,7 @@ package pe.bpm.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -37,18 +38,25 @@ internal fun ChefControlsContent(
     onNext: () -> Unit,
     onOpenControl: (ChecklistAssignment) -> Unit,
     modifier: Modifier = Modifier,
+    /** Qué decir cuando no hay controles programados: el jefe espera a su administrador; el administrador los programa. */
+    emptyMessage: String = "Tu administrador puede programar los controles de tus sedes.",
+    title: String = "Controles de hoy",
+    moreTitle: String = "Más en Controles",
+    /** Columna alineada a la izquierda con su cabecera (administrador) y bloque inicial opcional, p. ej. los botones de programación. */
+    alignStart: Boolean = false,
+    top: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val scoped = assignments.takeIf { it.userId == userId }
-    BpmPlayColumns(modifier, rail = { links.forEach { LinkTile(it) } }) { railVisible ->
-        Text("Controles de hoy", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+    BpmPlayColumns(modifier, rail = { links.forEach { LinkTile(it) } }, alignStart = alignStart) { railVisible ->
+        top?.invoke(this)
+        Text(title, style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         when {
             scoped?.failure != null -> {
                 Text(assignmentFailureMessage(scoped.failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
                 BpmChunkyButton("Reintentar", onRefresh, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
             scoped == null || scoped.loading && scoped.items.isEmpty() -> LinearProgressIndicator(Modifier.fillMaxWidth())
-            scoped.items.none { it.active } -> BpmPlayEmpty(Res.drawable.mascot_done, "Sin controles programados",
-                "Tu administrador puede programar los controles de tus sedes.")
+            scoped.items.none { it.active } -> BpmPlayEmpty(Res.drawable.mascot_done, "Sin controles programados", emptyMessage)
             else -> {
                 if (scoped.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -61,7 +69,7 @@ internal fun ChefControlsContent(
             }
         }
         if (!railVisible) {
-            Text("Más en Controles", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+            Text(moreTitle, style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
             links.forEach { LinkTile(it) }
         }
     }

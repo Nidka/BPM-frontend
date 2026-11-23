@@ -65,7 +65,8 @@ fun BpmChunkyButton(
     icon: BpmSymbol? = null,
     enabled: Boolean = true,
 ) {
-    BpmChunkyShell(onClick, modifier, tone, enabled, textStyle = BpmPlayType.button, spacing = BpmSpacing.sm) { content ->
+    // Dentro de ServerOnly y sin conexión se deshabilita sola, como los botones heredados (RaisedButton y BpmSecondaryButton).
+    BpmChunkyShell(onClick, modifier, tone, enabled && !pe.bpm.core.offline.serverActionBlocked(), textStyle = BpmPlayType.button, spacing = BpmSpacing.sm) { content ->
         if (icon != null) BpmIcon(icon, tint = content, modifier = Modifier.size(22.dp))
         Text(text.uppercase(), color = content, style = BpmPlayType.button, textAlign = TextAlign.Center)
     }

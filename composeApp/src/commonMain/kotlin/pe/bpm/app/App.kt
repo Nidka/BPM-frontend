@@ -1,6 +1,8 @@
 package pe.bpm.app
 
 import androidx.compose.animation.EnterTransition
+import pe.bpm.core.designsystem.BpmChunkyButton
+import pe.bpm.core.designsystem.BpmChunkyTone
 import androidx.compose.animation.ExitTransition
 
 import pe.bpm.core.designsystem.bpmPrimaryButtonWidth
@@ -398,23 +400,31 @@ fun App(
             }
             WorkspaceDestination.entries.flatMap { destination ->
                 val routes = when (destination) {
-                    WorkspaceDestination.Learn -> listOf(destination.route, TRAINING_COURSE, TRAINING_ACHIEVEMENTS, TRAINING_PATHS)
-                    WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL)
+                    // Gestión del administrador: Academia (cursos), Equipo (cuentas) y Controles (incidencias y controles programados);
+                    // para quien no es administrador de la organización siguen siendo de Empresa (ver `destination` más abajo).
+                    WorkspaceDestination.Learn -> listOf(destination.route, TRAINING_COURSE, TRAINING_ACHIEVEMENTS, TRAINING_PATHS, TRAINING_MANAGEMENT)
+                    WorkspaceDestination.Team -> listOf(destination.route, ACCOUNTS_MANAGEMENT)
+                    WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL,
+                        INCIDENT_MANAGEMENT, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE)
-                    WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, ACCOUNTS_MANAGEMENT, TEMPLATE_VERSIONS, TRAINING_MANAGEMENT, ALERT_RULES, DAILY_MANAGEMENT, INCIDENT_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
+                    WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, TEMPLATE_VERSIONS, ALERT_RULES, DAILY_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT)
                     else -> listOf(destination.route)
                 }
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
                     .map { destination to it }
-            }.forEach { (destination, route) ->
+            }.forEach { (registered, route) ->
                 composable(route, arguments = if (route == INVITATION_ACCEPT) listOf(navArgument("token") { type = NavType.StringType; nullable = true; defaultValue = null }) else if (route in listOf(CHECKLIST_DETAIL, TEMPLATE_MANAGEMENT_DETAIL, CHECKLIST_START, ASSIGNMENT_CREATE, TEMPLATE_VERSIONS))
                     listOf(navArgument("templateId") { type = NavType.StringType }) else if (route == TRAINING_COURSE) listOf(navArgument("courseId") { type = NavType.StringType }) else if (route in listOf(CHECKLIST_RUN, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY_DETAIL, SUPERVISION_DETAIL))
                     listOf(navArgument("runId") { type = NavType.StringType }) else if (route in listOf(ASSIGNMENT_DETAIL, ASSIGNMENT_MANAGEMENT_DETAIL))
                     listOf(navArgument("assignmentId") { type = NavType.StringType }) else emptyList()) { routeEntry ->
                     val alertRoute=route in listOf(ALERT_INBOX,ALERT_RULES)
+                    // Administrador de la organización: su gestión vive en Controles, Equipo y Academia; la super administración la conserva en Empresa.
+                    val adminPlay = currentWorkspace?.role == "ADMIN" && profile?.platformRole != "SUPER_ADMIN"
+                    val destination = if (route in listOf(TRAINING_MANAGEMENT, ACCOUNTS_MANAGEMENT, INCIDENT_MANAGEMENT, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL) && !adminPlay)
+                        WorkspaceDestination.Company else registered
                     val reportsRoute = route == REPORTS
                     val normativeRoute = route == NORMATIVE
                     val managingWebhooks = route == WEBHOOKS_MANAGEMENT
@@ -573,7 +583,7 @@ fun App(
                             val scopedHistoryState = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                 ?: pe.bpm.features.checklists.presentation.ChecklistHistoryState(loading = true, detailLoading = true)
                             fun openAssignedRun(run: pe.bpm.features.checklists.domain.AssignedChecklistRun) {
-                                val target = if (destination == WorkspaceDestination.Company) "seguimiento/${run.id}"
+                                val target = if (managingAssignments) "seguimiento/${run.id}"
                                     else if (run.status == "DRAFT" && run.performedBy == profile.id) "control/ejecucion/${run.id}"
                                     else if (destination == WorkspaceDestination.Home && !chefPlay) "seguimiento/${run.id}" else "control/revisiones/${run.id}"
                                 nav.navigate(target) { launchSingleTop = true }
@@ -618,9 +628,9 @@ fun App(
                                     } else {
                                         val scopedManagement = checklistState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected } ?: ChecklistCatalogState(loading = true)
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
-                                            BpmSecondaryButton(onClick = { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }) { Text("Controles programados por sede") }
+                                            BpmChunkyButton("Controles programados por sede", { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
                                             Text("Crea una primera versión y revisa las preguntas antes de publicarla.")
-                                            RaisedButton("Crear plantilla", {
+                                            BpmChunkyButton("Crear plantilla", {
                                                 if (templateEditorState.published != null) templateEditor.reset()
                                                 nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true }
                                             }, Modifier.bpmPrimaryButtonWidth())
@@ -680,7 +690,7 @@ fun App(
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } })
-                                }) else if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
+                                }) else if (adminPlay) null else if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
                                     if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole))
                                         pe.bpm.features.reports.presentation.DashboardPanel(reportsDashboardState, reportsDashboard::refresh, { nav.navigate(REPORTS) { launchSingleTop = true } })
                                     // El ADMIN miembro también ejecuta controles: junto al panel ve los de hoy en todas sus sedes.
@@ -688,6 +698,24 @@ fun App(
                                         ChecklistAssignmentsScreen(scopedAssignments, false, assignments::search, assignments::refresh, assignments::previous, assignments::next,
                                             onOpen = { item -> if (item.run != null) openAssignedRun(item.run) else nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } },
                                             assignments::requestDeactivate, assignments::confirmDeactivate, title = "Controles de hoy")
+                                }) else null,
+                                adminHome = if (adminPlay && currentWorkspace != null) ({
+                                    // Inicio del administrador: franja de atención, indicadores, sedes con barra y acciones rápidas.
+                                    AdminInicioContent(profile.id, currentWorkspace.organization.id, currentWorkspace.role, currentWorkspace.locations,
+                                        reportsDashboardState, reportsDashboard::refresh, reportsView,
+                                        AdminInicioActions(
+                                            onControls = { nav.navigate(WorkspaceDestination.Operations.route) { launchSingleTop = true } },
+                                            onIncidents = { nav.navigate(INCIDENT_MANAGEMENT) { launchSingleTop = true } },
+                                            onAlerts = { nav.navigate(ALERT_INBOX) { launchSingleTop = true } },
+                                            onReports = { nav.navigate(REPORTS) { launchSingleTop = true } },
+                                            onTeamReviews = { nav.navigate(WorkspaceDestination.Supervision.route) { launchSingleTop = true } },
+                                            // Programar un control empieza por elegir la plantilla publicada (Plantillas → Programar en una sede).
+                                            onSchedule = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
+                                            onAssignCourse = { nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
+                                            onInvite = { nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                            onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
+                                            onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
+                                            onSites = { nav.navigate(WorkspaceDestination.Company.route) { launchSingleTop = true } }))
                                 }) else null,
                                 onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
                                 chefTeam = if (destination == WorkspaceDestination.Team && chefPlay && currentWorkspace != null) ({
@@ -718,13 +746,13 @@ fun App(
                                         onOpenCourse = { course -> courseIntent = null; nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         catalog = catalog)
                                 }) else null,
-                                onIncidents = { nav.navigate(if (destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },
+                                onIncidents = { nav.navigate(if (adminPlay || destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },
                                 taskContent = {
                                     Column(Modifier.fillMaxSize()) {
                                         // El personal lleva «Incidencias y correcciones» en su propia cabecera de «Mis tareas».
                                         val workerTasks = workspaceState.workspace?.role == "WORKER"
                                         if (!workerTasks)
-                                            BpmSecondaryButton(onClick = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, enabled = !dailyState.busy) { Text("Incidencias y correcciones") }
+                                            BpmChunkyButton("Incidencias y correcciones", { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }, tone = BpmChunkyTone.White, enabled = !dailyState.busy)
                                         DailyOperationsContent(profile.id, workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations, Modifier.weight(1f),
                                             onCleaningPhotos = { execution -> openCleaningPhotos(execution) },
                                             onIncidents = if (workerTasks) ({ leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } }) else null)
@@ -860,8 +888,8 @@ fun App(
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
-                                        BpmSecondaryButton(onClick = { val exit = runExit; runs.leave { runExit = null; exit?.invoke() } }) { Text("Conservar borrador y salir") }
-                                        if (!runState.pending && !runState.busy) BpmSecondaryButton(onClick = { val exit = runExit; runExit = null; runs.discard { exit?.invoke() } }) { Text("Descartar cambios y salir") }
+                                        BpmChunkyButton("Conservar borrador y salir", { val exit = runExit; runs.leave { runExit = null; exit?.invoke() } }, tone = BpmChunkyTone.White)
+                                        if (!runState.pending && !runState.busy) BpmChunkyButton("Descartar cambios y salir", { val exit = runExit; runExit = null; runs.discard { exit?.invoke() } }, tone = BpmChunkyTone.White)
                                         BpmTextButton(onClick = { runExit = null }) { Text("Continuar con el control") }
                                     }
                                     if (scopedOfflineState.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -937,21 +965,21 @@ fun App(
                                 noticeVisible = accessNotice != null,
                                 screenNotice = {
                                     if (destination == WorkspaceDestination.Home && route == WorkspaceDestination.Home.route) {
-                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN" && !learnerPlay) BpmCard(Modifier.fillMaxWidth()) {
+                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN" && !learnerPlay && !adminPlay) BpmCard(Modifier.fillMaxWidth()) {
                                             Text("Encuesta del estudio", style = MaterialTheme.typography.titleMedium)
                                             Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.")
-                                            BpmSecondaryButton(onClick = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }) { Text("Abrir encuesta del estudio") }
+                                            BpmChunkyButton("Abrir encuesta del estudio", { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
                                         }
                                         if (researchState.access?.let { it.canResearch || it.canManageGrants } == true) BpmCard(Modifier.fillMaxWidth()) {
                                             Text("Investigación", style = MaterialTheme.typography.titleMedium)
                                             Text("Consentimiento, cuestionarios, resultados por empresa y necesidades detectadas.")
-                                            BpmSecondaryButton(onClick = { nav.navigate(RESEARCH_PANEL) { launchSingleTop = true } }) { Text("Abrir investigación") }
+                                            BpmChunkyButton("Abrir investigación", { nav.navigate(RESEARCH_PANEL) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
                                         }
                                     }
                                     if (destination in listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations) && !running && runState.resumeId != null && runState.userId == profile.id && runState.organizationId == workspaceState.selected) {
                                         BpmCard(Modifier.fillMaxWidth()) {
                                             Text("Tienes un control pendiente en este dispositivo")
-                                            BpmSecondaryButton(onClick = { nav.navigate("control/ejecucion/${runState.resumeId}") { launchSingleTop = true } }) { Text("Retomar control") }
+                                            BpmChunkyButton("Retomar control", { nav.navigate("control/ejecucion/${runState.resumeId}") { launchSingleTop = true } }, tone = BpmChunkyTone.White)
                                         }
                                     }
                                     accessNotice?.let { message -> BpmCard(Modifier.fillMaxWidth()) {
@@ -982,6 +1010,25 @@ fun App(
                                             ChefControlLink(BpmSymbol.Clock, "Mis revisiones", "Historial de tus controles.") { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } },
                                             ChefControlLink(BpmSymbol.Learn, "Otras plantillas", "Consulta las plantillas publicadas.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
                                         ), assignments::refresh, assignments::previous, assignments::next, openControl)
+                                    } else if (route == WorkspaceDestination.Operations.route && adminPlay) {
+                                        // «Controles» del administrador: controles de todas las sedes, programación y accesos (revisiones del equipo e incidencias incluidas).
+                                        val openIncidents = reportsDashboardState.kpis?.openIncidents
+                                        AdminControlsContent(profile.id, scopedAssignments, listOf(
+                                            ChefControlLink(BpmSymbol.Eye, "Revisiones del equipo", "Qué revisó cada persona y cada sede.") { nav.navigate(WorkspaceDestination.Supervision.route) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Alert, "Incidencias y correcciones", when (openIncidents) {
+                                                null -> "Atiende lo reportado y valida el cierre."
+                                                0 -> "No hay incidencias abiertas."
+                                                1 -> "1 abierta: atiéndela y valida el cierre."
+                                                else -> "$openIncidents abiertas: atiéndelas y valida el cierre."
+                                            }) { nav.navigate(INCIDENT_MANAGEMENT) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Sprout, "Insumos y limpieza", "Recepciones, lotes y tareas de tus sedes.") { nav.navigate(DAILY_EXECUTION) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Control, if (offlineState.pendingCount > 0) "En este dispositivo · ${offlineState.pendingCount} pendientes" else "Controles en este dispositivo",
+                                                "Revisiones guardadas para trabajar sin conexión.") { nav.navigate(CHECKLIST_OFFLINE) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Clock, "Mis revisiones", "Historial de tus controles.") { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Learn, "Otras plantillas", "Consulta las plantillas publicadas.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
+                                        ), onSchedule = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
+                                            onScheduled = { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } },
+                                            assignments::refresh, assignments::previous, assignments::next, openControl)
                                     } else if (route == WorkspaceDestination.Operations.route) {
                                         // Panel de Control: controles de hoy como contenido principal y accesos a la derecha (clase grande) o debajo.
                                         BpmPanelLayout(support = {
@@ -999,7 +1046,7 @@ fun App(
                                                 assignments::requestDeactivate, assignments::confirmDeactivate)
                                         }
                                     } else if (listingHistory) {
-                                        if (destination == WorkspaceDestination.Operations) BpmSecondaryButton(onClick = { nav.navigate(WorkspaceDestination.Operations.route) { launchSingleTop = true } }) { Text("Preparar una nueva revisión") }
+                                        if (destination == WorkspaceDestination.Operations) BpmChunkyButton("Preparar una nueva revisión", { nav.navigate(WorkspaceDestination.Operations.route) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
                                         val scopedHistory = historyState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                         if (scopedHistory != null) ChecklistHistoryScreen(scopedHistory, destination == WorkspaceDestination.Operations,
                                             history::search, history::filter, history::next, history::previous, history::refresh,

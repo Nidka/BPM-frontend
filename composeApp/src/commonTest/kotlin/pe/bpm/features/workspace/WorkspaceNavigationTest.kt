@@ -45,9 +45,25 @@ class WorkspaceNavigationTest {
         assertTrue(WorkspaceDestination.Supervision in allowed)
         assertTrue(WorkspaceDestination.Operations in allowed)
         assertTrue(WorkspaceDestination.Learn in allowed)
-        val primary = workspacePrimaryDestinations(allowed)
-        assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Learn,
-            WorkspaceDestination.Supervision, WorkspaceDestination.Company), primary)
+        val primary = workspacePrimaryDestinations(allowed, "ADMIN")
+        assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team,
+            WorkspaceDestination.Learn, WorkspaceDestination.Company), primary)
+    }
+
+    @Test fun adminNavigationIsHomeControlsTeamAcademyCompany() {
+        val primary = workspacePrimaryDestinations(workspaceDestinations("ADMIN", false), "ADMIN")
+        assertEquals(listOf("Inicio", "Controles", "Equipo", "Academia", "Empresa"), primary.map { destinationLabel(it, "ADMIN") })
+        // «Seguimiento» deja de ser destino, pero la ruta sigue permitida (Revisiones del equipo dentro de Controles) y se titula Controles.
+        assertFalse(WorkspaceDestination.Supervision in primary)
+        assertTrue(WorkspaceDestination.Supervision in workspaceDestinations("ADMIN", false))
+        assertEquals("Controles", destinationLabel(WorkspaceDestination.Supervision, "ADMIN"))
+        assertEquals("Seguimiento", destinationLabel(WorkspaceDestination.Supervision, null))
+        assertEquals(listOf("Inicio", "Controles", "Equipo", "Academia", "Empresa"), nav("ADMIN", false))
+    }
+
+    @Test fun platformAdminKeepsTrackingEvenWhenItsWorkspaceShowsAnAdminRole() {
+        val available = workspaceDestinations("ADMIN", true)
+        assertTrue(WorkspaceDestination.Supervision in workspacePrimaryDestinations(available, "ADMIN"))
     }
 
     @Test fun accountLivesInTheHeaderForAdminAndInTheNavigationForChefAndWorker() {
@@ -67,7 +83,8 @@ class WorkspaceNavigationTest {
         assertTrue(workspaceShortcuts("CHEF", false, canResearch = false, canManageGrants = false).isEmpty())
         // El administrador conserva sus etiquetas.
         assertEquals("Inicio", destinationLabel(WorkspaceDestination.Home, "ADMIN"))
-        assertEquals("Control", destinationLabel(WorkspaceDestination.Operations, "ADMIN"))
+        assertEquals("Controles", destinationLabel(WorkspaceDestination.Operations, "ADMIN"))
+        assertEquals("Academia", destinationLabel(WorkspaceDestination.Learn, "ADMIN"))
     }
 
     @Test fun workerNavigationIsTodayLearnTasksProfile() {

@@ -162,17 +162,11 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
             .forEach { (key, value) ->
                 if (value.isNotBlank()) Text("${fieldLabel(key)}: ${displayField(key,value)}")
             }
-        RaisedButton(
-            if (state.busy) "Confirmando…"
-            else if (state.pending != null) "Comprobar el mismo registro" else "Confirmar registro",
-            vm::save,
-            Modifier.fillMaxWidth(),
-            enabled =
-                !state.busy &&
-                    state.failure !in setOf(OperationsFailure.SESSION, OperationsFailure.DENIED),
-        )
+        BpmChunkyButton(if (state.busy) "Confirmando…"
+            else if (state.pending != null) "Comprobar el mismo registro" else "Confirmar registro", vm::save, Modifier.fillMaxWidth(), enabled = !state.busy &&
+                    state.failure !in setOf(OperationsFailure.SESSION, OperationsFailure.DENIED))
         if (state.pending == null)
-            BpmSecondaryButton(vm::editReview, enabled = !state.busy) { Text("Volver a editar") }
+            BpmChunkyButton("Volver a editar", vm::editReview, tone = BpmChunkyTone.White, enabled = !state.busy)
     } else {
         if (state.resource == OperationsResource.PRODUCTS) {
             Text("¿El producto requiere control de temperatura?")
@@ -195,12 +189,7 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
         }
         if (state.resource == OperationsResource.RECEIPTS) {
             Text("Proveedor: ${form.values["supplierName"]?:"Sin seleccionar"}")
-            BpmSecondaryButton(
-                { vm.pick(OperationsResource.SUPPLIERS) },
-                enabled = state.editable,
-            ) {
-                Text("Buscar proveedor")
-            }
+            BpmChunkyButton("Buscar proveedor", { vm.pick(OperationsResource.SUPPLIERS) }, tone = BpmChunkyTone.White, enabled = state.editable)
             state.fields["supplierId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
         if (state.resource == OperationsResource.EXECUTIONS) {
@@ -210,9 +199,7 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
                     "${it.instructions}\nFrecuencia: ${frequencyLabel(it.frequency)} · Hora: ${it.dueTime.ifEmpty{"Sin hora"}}"
                 )
             }
-            BpmSecondaryButton({ vm.pick(OperationsResource.PLANS) }, enabled = state.editable) {
-                Text("Buscar plan de limpieza")
-            }
+            BpmChunkyButton("Buscar plan de limpieza", { vm.pick(OperationsResource.PLANS) }, tone = BpmChunkyTone.White, enabled = state.editable)
             state.fields["cleaningPlanId"]?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
@@ -296,25 +283,15 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
             )
             form.items.forEachIndexed { i, item -> ReceiptItemEditor(i, item, state, vm) }
             state.fields["items"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            BpmSecondaryButton(
-                { vm.pick(OperationsResource.PRODUCTS) },
-                enabled = state.editable && form.items.size < 50,
-            ) {
-                Text("Buscar y agregar producto")
-            }
+            BpmChunkyButton("Buscar y agregar producto", { vm.pick(OperationsResource.PRODUCTS) }, tone = BpmChunkyTone.White, enabled = state.editable && form.items.size < 50)
         }
-        RaisedButton(
-            "Revisar registro",
-            vm::review,
-            Modifier.fillMaxWidth(),
-            enabled = state.editable,
-        )
+        BpmChunkyButton("Revisar registro", vm::review, Modifier.fillMaxWidth(), enabled = state.editable)
     }
-    BpmSecondaryButton(vm::closeForm, enabled = !state.busy) { Text("Guardar y salir") }
+    BpmChunkyButton("Guardar y salir", vm::closeForm, tone = BpmChunkyTone.White, enabled = !state.busy)
     if (state.pending == null) {
         if (discarding) {
             Text("¿Descartar los datos de este borrador?")
-            BpmSecondaryButton(vm::discard, enabled = !state.busy) { Text("Confirmar descarte") }
+            BpmChunkyButton("Confirmar descarte", vm::discard, tone = BpmChunkyTone.White, enabled = !state.busy)
             BpmTextButton({ discarding = false }) { Text("Seguir editando") }
         } else
             BpmTextButton({ discarding = true }, enabled = !state.busy) {

@@ -96,7 +96,7 @@ fun MyAssignmentsPanel(
                     nextBadgeTitle = achievements.pending.firstOrNull()?.name,
                     nextBadgeHint = achievements.pending.firstOrNull()?.let { criterionLabel(it) },
                     onOpen = onAchievements,
-                ) else BpmSecondaryButton(onClick = onAchievements, modifier = Modifier.fillMaxWidth()) { Text("Mis logros") }
+                ) else BpmChunkyButton("Mis logros", onAchievements, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
         },
         main = {
@@ -104,7 +104,7 @@ fun MyAssignmentsPanel(
                 if (state.assignmentsLoading && state.assignments.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
                 state.assignmentsFailure?.let {
                     FailureText(it)
-                    BpmSecondaryButton(onClick = viewModel::refreshAssignments) { Text("Volver a intentar") }
+                    BpmChunkyButton("Volver a intentar", viewModel::refreshAssignments, tone = BpmChunkyTone.White)
                 }
                 if (state.assignmentsLoaded && state.assignments.isEmpty() && state.assignmentsFailure == null)
                     EmptyState("Sin capacitaciones asignadas", "Cuando tu administrador te asigne un curso aparecerá aquí con su fecha límite.")
@@ -114,7 +114,7 @@ fun MyAssignmentsPanel(
             BpmTaskRow("Rutas de aprendizaje", BpmSymbol.Route, detail = "Sigue un camino de cursos paso a paso", onClick = onPaths)
             if (state.member && singleColumn) {
                 if (achievements != null) BpmSummaryStrip(learnerSummary(achievements), onClick = onAchievements)
-                else BpmSecondaryButton(onClick = onAchievements, modifier = Modifier.fillMaxWidth()) { Text("Mis logros") }
+                else BpmChunkyButton("Mis logros", onAchievements, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
         },
     )
@@ -140,7 +140,7 @@ private fun ContinueCard(assignment: MyAssignment, onOpenCourse: (String) -> Uni
                 Box(Modifier.padding(top = BpmSpacing.xs)) { BpmStatusChip(chip, tone) }
             }
         }
-        BpmInlineActions { RaisedButton("Continuar", { onOpenCourse(assignment.course.id) }, Modifier.fillMaxWidth()) }
+        BpmInlineActions { BpmChunkyButton("Continuar", { onOpenCourse(assignment.course.id) }, Modifier.fillMaxWidth()) }
     }
 }
 
@@ -163,7 +163,7 @@ private fun AssignedCourses(state: LearnerState, onOpenCourse: (String) -> Unit,
                 progress = assignmentProgress(item), status = { BpmStatusChip(chip, tone) })
         }
     }
-    if (state.assignmentsNext != null) BpmSecondaryButton(onClick = onMore, enabled = !state.assignmentsLoading) { Text("Ver más capacitaciones") }
+    if (state.assignmentsNext != null) BpmChunkyButton("Ver más capacitaciones", onMore, tone = BpmChunkyTone.White, enabled = !state.assignmentsLoading)
 }
 
 // ---- Mis logros ------------------------------------------------------------------------------
@@ -176,7 +176,7 @@ fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier =
         if (state.achievementsLoading && state.achievements == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.achievementsFailure?.let {
             FailureText(it)
-            BpmSecondaryButton(onClick = viewModel::loadAchievements) { Text("Volver a intentar") }
+            BpmChunkyButton("Volver a intentar", viewModel::loadAchievements, tone = BpmChunkyTone.White)
         }
         if (!state.member) EmptyState("Sin logros", "Los logros se registran para quienes pertenecen a la organización.")
         state.achievements?.let { mine ->
@@ -231,7 +231,7 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
         Text("Rutas de aprendizaje", style = MaterialTheme.typography.headlineMedium)
         Text("Una ruta ordena varios cursos para que avances paso a paso.")
         FailureText(state.pathDetailFailure ?: state.pathsFailure)
-        if (state.pathsFailure != null) BpmSecondaryButton(onClick = viewModel::loadPaths) { Text("Volver a intentar") }
+        if (state.pathsFailure != null) BpmChunkyButton("Volver a intentar", viewModel::loadPaths, tone = BpmChunkyTone.White)
         if (state.pathsLoaded && state.paths.isEmpty() && state.pathsFailure == null) EmptyState("Sin rutas", "Tu organización todavía no publicó rutas de aprendizaje.")
         BpmGridLayout(state.paths) { path, m ->
             BpmCard(m, onClick = { viewModel.openPath(path.id) }, onClickLabel = "Ver ruta") {
@@ -241,10 +241,10 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
                     LinearProgressIndicator(progress = { it.percent / 100f }, modifier = Modifier.fillMaxWidth())
                     Text("${it.completedCourses} de ${it.totalCourses} cursos · ${it.percent} %", style = MaterialTheme.typography.bodySmall)
                 }
-                BpmSecondaryButton(onClick = { viewModel.openPath(path.id) }, modifier = Modifier.fillMaxWidth()) { Text("Ver ruta") }
+                BpmChunkyButton("Ver ruta", { viewModel.openPath(path.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
         }
-        if (state.pathsNext != null) BpmSecondaryButton(onClick = viewModel::morePaths, enabled = !state.pathsLoading) { Text("Ver más rutas") }
+        if (state.pathsNext != null) BpmChunkyButton("Ver más rutas", viewModel::morePaths, tone = BpmChunkyTone.White, enabled = !state.pathsLoading)
     }
 }
 
@@ -267,7 +267,7 @@ private fun ColumnScope.PathDetail(path: LearningPath, onOpenCourse: (String) ->
             Text(course.title, style = MaterialTheme.typography.titleMedium)
             Text(course.progressStatus?.let(::progressLabel) ?: "Sin avance", style = MaterialTheme.typography.bodySmall)
             if (course.courseStatus == CourseStatus.PUBLISHED)
-                BpmSecondaryButton(onClick = { onOpenCourse(course.courseId) }, modifier = Modifier.fillMaxWidth()) { Text(if (next) "Continuar" else "Abrir curso") }
+                BpmChunkyButton(if (next) "Continuar" else "Abrir curso", { onOpenCourse(course.courseId) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             else Text("Este curso no está disponible por ahora.", style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -284,7 +284,7 @@ fun CertificateVerificationScreen(viewModel: CertificateVerificationViewModel, o
         Text("Verificar constancia", style = MaterialTheme.typography.headlineMedium)
         Text("Escribe el código de 24 caracteres que figura en la constancia de Academia BPM.")
         BpmTextField(state.input, viewModel::edit, "Código de verificación", enabled = !state.checking)
-        RaisedButton("Verificar", viewModel::check, Modifier.bpmPrimaryButtonWidth(), enabled = !state.checking && state.input.isNotBlank())
+        BpmChunkyButton("Verificar", viewModel::check, Modifier.bpmPrimaryButtonWidth(), enabled = !state.checking && state.input.isNotBlank())
         if (state.checking) LinearProgressIndicator(Modifier.fillMaxWidth())
         when (val outcome = state.outcome) {
             is VerificationOutcome.Found -> {

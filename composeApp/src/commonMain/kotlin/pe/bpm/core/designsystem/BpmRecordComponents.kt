@@ -96,7 +96,7 @@ fun BpmPagedList(
             loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(loadingLabel) }
             failure != null -> {
                 Text(failure, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }
+                BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)
             }
             isEmpty -> empty()
             else -> content()
@@ -138,7 +138,7 @@ fun BpmRecordCard(
             details.take(3).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         if (actionLabel != null || textActions.isNotEmpty()) {
-            if (actionLabel != null) BpmSecondaryButton(onClick = onAction ?: onOpen ?: {}, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text(actionLabel) }
+            if (actionLabel != null) BpmChunkyButton(actionLabel, onAction ?: onOpen ?: {}, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = enabled)
             // Apiladas: una fila que se parte (FlowRow) no informa bien su alto a la rejilla y la segunda acción quedaba recortada.
             textActions.take(2).forEach { (label, action) ->
                 BpmTextButton(onClick = action, enabled = enabled, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text(label) }
@@ -188,8 +188,8 @@ fun BpmFormActions(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         BpmInlineActions(
-            secondary = onCancel?.let { cancel -> { BpmSecondaryButton(onClick = cancel, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(cancelLabel) } } },
-        ) { RaisedButton(if (busy) busyLabel else primaryLabel, onPrimary, Modifier.fillMaxWidth(), enabled = enabled && !busy) }
+            secondary = onCancel?.let { cancel -> { BpmChunkyButton(cancelLabel, cancel, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !busy) } },
+        ) { BpmChunkyButton(if (busy) busyLabel else primaryLabel, onPrimary, Modifier.fillMaxWidth(), enabled = enabled && !busy) }
     }
 }
 

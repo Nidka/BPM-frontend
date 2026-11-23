@@ -106,7 +106,7 @@ private fun StockFormContent(state: StockState, form: StockForm, vm: StockMoveme
             }
             state.fields["lotId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (state.failure == OperationsFailure.LOT_EXPIRED)
-                BpmSecondaryButton(vm::suggestExpiredDiscard, enabled = !state.busy) { Text("Registrar descarte por vencido") }
+                BpmChunkyButton("Registrar descarte por vencido", vm::suggestExpiredDiscard, tone = BpmChunkyTone.White, enabled = !state.busy)
         }
     }
 }

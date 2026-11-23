@@ -27,7 +27,7 @@ import pe.bpm.features.workspace.domain.*
             SetupStatus("Cuenta verificada", complete = true)
             SetupStatus("Organización disponible", complete = true)
             SetupStatus(if (locations == 0) "Configura la primera sede" else "Sedes disponibles", locations > 0)
-            if (workspace.canManage) BpmSecondaryButton(onClick = onCompany) { Text("Ver mi organización") }
+            if (workspace.canManage) BpmChunkyButton("Ver mi organización", onCompany, tone = BpmChunkyTone.White)
         }
     }) {
         BpmIntroCard(
@@ -35,7 +35,7 @@ import pe.bpm.features.workspace.domain.*
             description = if (learningAllowed) "Accede a las capacitaciones y consulta la información de tu organización."
                 else "Consulta las empresas, sus sedes y los permisos del equipo.",
         ) {
-            if (learningAllowed) RaisedButton("Explorar capacitaciones", onLearn, Modifier.bpmPrimaryButtonWidth())
+            if (learningAllowed) BpmChunkyButton("Explorar capacitaciones", onLearn, Modifier.bpmPrimaryButtonWidth())
         }
     }
 }
@@ -51,7 +51,7 @@ import pe.bpm.features.workspace.domain.*
     // Título y acción en una misma fila, alineados al centro; sin el «+» pegado como texto.
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
         Text(title, style = MaterialTheme.typography.titleLarge)
-        if (action != null) BpmSecondaryButton(onClick = onAction) { Text(action) }
+        if (action != null) BpmChunkyButton(action, onAction, tone = BpmChunkyTone.White)
     }
 }
 /**
@@ -96,7 +96,7 @@ import pe.bpm.features.workspace.domain.*
         }
     }
 }
-private fun entryStatusLabel(status: String) = when (status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" }
+internal fun entryStatusLabel(status: String) = when (status) { "PUBLISHED" -> "Publicado"; "ACTIVE" -> "Disponible"; "NOT_STARTED" -> "Sin iniciar"; "IN_PROGRESS" -> "En progreso"; "COMPLETED" -> "Completado"; "OPEN" -> "Abierta"; "RESOLVED" -> "Resuelta"; else -> "Registrado" }
 @Composable internal fun Errors(errors: List<WorkspaceError>) {
     errors.forEach { error -> Text(error.message, color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }

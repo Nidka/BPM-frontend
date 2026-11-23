@@ -96,8 +96,7 @@ fun OperationsScreen(
                             loading = state.loading,
                         )
                         if (!worker && OperationsAccess.canCreate(state.role, state.resource))
-                            RaisedButton(
-                                if (state.resource == OperationsResource.EXECUTIONS)
+                            BpmChunkyButton(if (state.resource == OperationsResource.EXECUTIONS)
                                     "Registrar limpieza"
                                 else
                                     when (state.resource) {
@@ -106,11 +105,7 @@ fun OperationsScreen(
                                         OperationsResource.RECEIPTS -> "Registrar recepción"
                                         OperationsResource.PLANS -> "Crear plan de limpieza"
                                         else -> "Registrar limpieza"
-                                    },
-                                viewModel::newForm,
-                                Modifier.fillMaxWidth(),
-                                enabled = !state.loading,
-                            )
+                                    }, viewModel::newForm, Modifier.fillMaxWidth(), enabled = !state.loading)
                         if (state.failure != null)
                             BpmTextButton(viewModel::refresh, enabled = !state.loading) {
                                 Text("Reintentar consulta")
@@ -132,9 +127,7 @@ fun OperationsScreen(
                                 Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(entry.title(), style = MaterialTheme.typography.titleMedium)
                                     Text(entry.subtitle())
-                                    BpmSecondaryButton({ viewModel.detail(entry) }) {
-                                        Text("Ver detalle")
-                                    }
+                                    BpmChunkyButton("Ver detalle", { viewModel.detail(entry) }, tone = BpmChunkyTone.White)
                                     if (
                                         entry is OperationsEntry.LotEntry &&
                                             onLotMovement != null &&
@@ -176,7 +169,7 @@ fun OperationsScreen(
                 state.saved != null -> {
                     Text("Registro confirmado", style = MaterialTheme.typography.titleLarge)
                     OperationDetails(state.saved!!)
-                    RaisedButton("Volver a la lista", viewModel::closeForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
+                    BpmChunkyButton("Volver a la lista", viewModel::closeForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
                 }
                 // Formulario: columna de lectura de 720 dp alineada con el título (specs/LAYOUT.md §4.1).
                 state.form != null -> Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) { OperationForm(state, viewModel) }
@@ -217,9 +210,7 @@ private fun OperationsPicker(state: OperationsState, vm: OperationsViewModel) {
                 Text(entry.title())
                 Text(entry.subtitle(), style = MaterialTheme.typography.bodySmall)
                 val active = (entry as? OperationsEntry.PlanEntry)?.value?.active != false
-                BpmSecondaryButton({ vm.select(entry) }, enabled = active && !state.pickerLoading) {
-                    Text(if (active) "Seleccionar" else "Plan inactivo")
-                }
+                BpmChunkyButton(if (active) "Seleccionar" else "Plan inactivo", { vm.select(entry) }, tone = BpmChunkyTone.White, enabled = active && !state.pickerLoading)
             }
         }
     }

@@ -38,21 +38,12 @@ fun AlertRulesScreen(
     else if (s.rulesAuthorized) {
       e.failure?.let {
         Text(alertFailureText(it), color = MaterialTheme.colorScheme.error)
-        BpmSecondaryButton(viewModel::recoverDraft) { Text("Reintentar recuperación del borrador") }
+        BpmChunkyButton("Reintentar recuperación del borrador", viewModel::recoverDraft, tone = BpmChunkyTone.White)
       }
       if (e.hasDraft)
-        RaisedButton(
-          "Continuar borrador guardado",
-          viewModel.editor::resume,
-          Modifier.fillMaxWidth(),
-        )
+        BpmChunkyButton("Continuar borrador guardado", viewModel.editor::resume, Modifier.fillMaxWidth())
       else if (e.failure == null)
-        RaisedButton(
-          "Crear regla de avisos",
-          { viewModel.editor.new() },
-          Modifier.fillMaxWidth(),
-          enabled = !s.loading,
-        )
+        BpmChunkyButton("Crear regla de avisos", { viewModel.editor.new() }, Modifier.fillMaxWidth(), enabled = !s.loading)
       BpmSearchField(
         s.rules.query,
         viewModel::query,
@@ -94,9 +85,7 @@ fun AlertRulesScreen(
             Text(
               "Correo: ${if(r.emailEnabled)"solicitado" else "desactivado"} · Dispositivo: ${if(r.pushEnabled)"solicitado" else "desactivado"}"
             )
-            BpmSecondaryButton({ viewModel.editRule(r) }, enabled = !s.loading) {
-              Text("Editar regla")
-            }
+            BpmChunkyButton("Editar regla", { viewModel.editRule(r) }, tone = BpmChunkyTone.White, enabled = !s.loading)
           }
         }
       }
@@ -110,7 +99,7 @@ fun AlertRulesScreen(
           viewModel::next,
         )
     } else if (s.failure == null && !s.loading)
-      BpmSecondaryButton({ viewModel.rules() }) { Text("Consultar reglas") }
+      BpmChunkyButton("Consultar reglas", { viewModel.rules() }, tone = BpmChunkyTone.White)
   }
 }
 
@@ -178,14 +167,9 @@ private fun AlertRuleFormContent(
         )
       }
     }
-    RaisedButton(
-      if (s.pending != null) "Reintentar envío pendiente" else "Confirmar y guardar regla",
-      vm.editor::submit,
-      Modifier.fillMaxWidth(),
-      enabled = !s.busy && !s.staleVersion,
-    )
+    BpmChunkyButton(if (s.pending != null) "Reintentar envío pendiente" else "Confirmar y guardar regla", vm.editor::submit, Modifier.fillMaxWidth(), enabled = !s.busy && !s.staleVersion)
     if (s.pending == null)
-      BpmSecondaryButton(vm.editor::resumeEditing, enabled = !s.busy) { Text("Volver a editar") }
+      BpmChunkyButton("Volver a editar", vm.editor::resumeEditing, tone = BpmChunkyTone.White, enabled = !s.busy)
   } else {
     Text("Tipo de aviso", style = MaterialTheme.typography.titleSmall)
     if (f.original == null)
@@ -285,19 +269,12 @@ private fun AlertRuleFormContent(
       "Cada persona debe activar los avisos en su dispositivo. Los avisos siempre aparecen también en su bandeja.",
       style = MaterialTheme.typography.bodySmall,
     )
-    RaisedButton(
-      "Revisar regla",
-      {
+    BpmChunkyButton("Revisar regla", {
         vm.editor.review()
         nav.focusFirstError(vm.editor.state.value.errors.keys)
-      },
-      Modifier.fillMaxWidth(),
-      enabled = enabled && !s.staleVersion,
-    )
+      }, Modifier.fillMaxWidth(), enabled = enabled && !s.staleVersion)
   }
-  BpmSecondaryButton(vm.editor::close, enabled = !s.busy) {
-    Text("Guardar borrador y volver a reglas")
-  }
+  BpmChunkyButton("Guardar borrador y volver a reglas", vm.editor::close, tone = BpmChunkyTone.White, enabled = !s.busy)
   if (s.pending == null)
     BpmTextButton({ discard = true }, enabled = !s.busy) { Text("Descartar borrador") }
 }

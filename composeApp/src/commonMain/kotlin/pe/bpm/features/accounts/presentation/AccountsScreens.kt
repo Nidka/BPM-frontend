@@ -66,7 +66,7 @@ fun InvitationAcceptScreen(viewModel: InvitationAcceptViewModel, onContinue: () 
             BpmCard(Modifier.fillMaxWidth()) {
                 Text("¡Listo! Te uniste a la organización", style = MaterialTheme.typography.titleLarge)
                 Text("Tu rol es ${accepted.role.label}.")
-                RaisedButton("Continuar", onContinue, Modifier.fillMaxWidth())
+                BpmChunkyButton("Continuar", onContinue, Modifier.fillMaxWidth())
             }
         } else BpmCard(Modifier.fillMaxWidth()) {
             Text("Aceptar una invitación", style = MaterialTheme.typography.titleLarge)
@@ -74,7 +74,7 @@ fun InvitationAcceptScreen(viewModel: InvitationAcceptViewModel, onContinue: () 
             BpmTextField(state.input, viewModel::edit, "Código o enlace de la invitación", Modifier.fillMaxWidth(), error = state.fieldError, enabled = !state.busy)
             AccountMessages(state.failure, null)
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            RaisedButton(if (state.busy) "Aceptando…" else "Aceptar invitación", viewModel::accept, Modifier.fillMaxWidth(), enabled = !state.busy && state.input.isNotBlank())
+            BpmChunkyButton(if (state.busy) "Aceptando…" else "Aceptar invitación", viewModel::accept, Modifier.fillMaxWidth(), enabled = !state.busy && state.input.isNotBlank())
         }
     }
 }

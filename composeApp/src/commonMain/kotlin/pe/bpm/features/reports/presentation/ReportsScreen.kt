@@ -47,7 +47,7 @@ fun ReportsScreen(
         state.failure?.let { failure ->
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(reportFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                if (failure.retryable) BpmSecondaryButton(onClick = viewModel::load) { Text("Reintentar") }
+                if (failure.retryable) BpmChunkyButton("Reintentar", viewModel::load, tone = BpmChunkyTone.White)
             }
         }
         if (state.tab == ReportTab.COMPLIANCE) state.compliance?.let { ComplianceContent(it) }
@@ -76,7 +76,7 @@ private fun PeriodFilters(state: ReportsState, locations: List<ReportLocationOpt
             BpmChoiceRow("Todas las sedes", state.locationId == null) { vm.selectLocation(null) }
             locations.forEach { BpmChoiceRow(it.name, state.locationId == it.id) { vm.selectLocation(it.id) } }
         }
-        RaisedButton("Consultar", vm::load, Modifier.bpmPrimaryButtonWidth(), enabled = !state.loading)
+        BpmChunkyButton("Consultar", vm::load, Modifier.bpmPrimaryButtonWidth(), enabled = !state.loading)
     }
 }
 
@@ -85,7 +85,7 @@ private fun ExportCard(state: ReportsState, vm: ReportsViewModel) {
     BpmCard(Modifier.fillMaxWidth()) {
         Text("Exportar historial", style = MaterialTheme.typography.titleMedium)
         Text("Descarga un archivo CSV con los controles finalizados del período (hasta 366 días). No incluye nombres de personas.")
-        BpmSecondaryButton(onClick = vm::export, enabled = !state.exporting) { Text(if (state.exporting) "Preparando archivo…" else "Exportar CSV") }
+        BpmChunkyButton(if (state.exporting) "Preparando archivo…" else "Exportar CSV", vm::export, tone = BpmChunkyTone.White, enabled = !state.exporting)
         if (state.exporting) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.exportFailure?.let { Text(reportFailureMessage(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.exportNotice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }

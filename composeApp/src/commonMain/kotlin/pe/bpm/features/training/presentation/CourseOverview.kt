@@ -83,7 +83,7 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
                     ProgressChips(course)
                 }
             }
-            if (!compact) BpmInlineActions(primary = { RaisedButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth()) })
+            if (!compact) BpmInlineActions(primary = { BpmChunkyButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth()) })
         }
         syllabus()
         course.certificate?.let { CertificateCard(it) }
@@ -108,7 +108,7 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
                     }
                     ProgressChips(course, centered = true)
                 }
-                if (total > 0) RaisedButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth())
+                if (total > 0) BpmChunkyButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth())
                 BpmTextButton(onClick = { viewModel.startStudy() }, enabled = hasQuestions, modifier = Modifier.fillMaxWidth()) { Text("Practicar sin calificación") }
             }
             DownloadsCard(course, state, viewModel)
@@ -121,7 +121,7 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
         },
         main = syllabus,
     )
-    if (compact && total > 0) BpmActionBar { RaisedButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth()) }
+    if (compact && total > 0) BpmActionBar { BpmChunkyButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth()) }
 }
 
 /** Chips de avance: «Completado» (solo si lo está), «Mejor 72», «60 XP» y «Aprueba con 80». */

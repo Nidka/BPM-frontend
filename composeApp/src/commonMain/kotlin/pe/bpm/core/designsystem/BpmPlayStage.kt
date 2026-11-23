@@ -132,21 +132,29 @@ fun BpmPlayCard(modifier: Modifier = Modifier, dashed: Boolean = false, content:
  * clase compacta y media) o de 600 dp (expandida y grande) y, si cabe, un panel derecho de 330 dp ([rail]: racha,
  * meta e insignia). [content] recibe `true` cuando el panel se muestra, para no repetir lo que ya está en él.
  * Sin [rail] o sin espacio, la columna se centra sola.
+ *
+ * Con [alignStart] (pantallas de gestión del administrador, que llevan título a la izquierda) la columna sale del
+ * margen izquierdo y toma el ancho que sobra hasta 720 dp, y el panel queda a su derecha: título, columna y panel
+ * comparten el mismo borde izquierdo en lugar de centrarse como grupo.
  */
 @Composable
 fun BpmPlayColumns(
     modifier: Modifier = Modifier,
     rail: (@Composable ColumnScope.() -> Unit)? = null,
+    alignStart: Boolean = false,
     content: @Composable ColumnScope.(railVisible: Boolean) -> Unit,
 ) {
     val expanded = currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large
-    val column = if (expanded) 600.dp else 480.dp
+    val column = if (alignStart) 720.dp else if (expanded) 600.dp else 480.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val showRail = rail != null && expanded && maxWidth >= column + 24.dp + 330.dp
-        if (showRail) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)) {
+        val showRail = rail != null && expanded && maxWidth >= (if (alignStart) 600.dp else column) + 24.dp + 330.dp
+        if (showRail && alignStart) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Column(Modifier.weight(1f, fill = false).widthIn(max = column), verticalArrangement = Arrangement.spacedBy(16.dp)) { content(true) }
+            Column(Modifier.width(330.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = rail!!)
+        } else if (showRail) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)) {
             Column(Modifier.width(column), verticalArrangement = Arrangement.spacedBy(16.dp)) { content(true) }
             Column(Modifier.width(330.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = rail!!)
-        } else Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        } else Box(Modifier.fillMaxWidth(), contentAlignment = if (alignStart) Alignment.TopStart else Alignment.TopCenter) {
             Column(Modifier.widthIn(max = column).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) { content(false) }
         }
     }

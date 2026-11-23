@@ -45,13 +45,13 @@ fun ChecklistVersionsScreen(
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let {
             Text(versionFailureMessage(it), color = MaterialTheme.colorScheme.error)
-            if (state.conflict || state.mode == VersionMode.History) BpmSecondaryButton(onClick = onReload) { Text("Recargar plantilla") }
+            if (state.conflict || state.mode == VersionMode.History) BpmChunkyButton("Recargar plantilla", onReload, tone = BpmChunkyTone.White)
         }
         if (state.conflict) {
             BpmCard(Modifier.fillMaxWidth()) {
                 Text("Hay una versión más reciente", style = MaterialTheme.typography.titleMedium)
                 Text("Tus cambios no se publicaron. Recarga la plantilla, revisa la versión nueva y vuelve a aplicar lo que necesites.")
-                RaisedButton("Recargar y empezar de nuevo", onReload, Modifier.fillMaxWidth())
+                BpmChunkyButton("Recargar y empezar de nuevo", onReload, Modifier.fillMaxWidth())
             }
         }
         state.published?.let {
@@ -72,7 +72,7 @@ fun ChecklistVersionsScreen(
                     Text("Versión vigente: ${current.versionNumber}", style = MaterialTheme.typography.titleMedium)
                     Text("${current.items.size} preguntas · ${current.area}")
                     Text("Editar crea una versión nueva. Las programaciones y el catálogo usan siempre la vigente; las revisiones en curso siguen con su versión.", style = MaterialTheme.typography.bodySmall)
-                    if (canEdit) RaisedButton("Editar preguntas (crear versión ${current.versionNumber + 1})", onStartEdit, Modifier.fillMaxWidth(), enabled = !state.loading)
+                    if (canEdit) BpmChunkyButton("Editar preguntas (crear versión ${current.versionNumber + 1})", onStartEdit, Modifier.fillMaxWidth(), enabled = !state.loading)
                     else Text("Solo un administrador puede editar las preguntas.", style = MaterialTheme.typography.bodySmall)
                 }
                 Text("Historial", style = MaterialTheme.typography.titleLarge)
@@ -81,7 +81,7 @@ fun ChecklistVersionsScreen(
                         Text("Versión ${version.versionNumber} · ${if (version.status == VersionStatus.PUBLISHED) "Vigente" else "Archivada"}", style = MaterialTheme.typography.titleMedium)
                         Text("${version.itemCount} preguntas · ${displayDateTime(version.publishedAt)}")
                         if (version.changeNote.isNotBlank()) Text("Cambio: ${version.changeNote}")
-                        BpmSecondaryButton(onClick = { onView(version.id) }) { Text("Ver preguntas") }
+                        BpmChunkyButton("Ver preguntas", { onView(version.id) }, tone = BpmChunkyTone.White)
                     }
                 }
                 PageNavigation(state.previous.size + 1, state.previous.isNotEmpty(), state.nextToken.isNotEmpty(), state.loading, onPrevious, onNext)
@@ -101,8 +101,8 @@ fun ChecklistVersionsScreen(
                             onMove = { onMove(input.id, it) }, onRemove = { onRemove(input.id) })
                     }
                 }
-                BpmSecondaryButton(onClick = onAdd, enabled = state.questions.size < 100 && state.editable) { Text("Agregar otra pregunta") }
-                RaisedButton("Revisar cambios", onReview, Modifier.fillMaxWidth(), enabled = state.editable)
+                BpmChunkyButton("Agregar otra pregunta", onAdd, tone = BpmChunkyTone.White, enabled = state.questions.size < 100 && state.editable)
+                BpmChunkyButton("Revisar cambios", onReview, Modifier.fillMaxWidth(), enabled = state.editable)
                 BpmTextButton(onClick = onCancelEdit, enabled = state.editable) { Text("Descartar cambios") }
             }
             state.mode == VersionMode.Review -> {
@@ -119,8 +119,8 @@ fun ChecklistVersionsScreen(
                     }
                 }
                 if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                RaisedButton(if (state.busy) "Comprobando publicación…" else if (state.uncertain) "Comprobar y reintentar" else "Publicar versión", onPublish, Modifier.fillMaxWidth(), enabled = !state.busy && !state.conflict)
-                BpmSecondaryButton(onClick = onBackToEdit, enabled = !state.busy && !state.uncertain) { Text("Volver a editar") }
+                BpmChunkyButton(if (state.busy) "Comprobando publicación…" else if (state.uncertain) "Comprobar y reintentar" else "Publicar versión", onPublish, Modifier.fillMaxWidth(), enabled = !state.busy && !state.conflict)
+                BpmChunkyButton("Volver a editar", onBackToEdit, tone = BpmChunkyTone.White, enabled = !state.busy && !state.uncertain)
             }
         }
     }

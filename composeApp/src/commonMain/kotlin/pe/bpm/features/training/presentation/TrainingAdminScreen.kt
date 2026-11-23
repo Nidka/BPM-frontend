@@ -31,7 +31,7 @@ fun TrainingAdminScreen(viewModel: TrainingAuthoringViewModel, modifier: Modifie
         if (state.loading || state.loadingDraft) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            BpmSecondaryButton(onClick = viewModel::refresh) { Text("Volver a intentar") }
+            BpmChunkyButton("Volver a intentar", viewModel::refresh, tone = BpmChunkyTone.White)
         }
         state.notice?.let { notice ->
             Text(notice, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -55,7 +55,7 @@ private fun statusLabel(status: CourseStatus) = when (status) {
 private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewModel) {
     Text("Cursos de Academia", style = MaterialTheme.typography.headlineMedium)
     Text("Prepara lecciones con texto y video, escribe preguntas con su explicación y publica cuando todo esté listo. Quienes ya aprenden siguen viendo la versión publicada hasta que publiques otra.")
-    RaisedButton("Crear curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
+    BpmChunkyButton("Crear curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BpmFilterChip(state.statusFilter == null, { viewModel.filter(null) }, { Text("Todos") })
         CourseStatus.entries.forEach { status ->
@@ -69,7 +69,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
             Text(course.title, style = MaterialTheme.typography.titleMedium)
             Text(statusLabel(course.status) + (course.publishedVersionNumber?.let { " · versión $it publicada" } ?: ""))
             if (course.hasDraft) Text("Tiene un borrador en preparación", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BpmSecondaryButton(onClick = { viewModel.openDraft(course.id) }, modifier = Modifier.fillMaxWidth()) { Text(if (course.hasDraft) "Editar borrador" else "Preparar nueva versión") }
+            BpmChunkyButton(if (course.hasDraft) "Editar borrador" else "Preparar nueva versión", { viewModel.openDraft(course.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
     }
 }
@@ -120,21 +120,21 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
                 else Text("Los subtítulos del video se podrán agregar cuando el servidor esté actualizado (o después de guardar la primera lección).",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, -1) } }, enabled = enabled && number > 0) { Text("Subir") }
-                    BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, 1) } }, enabled = enabled && number < draft.lessons.lastIndex) { Text("Bajar") }
-                    BpmSecondaryButton(onClick = { viewModel.newQuestion(lesson.id) }, enabled = enabled && draft.questions.size < TrainingLimits.MAX_QUESTIONS) { Text("Agregar pregunta") }
+                    BpmChunkyButton("Subir", { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, -1) } }, tone = BpmChunkyTone.White, enabled = enabled && number > 0)
+                    BpmChunkyButton("Bajar", { viewModel.edit { TrainingDraftEdits.moveLesson(it, lesson.id, 1) } }, tone = BpmChunkyTone.White, enabled = enabled && number < draft.lessons.lastIndex)
+                    BpmChunkyButton("Agregar pregunta", { viewModel.newQuestion(lesson.id) }, tone = BpmChunkyTone.White, enabled = enabled && draft.questions.size < TrainingLimits.MAX_QUESTIONS)
                     BpmTextButton(onClick = { viewModel.edit { TrainingDraftEdits.removeLesson(it, lesson.id) } }, enabled = enabled && !editor.uploading) { Text("Eliminar lección") }
                 }
             }
         }
     }
-    BpmSecondaryButton(onClick = viewModel::newLesson, enabled = enabled && draft.lessons.size < TrainingLimits.MAX_LESSONS) { Text("+ Agregar lección") }
+    BpmChunkyButton("+ Agregar lección", viewModel::newLesson, tone = BpmChunkyTone.White, enabled = enabled && draft.lessons.size < TrainingLimits.MAX_LESSONS)
 
     Text("Preguntas (${draft.questions.size} de ${TrainingLimits.MAX_QUESTIONS})", style = MaterialTheme.typography.titleLarge)
     draft.questions.forEachIndexed { number, question ->
         key(question.id) { QuestionEditor(number, question, draft, enabled, ::issue, viewModel) }
     }
-    BpmSecondaryButton(onClick = { viewModel.newQuestion(null) }, enabled = enabled && draft.questions.size < TrainingLimits.MAX_QUESTIONS) { Text("+ Agregar pregunta general") }
+    BpmChunkyButton("+ Agregar pregunta general", { viewModel.newQuestion(null) }, tone = BpmChunkyTone.White, enabled = enabled && draft.questions.size < TrainingLimits.MAX_QUESTIONS)
 
     if (issues.isNotEmpty()) BpmCard(Modifier.fillMaxWidth()) {
         Text("Corrige antes de continuar", style = BpmType.bodyStrong, color = MaterialTheme.colorScheme.error)
@@ -142,13 +142,11 @@ private fun DraftEditor(editor: DraftEditorState, viewModel: TrainingAuthoringVi
     }
     editor.failure?.let { failure ->
         Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        if (failure == TrainingFailure.DRAFT_CONFLICT) BpmSecondaryButton(onClick = viewModel::reloadDraft) { Text("Recargar borrador (descarta mis cambios locales)") }
+        if (failure == TrainingFailure.DRAFT_CONFLICT) BpmChunkyButton("Recargar borrador (descarta mis cambios locales)", viewModel::reloadDraft, tone = BpmChunkyTone.White)
     }
     if (editor.saving || editor.publishing) LinearProgressIndicator(Modifier.fillMaxWidth())
-    RaisedButton("Guardar borrador", { viewModel.save() }, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && !editor.uploading && editor.dirty)
-    BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.uploading, modifier = Modifier.bpmPrimaryButtonWidth()) {
-        Text(if (editor.dirty) "Guardar y publicar" else "Publicar curso")
-    }
+    BpmChunkyButton("Guardar borrador", { viewModel.save() }, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && !editor.uploading && editor.dirty)
+    BpmChunkyButton(if (editor.dirty) "Guardar y publicar" else "Publicar curso", viewModel::publish, Modifier.bpmPrimaryButtonWidth(), tone = BpmChunkyTone.White, enabled = enabled && !editor.uploading)
     BpmTextButton(onClick = viewModel::closeDraft, enabled = !editor.busy) { Text("Volver a la lista de cursos") }
 }
 
@@ -174,8 +172,7 @@ private fun KeyPointsEditor(lesson: DraftLesson, enabled: Boolean, issue: String
         }
         issue?.takeIf { lesson.keyPoints.none { p -> p.trim().length > TrainingLimits.KEY_POINT_MAX } }
             ?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-        BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.addKeyPoint(it, lesson.id) } },
-            enabled = enabled && lesson.keyPoints.size < TrainingLimits.KEY_POINTS_MAX) { Text("+ Agregar idea") }
+        BpmChunkyButton("+ Agregar idea", { viewModel.edit { TrainingDraftEdits.addKeyPoint(it, lesson.id) } }, tone = BpmChunkyTone.White, enabled = enabled && lesson.keyPoints.size < TrainingLimits.KEY_POINTS_MAX)
     }
 }
 
@@ -213,10 +210,10 @@ private fun LessonVideoEditor(editor: DraftEditorState, lesson: DraftLesson, vie
         } else {
             if (uploadingHere) editor.uploadFailure?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                if (editor.canRetryUpload) BpmSecondaryButton(onClick = viewModel::retryUpload) { Text("Reintentar subida") }
+                if (editor.canRetryUpload) BpmChunkyButton("Reintentar subida", viewModel::retryUpload, tone = BpmChunkyTone.White)
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                BpmSecondaryButton(onClick = pickVideo, enabled = !editor.busy && !editor.canRetryUpload) { Text(if (lesson.videoMediaId != null) "Reemplazar video" else "Subir video MP4 o WebM") }
+                BpmChunkyButton(if (lesson.videoMediaId != null) "Reemplazar video" else "Subir video MP4 o WebM", pickVideo, tone = BpmChunkyTone.White, enabled = !editor.busy && !editor.canRetryUpload)
                 if (lesson.videoMediaId != null) BpmTextButton(onClick = { viewModel.removeVideo(lesson.id) }, enabled = !editor.busy) { Text("Quitar video") }
             }
             if (editor.uploadLessonId == null) editor.uploadFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -254,7 +251,7 @@ private fun QuestionEditor(
         (issue(DraftIssueKind.OPTION_COUNT, question.id) ?: issue(DraftIssueKind.OPTION_TEXT, question.id) ?: issue(DraftIssueKind.CORRECT_OPTION, question.id))?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
-        BpmSecondaryButton(onClick = { viewModel.edit { TrainingDraftEdits.addOption(it, question.id) } }, enabled = enabled && question.options.size < TrainingLimits.MAX_OPTIONS) { Text("+ Agregar opción") }
+        BpmChunkyButton("+ Agregar opción", { viewModel.edit { TrainingDraftEdits.addOption(it, question.id) } }, tone = BpmChunkyTone.White, enabled = enabled && question.options.size < TrainingLimits.MAX_OPTIONS)
         BpmTextField(question.explanation, { v -> viewModel.edit { TrainingDraftEdits.updateQuestion(it, question.id, explanation = v) } }, "Explicación que verá quien responda",
             error = issue(DraftIssueKind.EXPLANATION, question.id), singleLine = false, minLines = 2, enabled = enabled)
         BpmTextButton(onClick = { viewModel.edit { TrainingDraftEdits.removeQuestion(it, question.id) } }, enabled = enabled) { Text("Eliminar pregunta") }

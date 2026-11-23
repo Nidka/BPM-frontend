@@ -64,7 +64,7 @@ fun AssignmentAdminScreen(viewModel: TrainingAssignmentAdminViewModel, memberSel
 private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssignmentAdminViewModel) {
     Text("Asignaciones", style = MaterialTheme.typography.headlineMedium)
     Text("Asigna cursos publicados a una persona, a un rol o a una sede, con fecha límite opcional. El aviso llega en el siguiente ciclo de notificaciones.")
-    RaisedButton("Asignar un curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
+    BpmChunkyButton("Asignar un curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BpmFilterChip(state.status == AssignmentRecordStatus.ACTIVE, { viewModel.filterStatus(AssignmentRecordStatus.ACTIVE) }, { Text("Activas") })
         BpmFilterChip(state.status == AssignmentRecordStatus.CANCELLED, { viewModel.filterStatus(AssignmentRecordStatus.CANCELLED) }, { Text("Canceladas") })
@@ -86,12 +86,10 @@ private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssig
             Text(item.dueAt?.let { "Fecha límite: ${dateLabel(it)}" } ?: "Sin fecha límite", style = MaterialTheme.typography.bodySmall)
             Text("Creada el ${dateLabel(item.createdAt)}", style = MaterialTheme.typography.bodySmall)
             if (item.status == AssignmentRecordStatus.ACTIVE)
-                BpmSecondaryButton(onClick = { viewModel.cancel(item.id) }, enabled = state.cancellingId == null, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (state.cancellingId == item.id) "Cancelando…" else "Cancelar asignación")
-                }
+                BpmChunkyButton(if (state.cancellingId == item.id) "Cancelando…" else "Cancelar asignación", { viewModel.cancel(item.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.cancellingId == null)
         }
     }
-    if (state.next != null) BpmSecondaryButton(onClick = viewModel::more, enabled = !state.loading) { Text("Ver más asignaciones") }
+    if (state.next != null) BpmChunkyButton("Ver más asignaciones", viewModel::more, tone = BpmChunkyTone.White, enabled = !state.loading)
 }
 
 @Composable
@@ -190,7 +188,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
                     Text(a.name, style = MaterialTheme.typography.titleMedium)
                     if (a.description.isNotBlank()) Text(a.description)
                     Text(criterionLabel(a) + " · ${a.points} XP", style = MaterialTheme.typography.bodySmall)
-                    BpmSecondaryButton(onClick = { viewModel.startEdit(a.id) }, modifier = Modifier.fillMaxWidth()) { Text("Editar") }
+                    BpmChunkyButton("Editar", { viewModel.startEdit(a.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                 }
             }
         }
@@ -210,7 +208,7 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
         if (editor != null) PathEditorPanel(state, editor, viewModel) else {
             Text("Rutas de aprendizaje", style = MaterialTheme.typography.headlineMedium)
             Text("Agrupa cursos en un orden recomendado. Solo las rutas publicadas las ven quienes aprenden.")
-            RaisedButton("Crear ruta", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
+            BpmChunkyButton("Crear ruta", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BpmFilterChip(state.status == null, { viewModel.filter(null) }, { Text("Todas") })
                 PathStatus.entries.forEach { status -> BpmFilterChip(state.status == status, { viewModel.filter(status) }, { Text(pathStatusLabel(status)) }) }
@@ -221,10 +219,10 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
                     Eyebrow(pathStatusLabel(path.status).uppercase())
                     Text(path.title, style = MaterialTheme.typography.titleMedium)
                     Text("${path.courses.size} curso(s)", style = MaterialTheme.typography.bodySmall)
-                    BpmSecondaryButton(onClick = { viewModel.openPath(path) }, modifier = Modifier.fillMaxWidth()) { Text(if (path.status == PathStatus.ARCHIVED) "Ver ruta" else "Editar ruta") }
+                    BpmChunkyButton(if (path.status == PathStatus.ARCHIVED) "Ver ruta" else "Editar ruta", { viewModel.openPath(path) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                 }
             }
-            if (state.next != null) BpmSecondaryButton(onClick = viewModel::more, enabled = !state.loading) { Text("Ver más rutas") }
+            if (state.next != null) BpmChunkyButton("Ver más rutas", viewModel::more, tone = BpmChunkyTone.White, enabled = !state.loading)
         }
     }
 }
@@ -246,8 +244,8 @@ private fun PathEditorPanel(state: PathAdminState, editor: PathEditor, viewModel
                 Eyebrow("PASO ${index + 1}")
                 Text("${course.code} · ${course.title}", style = BpmType.bodyStrong)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BpmSecondaryButton(onClick = { viewModel.moveCourse(course.courseId, -1) }, enabled = enabled && index > 0) { Text("Subir") }
-                    BpmSecondaryButton(onClick = { viewModel.moveCourse(course.courseId, 1) }, enabled = enabled && index < editor.courses.lastIndex) { Text("Bajar") }
+                    BpmChunkyButton("Subir", { viewModel.moveCourse(course.courseId, -1) }, tone = BpmChunkyTone.White, enabled = enabled && index > 0)
+                    BpmChunkyButton("Bajar", { viewModel.moveCourse(course.courseId, 1) }, tone = BpmChunkyTone.White, enabled = enabled && index < editor.courses.lastIndex)
                     BpmTextButton(onClick = { viewModel.removeCourse(course.courseId) }, enabled = enabled) { Text("Quitar") }
                 }
             }
@@ -257,17 +255,17 @@ private fun PathEditorPanel(state: PathAdminState, editor: PathEditor, viewModel
     if (enabled && available.isNotEmpty() && editor.courses.size < PathRules.MAX_COURSES) {
         Text("Agregar un curso", style = MaterialTheme.typography.titleMedium)
         available.take(30).forEach { c ->
-            BpmSecondaryButton(onClick = { viewModel.addCourse(c) }, modifier = Modifier.fillMaxWidth()) { Text("+ ${c.code} · ${c.title}" + if (c.status != CourseStatus.PUBLISHED) " (sin publicar)" else "") }
+            BpmChunkyButton("+ ${c.code} · ${c.title}" + if (c.status != CourseStatus.PUBLISHED) " (sin publicar)" else "", { viewModel.addCourse(c) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
     }
     issues.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
     state.editorFailure?.let {
         Failure(it)
-        if (it == TrainingFailure.PATH_CONFLICT && !editor.isNew) BpmSecondaryButton(onClick = viewModel::reloadEditor) { Text("Recargar ruta (descarta mis cambios locales)") }
+        if (it == TrainingFailure.PATH_CONFLICT && !editor.isNew) BpmChunkyButton("Recargar ruta (descarta mis cambios locales)", viewModel::reloadEditor, tone = BpmChunkyTone.White)
     }
-    RaisedButton("Guardar ruta", viewModel::save, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && (editor.dirty || editor.isNew))
+    BpmChunkyButton("Guardar ruta", viewModel::save, Modifier.bpmPrimaryButtonWidth(), enabled = enabled && (editor.dirty || editor.isNew))
     if (!editor.isNew && editor.status == PathStatus.DRAFT)
-        BpmSecondaryButton(onClick = viewModel::publish, enabled = enabled && !editor.dirty, modifier = Modifier.bpmPrimaryButtonWidth()) { Text("Publicar ruta") }
+        BpmChunkyButton("Publicar ruta", viewModel::publish, Modifier.bpmPrimaryButtonWidth(), tone = BpmChunkyTone.White, enabled = enabled && !editor.dirty)
     if (!editor.isNew && editor.status != PathStatus.ARCHIVED)
         BpmTextButton(onClick = viewModel::archive, enabled = enabled) { Text("Archivar ruta") }
     BpmTextButton(onClick = viewModel::closeEditor, enabled = !state.busy) { Text("Volver a la lista de rutas") }

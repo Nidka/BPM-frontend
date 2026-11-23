@@ -57,12 +57,7 @@ internal fun IncidentFormContent(
     if (e.pending != null) {
         Text("El envío aún no está confirmado. Reintenta para consultar su resultado.")
         IncidentReview(f)
-        RaisedButton(
-            "Reintentar el mismo envío",
-            editor::submit,
-            Modifier.fillMaxWidth(),
-            enabled = !e.busy,
-        )
+        BpmChunkyButton("Reintentar el mismo envío", editor::submit, Modifier.fillMaxWidth(), enabled = !e.busy)
         return
     }
     if (e.reviewing) {
@@ -74,8 +69,8 @@ internal fun IncidentFormContent(
             )
         if (f.kind == "CATALOG" && f.catalogId != null)
             Text("La versión anterior conservará sus criterios en las incidencias ya reportadas.")
-        RaisedButton("Confirmar envío", editor::submit, Modifier.fillMaxWidth(), enabled = !e.busy)
-        BpmSecondaryButton(editor::resumeEditing, enabled = !e.busy) { Text("Volver a editar") }
+        BpmChunkyButton("Confirmar envío", editor::submit, Modifier.fillMaxWidth(), enabled = !e.busy)
+        BpmChunkyButton("Volver a editar", editor::resumeEditing, tone = BpmChunkyTone.White, enabled = !e.busy)
     } else {
         val fields =
             when (f.kind) {
@@ -119,16 +114,12 @@ internal fun IncidentFormContent(
             }
         if (f.kind == "REPORT") {
             Text(f.values["catalogName"] ?: "Selecciona el criterio observado.")
-            BpmSecondaryButton({ vm.picker(IncidentPicker.CATALOG) }, enabled = !e.busy) {
-                Text("Elegir criterio del catálogo")
-            }
+            BpmChunkyButton("Elegir criterio del catálogo", { vm.picker(IncidentPicker.CATALOG) }, tone = BpmChunkyTone.White, enabled = !e.busy)
             e.errors["catalogId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
         if (f.kind == "ASSIGN") {
             Text(f.values["responsibleName"] ?: "Selecciona una persona activa de esta sede.")
-            BpmSecondaryButton({ vm.picker(IncidentPicker.ASSIGNEE) }, enabled = !e.busy) {
-                Text("Elegir responsable")
-            }
+            BpmChunkyButton("Elegir responsable", { vm.picker(IncidentPicker.ASSIGNEE) }, tone = BpmChunkyTone.White, enabled = !e.busy)
             e.errors["responsibleUserId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Text(
                 if (s.timeZone.isBlank())
@@ -172,16 +163,9 @@ internal fun IncidentFormContent(
             ) { editor.edit("evidenceRequired", it.toString()) }
         }
         if (f.kind == "START") Text("Confirma que comenzarás a atender la acción asignada.")
-        RaisedButton(
-            "Revisar antes de enviar",
-            editor::review,
-            Modifier.fillMaxWidth(),
-            enabled = !e.busy,
-        )
+        BpmChunkyButton("Revisar antes de enviar", editor::review, Modifier.fillMaxWidth(), enabled = !e.busy)
     }
-    BpmSecondaryButton({ editor.close { vm.refresh() } }, enabled = !e.busy) {
-        Text("Guardar y volver")
-    }
+    BpmChunkyButton("Guardar y volver", { editor.close { vm.refresh() } }, tone = BpmChunkyTone.White, enabled = !e.busy)
     BpmTextButton(editor::discard, enabled = !e.busy) { Text("Descartar este borrador") }
 }
 

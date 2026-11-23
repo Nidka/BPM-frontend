@@ -40,9 +40,7 @@ internal fun ChecklistAssignmentFormContent(
     val page = workspace.pages[WorkspaceResource.Locations]
     if (catalog.detailFailure != null) {
         Text(failureMessage(catalog.detailFailure), color = MaterialTheme.colorScheme.error)
-        BpmSecondaryButton(onClick = { catalogActions.showTemplate(templateId) }) {
-            Text("Reintentar plantilla")
-        }
+        BpmChunkyButton("Reintentar plantilla", { catalogActions.showTemplate(templateId) }, tone = BpmChunkyTone.White)
     }
     ChecklistAssignmentFormScreen(
         scoped,
@@ -118,7 +116,7 @@ internal fun ChecklistAssignmentDetailContent(
                 assignmentFailureMessage(state.detailFailure),
                 color = MaterialTheme.colorScheme.error,
             )
-            BpmSecondaryButton(onClick = { actions.select(assignmentId) }) { Text("Reintentar") }
+            BpmChunkyButton("Reintentar", { actions.select(assignmentId) }, tone = BpmChunkyTone.White)
         }
         value != null -> {
             val scopedRun =
@@ -126,15 +124,10 @@ internal fun ChecklistAssignmentDetailContent(
             if (!management && scopedRun != null) {
                 if (scopedRun.pending) {
                     Text("Hay una operación de revisión pendiente de confirmar.")
-                    BpmSecondaryButton(
-                        onClick = {
+                    BpmChunkyButton("Comprobar revisión pendiente", {
                             starting = true
                             runs.retry()
-                        },
-                        enabled = !scopedRun.busy,
-                    ) {
-                        Text("Comprobar revisión pendiente")
-                    }
+                        }, tone = BpmChunkyTone.White, enabled = !scopedRun.busy)
                 }
                 scopedRun.failure?.let {
                     Text(runFailureMessage(it), color = MaterialTheme.colorScheme.error)
@@ -143,9 +136,7 @@ internal fun ChecklistAssignmentDetailContent(
                     Text("Guarda las respuestas de la revisión abierta antes de comenzar otra.")
                 scopedRun.resumeId?.let { id ->
                     if (scopedRun.dirty || scopedRun.pending)
-                        BpmSecondaryButton(onClick = { onStarted(id) }) {
-                            Text("Retomar revisión abierta")
-                        }
+                        BpmChunkyButton("Retomar revisión abierta", { onStarted(id) }, tone = BpmChunkyTone.White)
                 }
             }
             val template =
@@ -184,9 +175,7 @@ internal fun ChecklistAssignmentDetailContent(
             if (catalog.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
             else if (catalog.detailFailure != null) {
                 Text(failureMessage(catalog.detailFailure), color = MaterialTheme.colorScheme.error)
-                BpmSecondaryButton(onClick = { catalogActions.showTemplate(value.templateId) }) {
-                    Text("Reintentar preguntas")
-                }
+                BpmChunkyButton("Reintentar preguntas", { catalogActions.showTemplate(value.templateId) }, tone = BpmChunkyTone.White)
             } else if (template != null) ChecklistQuestionPreview(template)
             if (
                 scopedRun?.failure in
@@ -195,9 +184,7 @@ internal fun ChecklistAssignmentDetailContent(
                         pe.bpm.features.checklists.domain.RunFailure.ASSIGNMENT_REQUIRED,
                     )
             )
-                BpmSecondaryButton(onClick = { actions.select(assignmentId) }) {
-                    Text("Consultar revisión del período")
-                }
+                BpmChunkyButton("Consultar revisión del período", { actions.select(assignmentId) }, tone = BpmChunkyTone.White)
         }
         else -> Text("Consultando programación…")
     }

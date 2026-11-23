@@ -23,7 +23,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
             state.locationForm != null -> LocationFormCard(state.locationForm!!, state.busy, viewModel)
             else -> state.organization?.let { organization ->
                 BpmDetailPane(organization.tradeName.ifBlank { organization.legalName }, subtitle = organization.legalName,
-                    actions = { BpmSecondaryButton(onClick = viewModel::editOrganization, enabled = !state.busy) { Text("Editar organización") } }) {
+                    actions = { BpmChunkyButton("Editar organización", viewModel::editOrganization, tone = BpmChunkyTone.White, enabled = !state.busy) }) {
                     BpmSection("Datos de la organización") {
                         BpmDetailFields(listOf(
                             BpmDetailField("Tipo de establecimiento", organization.businessType.label),

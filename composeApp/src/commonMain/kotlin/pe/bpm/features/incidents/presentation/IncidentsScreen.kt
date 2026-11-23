@@ -75,19 +75,9 @@ fun IncidentsScreen(
                         }
                     }
                 if (e.hasDraft)
-                    RaisedButton(
-                        "Continuar borrador guardado",
-                        viewModel.editor::resume,
-                        Modifier.fillMaxWidth(),
-                        enabled = !s.loading,
-                    )
+                    BpmChunkyButton("Continuar borrador guardado", viewModel.editor::resume, Modifier.fillMaxWidth(), enabled = !s.loading)
                 else if (s.catalogMode || IncidentsAccess.canReport(s.role))
-                    RaisedButton(
-                        if (s.catalogMode) "Crear criterio" else "Reportar incidencia",
-                        if (s.catalogMode) viewModel::newCatalog else viewModel::newReport,
-                        Modifier.fillMaxWidth(),
-                        enabled = !s.loading,
-                    )
+                    BpmChunkyButton(if (s.catalogMode) "Crear criterio" else "Reportar incidencia", if (s.catalogMode) viewModel::newCatalog else viewModel::newReport, Modifier.fillMaxWidth(), enabled = !s.loading)
                 if (s.failure != null)
                     BpmTextButton(viewModel::refresh) { Text("Reintentar consulta") }
                 if (s.catalogMode) {
@@ -104,9 +94,7 @@ fun IncidentsScreen(
                                 Text(
                                     "Riesgo: ${incidentRiskLabel(value.riskLevel)} · ${if (value.evidenceRequired) "Requiere fotos antes y después" else "Fotos opcionales"}"
                                 )
-                                BpmSecondaryButton({ viewModel.newVersion(value) }) {
-                                    Text("Crear siguiente versión")
-                                }
+                                BpmChunkyButton("Crear siguiente versión", { viewModel.newVersion(value) }, tone = BpmChunkyTone.White)
                             }
                         }
                     }
@@ -139,9 +127,7 @@ fun IncidentsScreen(
                                     "Reportó ${value.reportedByName} · ${displayDateTime(value.createdAt)}",
                                     style = MaterialTheme.typography.bodySmall,
                                 )
-                                BpmSecondaryButton({ viewModel.detail(value.id) }) {
-                                    Text("Ver incidencia")
-                                }
+                                BpmChunkyButton("Ver incidencia", { viewModel.detail(value.id) }, tone = BpmChunkyTone.White)
                             }
                         }
                     }
@@ -158,7 +144,7 @@ fun IncidentsScreen(
         when {
             s.siteId == null -> Text("Selecciona una sede para consultar y reportar incidencias.")
             !s.authorized ->
-                if (!s.loading) BpmSecondaryButton(viewModel::refresh) { Text("Reintentar acceso") }
+                if (!s.loading) BpmChunkyButton("Reintentar acceso", viewModel::refresh, tone = BpmChunkyTone.White)
             s.picker != null -> IncidentChoices(s, viewModel)
             e.form != null -> IncidentFormContent(s, e, viewModel)
             s.showHistory -> {
@@ -187,7 +173,7 @@ fun IncidentsScreen(
                     viewModel::historyPrevious,
                     viewModel::historyNext,
                 )
-                BpmSecondaryButton(viewModel::closeHistory) { Text("Volver al detalle") }
+                BpmChunkyButton("Volver al detalle", viewModel::closeHistory, tone = BpmChunkyTone.White)
             }
             s.detail != null -> BpmListDetail(list = listBody, detail = { IncidentDetailContent(s, viewModel, onEvidence) })
             else -> listBody()
@@ -224,9 +210,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
                         "${value.area} · ${incidentRiskLabel(value.riskLevel)} · Versión ${value.versionNumber}"
                     )
                     Text(value.normativeCriterion)
-                    BpmSecondaryButton({ vm.select(value) }, enabled = !loading) {
-                        Text("Seleccionar criterio")
-                    }
+                    BpmChunkyButton("Seleccionar criterio", { vm.select(value) }, tone = BpmChunkyTone.White, enabled = !loading)
                 }
             }
         }
@@ -236,9 +220,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(value.displayName)
                     Text(when (value.role) { "ADMIN" -> "Administrador"; "CHEF" -> "Chef"; else -> "Colaborador" })
-                    BpmSecondaryButton({ vm.select(value) }, enabled = !loading) {
-                        Text("Seleccionar responsable")
-                    }
+                    BpmChunkyButton("Seleccionar responsable", { vm.select(value) }, tone = BpmChunkyTone.White, enabled = !loading)
                 }
             }
         }
@@ -252,7 +234,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
         vm::pickerPrevious,
         vm::pickerNext,
     )
-    BpmSecondaryButton({ vm.picker(null) }) { Text("Volver al formulario") }
+    BpmChunkyButton("Volver al formulario", { vm.picker(null) }, tone = BpmChunkyTone.White)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -272,10 +254,10 @@ private fun IncidentDetailContent(
             workflow.forEachIndexed { index, type ->
                 val self = type == IncidentActionType.VERIFY && IncidentsAccess.isSelfVerification(d.actions, s.userId)
                 val label = if (self) "Validar sin otro validador" else incidentActionLabel(type)
-                if (index == 0) RaisedButton(label, { vm.action(type) }, Modifier.bpmPrimaryButtonWidth(), enabled = !s.loading)
-                else BpmSecondaryButton({ vm.action(type) }, enabled = !s.loading) { Text(label) }
+                if (index == 0) BpmChunkyButton(label, { vm.action(type) }, Modifier.bpmPrimaryButtonWidth(), enabled = !s.loading)
+                else BpmChunkyButton(label, { vm.action(type) }, tone = BpmChunkyTone.White, enabled = !s.loading)
             }
-            BpmSecondaryButton(vm::history) { Text("Consultar historial") }
+            BpmChunkyButton("Consultar historial", vm::history, tone = BpmChunkyTone.White)
         }) {
         pe.bpm.core.offline.PendingBadge(i.id)
         BpmSection("Datos de la incidencia") {
@@ -292,9 +274,7 @@ private fun IncidentDetailContent(
             (supervisor || d.reportedBy == s.userId) &&
                 i.status in
                     setOf(IncidentStatus.OPEN, IncidentStatus.ASSIGNED, IncidentStatus.IN_PROGRESS)
-        BpmSecondaryButton({ onEvidence(i.id, null, "BEFORE", beforeWritable) }) {
-            Text("Fotos antes (${d.beforeCount})")
-        }
+        BpmChunkyButton("Fotos antes (${d.beforeCount})", { onEvidence(i.id, null, "BEFORE", beforeWritable) }, tone = BpmChunkyTone.White)
         d.actions.forEach { action -> // lista-apilada: acciones del detalle en orden
             BpmCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -314,9 +294,7 @@ private fun IncidentDetailContent(
                             action.responsibleUserId == s.userId &&
                             i.status == IncidentStatus.IN_PROGRESS &&
                             action.status == "IN_PROGRESS"
-                    BpmSecondaryButton({ onEvidence(i.id, action.id, "AFTER", writable) }) {
-                        Text("Fotos después")
-                    }
+                    BpmChunkyButton("Fotos después", { onEvidence(i.id, action.id, "AFTER", writable) }, tone = BpmChunkyTone.White)
                 }
             }
         }

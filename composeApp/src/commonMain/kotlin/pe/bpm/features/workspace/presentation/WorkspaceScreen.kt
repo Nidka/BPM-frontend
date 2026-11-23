@@ -45,6 +45,11 @@ internal fun WorkspaceScreen(
     workerProfile: (@Composable () -> Unit)? = null,
     /** Equipo del jefe de cocina (CHEF): lista–detalle de solo lectura con las personas de sus sedes; reemplaza la lista de gestión. */
     chefTeam: (@Composable () -> Unit)? = null,
+    /**
+     * Inicio del administrador de la organización (ADMIN): su presencia activa el estilo de gestión del administrador en
+     * Inicio, Equipo, Academia y Empresa (Controles lo arma [checklistContent]); super administración conserva el anterior.
+     */
+    adminHome: (@Composable () -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null,
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -75,6 +80,9 @@ internal fun WorkspaceScreen(
     shortcuts: List<WorkspaceShortcut> = emptyList(), activeShortcut: WorkspaceShortcut? = null, onShortcut: (WorkspaceShortcut) -> Unit = {},
 ) {
     val role = state.workspace?.role
+    // Las etiquetas por rol no aplican a la super administración, aunque su espacio muestre un rol de organización.
+    val labelRole = if (viewer.canCreateOrganization) null else role
+    val adminShell = adminHome != null && role == "ADMIN" && !viewer.canCreateOrganization
     val available = workspaceDestinations(role, viewer.canCreateOrganization)
     val navItems = workspaceNavigation(workspacePrimaryDestinations(available, role), shortcuts)
     // Todos los roles comparten la navegación del sistema: barra inferior hasta 839 dp y menú lateral de 230 dp desde 840 dp.
@@ -94,7 +102,7 @@ internal fun WorkspaceScreen(
         // Con altura baja (móvil horizontal) la navegación lateral no cabe: se usa la barra inferior.
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
         val navMode = BpmNavigationMode.of(windowClass, maxHeight)
-        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(role), item.playSymbol(role), item.isSelected(section, activeShortcut)) { item.open(navigate, onShortcut) } }
+        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(labelRole), item.playSymbol(labelRole), item.isSelected(if (adminShell && section == WorkspaceDestination.Supervision) WorkspaceDestination.Operations else section, activeShortcut)) { item.open(navigate, onShortcut) } }
         val wide = navMode != BpmNavigationMode.BottomBar
         ProvideBpmWindowClass(windowClass, maxHeight) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
@@ -128,7 +136,16 @@ internal fun WorkspaceScreen(
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
                 } else key(section, secondaryTitle) { Box(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll)) { BpmScreenFrame(if (secondaryContent != null) secondaryPattern else BpmPattern.Panel) {
                     // El título de la pantalla va primero; los avisos y accesos de apoyo se muestran debajo.
-                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(profileInNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, role))
+                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(profileInNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, labelRole),
+                        actions = if (adminShell && secondaryContent == null && workspace?.canManage == true) when (section) {
+                            WorkspaceDestination.Team -> ({
+                                BpmChunkyButton("Invitar persona", onAccounts)
+                                BpmChunkyButton("Agregar persona", { open(WorkspaceFormKind.Member) }, tone = BpmChunkyTone.White)
+                            })
+                            WorkspaceDestination.Learn -> ({ BpmChunkyButton("Gestionar cursos", onTraining) })
+                            WorkspaceDestination.Company -> ({ BpmChunkyButton("Agregar sede", { open(WorkspaceFormKind.Location) }) })
+                            else -> null
+                        } else null)
                     screenNotice()
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
                     state.notice?.let { notice -> key(notice) { BpmReveal { Text(notice, color = MaterialTheme.colorScheme.primary) } } }
@@ -137,9 +154,9 @@ internal fun WorkspaceScreen(
                         BpmPanelLayout(support = {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Text("Acciones", style = MaterialTheme.typography.titleMedium)
-                                if (WorkspaceDestination.Learn in available) BpmSecondaryButton(onClick = { navigate(WorkspaceDestination.Learn) }, modifier = Modifier.fillMaxWidth()) { Text("Mi aprendizaje") }
-                                BpmSecondaryButton(onClick = onDevices, modifier = Modifier.fillMaxWidth()) { Text("Mis dispositivos") }
-                                BpmSecondaryButton(onClick = onAcceptInvitation, modifier = Modifier.fillMaxWidth()) { Text("Aceptar una invitación") }
+                                if (WorkspaceDestination.Learn in available) BpmChunkyButton("Mi aprendizaje", { navigate(WorkspaceDestination.Learn) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+                                BpmChunkyButton("Mis dispositivos", onDevices, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+                                BpmChunkyButton("Aceptar una invitación", onAcceptInvitation, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                                 HorizontalDivider()
                                 BpmTextButton(onClick = onLogout, modifier = Modifier.heightIn(min = BpmSpacing.touch)) {
                                     BpmIcon(BpmSymbol.Logout)
@@ -160,7 +177,7 @@ internal fun WorkspaceScreen(
                             })
                             if (workspace == null && !viewer.canCreateOrganization && !state.loading) {
                                 Text("Si tu administrador acaba de agregarte a una organización, puedes consultar tu acceso de nuevo.", style = MaterialTheme.typography.bodySmall)
-                                BpmSecondaryButton(onClick = onVerifySession, enabled = !sessionBusy) { Text(if (sessionBusy) "Consultando…" else "Consultar mi acceso") }
+                                BpmChunkyButton(if (sessionBusy) "Consultando…" else "Consultar mi acceso", onVerifySession, tone = BpmChunkyTone.White, enabled = !sessionBusy)
                             }
                             if (sessionBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
                             sessionConfirmation?.let { Text(it, color = MaterialTheme.colorScheme.primary,
@@ -174,8 +191,8 @@ internal fun WorkspaceScreen(
                             val placeholder = workspacePlaceholder(state, superAdmin)
                             Text(placeholder.title, style = MaterialTheme.typography.headlineSmall)
                             Text(placeholder.message)
-                            if (placeholder.canCreate) RaisedButton("Crear organización", { open(WorkspaceFormKind.Organization) })
-                            if (placeholder.canRetry) BpmSecondaryButton(onClick = onRefresh) { Text("Volver a intentar") }
+                            if (placeholder.canCreate) BpmChunkyButton("Crear organización", { open(WorkspaceFormKind.Organization) }, Modifier.fillMaxWidth())
+                            if (placeholder.canRetry) BpmChunkyButton("Volver a intentar", onRefresh, tone = BpmChunkyTone.White)
 
                         }
                     }
@@ -185,11 +202,14 @@ internal fun WorkspaceScreen(
                         WorkspaceDestination.Account -> Unit
                         // El personal (WORKER) ve solo su pantalla «Hoy»; el Home genérico de sedes/cursos/controles no le aplica.
                         WorkspaceDestination.Home -> {
-                            if ((current.role == "WORKER" || current.role == "CHEF") && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
+                            if (adminShell && adminHome != null) adminHome()
+                            else if ((current.role == "WORKER" || current.role == "CHEF") && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
                             // Buscador de normativa (RF-46/47): acceso para todos los roles.
-                            if (onNormative != null) BpmActionTile(BpmSymbol.Learn, "Buscar en la normativa", "Encuentra lo que dice la norma sanitaria sobre temperaturas, higiene y más.", onNormative)
+                            if (onNormative != null && !adminShell) BpmActionTile(BpmSymbol.Learn, "Buscar en la normativa", "Encuentra lo que dice la norma sanitaria sobre temperaturas, higiene y más.", onNormative)
                         }
-                        WorkspaceDestination.Company -> {
+                        WorkspaceDestination.Company -> if (adminShell) AdminCompanyContent(current,
+                            WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry),
+                            AdminCompanyActions(onManageTemplates, onDailyOperations, onAlertRules, onWebhooks, onAccounts)) else {
                             BpmCard(Modifier.fillMaxWidth()) {
                                 Eyebrow("ORGANIZACIÓN")
                                 Text(current.organization.name, style = MaterialTheme.typography.titleLarge)
@@ -218,12 +238,13 @@ internal fun WorkspaceScreen(
                             } }
                             }
                         }
-                        WorkspaceDestination.Team -> if (chefTeam != null) chefTeam() else {
+                        WorkspaceDestination.Team -> if (chefTeam != null) chefTeam() else if (adminShell) AdminTeamContent(current,
+                            WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry), onManage = onAccounts, onAssignCourse = onTraining) else {
                             // Una sola fila de acciones: la principal (agregar) y la de gestión; sin segundo título.
                             if (current.canManage) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                RaisedButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.bpmPrimaryButtonWidth())
-                                BpmSecondaryButton(onClick = onAccounts) { Text("Gestionar roles, invitaciones y bajas") }
+                                BpmChunkyButton("Agregar persona", { open(WorkspaceFormKind.Member) }, Modifier.bpmPrimaryButtonWidth())
+                                BpmChunkyButton("Gestionar roles, invitaciones y bajas", onAccounts, tone = BpmChunkyTone.White)
                             }
                             if (!current.canManage) EmptyState("Administración del equipo restringida", "Tu rol permite consultar esta sección, pero solo el administrador de la organización puede gestionar sus miembros. Solicítale los cambios que necesites.")
                             else {
@@ -241,7 +262,9 @@ internal fun WorkspaceScreen(
                             WorkspacePagedList(WorkspaceResource.Courses, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry, fullWidthSearch = true) {
                                 Entries(current.courses, "Sin capacitaciones para mostrar", "No hay capacitaciones disponibles para esta búsqueda y tus permisos actuales.", onOpenCourse, hiddenCourseIds, CatalogFilter.All)
                             }
-                        } else {
+                        } else if (adminShell) AdminAcademyContent(current, WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry),
+                            onOpenCourse = { id -> onOpenCourse?.invoke(id) }, onManage = onTraining, learnerHeader = learnHeader)
+                        else {
                             // Con la cabecera del alumno ya hay un saludo contextual: la introducción solo se usa sin ella.
                             if (learnHeader == null) BpmIntroCard("Un hábito a la vez.", "Consulta las capacitaciones publicadas por tu organización.", learning = true)
                             else learnHeader()
@@ -255,7 +278,7 @@ internal fun WorkspaceScreen(
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
                             checklistContent()
                             // El jefe de cocina ya tiene las incidencias dentro de Controles (su propia tarjeta); no se repite el banner.
-                            if (secondaryTitle == null && role != "CHEF") IncidentBanner(onIncidents)
+                            if (secondaryTitle == null && role != "CHEF" && !adminShell) IncidentBanner(onIncidents)
                         }
                     } }
                 } } }
@@ -287,7 +310,7 @@ internal fun WorkspaceScreen(
 }
 
 /** Sedes de una persona con su nombre cuando la página cargada las incluye; si no, solo la cantidad. */
-private fun memberLocations(member: Member, locations: List<Location>): String {
+internal fun memberLocations(member: Member, locations: List<Location>): String {
     if (member.role == "ADMIN") return "Todas las sedes de esta organización"
     val names = member.locationIds.mapNotNull { id -> locations.firstOrNull { it.id == id }?.name }
     return when {
@@ -313,10 +336,10 @@ private fun memberLocations(member: Member, locations: List<Location>): String {
             }
             if (maxWidth >= 640.dp) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
-                BpmSecondaryButton(onClick = onOpen) { Text("Abrir incidencias") }
+                BpmChunkyButton("Abrir incidencias", onOpen, tone = BpmChunkyTone.White)
             } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
-                BpmSecondaryButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Abrir incidencias") }
+                BpmChunkyButton("Abrir incidencias", onOpen, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
         }
     }
@@ -328,7 +351,7 @@ private fun memberLocations(member: Member, locations: List<Location>): String {
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(description)
         Spacer(Modifier.weight(1f))
-        BpmSecondaryButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(action) }
+        BpmChunkyButton(action, onClick, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
     }
 }
 

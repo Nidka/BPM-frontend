@@ -62,15 +62,15 @@ import pe.bpm.core.domain.DecimalInput
             }
             state.failure in setOf(PublicationFailure.ACCESS_DENIED, PublicationFailure.SESSION_REQUIRED) -> {
                 BpmCard(Modifier.fillMaxWidth()) { Text(publicationMessage(state.failure!!), color = MaterialTheme.colorScheme.error) }
-                BpmSecondaryButton(onClick = onClose) { Text("Volver a la organización") }
+                BpmChunkyButton("Volver a la organización", onClose, tone = BpmChunkyTone.White)
             }
             state.step == TemplateEditorStep.Discard -> DiscardDraftConfirmation(onKeep, onConfirmDiscard)
             state.step == TemplateEditorStep.Published -> BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Text("${state.published?.name.orEmpty()} ya está disponible en el catálogo de esta organización.",
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 Text("La versión 1 quedó publicada. No puede modificarse desde este editor.")
-                RaisedButton("Ver plantilla publicada", { state.published?.id?.let(onPublished) })
-                BpmSecondaryButton(onClick = onClose) { Text("Volver a plantillas") }
+                BpmChunkyButton("Ver plantilla publicada", { state.published?.id?.let(onPublished) }, Modifier.fillMaxWidth())
+                BpmChunkyButton("Volver a plantillas", onClose, tone = BpmChunkyTone.White)
             }
             else -> {
                 state.failure?.let { failure -> BpmCard(Modifier.fillMaxWidth()) {
@@ -86,7 +86,7 @@ import pe.bpm.core.domain.DecimalInput
                             Text("Puedes comenzar con un ejemplo", style = MaterialTheme.typography.titleMedium)
                             Text("Adáptalo a los procedimientos de tu organización antes de publicarlo. También puedes escribir tu propio control abajo.")
                             checklistSuggestions.forEach { suggestion ->
-                                BpmSecondaryButton(onClick = { onSuggestion(suggestion.id) }) { Text("Usar ejemplo: ${suggestion.name}") }
+                                BpmChunkyButton("Usar ejemplo: ${suggestion.name}", { onSuggestion(suggestion.id) }, tone = BpmChunkyTone.White)
                             }
                         }
                     }
@@ -102,7 +102,7 @@ import pe.bpm.core.domain.DecimalInput
                             onMove = { onMove(input.id, it) }, onRemove = { onRemove(input.id) })
                     } }
                     if (state.questions.size >= 100) Text("Llegaste al máximo de 100 preguntas por control.")
-                    BpmSecondaryButton(onClick = onAdd, enabled = state.questions.size < 100) { Text("Agregar otra pregunta") }
+                    BpmChunkyButton("Agregar otra pregunta", onAdd, tone = BpmChunkyTone.White, enabled = state.questions.size < 100)
                     BpmFormActions("Revisar plantilla", onReview)
                     BpmTextButton(onClick = onDiscard, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text("Descartar borrador") }
                 } else {

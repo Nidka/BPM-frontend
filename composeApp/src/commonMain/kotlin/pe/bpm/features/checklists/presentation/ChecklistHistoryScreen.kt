@@ -28,7 +28,7 @@ import pe.bpm.features.checklists.domain.*
             state.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text(failureMessage(state.failure), color = MaterialTheme.colorScheme.error)
-                BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }
+                BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)
             }
             state.items.isEmpty() -> EmptyState("No hay revisiones para mostrar", if (state.query.isNotBlank() || state.status.isNotBlank())
                 "Prueba otra búsqueda o cambia el filtro." else if (canPerform)
@@ -49,9 +49,7 @@ import pe.bpm.features.checklists.domain.*
                 if (item.status == "DRAFT") Text("${item.answerCount} de ${item.questionCount} respuestas guardadas", style = BpmType.bodyStrong)
                 else Text("Cumplimiento: ${item.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %", style = BpmType.bodyStrong)
                 Spacer(Modifier.weight(1f)) // empuja el botón al borde inferior para alinear la fila
-                BpmSecondaryButton(onClick = { onOpen(item) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (canPerform && item.status == "DRAFT" && item.performedBy == state.userId) "Continuar revisión" else "Ver revisión")
-                }
+                BpmChunkyButton(if (canPerform && item.status == "DRAFT" && item.performedBy == state.userId) "Continuar revisión" else "Ver revisión", { onOpen(item) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             } }
         }
         PageNavigation(state.previous.size + 1, state.previous.isNotEmpty(), state.nextToken.isNotEmpty(), state.loading || state.failure != null, onPrevious, onNext)
@@ -62,7 +60,7 @@ import pe.bpm.features.checklists.domain.*
     if (state.detailLoading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
     if (state.detailFailure != null) {
         Text("No pudimos consultar esta revisión. Puede que tu acceso haya cambiado.")
-        BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }; return
+        BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White); return
     }
     val run = state.detail ?: return
     val finished = run.status == "SUBMITTED"

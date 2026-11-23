@@ -97,7 +97,7 @@ private fun DocumentsPane(state: NormativeState, viewModel: NormativeViewModel) 
         }
     }
     BpmPageHeader("Normativa cargada", description = "Textos oficiales en los que busca el equipo.",
-        actions = { RaisedButton("Cargar normativa", viewModel::newDocument, Modifier.bpmPrimaryButtonWidth()) })
+        actions = { BpmChunkyButton("Cargar normativa", viewModel::newDocument, Modifier.bpmPrimaryButtonWidth()) })
     BpmListToolbar(filters = { BpmFilterChips(listOf(false to "Activa", true to "Archivada"), state.archived, !state.documentsLoading) { viewModel.loadDocuments(it) } })
     BpmPagedList(loading = state.documentsLoading, failure = null, isEmpty = state.documents.isEmpty(), pageNumber = 1, canPrevious = false, canNext = false,
         onRetry = { viewModel.loadDocuments() }, onPrevious = {}, onNext = {},
@@ -133,6 +133,6 @@ private fun DocumentForm(editor: DocumentEditor, saving: Boolean, viewModel: Nor
 private fun Failure(reason: NormativeFailure, onRetry: (() -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
         Text(NormativeRules.failureMessage(reason), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        if (onRetry != null) BpmSecondaryButton(onClick = onRetry) { Text("Reintentar") }
+        if (onRetry != null) BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)
     }
 }

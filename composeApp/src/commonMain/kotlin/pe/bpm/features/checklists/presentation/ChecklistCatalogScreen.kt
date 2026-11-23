@@ -56,7 +56,7 @@ fun ChecklistCatalogScreen(
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text("No pudimos cargar los controles", style = MaterialTheme.typography.titleMedium)
                 Text(failureMessage(state.failure), color = MaterialTheme.colorScheme.error)
-                BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") }
+                BpmChunkyButton("Reintentar", onRefresh, tone = BpmChunkyTone.White)
             }
             state.templates.isEmpty() && state.query.isEmpty() -> EmptyState("Todavía no hay controles publicados",
                 "Cuando tu organización publique una plantilla, podrás consultar aquí sus preguntas y criterios.")
@@ -77,7 +77,7 @@ fun ChecklistCatalogScreen(
             BpmListDetail(list = { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) { list() } }, detail = {
             when {
                 state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmSecondaryButton(onClick = onRefresh) { Text("Reintentar") } }
+                state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmChunkyButton("Reintentar", onRefresh, tone = BpmChunkyTone.White) }
                 state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
                 else -> Text("Cargando plantilla…")
             }
@@ -104,11 +104,11 @@ private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> U
     BpmDetailPane(template.name, status = BpmRecordStatus("Versión ${template.versionNumber}"), subtitle = template.area,
         actions = if (onStart == null && onAssign == null && onVersions == null) null else ({
             when {
-                onStart != null -> RaisedButton("Preparar revisión", { onStart(template.id) }, Modifier.bpmPrimaryButtonWidth())
-                onAssign != null -> RaisedButton("Programar en una sede", { onAssign(template.id) }, Modifier.bpmPrimaryButtonWidth())
+                onStart != null -> BpmChunkyButton("Preparar revisión", { onStart(template.id) }, Modifier.bpmPrimaryButtonWidth())
+                onAssign != null -> BpmChunkyButton("Programar en una sede", { onAssign(template.id) }, Modifier.bpmPrimaryButtonWidth())
             }
-            if (onStart != null && onAssign != null) BpmSecondaryButton(onClick = { onAssign(template.id) }) { Text("Programar en una sede") }
-            if (onVersions != null) BpmSecondaryButton(onClick = { onVersions(template.id) }) { Text("Editar preguntas y ver versiones") }
+            if (onStart != null && onAssign != null) BpmChunkyButton("Programar en una sede", { onAssign(template.id) }, tone = BpmChunkyTone.White)
+            if (onVersions != null) BpmChunkyButton("Editar preguntas y ver versiones", { onVersions(template.id) }, tone = BpmChunkyTone.White)
         })) {
         BpmSection("Sobre este control") {
             if (template.description.isNotBlank()) Text(template.description)
