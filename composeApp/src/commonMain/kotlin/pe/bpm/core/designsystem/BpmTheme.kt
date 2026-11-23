@@ -64,7 +64,7 @@ object BpmSpacing {
     /** Relieve inferior de los botones; igual en principal y secundario para que midan lo mismo. */
     val reliefDepth: Dp = 3.dp
     /** Ancho máximo único del contenido de toda pantalla alojada; en ventanas mayores queda alineado a la izquierda. */
-    val contentMax: Dp = 1200.dp
+    val contentMax: Dp = 1120.dp
     /** Ancho máximo de un campo de búsqueda: en pantallas amplias no debe ocupar toda la fila. */
     val searchMax: Dp = 560.dp
 

@@ -164,7 +164,7 @@ private fun StreakCard(currentDays: Int, activeToday: Boolean, lastActivityDate:
     }
 }
 
-/** Rejilla de 3 columnas de insignias grandes; tocar una muestra debajo su descripción o cómo ganarla. */
+/** Rejilla de 3 columnas (2 si son cuatro) de insignias grandes; tocar una muestra debajo su descripción o cómo ganarla. */
 @Composable
 private fun BadgeGrid(badges: List<Achievement>) {
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -172,13 +172,15 @@ private fun BadgeGrid(badges: List<Achievement>) {
         Text("Todavía no hay insignias para ganar.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
         return
     }
+    // Con cuatro insignias, 4 en una fila (2 × 2 en teléfono): una tercera columna dejaría una insignia sola en la segunda fila.
+    val columns = if (badges.size == 4) (if (currentWindowClass == BpmWindowClass.Compact) 2 else 4) else 3
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        badges.chunked(3).forEach { row ->
+        badges.chunked(columns).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { badge ->
                     BadgeTile(badge, badge.id == selectedId, { selectedId = if (selectedId == badge.id) null else badge.id }, Modifier.weight(1f))
                 }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
         badges.firstOrNull { it.id == selectedId }?.let { BadgeDetail(it) }

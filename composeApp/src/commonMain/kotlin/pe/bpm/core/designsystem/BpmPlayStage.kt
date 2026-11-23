@@ -128,7 +128,7 @@ fun BpmPlayCard(modifier: Modifier = Modifier, dashed: Boolean = false, content:
 }
 
 /**
- * Cuerpo de una pantalla de Aprender con la medida de la maqueta: una columna central de 480 dp (teléfono centrado en
+ * Cuerpo de una pantalla de Aprender con la medida de la maqueta: una columna central de 640 dp (centrada en
  * clase compacta y media) o de 600 dp (expandida y grande) y, si cabe, un panel derecho de 330 dp ([rail]: racha,
  * meta e insignia). [content] recibe `true` cuando el panel se muestra, para no repetir lo que ya está en él.
  * Sin [rail] o sin espacio, la columna se centra sola.
@@ -145,7 +145,7 @@ fun BpmPlayColumns(
     content: @Composable ColumnScope.(railVisible: Boolean) -> Unit,
 ) {
     val expanded = currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large
-    val column = if (alignStart) 720.dp else if (expanded) 600.dp else 480.dp
+    val column = if (alignStart) 720.dp else if (expanded) 600.dp else BpmPatternRules.mediumColumn
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val showRail = rail != null && expanded && maxWidth >= (if (alignStart) 600.dp else column) + 24.dp + 330.dp
         if (showRail && alignStart) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {

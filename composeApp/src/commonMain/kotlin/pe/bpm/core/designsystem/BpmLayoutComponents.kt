@@ -38,13 +38,13 @@ import androidx.compose.ui.unit.dp
  */
 
 /** Ancho desde el cual `BpmPageHeader` pone las acciones a la derecha del título. */
-private val headerWide: Dp = 600.dp
+private val headerWide: Dp = 520.dp
 /** Ancho desde el cual `BpmListRow` pasa de tarjeta a fila densa. */
 private val listRowWide: Dp = 840.dp
 
 /**
  * Encabezado de página: título (uno por pantalla) + descripción corta + acciones. Las acciones van siempre
- * en el mismo lugar: a la derecha del título desde 600 dp y debajo en pantallas compactas.
+ * en el mismo lugar: a la derecha del título desde 520 dp de ancho del encabezado y debajo en pantallas compactas.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

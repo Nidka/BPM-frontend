@@ -37,7 +37,7 @@ fun ShiftsScreen(viewModel: ShiftsViewModel, modifier: Modifier = Modifier) {
 @Composable
 private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
     if (state.canManage) {
-        BpmChunkyButton("Crear turno", vm::newShift, Modifier.fillMaxWidth(), enabled = !state.busy && !state.loading)
+        BpmChunkyButton("Crear turno", vm::newShift, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy && !state.loading)
         BpmFilterChip(
             state.showInactive,
             { vm.toggleInactive() },

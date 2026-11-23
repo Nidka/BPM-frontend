@@ -106,11 +106,11 @@ internal fun PlanMission(plan: CleaningPlan, viewModel: OperationsViewModel, mod
 
 /**
  * Botón flotante coral «Reportar» (`.btn.c` de la maqueta): abajo a la derecha de la columna de Tareas, siempre visible.
- * Se alinea con el ancho de la columna central (480 dp, 600 dp desde la clase expandida) y deja 16 dp al borde.
+ * Se alinea con el ancho de la columna central (640 dp, 600 dp desde la clase expandida) y deja 16 dp al borde.
  */
 @Composable
 internal fun WorkerReportButton(onReport: () -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
-    val column = if (currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large) 600.dp else 480.dp
+    val column = if (currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large) 600.dp else BpmPatternRules.mediumColumn
     Box(modifier.widthIn(max = column).fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.BottomEnd) {
         BpmChunkyButton("Reportar", onReport, tone = BpmChunkyTone.Report, icon = BpmSymbol.Alert, enabled = enabled)
     }

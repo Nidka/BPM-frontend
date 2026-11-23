@@ -55,7 +55,7 @@ fun BpmPlayBottomBar(items: List<BpmPlayNavItem>, modifier: Modifier = Modifier)
     Row(
         modifier.fillMaxWidth().background(Color.White)
             .drawBehind { drawRect(BpmPlayColors.line, Offset.Zero, androidx.compose.ui.geometry.Size(size.width, BpmPlayBorder.toPx())) }
-            .padding(start = 6.dp, top = 8.dp, end = 6.dp, bottom = 14.dp),
+            .padding(start = 2.dp, top = 8.dp, end = 2.dp, bottom = 14.dp),
     ) {
         items.forEach { item ->
             val color = if (item.selected) BpmPlayColors.action.face else BpmPlayColors.navInactive
@@ -72,7 +72,7 @@ fun BpmPlayBottomBar(items: List<BpmPlayNavItem>, modifier: Modifier = Modifier)
                 ) { BpmIcon(item.icon, tint = color, modifier = Modifier.size(26.dp)) }
                 Spacer(Modifier.height(2.dp))
                 // Con cinco destinos (Jefe, Administrador) las etiquetas largas («Seguimiento») ya no caben a 11,5 sp en 360 dp.
-                Text(item.label.uppercase(), color = color, style = if (items.size > 4 || item.label.length > LongLabel) BpmPlayType.navLabel.copy(fontSize = 10.sp, letterSpacing = 0.sp) else BpmPlayType.navLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text(item.label.uppercase(), color = color, style = if (items.size > 4 || item.label.length > LongLabel) BpmPlayType.navLabel.copy(fontSize = if (item.label.length > LongLabel - 2) 9.5.sp else 10.sp, letterSpacing = 0.sp) else BpmPlayType.navLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
             }
         }
     }

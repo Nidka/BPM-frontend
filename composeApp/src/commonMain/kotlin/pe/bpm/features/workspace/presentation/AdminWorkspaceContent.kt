@@ -1,10 +1,10 @@
 package pe.bpm.features.workspace.presentation
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +51,7 @@ private fun siteText(member: Member, sites: List<Location>) = if (member.role ==
  * (Todos · Personal · Jefes · Admin); el detalle muestra rol, correo y sedes, y lleva a asignar un curso o a cambiar el rol
  * o las sedes en «Cuentas y equipo». El avance por persona no lo entrega la API y no se muestra.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AdminTeamContent(
     current: Workspace,
@@ -68,11 +69,14 @@ internal fun AdminTeamContent(
     val members = current.members
     val shown = members.filter { filter == ALL || it.role == filter }
     val selected = members.firstOrNull { it.id == selectedId }
+    val first = shown.firstOrNull()
     BpmListDetail(modifier, detail = selected?.let { member -> { AdminMemberDetail(member, current.locations, { selectedId = null }, onManage, onAssignCourse) } },
-        emptyDetail = { Text("Elige a una persona para ver sus datos.", style = BpmPlayType.sub, color = BpmPlayColors.muted) }) {
+        defaultDetail = first?.let { member -> { AdminMemberDetail(member, current.locations, { selectedId = null }, onManage, onAssignCourse) } },
+        emptyDetail = { BpmEmptyDetail("Elige a una persona", "Toca una persona de la lista para ver su rol, correo y sedes.") }) {
+        val highlighted = bpmSelectedId(selectedId, first?.id)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) {
-            // Una sola fila desplazable: en la lista de 360 dp cuatro filtros no caben sin partirse en dos líneas.
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
+            // Los filtros pasan a una segunda línea cuando no caben (360 dp): ninguno queda cortado por el borde.
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
                 listOf(ALL to "Todos", "WORKER" to "Personal", "CHEF" to "Jefes", "ADMIN" to "Admin").forEach { (value, label) ->
                     val count = if (value == ALL) members.size else members.count { it.role == value }
                     BpmFilterChip(selected = filter == value, onClick = { filter = value }, label = { Text("$label $count") })
@@ -84,7 +88,7 @@ internal fun AdminTeamContent(
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) { // lista-apilada: filas densas de personas
                     shown.forEach { member ->
                         BpmPersonRow(member.name, detail = "${roleName(member.role)} · ${siteText(member, current.locations)}",
-                            selected = member.id == selectedId, onClick = { selectedId = member.id })
+                            selected = member.id == highlighted, onClick = { selectedId = member.id })
                     }
                 }
             }
@@ -133,8 +137,11 @@ internal fun AdminAcademyContent(
         }
         val courses = current.courses
         val selected = courses.firstOrNull { it.id == selectedId }
+        val first = courses.firstOrNull()
         BpmListDetail(detail = selected?.let { course -> { AdminCourseDetail(course, { selectedId = null }, { onOpenCourse(course.id) }, onManage) } },
-            emptyDetail = { Text("Elige un curso para ver su resumen.", style = BpmPlayType.sub, color = BpmPlayColors.muted) }) {
+            defaultDetail = first?.let { course -> { AdminCourseDetail(course, { selectedId = null }, { onOpenCourse(course.id) }, onManage) } },
+            emptyDetail = { BpmEmptyDetail("Elige un curso", "Toca un curso de la lista para ver su resumen y abrirlo.") }) {
+            val highlighted = bpmSelectedId(selectedId, first?.id)
             paging.list(WorkspaceResource.Courses) {
                 if (courses.isEmpty()) EmptyState("Sin cursos para mostrar", "No hay cursos disponibles para esta búsqueda. Crea el primero en «Gestionar cursos».")
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) { // lista-apilada: lista junto al detalle
@@ -142,7 +149,7 @@ internal fun AdminAcademyContent(
                         val chip = catalogStatusChip(course.status)
                         BpmRecordCard(course.title, status = BpmRecordStatus(chip?.first ?: entryStatusLabel(course.status), chip?.second ?: BpmTone.Neutral),
                             subtitle = catalogSummary(course.detail).ifEmpty { "Curso de tu organización" },
-                            selected = course.id == selectedId, onOpen = { selectedId = course.id })
+                            selected = course.id == highlighted, onOpen = { selectedId = course.id })
                     }
                 }
             }
@@ -202,19 +209,22 @@ internal fun AdminCompanyContent(
                 { m -> BpmActionTile(BpmSymbol.Sprout, "Operación diaria", "Proveedores, productos, planes de limpieza y registros de tus sedes.", actions.onDaily, m) },
                 { m -> BpmActionTile(BpmSymbol.Bell, "Reglas de avisos", "Elige cuándo avisar a las personas responsables.", actions.onAlertRules, m) },
                 { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Envía los avisos a n8n u otra herramienta con webhooks firmados.", actions.onWebhooks, m) },
-            )) { card, m -> card(m) }
+            ), maxColumns = 2) { card, m -> card(m) } // 4 accesos: 2 × 2, sin una tarjeta huérfana en la tercera columna
         }
         Text("Sedes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         val sites = current.locations
         val selected = sites.firstOrNull { it.id == selectedId }
+        val first = sites.firstOrNull()
         BpmListDetail(detail = selected?.let { site -> { AdminSiteDetail(site, current.canManage, { selectedId = null }, actions.onOrganization) } },
-            emptyDetail = { Text("Elige una sede para ver sus datos.", style = BpmPlayType.sub, color = BpmPlayColors.muted) }) {
+            defaultDetail = first?.let { site -> { AdminSiteDetail(site, current.canManage, { selectedId = null }, actions.onOrganization) } },
+            emptyDetail = { BpmEmptyDetail("Elige una sede", "Toca una sede de la lista para ver su dirección, teléfono y zona horaria.") }) {
+            val highlighted = bpmSelectedId(selectedId, first?.id)
             paging.list(WorkspaceResource.Locations) {
                 if (sites.isEmpty()) EmptyState("Sin sedes para mostrar", "No hay sedes disponibles para esta búsqueda y tus permisos actuales.")
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) { // lista-apilada: lista junto al detalle
                     sites.forEach { site ->
                         BpmRecordCard(site.name, subtitle = listOf(site.address, site.district).filter { it.isNotBlank() }.joinToString(" · ").ifEmpty { null },
-                            selected = site.id == selectedId, onOpen = { selectedId = site.id })
+                            selected = site.id == highlighted, onOpen = { selectedId = site.id })
                     }
                 }
             }

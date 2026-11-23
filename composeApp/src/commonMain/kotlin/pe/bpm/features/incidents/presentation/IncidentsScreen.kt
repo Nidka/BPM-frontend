@@ -75,9 +75,9 @@ fun IncidentsScreen(
                         }
                     }
                 if (e.hasDraft)
-                    BpmChunkyButton("Continuar borrador guardado", viewModel.editor::resume, Modifier.fillMaxWidth(), enabled = !s.loading)
+                    BpmChunkyButton("Continuar borrador guardado", viewModel.editor::resume, Modifier.bpmPrimaryButtonWidth(), enabled = !s.loading)
                 else if (s.catalogMode || IncidentsAccess.canReport(s.role))
-                    BpmChunkyButton(if (s.catalogMode) "Crear criterio" else "Reportar incidencia", if (s.catalogMode) viewModel::newCatalog else viewModel::newReport, Modifier.fillMaxWidth(), enabled = !s.loading)
+                    BpmChunkyButton(if (s.catalogMode) "Crear criterio" else "Reportar incidencia", if (s.catalogMode) viewModel::newCatalog else viewModel::newReport, Modifier.bpmPrimaryButtonWidth(), enabled = !s.loading)
                 if (s.failure != null)
                     BpmTextButton(viewModel::refresh) { Text("Reintentar consulta") }
                 if (s.catalogMode) {

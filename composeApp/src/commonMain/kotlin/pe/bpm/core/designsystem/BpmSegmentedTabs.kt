@@ -57,7 +57,7 @@ fun BpmSegmentedTabs(
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                        Text(option.label, maxLines = 1,
+                        Text(option.label, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelLarge,
                             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         option.count?.let { count ->

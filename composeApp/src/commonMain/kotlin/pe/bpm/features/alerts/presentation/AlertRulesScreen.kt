@@ -41,9 +41,9 @@ fun AlertRulesScreen(
         BpmChunkyButton("Reintentar recuperación del borrador", viewModel::recoverDraft, tone = BpmChunkyTone.White)
       }
       if (e.hasDraft)
-        BpmChunkyButton("Continuar borrador guardado", viewModel.editor::resume, Modifier.fillMaxWidth())
+        BpmChunkyButton("Continuar borrador guardado", viewModel.editor::resume, Modifier.bpmPrimaryButtonWidth())
       else if (e.failure == null)
-        BpmChunkyButton("Crear regla de avisos", { viewModel.editor.new() }, Modifier.fillMaxWidth(), enabled = !s.loading)
+        BpmChunkyButton("Crear regla de avisos", { viewModel.editor.new() }, Modifier.bpmPrimaryButtonWidth(), enabled = !s.loading)
       BpmSearchField(
         s.rules.query,
         viewModel::query,

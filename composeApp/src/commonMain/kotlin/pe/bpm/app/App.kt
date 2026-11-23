@@ -636,7 +636,7 @@ fun App(
                                     } else {
                                         val scopedManagement = checklistState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected } ?: ChecklistCatalogState(loading = true)
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
-                                            BpmChunkyButton("Controles programados por sede", { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
+                                            BpmChunkyButton("Controles programados", { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
                                             Text("Crea una primera versión y revisa las preguntas antes de publicarla.")
                                             BpmChunkyButton("Crear plantilla", {
                                                 if (templateEditorState.published != null) templateEditor.reset()

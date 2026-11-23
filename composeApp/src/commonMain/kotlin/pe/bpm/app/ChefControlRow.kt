@@ -37,19 +37,32 @@ internal fun ChefControlRow(item: ChecklistAssignment, state: ChefControlState, 
     val frame = if (done) BpmPlayColors.doneRowBorder else BpmPlayColors.line
     val fill = if (done) BpmPlayColors.correct.soft else Color.White
     val base = modifier.fillMaxWidth().bpmPlayFrame(frame, fill, 18.dp)
-    Row(
-        (if (done) base.clickable(role = Role.Button, onClickLabel = "Ver el control", onClick = onOpen) else base).padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // En teléfono el botón baja a todo el ancho: junto al texto dejaba el nombre del control en tres líneas.
+    val stacked = currentWindowClass == BpmWindowClass.Compact && !done
+    val framed = (if (done) base.clickable(role = Role.Button, onClickLabel = "Ver el control", onClick = onOpen) else base).padding(12.dp)
+    val action: @Composable (Modifier) -> Unit = { m ->
+        if (done) Box(m.size(40.dp).background(BpmPlayColors.correct.face, CircleShape).semantics { contentDescription = "Hecho" }, contentAlignment = Alignment.Center) {
+            BpmIcon(BpmSymbol.Check, tint = Color.White, modifier = Modifier.size(24.dp))
+        } else BpmChunkyButton(controlAction(state), onOpen, m, tone = if (state == ChefControlState.OthersInProgress) BpmChunkyTone.White else BpmChunkyTone.Action)
+    }
+    if (stacked) Column(framed, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ControlSummary(item.templateName, detail, state, icon, shade, Modifier.fillMaxWidth())
+        action(Modifier.fillMaxWidth())
+    } else Row(framed, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        ControlSummary(item.templateName, detail, state, icon, shade, Modifier.weight(1f))
+        action(Modifier)
+    }
+}
+
+@Composable
+private fun ControlSummary(name: String, detail: String, state: ChefControlState, icon: pe.bpm.features.operations.presentation.MissionIcon, shade: BpmPlayShade, modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(48.dp).background(shade.soft, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
             BpmIcon(icon.symbol, tint = shade.ink, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(item.templateName, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2)
+            Text(name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2)
             Text(detail, style = BpmPlayType.rowDetail, color = if (state == ChefControlState.Late) BpmPlayColors.error.shadow else BpmPlayColors.muted, maxLines = 2)
         }
-        if (done) Box(Modifier.size(40.dp).background(BpmPlayColors.correct.face, CircleShape).semantics { contentDescription = "Hecho" }, contentAlignment = Alignment.Center) {
-            BpmIcon(BpmSymbol.Check, tint = Color.White, modifier = Modifier.size(24.dp))
-        } else BpmChunkyButton(controlAction(state), onOpen, tone = if (state == ChefControlState.OthersInProgress) BpmChunkyTone.White else BpmChunkyTone.Action)
     }
 }

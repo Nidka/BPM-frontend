@@ -35,14 +35,17 @@ internal fun ChefTeamContent(team: List<Member>, sites: List<Location>, modifier
     }
     val shown = team.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) || it.email.contains(query.trim(), ignoreCase = true) }
     val selected = team.firstOrNull { it.id == selectedId }
+    val first = shown.firstOrNull()
     BpmListDetail(modifier, detail = selected?.let { member -> { MemberDetail(member, sites, onBack = { selectedId = null }) } },
-        emptyDetail = { Text("Elige a una persona para ver sus datos.", style = BpmPlayType.sub, color = BpmPlayColors.muted) }) {
+        defaultDetail = first?.let { member -> { MemberDetail(member, sites, onBack = { selectedId = null }) } },
+        emptyDetail = { BpmEmptyDetail("Elige a una persona", "Toca una persona de la lista para ver su rol, correo y sedes en común.") }) {
+        val highlighted = bpmSelectedId(selectedId, first?.id)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             BpmSearchField(query, { query = it }, "Buscar personas", fullWidth = true)
             if (shown.isEmpty()) EmptyState("Sin coincidencias", "Prueba con otro nombre o correo.")
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) { // lista-apilada: filas densas de personas
                 shown.forEach { member ->
-                    BpmPersonRow(member.name, detail = memberLine(member, sites), selected = member.id == selectedId, onClick = { selectedId = member.id })
+                    BpmPersonRow(member.name, detail = memberLine(member, sites), selected = member.id == highlighted, onClick = { selectedId = member.id })
                 }
             }
         }

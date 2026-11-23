@@ -29,10 +29,11 @@ pantalla; los valores viven en código (`BpmPatternRules`, `BpmSpacing`) y el ve
 | Cortes de ventana (navegación y margen) | 600 · 840 · 1200 | `BpmWindowClass` |
 | Margen lateral por clase | 16 · 24 · 32 · 32 | `BpmWindowClass.margin` |
 | Navegación (igual en todos los roles) | barra inferior < 840 (o alto < 480) · menú lateral 230 | `BpmNavigationMode` |
-| Ancho máximo de contenido | 1200 | `BpmSpacing.contentMax` |
+| Ancho máximo del grupo de contenido (centrado) | 1120 | `BpmSpacing.contentMax` |
 | Columna de lectura (formulario, pasos, detalle solo) | 720 | `BpmPatternRules.readingWidth` |
 | Tarjeta de acceso | 440 | `BpmPatternRules.accessWidth` |
-| Lista junto al detalle | 360 | `BpmPatternRules.listWidth` |
+| Lista junto al detalle | 360 (400 desde 1000 de ancho útil) | `BpmPatternRules.listWidthFor` |
+| Columna centrada de la clase media (600–839) | 640 | `BpmPatternRules.mediumColumn` |
 | Detalle mínimo junto a la lista | 480 | `BpmPatternRules.detailMinWidth` |
 | Tarjeta mínima de rejilla | 300 (separación 16) | `BpmPatternRules.gridMinCard` |
 | Dos campos lado a lado desde | 420 de ancho del formulario | `BpmPatternRules.pairMinWidth` |
@@ -138,7 +139,9 @@ Patrón `ListDetail` (junto a la lista) o a pantalla completa. Anatomía (`BpmDe
 └────────────────────────────────────────────┘
 ```
 
-1. **Junto a la lista** ocupa el resto del ancho; **solo**, máximo 720 y con «Volver a la lista».
+1. **Junto a la lista** ocupa el resto del ancho; mientras nadie elige un registro muestra el detalle del primero
+   (`defaultDetail` + `bpmSelectedId` resalta su fila) para que nunca quede un vacío enorme; con la lista vacía, una
+   tarjeta `BpmEmptyDetail` (tomate + instrucción); **solo**, máximo 720 y con «Volver a la lista».
    `BpmDetailPane` sabe cuál de los dos casos aplica (lo publica `BpmListDetail`).
 2. **Datos (`BpmDetailFields`):** etiqueta (`bodySmall`, gris) encima del valor (`bodyLarge`); una columna
    si el panel mide < 520, dos desde 520. Un dato vacío se muestra como «—», nunca se omite en silencio.

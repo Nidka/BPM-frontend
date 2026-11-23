@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import pe.bpm.resources.Res
+import pe.bpm.resources.mascot_done
 
 /*
  * Capas 2 y 3 del diseño adaptable: BpmScreen (márgenes, ancho máximo y título por patrón) y los seis patrones.
@@ -51,10 +53,18 @@ enum class BpmPattern {
 
 /** Reglas de medida por patrón y clase de ancho (tabla del diseño). Son funciones puras, fáciles de probar. */
 object BpmPatternRules {
-    /** Ancho de la lista en lista–detalle cuando el detalle va al lado. */
+    /** Ancho mínimo de la lista en lista–detalle cuando el detalle va al lado (360–420 según el ancho útil). */
     val listWidth: Dp = 360.dp
+    /** Ancho de la lista cuando el grupo es amplio (≥ 1000 dp útiles): 400 dp, para que el detalle siga llenando el resto. */
+    val listWidthWide: Dp = 400.dp
+    /** Ancho útil desde el que la lista pasa de [listWidth] a [listWidthWide]. */
+    val listWideFrom: Dp = 1000.dp
+    /** Ancho de la lista según el ancho útil del contenedor. */
+    fun listWidthFor(available: Dp): Dp = if (available >= listWideFrom) listWidthWide else listWidth
     /** Columna central de flujo por pasos y formulario. */
     val readingWidth: Dp = 720.dp
+    /** Columna centrada de la clase media (600–839 dp, barra inferior). */
+    val mediumColumn: Dp = 640.dp
     /** Tarjeta centrada de acceso. */
     val accessWidth: Dp = 440.dp
     /** Ancho mínimo de una tarjeta de rejilla (con separación de 16 dp): 1 columna < 616, 2 hasta 931, 3 desde 932. */
@@ -89,7 +99,8 @@ object BpmPatternRules {
 
     /** Ancho máximo del contenido; [Dp.Unspecified] significa «todo el ancho disponible». */
     fun contentMax(pattern: BpmPattern, windowClass: BpmWindowClass, preview: Boolean = true): Dp = when (pattern) {
-        BpmPattern.Panel, BpmPattern.ListDetail, BpmPattern.Grid -> BpmSpacing.contentMax
+        // 600–839 dp: columna centrada de 640 dp (tabla de anchos); desde 840 dp, grupo centrado de hasta 1120 dp.
+        BpmPattern.Panel, BpmPattern.ListDetail, BpmPattern.Grid -> if (windowClass == BpmWindowClass.Medium) mediumColumn else BpmSpacing.contentMax
         BpmPattern.StepFlow -> if (windowClass == BpmWindowClass.Compact) Dp.Unspecified else readingWidth
         BpmPattern.Form -> when (windowClass) {
             BpmWindowClass.Compact -> Dp.Unspecified
@@ -191,28 +202,50 @@ fun BpmPanelLayout(
 val LocalBpmDetailBeside = compositionLocalOf { false }
 
 /**
+ * Registro resaltado en la lista: el elegido ([explicit]) o, si el detalle va al lado y no se ha elegido ninguno, el primero
+ * ([firstId], cuyo detalle muestra [BpmListDetail] por defecto). Llamar dentro de `list`.
+ */
+@Composable
+fun bpmSelectedId(explicit: String?, firstId: String?): String? = explicit ?: if (LocalBpmDetailBeside.current) firstId else null
+
+/**
+ * Detalle vacío (nada elegido y nada que mostrar por defecto): una tarjeta con el tomate, un título y la instrucción,
+ * del tamaño de una tarjeta y no de todo el hueco que deja la lista.
+ */
+@Composable
+fun BpmEmptyDetail(title: String, message: String, modifier: Modifier = Modifier) {
+    BpmPlayEmpty(Res.drawable.mascot_done, title, message, modifier)
+}
+
+/**
  * Lista–detalle con el estilo del sistema: una línea separa la lista del detalle y el registro abierto queda resaltado en la
  * lista (`selected` de [BpmRecordCard], [BpmPersonRow] y [BpmDataRow]). Con [detail] nulo se ve la lista. Si el ancho útil alcanza para lista (360), separación (24) y
- * un detalle legible (480) —desde 864 dp—, el detalle va al lado ([emptyDetail] mientras no hay selección);
- * si no, un detalle abierto ocupa toda la pantalla con un tope de 720 dp y su «Volver».
+ * un detalle legible (480) —desde 864 dp—, el detalle va al lado y la lista mide 360 dp (400 desde 1000 dp útiles);
+ * mientras no hay selección muestra [defaultDetail] (el detalle del primer registro: nunca queda un vacío enorme junto a
+ * la lista) o, si no hay ni eso, [emptyDetail] (una tarjeta, véase [BpmEmptyDetail]); si no, un detalle abierto ocupa toda
+ * la pantalla con un tope de 720 dp y su «Volver». Dentro de [list], `LocalBpmDetailBeside.current` dice si el detalle va
+ * al lado; [bpmSelectedId] resuelve el registro resaltado.
  */
 @Composable
 fun BpmListDetail(
     modifier: Modifier = Modifier,
     detail: (@Composable () -> Unit)? = null,
     emptyDetail: (@Composable () -> Unit)? = null,
+    defaultDetail: (@Composable () -> Unit)? = null,
     list: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
         if (BpmPatternRules.detailBesideList(maxWidth)) {
+            val listWidth = BpmPatternRules.listWidthFor(maxWidth)
             // Una línea de 2 dp separa la lista del detalle; se dibuja en el medio de la separación, sin medir alturas.
             Row(Modifier.fillMaxWidth().drawBehind {
-                val x = (BpmPatternRules.listWidth + BpmSpacing.xl / 2).toPx()
+                val x = (listWidth + BpmSpacing.xl / 2).toPx()
                 drawRect(BpmPlayColors.line, Offset(x - BpmPlayBorder.toPx() / 2f, 0f), Size(BpmPlayBorder.toPx(), size.height))
             }, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
                 // La lista mide 360 dp: dentro de ella los componentes se comportan como en pantalla compacta (una columna).
-                Column(Modifier.width(BpmPatternRules.listWidth)) { ProvideBpmWindowClass(BpmWindowClass.Compact) { list() } }
-                Column(Modifier.weight(1f)) { CompositionLocalProvider(LocalBpmDetailBeside provides true) { (detail ?: emptyDetail)?.invoke() } }
+                // La lista sabe que el detalle va al lado (LocalBpmDetailBeside): puede resaltar el primer registro, que es el que se muestra.
+                Column(Modifier.width(listWidth)) { CompositionLocalProvider(LocalBpmDetailBeside provides true) { ProvideBpmWindowClass(BpmWindowClass.Compact) { list() } } }
+                Column(Modifier.weight(1f)) { CompositionLocalProvider(LocalBpmDetailBeside provides true) { (detail ?: defaultDetail ?: emptyDetail)?.invoke() } }
             }
         } else if (detail != null) {
             Column(Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth()) {
@@ -230,9 +263,11 @@ fun BpmListDetail(
 fun <T> BpmGridLayout(
     items: List<T>,
     modifier: Modifier = Modifier,
+    maxColumns: Int = BpmPatternRules.GRID_MAX_COLUMNS,
     content: @Composable (T, Modifier) -> Unit,
 ) {
-    BpmCardGrid(items, modifier, minCardWidth = BpmPatternRules.gridMinCard, maxColumns = BpmPatternRules.GRID_MAX_COLUMNS, content = content)
+    // Cuatro tarjetas en tres columnas dejarían una huérfana en la segunda fila: se reparten 2 × 2.
+    BpmCardGrid(items, modifier, minCardWidth = BpmPatternRules.gridMinCard, maxColumns = if (items.size == 4) minOf(maxColumns, 2) else maxColumns, content = content)
 }
 
 /**

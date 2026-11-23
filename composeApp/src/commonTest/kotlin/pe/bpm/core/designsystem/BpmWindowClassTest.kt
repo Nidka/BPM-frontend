@@ -34,7 +34,7 @@ class BpmWindowClassTest {
         assertEquals(listOf(false, false, false, true), listOf(c, m, e, l).map { BpmPatternRules.formPreview(it) })
         assertEquals(720.dp, BpmPatternRules.contentMax(BpmPattern.StepFlow, m))
         assertEquals(440.dp, BpmPatternRules.contentMax(BpmPattern.Access, e))
-        assertEquals(1200.dp, BpmPatternRules.contentMax(BpmPattern.Panel, l))
+        assertEquals(1120.dp, BpmPatternRules.contentMax(BpmPattern.Panel, l))
     }
 
     /** Ancho útil = ventana − navegación − márgenes (specs/LAYOUT.md §1). */

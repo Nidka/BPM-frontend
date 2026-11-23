@@ -105,7 +105,7 @@ fun OperationsScreen(
                                         OperationsResource.RECEIPTS -> "Registrar recepción"
                                         OperationsResource.PLANS -> "Crear plan de limpieza"
                                         else -> "Registrar limpieza"
-                                    }, viewModel::newForm, Modifier.fillMaxWidth(), enabled = !state.loading)
+                                    }, viewModel::newForm, Modifier.bpmPrimaryButtonWidth(), enabled = !state.loading)
                         if (state.failure != null)
                             BpmTextButton(viewModel::refresh, enabled = !state.loading) {
                                 Text("Reintentar consulta")
