@@ -46,6 +46,7 @@ import pe.bpm.core.designsystem.BpmListDetail
 import pe.bpm.core.designsystem.BpmActionTile
 import pe.bpm.core.designsystem.BpmPanelLayout
 import pe.bpm.core.designsystem.BpmSymbol
+import pe.bpm.core.designsystem.BpmSkeletonCard
 import pe.bpm.features.checklists.presentation.ChecklistTemplateEditorViewModel
 import pe.bpm.features.checklists.presentation.ChecklistTemplateEditorScreen
 import pe.bpm.features.checklists.presentation.TemplateEditorStep
@@ -352,8 +353,12 @@ fun App(
     // solo los cambios en conflicto o rechazados se descartan de forma explícita y con confirmación.
     fun requestLogout() { if (offlineUi.logout == LogoutGate.Clear) performLogout() else confirmLogout = true }
 
+    // Accesibilidad: el alto contraste y el tamaño del texto de Perfil valen para toda la app (se suman al ajuste del sistema).
+    androidx.compose.runtime.SideEffect { pe.bpm.core.designsystem.BpmContrast.high = feedbackSettings.highContrast }
+    val systemDensity = androidx.compose.ui.platform.LocalDensity.current
     CompositionLocalProvider(LocalOnline provides offlineUi.status.online, pe.bpm.core.offline.LocalPendingMarks provides offlineUi.marks,
-        pe.bpm.core.designsystem.LocalBpmFeedbackSettings provides feedbackSettings) {
+        pe.bpm.core.designsystem.LocalBpmFeedbackSettings provides feedbackSettings,
+        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(systemDensity.density, systemDensity.fontScale * feedbackSettings.textScale)) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
         banner = { if (profile != null) Column { OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow); pe.bpm.core.offline.OtherAccountNotice(offlineUi) } }) {
         NavHost(navController = nav, startDestination = LOGIN, modifier = Modifier.fillMaxSize().then(
@@ -407,7 +412,7 @@ fun App(
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL,
                         INCIDENT_MANAGEMENT, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
-                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE)
+                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE, REPORT_PROBLEM)
                     WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, TEMPLATE_VERSIONS, ALERT_RULES, DAILY_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT)
@@ -461,7 +466,8 @@ fun App(
                     val researching = route == RESEARCH_PANEL
  val managingAlerts=route==ALERT_RULES
                     val daily = route in listOf(DAILY_MANAGEMENT, DAILY_EXECUTION, WorkspaceDestination.Tasks.route)
-                    val incidentRoute = route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS)
+                    val reportProblem = route == REPORT_PROBLEM
+                    val incidentRoute = route in listOf(INCIDENT_MANAGEMENT, INCIDENT_EXECUTION, INCIDENT_TASKS, REPORT_PROBLEM)
                     val managingDaily = route == DAILY_MANAGEMENT
                     val formKind = WorkspaceFormKind.entries.firstOrNull { it.route == route }
                     val formRevision = remember(routeEntry.id) { workspaceState.revision }
@@ -685,7 +691,8 @@ fun App(
                                         onTasks = { nav.navigate(WorkspaceDestination.Tasks.route) { launchSingleTop = true } },
                                         onReport = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } },
                                         onAchievements = { nav.navigate(TRAINING_ACHIEVEMENTS) { launchSingleTop = true } },
-                                        displayName = profile.displayName)
+                                        displayName = profile.displayName,
+                                        onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } })
                                 }) else if (chefPlay && currentWorkspace != null) ({
                                     // Pantalla «Turno» del jefe de cocina: franja de atención, indicadores, controles de hoy, equipo y su aprendizaje.
                                     ChefTurnoContent(profile.id, currentWorkspace.organization.id, currentWorkspace.locations,
@@ -697,7 +704,9 @@ fun App(
                                         onIncidents = { nav.navigate(INCIDENT_EXECUTION) { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
-                                        onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } })
+                                        onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
+                                        onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
+                                        onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } })
                                 }) else null,
                                 // Super administración: Organizaciones (todas) e Indicadores (de la organización abierta).
                                 platformHome = if (profile.platformRole == "SUPER_ADMIN") ({
@@ -731,6 +740,7 @@ fun App(
                                             onAssignCourse = { nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
                                             onInvite = { nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                             onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
+                                            onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
                                             onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
                                             onSites = { nav.navigate(WorkspaceDestination.Company.route) { launchSingleTop = true } }))
                                 }) else null,
@@ -743,6 +753,7 @@ fun App(
                                         settings = feedbackSettings,
                                         onSound = { on -> feedbackScope.launch { feedbackPreferences.setSound(on) } },
                                         onVibration = { on -> feedbackScope.launch { feedbackPreferences.setVibration(on) } },
+                                        onAccessibility = { scale, contrast, listen -> feedbackScope.launch { feedbackPreferences.setAccessibility(scale, contrast, listen) } },
                                         onOpenCourse = { course -> courseIntent = null; nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
@@ -756,6 +767,7 @@ fun App(
                                         settings = feedbackSettings,
                                         onSound = { on -> feedbackScope.launch { feedbackPreferences.setSound(on) } },
                                         onVibration = { on -> feedbackScope.launch { feedbackPreferences.setVibration(on) } },
+                                        onAccessibility = { scale, contrast, listen -> feedbackScope.launch { feedbackPreferences.setAccessibility(scale, contrast, listen) } },
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                         onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
                                         onLogout = ::requestLogout,
@@ -863,7 +875,7 @@ fun App(
                                                 evidence.openIncident(profile.id, workspaceState.workspace!!.organization.id, incidentId, actionId, phase, writable)
                                             }
                                         },
-                                        onClose = if (workerPlay) ({ navigateBack(destination.route) }) else null)
+                                        onClose = if (workerPlay || reportProblem) ({ navigateBack(destination.route) }) else null)
                                 }) else if (daily && destination != WorkspaceDestination.Tasks) ({
                                     DailyOperationsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, dailyOperations,sourceSiteId=alertSource?.locationId,sourceSiteName=alertSource?.locationName.orEmpty(),sourceReceiptId=alertSource?.sourceParentId,
                                         shifts = shiftsVm, stock = stockVm, onCleaningPhotos = { execution -> openCleaningPhotos(execution) })
@@ -943,7 +955,7 @@ fun App(
                                     else -> BpmPattern.Panel
                                 },
                                 secondaryWideOnExpanded = learningCourse && courseWidePane,
-                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || chefRunStage,
+                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || reportProblem || chefRunStage,
                                 playFocus = learnerPlay,
                                 focusTitle = courseTitle,
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
@@ -1123,9 +1135,8 @@ fun App(
 
 @Composable
 private fun RestoringSession() {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        LinearProgressIndicator(Modifier.fillMaxWidth())
-        Text("Verificando acceso…", Modifier.padding(top = 16.dp))
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+        BpmSkeletonCard(Modifier.widthIn(max = pe.bpm.core.designsystem.BpmPatternRules.readingWidth), lines = 2, action = true, label = "Verificando acceso")
     }
 }
 
@@ -1162,6 +1173,8 @@ private data class IncidentEvidenceTarget(val incidentId: String, val actionId: 
 private const val INCIDENT_MANAGEMENT = "empresa/incidencias"
 private const val INCIDENT_EXECUTION = "control/incidencias"
 private const val INCIDENT_TASKS = "tareas/incidencias"
+/** Reportar un problema en modo enfoque, para cualquier rol que pueda reportar (Personal, Jefe de cocina y Administrador). */
+private const val REPORT_PROBLEM = "reportar"
 
 private const val TRAINING_COURSE = "aprender/{courseId}"
 private const val TRAINING_MANAGEMENT = "empresa/academia"

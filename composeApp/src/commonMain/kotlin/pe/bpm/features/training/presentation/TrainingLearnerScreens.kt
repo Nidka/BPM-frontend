@@ -101,7 +101,7 @@ fun MyAssignmentsPanel(
         },
         main = {
             if (state.member) {
-                if (state.assignmentsLoading && state.assignments.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.assignmentsLoading && state.assignments.isEmpty()) BpmSkeletonList(rows = 3)
                 state.assignmentsFailure?.let {
                     FailureText(it)
                     BpmChunkyButton("Volver a intentar", viewModel::refreshAssignments, tone = BpmChunkyTone.White)
@@ -128,7 +128,7 @@ private fun ContinueCard(assignment: MyAssignment, onOpenCourse: (String) -> Uni
         Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
             val progress = assignmentProgress(assignment)
             if (progress != null) {
-                val percent = assignment.percent.coerceIn(0, 100)
+                val percent = (progress * 100).toInt()
                 BpmProgressRing(progress, "$percent %", "Avance del curso: $percent %", size = 56.dp, strokeWidth = 6.dp)
             } else Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
                 BpmIcon(BpmSymbol.Play, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp))
@@ -173,7 +173,7 @@ fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier =
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         Text("Mis logros", style = MaterialTheme.typography.headlineMedium)
-        if (state.achievementsLoading && state.achievements == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.achievementsLoading && state.achievements == null) BpmSkeletonList(rows = 3)
         state.achievementsFailure?.let {
             FailureText(it)
             BpmChunkyButton("Volver a intentar", viewModel::loadAchievements, tone = BpmChunkyTone.White)
@@ -226,7 +226,7 @@ fun LearningPathsScreen(viewModel: TrainingLearnerViewModel, onOpenCourse: (Stri
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().widthIn(max = BpmPatternRules.readingWidth).verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         val detail = state.pathDetail
-        if (state.pathDetailLoading || state.pathsLoading && state.paths.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.pathDetailLoading || state.pathsLoading && state.paths.isEmpty()) BpmSkeletonList(rows = 3)
         if (detail != null) { PathDetail(detail, onOpenCourse, viewModel::closePath); return@Column }
         Text("Rutas de aprendizaje", style = MaterialTheme.typography.headlineMedium)
         Text("Una ruta ordena varios cursos para que avances paso a paso.")

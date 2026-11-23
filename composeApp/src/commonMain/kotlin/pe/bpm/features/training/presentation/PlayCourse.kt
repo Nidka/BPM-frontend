@@ -83,8 +83,7 @@ internal fun PlayCourseSheet(state: TrainingState, viewModel: TrainingViewModel,
     val scroll = rememberScrollState()
     Column(modifier.fillMaxSize().verticalScroll(scroll).bpmAppear()) {
         BpmPlayColumns { _ ->
-            if (state.loading && state.course == null) Text("Cargando el curso…", style = BpmPlayType.sub, color = BpmPlayColors.muted,
-                modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
+            if (state.loading && state.course == null) BpmSkeletonDetail(label = "Cargando el curso")
             state.failure?.let { failure ->
                 Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
                 if (failure.retryable || state.course == null) BpmChunkyButton("Volver a intentar", viewModel::refresh, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)

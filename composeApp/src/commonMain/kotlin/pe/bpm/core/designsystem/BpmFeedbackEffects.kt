@@ -13,7 +13,16 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * [LocalBpmFeedbackSettings].
  */
 @Immutable
-data class BpmFeedbackSettings(val sound: Boolean = true, val vibration: Boolean = true)
+data class BpmFeedbackSettings(
+    val sound: Boolean = true,
+    val vibration: Boolean = true,
+    /** Tamaño del texto: 1 = normal, 1,15 = grande, 1,3 = muy grande (se multiplica por el del sistema). */
+    val textScale: Float = 1f,
+    /** Texto y bordes más oscuros para quien ve poco. */
+    val highContrast: Boolean = false,
+    /** Muestra «Escuchar» (lectura en voz alta) donde la plataforma tiene síntesis de voz. */
+    val readAloud: Boolean = true,
+)
 
 /** Preferencias vigentes para [rememberBpmFeedbackEffects]; sin proveedor valen los valores por defecto (todo activo). */
 val LocalBpmFeedbackSettings = staticCompositionLocalOf { BpmFeedbackSettings() }

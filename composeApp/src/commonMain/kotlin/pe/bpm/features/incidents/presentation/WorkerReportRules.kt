@@ -24,7 +24,8 @@ internal fun reportIcon(name: String): ReportIcon {
     return when {
         has("temperatura", "°c", "frio", "refriger", "congel") -> ReportIcon(BpmSymbol.Thermometer, BpmPlayTone.Streak)
         has("plaga", "insecto", "roedor", "mosca", "cucaracha") -> ReportIcon(BpmSymbol.Bug, BpmPlayTone.Gold)
-        has("equipo", "malogr", "maquina", "averi") -> ReportIcon(BpmSymbol.Wrench, BpmPlayTone.Action)
+        has("personal", "manos", "uniforme") -> ReportIcon(BpmSymbol.Hand, BpmPlayTone.Correct)
+        has("equipo", "malogr", "maquina", "averi", "danad") -> ReportIcon(BpmSymbol.Wrench, BpmPlayTone.Action)
         has("insumo", "producto", "alimento", "vencid") -> ReportIcon(BpmSymbol.Box, BpmPlayTone.Correct)
         has("agua", "desag", "fuga") -> ReportIcon(BpmSymbol.Drop, BpmPlayTone.Action)
         has("limpieza", "higiene", "desinf", "sucio") -> ReportIcon(BpmSymbol.Spray, BpmPlayTone.Streak)
@@ -32,8 +33,8 @@ internal fun reportIcon(name: String): ReportIcon {
     }
 }
 
-/** Los tres pasos del reporte: qué problema, foto y dónde / nota. */
-internal enum class ReportStep { Category, Photo, Place }
+/** Los dos pasos del reporte: qué tipo de problema es y cuéntanos qué pasó (con foto opcional). */
+internal enum class ReportStep { Category, Describe }
 
 /** Largo máximo de la descripción (el servidor admite 4000). */
 private const val DESCRIPTION_MAX = 4000

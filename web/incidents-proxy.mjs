@@ -29,7 +29,9 @@ const risk = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const statuses = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'VERIFIED'];
 const commands = ['ASSIGN', 'START', 'RESOLVE', 'VERIFY', 'RETURN'];
 const catalogFields = ['id', 'code', 'name', 'area', 'normativeCriterion', 'riskLevel', 'evidenceRequired'];
-const reportFields = ['id', 'locationId', 'catalogId', 'description', 'clientOperationId', 'clientCreatedAt'];
+const reportFields = ['id', 'locationId', 'catalogId', 'catalogCode', 'description', 'clientOperationId', 'clientCreatedAt'];
+// Categorías integradas: se reporta con `catalogCode` en lugar de `catalogId` (exactamente uno de los dos).
+const builtInCodes = ['TEMPERATURA', 'LIMPIEZA', 'PLAGAS', 'EQUIPO_DANADO', 'PRODUCTO_MAL_ESTADO', 'HIGIENE_PERSONAL', 'OTRO'];
 const commandFields = ['operationId', 'rowVersion', 'actionType', 'actionId', 'responsibleUserId', 'description', 'dueAt', 'note'];
 const versionFields = ['id', 'expectedVersion', 'name', 'area', 'normativeCriterion', 'riskLevel', 'evidenceRequired'];
 const error = (code, message, fields = {}) => JSON.stringify({ errors: [{ code, message, fields }] });
@@ -85,7 +87,9 @@ function inputFor(value, resource, kind) {
     if (value.actionType === 'ASSIGN') { identifier(value, 'actionId'); actor(value, 'responsibleUserId'); text(value, 'description', 2000, 1); stamp(value, 'dueAt'); }
     else if (value.actionType !== 'START') text(value, 'note', 2000, 1);
   } else {
-    exact(value, reportFields); ['id', 'locationId', 'catalogId', 'clientOperationId'].forEach(key => identifier(value, key)); text(value, 'description', 4000, 1); require(Date.parse(stamp(value, 'clientCreatedAt')) <= Date.now() + 300000);
+    exact(value, reportFields); ['id', 'locationId', 'clientOperationId'].forEach(key => identifier(value, key));
+    require((value.catalogId === undefined) !== (value.catalogCode === undefined));
+    if (value.catalogId !== undefined) identifier(value, 'catalogId'); else require(builtInCodes.includes(value.catalogCode)); text(value, 'description', 4000, 1); require(Date.parse(stamp(value, 'clientCreatedAt')) <= Date.now() + 300000);
   }
   return value;
 }
@@ -105,7 +109,7 @@ function confirm(input, output, resource, kind) {
     if (input.actionType === 'RESOLVE') require(target.resolutionNote === input.note.trim());
     return;
   }
-  const keys = resource === 'catalog' ? ['id', 'name', 'area', 'normativeCriterion', 'riskLevel', 'evidenceRequired', ...(kind === 'versions' ? [] : ['code'])] : ['id', 'locationId', 'catalogId', 'description'];
+  const keys = resource === 'catalog' ? ['id', 'name', 'area', 'normativeCriterion', 'riskLevel', 'evidenceRequired', ...(kind === 'versions' ? [] : ['code'])] : ['id', 'locationId', ...(input.catalogId === undefined ? [] : ['catalogId']), 'description'];
   for (const key of keys) require(uuid(input[key]) ? same(input[key], output[key]) : typeof input[key] === 'string' ? input[key].trim() === output[key] : input[key] === output[key]);
   if (resource === 'catalog') require(output.versionNumber === (kind === 'versions' ? input.expectedVersion + 1 : 1));
   else require(output.status === 'OPEN');

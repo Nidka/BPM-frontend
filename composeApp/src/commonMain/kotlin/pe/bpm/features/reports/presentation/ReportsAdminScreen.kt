@@ -40,7 +40,7 @@ private fun Failure(failure: ReportFailure, onRetry: () -> Unit, fields: Map<Str
 @Composable
 private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
     Text("Avance por curso", style = MaterialTheme.typography.titleLarge)
-    if (state.coursesLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.coursesLoading) BpmSkeletonList(rows = 3)
     state.coursesFailure?.let { Failure(it, vm::loadCourseRows) }
     state.courses?.let { courses ->
         if (courses.isEmpty()) EmptyState("Sin cursos publicados", "Cuando publiques un curso verás aquí el avance de tu equipo.")
@@ -61,7 +61,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
             BpmTextButton(onClick = { vm.filterCourse(null) }) { Text("Ver todos los cursos") }
         }
     }
-    if (state.peopleLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.peopleLoading) BpmSkeletonList(rows = 3)
     state.peopleFailure?.let { Failure(it, vm::loadFirstPeople) }
     if (state.peopleLoaded && state.people.isEmpty()) EmptyState("Sin personas para mostrar", "No hay personas activas con cursos publicados.")
     BpmGridLayout(state.people) { person, cardModifier ->
@@ -78,7 +78,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
 
 @Composable
 private fun SettingsSection(vm: ReportsAdminViewModel, state: AdminState) {
-    if (state.settingsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.settingsLoading) BpmSkeletonList(rows = 3)
     state.settingsFailure?.let { Failure(it, vm::loadSettingsNow) }
     if (state.settings == null) return
     BpmCard(Modifier.fillMaxWidth()) {
@@ -110,7 +110,7 @@ private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
         }
     }
     Text("Constancias emitidas", style = MaterialTheme.typography.titleLarge)
-    if (state.certificatesLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.certificatesLoading) BpmSkeletonList(rows = 3)
     state.certificatesFailure?.let { Failure(it, { vm.loadCertificates(false) }) }
     if (state.certificatesLoaded && state.certificates.isEmpty()) EmptyState("Aún no hay constancias", "Cuando solicites una constancia aparecerá en esta lista.")
     BpmGridLayout(state.certificates) { certificate, cardModifier ->

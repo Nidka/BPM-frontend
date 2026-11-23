@@ -136,7 +136,7 @@ internal fun DailyOperationsContent(
                         )
                     } else null,
                 )
-            else LinearProgressIndicator(Modifier.fillMaxWidth())
+            else BpmSkeletonList(rows = 4, card = false)
         }
     }
 }

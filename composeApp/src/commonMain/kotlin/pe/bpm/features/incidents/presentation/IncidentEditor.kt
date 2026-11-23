@@ -197,6 +197,13 @@ internal constructor(
         edit("catalogName", value.name)
     }
 
+    /** Elige la categoría de un reporte: una de la organización o una integrada (el servidor la crea al usarla). */
+    internal fun selectReportOption(value: ReportOption) {
+        edit("catalogId", value.catalogId.orEmpty())
+        edit("catalogCode", value.code.orEmpty())
+        edit("catalogName", value.name)
+    }
+
     fun selectResponsible(value: IncidentAssignee) {
         edit("responsibleUserId", value.id)
         edit("responsibleName", value.displayName)

@@ -29,6 +29,7 @@ internal val ScreenshotSizes = listOf(
     ScreenshotSize("390", 390, 844),
     ScreenshotSize("768", 768, 1024),
     ScreenshotSize("1280", 1280, 800),
+    ScreenshotSize("1920", 1920, 1080),
 )
 
 /** Alto (dp) de la variante «completa»: la ventana crece hasta que cabe todo el contenido con desplazamiento. */

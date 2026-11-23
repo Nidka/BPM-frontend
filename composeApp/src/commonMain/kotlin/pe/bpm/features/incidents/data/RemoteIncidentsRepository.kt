@@ -195,7 +195,7 @@ class RemoteIncidentsRepository(
             if (form.kind == "REPORT") {
                 require(
                     result.summary.id == form.id &&
-                        result.summary.catalogId == form.values["catalogId"] &&
+                        (form.values["catalogId"].isNullOrEmpty() || result.summary.catalogId == form.values["catalogId"]) &&
                         result.summary.description == form.values["description"].orEmpty().trim() &&
                         result.summary.status == IncidentStatus.OPEN &&
                         result.summary.rowVersion == 1L &&

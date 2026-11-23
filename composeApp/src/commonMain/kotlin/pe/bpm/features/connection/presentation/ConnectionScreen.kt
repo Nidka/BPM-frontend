@@ -2,7 +2,6 @@ package pe.bpm.features.connection.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,8 +19,7 @@ fun ConnectionScreen(state: ConnectionUiState, onRetry: () -> Unit) {
             Text(if (connected) "Conexión exitosa" else "Estado de conexión", style = MaterialTheme.typography.titleLarge)
             when (state) {
                 ConnectionUiState.Checking -> {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text("Comprobando la API y la base de datos…")
+                    BpmSkeletonCard(lines = 2, label = "Comprobando la API y la base de datos")
                 }
                 is ConnectionUiState.Connected -> {
                     Text("El frontend y el backend están conectados. PostgreSQL está disponible.")

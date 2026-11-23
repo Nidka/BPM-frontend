@@ -25,7 +25,7 @@ fun ShiftsScreen(viewModel: ShiftsViewModel, modifier: Modifier = Modifier) {
         )
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         state.failure?.let { Text(failureText(it), color = MaterialTheme.colorScheme.error) }
-        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading) BpmSkeletonList(rows = 3, card = false)
         when {
             state.siteId == null -> Text("Selecciona una sede para ver sus turnos.")
             state.editor != null -> ShiftForm(state, viewModel)

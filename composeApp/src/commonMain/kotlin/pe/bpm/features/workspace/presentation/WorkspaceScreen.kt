@@ -129,7 +129,8 @@ internal fun WorkspaceScreen(
                     onAlerts=onAlerts,unreadCount=unreadAlertCount,
                     focusTitle = if (focusMode) focusTitle ?: "" else null,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null || activeShortcut != null && form == null) null else onCloseForm)
-                if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.loading && workspace == null) BpmSkeletonDashboard()
+                if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel, bare = focusMode && playFocus) { taskContent() }
                 // Una sola rama para la pantalla alojada con o sin modo enfoque del personal: si fueran ramas distintas, entrar
                 // en la lección movería el contenido de lugar, se descartaría su estado y el curso volvería a la guía.
@@ -228,7 +229,7 @@ internal fun WorkspaceScreen(
                             if (adminShell && adminHome != null) adminHome()
                             else if ((current.role == "WORKER" || current.role == "CHEF") && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
                             // Buscador de normativa (RF-46/47): acceso para todos los roles.
-                            if (onNormative != null && !adminShell) BpmActionTile(BpmSymbol.Learn, "Buscar en la normativa", "Encuentra lo que dice la norma sanitaria sobre temperaturas, higiene y más.", onNormative)
+                            if (onNormative != null && !adminShell && !((current.role == "WORKER" || current.role == "CHEF") && homeContent != null)) BpmActionTile(BpmSymbol.Learn, "Buscar en la normativa", "Encuentra lo que dice la norma sanitaria sobre temperaturas, higiene y más.", onNormative)
                         }
                         WorkspaceDestination.Company -> if (adminShell) AdminCompanyContent(current,
                             WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry),

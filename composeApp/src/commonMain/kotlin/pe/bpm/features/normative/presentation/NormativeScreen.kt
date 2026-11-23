@@ -3,7 +3,6 @@ package pe.bpm.features.normative.presentation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -44,7 +43,7 @@ fun NormativeSearchContent(
     results: List<NormativeMatch>, failure: NormativeFailure?, fieldError: String?,
     onQuery: (String) -> Unit, onSearch: () -> Unit, onRetry: () -> Unit,
 ) {
-    if (loading && status == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
+    if (loading && status == null) { BpmSkeletonList(rows = 3); return }
     when {
         status == null -> failure?.let { Failure(it, onRetry = onRetry) }
         !status.available -> EmptyState("Buscador aún no disponible", "El buscador de normativa estará disponible cuando se actualice el servidor.")
@@ -116,7 +115,7 @@ private fun DocumentsPane(state: NormativeState, viewModel: NormativeViewModel) 
 
 @Composable
 private fun DocumentForm(editor: DocumentEditor, saving: Boolean, viewModel: NormativeViewModel) {
-    if (editor.loading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
+    if (editor.loading) { BpmSkeletonDetail(); return }
     BpmFormLayout(actions = { BpmFormActions(if (editor.id == null) "Cargar normativa" else "Guardar cambios", viewModel::saveEditor, busy = saving, onCancel = viewModel::cancelEditor) }) {
         BpmSection(if (editor.id == null) "Nueva normativa" else "Editar normativa", description = "Pega el texto oficial completo. Se divide en párrafos para buscar en ellos.") {
             BpmShortFields(

@@ -93,7 +93,7 @@ fun BpmPagedList(
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
         when {
-            loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(loadingLabel) }
+            loading -> BpmSkeletonList(rows = 4, label = loadingLabel, card = false)
             failure != null -> {
                 Text(failure, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)

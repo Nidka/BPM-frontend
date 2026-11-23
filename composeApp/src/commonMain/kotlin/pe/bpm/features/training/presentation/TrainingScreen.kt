@@ -62,7 +62,7 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, 
     }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
     Column(Modifier.widthIn(max = maxWidth).fillMaxSize().verticalScroll(scroll).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (state.loading && state.course == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading && state.course == null) BpmSkeletonCard(lines = 3)
         state.failure?.let { failure ->
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

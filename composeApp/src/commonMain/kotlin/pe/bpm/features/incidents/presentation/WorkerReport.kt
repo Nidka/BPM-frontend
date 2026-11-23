@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -42,17 +43,20 @@ import androidx.compose.ui.unit.sp
 import pe.bpm.core.designsystem.*
 import pe.bpm.core.domain.InputRules
 import pe.bpm.features.incidents.domain.IncidentCatalog
+import pe.bpm.features.incidents.domain.IncidentsFailure
 import pe.bpm.resources.Res
 import pe.bpm.resources.mascot_done
 import pe.bpm.resources.mascot_fix
 
 /**
- * Reportar un problema del personal (modo enfoque, pantalla completa), en tres pasos con [BpmStepDots]: **qué problema**
- * (el tomate pregunta y una ficha por categoría del catálogo de incidencias de la organización, con icono por palabras
- * clave: [reportIcon]) → **foto** («Tomar foto» o «Ahora no») → **dónde y una nota corta** → «Enviar reporte».
- * El envío es el de siempre ([IncidentsViewModel.editor]: borrador protegido, cola sin conexión y clave estable).
+ * Reportar un problema (modo enfoque, pantalla completa; Personal, Jefe de cocina y Administrador), en dos pasos con
+ * [BpmStepDots]: **qué tipo de problema es** (una ficha grande con icono por categoría; las integradas van siempre, así
+ * que nadie queda bloqueado porque la administración no creó categorías, y «No sé qué tipo es» lleva a «Otro problema»)
+ * → **cuéntanos qué pasó** (texto libre, lugar opcional y, si se quiere, foto) → «Enviar reporte». La sede se elige sola
+ * cuando hay una sola. El envío es el de siempre ([IncidentsViewModel.editor]: borrador protegido, cola sin conexión y
+ * clave estable).
  *
- * La foto de una incidencia se adjunta a la incidencia ya creada: si el personal eligió «Tomar foto», al confirmarse el
+ * La foto de una incidencia se adjunta a la incidencia ya creada: si la persona marcó «Tomar una foto», al confirmarse el
  * envío se abre el flujo de fotos de la incidencia ([onEvidence]); sin conexión el reporte queda en el dispositivo y la
  * foto se agrega después desde «Ver mis reportes» ([onOpenList]). La X guarda el borrador y sale ([onClose]).
  * Con [startNew] en falso no abre el formulario solo (lo usa quien muestra primero «Mis reportes»).
@@ -92,7 +96,7 @@ fun WorkerReportContent(
                 BpmMascotRow(Res.drawable.mascot_fix, "No pudimos preparar el reporte", imageWidth = 72.dp)
                 Text(incidentFailureText(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 BpmChunkyButton("Volver a intentar", viewModel::refresh, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report)
-            } else Text("Preparando el reporte…", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+            } else BpmSkeletonCard(lines = 2, label = "Preparando el reporte")
         }
         return
     }
@@ -116,80 +120,73 @@ private fun ReportSteps(
     var stepName by rememberSaveable { mutableStateOf(ReportStep.Category.name) }
     var place by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
-    val step = if (e.pending != null) ReportStep.Place else ReportStep.valueOf(stepName)
-    val selectedId = values["catalogId"]
-    val selected = s.catalogChoices.rows.firstOrNull { it.id == selectedId }
+    val step = if (e.pending != null) ReportStep.Describe else ReportStep.valueOf(stepName)
+    val options = remember(s.catalogChoices.rows) { reportOptions(s.catalogChoices.rows) }
+    val selectedKey = values["catalogId"].orEmpty().ifEmpty { values["catalogCode"].orEmpty() }
+    val selected = options.firstOrNull { it.key == selectedKey }
     val busy = e.busy
     fun go(target: ReportStep) { stepName = target.name }
     fun send() {
         if (e.pending == null) {
-            editor.edit("description", reportDescription(place, note))
+            // Sin texto, la descripción es el nombre de la categoría: elegir el tipo ya es un reporte válido.
+            editor.edit("description", reportDescription(place, note).ifBlank { selected?.name.orEmpty() })
             editor.review()
         }
         // Marca «enviando» solo si el envío realmente arranca (sin errores de validación).
         if (editor.state.value.reviewing || e.pending != null) { onSending(); editor.submit() }
     }
-    val canSend = place.isNotBlank() || note.isNotBlank() || e.pending != null
+    val canSend = selected != null && (place.isNotBlank() || note.isNotBlank() || selected.code != "OTRO") || e.pending != null
     fun close() { if (e.pending != null) viewModel.prepareLeave(onClose) else editor.close(onClose) }
 
     BpmPlayStage(
         modifier.bpmPlayKeys(0, {}, {
             when (step) {
-                ReportStep.Category -> if (selectedId != null) go(ReportStep.Photo)
-                ReportStep.Photo -> Unit
-                ReportStep.Place -> if (canSend && !busy) send()
+                ReportStep.Category -> if (selected != null) go(ReportStep.Describe)
+                ReportStep.Describe -> if (canSend && !busy) send()
             }
         }, focusKey = step),
-        onClose = ::close, closeDescription = "Salir del reporte", steps = 3, step = step.ordinal + 1, scrollKey = step,
+        onClose = ::close, closeDescription = "Salir del reporte", steps = 2, step = step.ordinal + 1, scrollKey = step,
         footer = {
             when (step) {
-                ReportStep.Category -> BpmChunkyButton("Continuar", { go(ReportStep.Photo) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report, enabled = selectedId != null)
-                ReportStep.Photo -> {
-                    BpmChunkyButton("Tomar foto", { setWantPhoto(true); go(ReportStep.Place) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report, icon = BpmSymbol.Camera)
-                    BpmChunkyButton("Ahora no", { setWantPhoto(false); go(ReportStep.Place) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+                ReportStep.Category -> {
+                    BpmChunkyButton("Continuar", { go(ReportStep.Describe) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report, enabled = selected != null)
+                    BpmChunkyButton("No sé qué tipo es", { editor.selectReportOption(otherOption(options)); go(ReportStep.Describe) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                 }
-                ReportStep.Place -> BpmChunkyButton(
+                ReportStep.Describe -> BpmChunkyButton(
                     if (busy) "Enviando…" else if (e.pending != null) "Reintentar el mismo envío" else "Enviar reporte",
                     ::send, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report, enabled = canSend && !busy,
                 )
             }
         },
     ) {
-        if (step != ReportStep.Category && e.pending == null) BpmBackLink { go(ReportStep.entries[step.ordinal - 1]) }
+        if (step != ReportStep.Category && e.pending == null) BpmBackLink { go(ReportStep.Category) }
         when (step) {
-            ReportStep.Category -> CategoryStep(s, selectedId, { viewModel.editor.selectCatalog(it) }, viewModel, onOpenList)
-            ReportStep.Photo -> PhotoStep(selected)
-            ReportStep.Place -> PlaceStep(e, place, note, !busy, { place = it }, { note = it })
+            ReportStep.Category -> CategoryStep(options, selectedKey, { editor.selectReportOption(it) }, s.catalogChoices, viewModel, onOpenList)
+            ReportStep.Describe -> DescribeStep(e, selected, place, note, wantPhoto, !busy, { place = it }, { note = it }, setWantPhoto)
         }
     }
 }
 
-/** Primer paso: el tomate pregunta y una ficha por categoría (dos por fila). */
+/** Primer paso: el tomate pregunta y una ficha por categoría (dos por fila); las integradas siempre están. */
 @Composable
-private fun CategoryStep(s: IncidentsState, selectedId: String?, onPick: (IncidentCatalog) -> Unit, viewModel: IncidentsViewModel, onOpenList: () -> Unit) {
-    BpmMascotRow(Res.drawable.mascot_fix, "¿Qué problema encontraste?", imageWidth = 72.dp)
-    val choices = s.catalogChoices
-    when {
-        choices.failure != null -> {
-            Text(incidentFailureText(choices.failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            BpmChunkyButton("Volver a intentar", { viewModel.picker(IncidentPicker.CATALOG) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
-        }
-        choices.rows.isEmpty() && choices.loading -> Text("Buscando las categorías…", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-        choices.rows.isEmpty() -> Text("Tu organización todavía no configuró categorías de incidencias. Pide a tu administrador que las cree.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-        else -> Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            choices.rows.chunked(2).forEach { pair ->
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    pair.forEach { catalog ->
-                        val icon = reportIcon(catalog.name)
-                        BpmChoiceTile(catalog.name, icon.symbol, icon.tone, catalog.id == selectedId, { onPick(catalog) }, Modifier.weight(1f).fillMaxHeight())
-                    }
-                    if (pair.size == 1) Column(Modifier.weight(1f)) {}
+private fun CategoryStep(
+    options: List<ReportOption>, selectedKey: String, onPick: (ReportOption) -> Unit, choices: IncidentPage<IncidentCatalog>,
+    viewModel: IncidentsViewModel, onOpenList: () -> Unit,
+) {
+    BpmMascotRow(Res.drawable.mascot_fix, "¿Qué tipo de problema es?", imageWidth = 72.dp)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        options.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                pair.forEach { option ->
+                    val icon = reportIcon(option.name)
+                    BpmChoiceTile(option.name, icon.symbol, icon.tone, option.key == selectedKey, { onPick(option) }, Modifier.weight(1f).fillMaxHeight())
                 }
+                if (pair.size == 1) Column(Modifier.weight(1f)) {}
             }
-            if (choices.next.isNotEmpty() || choices.previous.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (choices.previous.isNotEmpty()) BpmChunkyButton("Anteriores", viewModel::pickerPrevious, Modifier.weight(1f), tone = BpmChunkyTone.White, enabled = !choices.loading)
-                if (choices.next.isNotEmpty()) BpmChunkyButton("Más categorías", viewModel::pickerNext, Modifier.weight(1f), tone = BpmChunkyTone.White, enabled = !choices.loading)
-            }
+        }
+        if (choices.next.isNotEmpty() || choices.previous.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (choices.previous.isNotEmpty()) BpmChunkyButton("Anteriores", viewModel::pickerPrevious, Modifier.weight(1f), tone = BpmChunkyTone.White, enabled = !choices.loading)
+            if (choices.next.isNotEmpty()) BpmChunkyButton("Más categorías", viewModel::pickerNext, Modifier.weight(1f), tone = BpmChunkyTone.White, enabled = !choices.loading)
         }
     }
     Row(
@@ -198,37 +195,27 @@ private fun CategoryStep(s: IncidentsState, selectedId: String?, onPick: (Incide
     ) { Text("Ver mis reportes", style = BpmPlayType.key, color = BpmPlayColors.action.face) }
 }
 
-/** Segundo paso: foto del problema (se adjunta justo después de enviar). */
+/** Segundo paso: qué pasó en texto libre, el lugar (opcional) y si se quiere una foto (se adjunta justo después de enviar). */
 @Composable
-private fun PhotoStep(selected: IncidentCatalog?) {
-    Text("Toma una foto del problema", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
-    Text("Ayuda a que lo resuelvan más rápido. La foto se adjunta al reporte justo después de enviarlo.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-    val line = BpmPlayColors.navBorder
-    Column(
-        Modifier.fillMaxWidth().heightIn(min = 160.dp).clip(RoundedCornerShape(18.dp)).background(BpmPlayColors.streak.soft)
-            .drawBehind {
-                val stroke = 2.dp.toPx()
-                drawRoundRect(line, Offset(stroke / 2f, stroke / 2f), Size(size.width - stroke, size.height - stroke), CornerRadius(18.dp.toPx()),
-                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))))
-            }
-            .semantics { contentDescription = "La foto se toma después de enviar el reporte" }.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    ) {
-        BpmIcon(BpmSymbol.Camera, tint = BpmPlayColors.streak.face, modifier = Modifier.size(40.dp))
-        Text(selected?.name ?: "Foto del problema", style = BpmPlayType.h2, color = BpmPlayColors.streak.shadow)
+private fun DescribeStep(
+    e: IncidentEditorState, selected: ReportOption?, place: String, note: String, wantPhoto: Boolean, enabled: Boolean,
+    onPlace: (String) -> Unit, onNote: (String) -> Unit, onPhoto: (Boolean) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Cuéntanos qué pasó", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink, modifier = Modifier.weight(1f, fill = false))
+        selected?.let { BpmPlayChip(it.name, BpmPlayTone.Streak, uppercase = false) }
     }
+    Text(if (selected?.code == "OTRO") "Escribe con tus palabras lo que viste." else "Si quieres, agrega un detalle. Con elegir el tipo ya puedes enviarlo.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    BpmTextField(note, onNote, "Qué pasó", Modifier.fillMaxWidth(), enabled = enabled, error = e.errors["description"], rule = InputRules.text(0, 1000), singleLine = false)
+    BpmTextField(place, onPlace, "Dónde (cocina, almacén, salón…) · opcional", Modifier.fillMaxWidth(), enabled = enabled, rule = InputRules.text(0, 120))
+    BpmChoiceTile("Tomar una foto después de enviar", BpmSymbol.Camera, BpmPlayTone.Streak, wantPhoto, { onPhoto(!wantPhoto) }, Modifier.fillMaxWidth(), horizontal = true)
     if (selected?.evidenceRequired == true) Text("Esta categoría pide fotos para poder cerrarla.", style = BpmPlayType.sub, color = BpmPlayColors.gold.shadow)
-}
-
-/** Tercer paso: dónde está y una nota corta; al menos una de las dos. */
-@Composable
-private fun PlaceStep(e: IncidentEditorState, place: String, note: String, enabled: Boolean, onPlace: (String) -> Unit, onNote: (String) -> Unit) {
-    Text("¿Dónde está?", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
-    Text("Escribe el lugar y, si quieres, una nota corta.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-    BpmTextField(place, onPlace, "Lugar (cocina, almacén, salón…)", Modifier.fillMaxWidth(), enabled = enabled, rule = InputRules.text(0, 120))
-    BpmTextField(note, onNote, "Nota (opcional)", Modifier.fillMaxWidth(), enabled = enabled, error = e.errors["description"], rule = InputRules.text(0, 1000))
     if (e.pending != null) Text("El envío aún no está confirmado. Reintenta para consultar su resultado.", style = BpmPlayType.sub, color = BpmPlayColors.gold.shadow)
-    e.failure?.let { Text(incidentFailureText(it), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) }
+    e.failure?.let {
+        Text(incidentFailureText(it), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
+        // Hasta que el servidor entienda las categorías integradas, «Otro» no es una salida: se dice qué hacer en lugar de quedar atascado.
+        if (it == IncidentsFailure.INVALID && selected?.catalogId == null) Text("Si tu administrador ya creó categorías, elige una de la lista; si no, avísale que el reporte no se pudo enviar.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    }
     e.errors["catalogId"]?.let { Text(it, style = BpmPlayType.sub, color = BpmPlayColors.error.shadow) }
 }
 
@@ -256,10 +243,12 @@ private fun ReportSent(
         BpmCelebration(Res.drawable.mascot_done, "¡Reporte enviado!", detail?.summary?.name, emptyList(), titleColor = BpmPlayColors.correct.shadow,
             middle = {
                 BpmPlayCard {
+                    Text("¿Qué pasa ahora?", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
                     Text(
-                        s.notice ?: "Tu supervisor lo verá y asignará quién lo corrige. Gracias por avisar.",
+                        s.notice ?: "Tu supervisor recibe el aviso y asigna quién lo corrige. Cuando lo resuelvan, lo revisan y lo cierran.",
                         style = BpmPlayType.sub, color = BpmPlayColors.muted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
+                    Text("Puedes ver cómo va en «Ver mis reportes». Gracias por avisar.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
                 }
             })
     }

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,6 +72,10 @@ internal fun ChefTurnoContent(
     onContinueCourse: (String) -> Unit,
     onStudySurvey: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** Abre el reporte de un problema (cualquier rol puede reportar, sin categorías creadas). */
+    onReport: (() -> Unit)? = null,
+    /** Abre el buscador de normativa; va en la columna principal, con el mismo ancho que las demás tarjetas. */
+    onNormative: (() -> Unit)? = null,
 ) {
     var siteId by rememberSaveable(organizationId) { mutableStateOf<String?>(null) }
     val site = locations.firstOrNull { it.id == siteId } ?: locations.firstOrNull()
@@ -116,7 +119,6 @@ internal fun ChefTurnoContent(
             },
             calmText = "Sin controles vencidos ni incidencias abiertas.",
         )
-        if (dashboard.loading && kpis == null || scopedAssignments?.loading == true || ops.todayLoading && !ready) LinearProgressIndicator(Modifier.fillMaxWidth())
         val tasksTile: @Composable (Modifier) -> Unit = { m ->
             BpmKpiTile("Tareas del turno", if (shift.total > 0) "${shift.done}/${shift.total}" else null, m, BpmPlayTone.Action, progress = shift.progress.takeIf { shift.total > 0 })
         }
@@ -129,7 +131,8 @@ internal fun ChefTurnoContent(
                 support = kpis?.openIncidents?.let { if (it == 1) "abierta" else if (it == 0) "ninguna abierta" else "abiertas" })
         }
         // En teléfono tres indicadores no caben en una fila sin partir sus etiquetas: el primero va solo y los otros dos juntos.
-        if (currentWindowClass == BpmWindowClass.Compact) {
+        if (dashboard.loading && kpis == null) BpmSkeletonKpis(count = 3)
+        else if (currentWindowClass == BpmWindowClass.Compact) {
             tasksTile(Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 controlsTile(Modifier.weight(1f).fillMaxHeight()); incidentsTile(Modifier.weight(1f).fillMaxHeight())
@@ -149,7 +152,7 @@ internal fun ChefTurnoContent(
                 BpmChunkyButton("Reintentar", onRefreshAssignments, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
             scopedAssignments == null || scopedAssignments.loading && scopedAssignments.items.isEmpty() ->
-                Text("Buscando los controles de hoy…", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+                BpmSkeletonList(rows = 3, label = "Buscando los controles de hoy")
             siteControls.none { it.active } -> BpmPlayEmpty(Res.drawable.mascot_done, "Sin controles programados",
                 "Tu administrador puede programar los controles de tu sede. Mientras, revisa tus tareas y tu equipo.")
             else -> {
@@ -172,6 +175,8 @@ internal fun ChefTurnoContent(
             }
             BpmChunkyButton("Ver equipo", onTeam, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
+        onReport?.let { report -> BpmChunkyButton("Reportar un problema", report, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert) }
+        onNormative?.let { open -> NormativeTile(open) }
         if (!railVisible) {
             LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje")
             IncidentsCard(kpis?.openIncidents, onIncidents)

@@ -34,7 +34,7 @@ fun BpmPagedChoiceSelector(
     onSelect: (BpmChoiceOption) -> Unit,
 ) {
     BpmSearchField(query, onSearch, searchLabel, enabled = enabled)
-    if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (loading) BpmSkeletonList(rows = 3, card = false)
     if (failed) BpmChunkyButton("Reintentar consulta", onRetry, tone = BpmChunkyTone.White)
     else {
         if (options.isEmpty()) Text(emptyMessage)

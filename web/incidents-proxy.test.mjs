@@ -84,6 +84,9 @@ test('incidencias: creación, versiones y comandos confirman el destino y la car
   assert.equal((await write(`/incident-catalog/${id}/versions`, { ...version, expectedVersion: 1 })).status, 200);
   state.payload = { data: detail };
   assert.equal((await write('/incidents', report)).status, 200);
+  // Con categoría integrada el cuerpo lleva `catalogCode` y el detalle devuelto trae el `catalogId` que creó el servidor.
+  const { catalogId: _own, ...builtIn } = report;
+  assert.equal((await write('/incidents', { ...builtIn, catalogCode: 'TEMPERATURA' })).status, 200);
   state.payload = { data: { ...detail, rowVersion: 2, status: 'ASSIGNED', actions: [action], allowedActions: [] } };
   assert.equal((await write(`/incidents/${id}/actions`, assign)).status, 200);
   assert.equal(state.requests.at(-1).headers['idempotency-key'], headers['Idempotency-Key']);
@@ -104,6 +107,11 @@ test('incidencias: rechaza filtros, métodos y campos desconocidos antes del bac
   for (const input of [{ ...assign, note: 'extra' }, { operationId, rowVersion: 1, actionType: 'START', actionId }, { operationId, rowVersion: 1, actionType: 'RESOLVE' }, { ...assign, dueAt: 'invalid' }, { ...assign, rowVersion: 0 }]) assert.equal((await write(`/incidents/${id}/actions`, input)).status, 400);
   assert.equal((await write('/incidents', { ...report, clientCreatedAt: '2099-01-01T00:00:00Z' })).status, 400);
   assert.equal((await write('/incidents', report, { Origin: 'https://foreign.example' })).status, 403);
+  // Categoría integrada: `catalogCode` en lugar de `catalogId`; ambos a la vez, ninguno o un código desconocido se rechazan.
+  const { catalogId: _unused, ...withoutCatalog } = report;
+  assert.equal((await write('/incidents', { ...report, catalogCode: 'TEMPERATURA' })).status, 400);
+  assert.equal((await write('/incidents', withoutCatalog)).status, 400);
+  assert.equal((await write('/incidents', { ...withoutCatalog, catalogCode: 'INVENTADA' })).status, 400);
   assert.equal((await write('/incidents', report, { 'Idempotency-Key': 'short' })).status, 400);
   assert.equal(state.requests.length, 0);
 });

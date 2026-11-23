@@ -113,8 +113,19 @@ internal fun IncidentFormContent(
                 else -> emptyList()
             }
         if (f.kind == "REPORT") {
-            Text(f.values["catalogName"] ?: "Selecciona el criterio observado.")
-            BpmChunkyButton("Elegir criterio del catálogo", { vm.picker(IncidentPicker.CATALOG) }, tone = BpmChunkyTone.White, enabled = !e.busy)
+            // Sin catálogo configurado también se puede reportar: las categorías integradas van siempre, junto a las de la organización.
+            LaunchedEffect(s.authorized) { if (s.authorized && s.picker == null && s.catalogChoices.rows.isEmpty()) vm.picker(IncidentPicker.CATALOG) }
+            Text("¿Qué tipo de problema es?", style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                reportOptions(s.catalogChoices.rows).forEach { option ->
+                    BpmFilterChip(
+                        (f.values["catalogId"].orEmpty().ifEmpty { f.values["catalogCode"].orEmpty() }) == option.key,
+                        { editor.selectReportOption(option) },
+                        label = { Text(option.name) },
+                        enabled = !e.busy,
+                    )
+                }
+            }
             e.errors["catalogId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
         if (f.kind == "ASSIGN") {

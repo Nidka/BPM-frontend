@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import pe.bpm.core.designsystem.BpmFeedbackSettings
@@ -30,6 +31,10 @@ class FeedbackPreferences(private val store: LocalStore? = null) {
 
     suspend fun setVibration(on: Boolean) = update(mutable.value.copy(vibration = on))
 
+    /** Guarda de una vez las preferencias de Accesibilidad (tamaño del texto, alto contraste y «Escuchar»). */
+    suspend fun setAccessibility(textScale: Float, highContrast: Boolean, readAloud: Boolean) =
+        update(mutable.value.copy(textScale = textScale.coerceIn(1f, 1.3f), highContrast = highContrast, readAloud = readAloud))
+
     private suspend fun update(next: BpmFeedbackSettings) {
         mutable.value = next
         runCatching { store?.put(COLLECTION, KEY, encodeFeedbackSettings(next)) }
@@ -41,9 +46,9 @@ class FeedbackPreferences(private val store: LocalStore? = null) {
     }
 }
 
-/** JSON guardado de las preferencias: `{"sound":true,"vibration":false}`. */
+/** JSON guardado de las preferencias: `{"sound":true,"vibration":false,"textScale":1.15,"highContrast":false,"readAloud":true}`. */
 internal fun encodeFeedbackSettings(settings: BpmFeedbackSettings): String =
-    """{"sound":${settings.sound},"vibration":${settings.vibration}}"""
+    """{"sound":${settings.sound},"vibration":${settings.vibration},"textScale":${settings.textScale},"highContrast":${settings.highContrast},"readAloud":${settings.readAloud}}"""
 
 /** Lee el JSON guardado; un campo ausente o un texto dañado valen «activo» y nunca lanzan. */
 internal fun decodeFeedbackSettings(json: String): BpmFeedbackSettings = runCatching {
@@ -51,5 +56,8 @@ internal fun decodeFeedbackSettings(json: String): BpmFeedbackSettings = runCatc
     BpmFeedbackSettings(
         sound = root["sound"]?.jsonPrimitive?.booleanOrNull ?: true,
         vibration = root["vibration"]?.jsonPrimitive?.booleanOrNull ?: true,
+        textScale = (root["textScale"]?.jsonPrimitive?.floatOrNull ?: 1f).coerceIn(1f, 1.3f),
+        highContrast = root["highContrast"]?.jsonPrimitive?.booleanOrNull ?: false,
+        readAloud = root["readAloud"]?.jsonPrimitive?.booleanOrNull ?: true,
     )
 }.getOrDefault(BpmFeedbackSettings())

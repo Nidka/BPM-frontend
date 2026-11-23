@@ -17,6 +17,17 @@ enum class BpmPlayTone { Action, Correct, Error, Gold, Streak }
  * Colores del estilo de juego de Personal (propuesta `personal-v2`, sección «Sistema visual»). Solo los usan las
  * pantallas de Personal; el resto de roles sigue con [BpmTokens]. Los valores son los de la maqueta, sin variantes.
  */
+/**
+ * Alto contraste: lo enciende la raíz con la preferencia de Accesibilidad. Es un estado de Compose, así que lo que lo lee
+ * (los colores de texto de apoyo y bordes de [BpmPlayColors]) se redibuja solo al cambiarlo.
+ */
+object BpmContrast {
+    private val state = androidx.compose.runtime.mutableStateOf(false)
+    var high: Boolean
+        get() = state.value
+        set(value) { state.value = value }
+}
+
 object BpmPlayColors {
     /** Acción principal: teal de la marca. */
     val action = BpmPlayShade(Color(0xFF005B59), Color(0xFF003D3C), Color(0xFFE3F1EE))
@@ -36,19 +47,19 @@ object BpmPlayColors {
     val streak = BpmPlayShade(Color(0xFFED5A3B), Color(0xFFB83E24), Color(0xFFFFE6DF))
 
     /** Bloqueado o deshabilitado: relleno y relieve. */
-    val lock = Color(0xFFE5EAEA)
+    val lock get() = if (BpmContrast.high) Color(0xFFD3DADA) else Color(0xFFE5EAEA)
     val lockShadow = Color(0xFFC7CFCF)
     /** Texto de un botón deshabilitado y trazo de un icono bloqueado. */
-    val lockText = Color(0xFF9AA6A9)
-    val lockIcon = Color(0xFFA9B4B6)
+    val lockText get() = if (BpmContrast.high) Color(0xFF5A676B) else Color(0xFF9AA6A9)
+    val lockIcon get() = if (BpmContrast.high) Color(0xFF5A676B) else Color(0xFFA9B4B6)
 
     /** Borde y relieve neutros de tarjetas, filas y opciones. */
-    val line = Color(0xFFDCE3E3)
+    val line get() = if (BpmContrast.high) Color(0xFF7D8B90) else Color(0xFFDCE3E3)
     /** Texto principal y de apoyo de las maquetas. */
     val ink = Color(0xFF233F4D)
-    val muted = Color(0xFF5E6E73)
+    val muted get() = if (BpmContrast.high) Color(0xFF2F3E44) else Color(0xFF5E6E73)
     /** Etiqueta inactiva de la navegación. */
-    val navInactive = Color(0xFF66767B)
+    val navInactive get() = if (BpmContrast.high) Color(0xFF2F3E44) else Color(0xFF66767B)
     /** Borde del elemento seleccionado de la navegación y de las opciones elegidas. */
     val navBorder = Color(0xFF9DCBC2)
     val selectedBorder = Color(0xFF7FC3B6)

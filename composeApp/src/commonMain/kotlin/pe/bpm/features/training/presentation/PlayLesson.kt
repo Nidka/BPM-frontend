@@ -68,6 +68,7 @@ internal fun PlayLesson(state: TrainingState, course: TrainingCourse, lesson: Tr
             LessonStep.Reading -> {
                 Text("Lección ${(course.lessons.indexOfFirst { it.id == lesson.id } + 1)} de ${course.lessons.size}", style = BpmPlayType.label, color = BpmPlayColors.action.face)
                 Text(lesson.title, style = BpmPlayType.h1, color = BpmPlayColors.ink)
+                BpmListenButton(lesson.title + ". " + lesson.content)
                 Text(lesson.content.ifBlank { "Esta lección no tiene texto." }, style = BpmPlayType.text, color = BpmPlayColors.ink, modifier = Modifier.fillMaxWidth())
             }
         }
@@ -82,6 +83,7 @@ private fun ColumnScope.IdeaStep(idea: LessonStep.Idea) {
         BpmIcon(ideaSymbol(idea.text, idea.number - 1), tint = BpmPlayColors.gold.shadow, modifier = Modifier.size(58.dp))
     }
     Text(idea.text, style = BpmPlayType.h1, color = BpmPlayColors.ink, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    BpmListenButton(idea.text)
 }
 
 /** Opción elegida al abrir cada pregunta; solo las capturas de pantalla lo cambian para mostrar «Comprobar» activo. */
@@ -134,6 +136,7 @@ internal fun PlayPractice(state: TrainingState, course: TrainingCourse, study: S
         if (!pe.bpm.core.offline.LocalOnline.current && feedback == null) BpmPlayNotice("Sin conexión: no podemos comprobar tu respuesta ahora. Puedes seguir sin comprobar o volver más tarde.")
         Text(if (repeating) "Repasemos esta" else "Elige la respuesta", style = BpmPlayType.label, color = BpmPlayColors.action.face)
         Text(question.questionText, style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
+        BpmListenButton(question.questionText + ". " + question.options.mapIndexed { i, o -> "Opción ${i + 1}: $o." }.joinToString(" "), label = "Escuchar la pregunta")
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             question.options.forEachIndexed { option, text ->
                 val tile = when {

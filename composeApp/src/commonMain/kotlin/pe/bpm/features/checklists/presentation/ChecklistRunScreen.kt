@@ -46,7 +46,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
         val run = state.run
         if (run == null) {
             if (state.failure in setOf(RunFailure.DENIED, RunFailure.SESSION, RunFailure.NOT_FOUND)) return@Column
-            if (loadingTemplate) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (loadingTemplate) BpmSkeletonDetail()
             if (templateError != null) { Text(templateError); return@Column }
             if (template == null) return@Column
             BpmCard(Modifier.fillMaxWidth()) {

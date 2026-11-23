@@ -42,7 +42,7 @@ fun ChecklistAssignmentsScreen(
         )
         BpmSearchField(state.query, onSearch, "Buscar por control o sede")
         when {
-            state.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            state.loading -> BpmSkeletonList(rows = 4, card = false)
             state.failure != null -> {
                 Text(
                     assignmentFailureMessage(state.failure),
@@ -210,7 +210,7 @@ fun ChecklistAssignmentFormScreen(
         verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg),
     ) {
         if (state.loading) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
+            BpmSkeletonDetail()
             return@Column
         }
         if (input == null) {
@@ -224,7 +224,7 @@ fun ChecklistAssignmentFormScreen(
         if (state.failure in setOf(AssignmentFailure.SESSION, AssignmentFailure.DENIED))
             return@Column
         if (template == null) {
-            Text("Cargando la plantilla…")
+            BpmSkeletonList(rows = 3, card = false, label = "Cargando la plantilla")
             return@Column
         }
         Text(template.name, style = MaterialTheme.typography.titleLarge)
@@ -282,7 +282,7 @@ fun ChecklistAssignmentFormScreen(
                 if (input.frequency == ChecklistFrequency.DAILY && input.locationId.isNotEmpty()) {
                     Text("¿Para un turno específico?", style = BpmType.bodyStrong)
                     when {
-                        shiftsLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                        shiftsLoading -> BpmSkeletonList(rows = 2, card = false)
                         shiftsFailed -> Text("No pudimos cargar los turnos de la sede. Vuelve a elegir la sede para reintentar.", color = MaterialTheme.colorScheme.error)
                         else -> Column(Modifier.selectableGroup()) {
                             BpmChoiceRow("Todo el día (sin turno)", input.shiftId == null, state.editable) { onShift(null) }

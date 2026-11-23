@@ -30,7 +30,7 @@ internal enum class WorkspaceFormKind(val route: String, val destination: Worksp
     onEdit: ((WorkspaceFormDraft) -> WorkspaceFormDraft) -> Unit, onDiscardDraft: () -> Unit, onRetryDraft: () -> Unit, onUserActivity: () -> Unit = {},
     onPageSearch: (WorkspaceResource, String) -> Unit, onPageNext: (WorkspaceResource) -> Unit,
     onPagePrevious: (WorkspaceResource) -> Unit, onPageRetry: (WorkspaceResource) -> Unit) {
-    if (formState.loading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
+    if (formState.loading) { BpmSkeletonDetail(); return }
     val draft = formState.draft
     if (draft == null) { DraftSaveNotice(formState.localStatus, onRetryDraft); return }
     val navigation = rememberBpmFormNavigation(when (kind) {

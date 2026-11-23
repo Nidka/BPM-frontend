@@ -28,7 +28,7 @@ import pe.bpm.features.training.domain.*
 fun TrainingAdminScreen(viewModel: TrainingAuthoringViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (state.loading || state.loadingDraft) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading || state.loadingDraft) BpmSkeletonList(rows = 3)
         state.failure?.let { failure ->
             Text(trainingFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             BpmChunkyButton("Volver a intentar", viewModel::refresh, tone = BpmChunkyTone.White)

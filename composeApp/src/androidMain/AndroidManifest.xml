@@ -2,6 +2,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- «Escuchar» (lectura en voz alta): Android 11+ exige declarar el servicio de síntesis de voz que se consulta. -->
+    <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
     <application android:name="pe.bpm.features.notifications.data.BpmFirebaseApplication" android:label="BPM" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:allowBackup="false"
         android:usesCleartextTraffic="false" android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

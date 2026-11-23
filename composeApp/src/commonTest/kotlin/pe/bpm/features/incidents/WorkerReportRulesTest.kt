@@ -38,4 +38,30 @@ class WorkerReportRulesTest {
         assertEquals("", reportDescription("  ", " "))
         assertEquals(4000, reportDescription("", "x".repeat(5000)).length)
     }
+
+    private fun catalog(id: String, code: String, name: String, evidence: Boolean = false) = pe.bpm.features.incidents.domain.IncidentCatalog(
+        id, code, name, "Cocina", "Criterio", pe.bpm.features.incidents.domain.IncidentRisk.MEDIUM, evidence, 1)
+
+    @Test fun anOrganizationWithoutCatalogStillOffersEveryBuiltInCategoryEndingInOther() {
+        val options = reportOptions(emptyList())
+        assertEquals(listOf("Temperatura", "Limpieza", "Plagas", "Equipo dañado", "Producto en mal estado", "Higiene del personal", "Otro problema"), options.map { it.name })
+        assertTrue(options.all { it.catalogId == null && it.code != null })
+        assertEquals("OTRO", otherOption(options).code)
+    }
+
+    @Test fun organizationCategoriesJoinTheDefaultsWithoutRepeatingThem() {
+        val own = listOf(catalog("c1", "TEMPERATURA", "Cámaras", evidence = true), catalog("c2", "X", "limpieza"), catalog("c3", "Z", "Ruido"))
+        val options = reportOptions(own)
+        // «TEMPERATURA» (por código) y «limpieza» (por nombre) reemplazan a las integradas; «Ruido» se suma antes de «Otro problema».
+        assertEquals(listOf("Cámaras", "limpieza", "Plagas", "Equipo dañado", "Producto en mal estado", "Higiene del personal", "Ruido", "Otro problema"), options.map { it.name })
+        assertEquals("c1", options.first().catalogId)
+        assertNull(options.first().code)
+        assertTrue(options.first().evidenceRequired)
+        assertEquals(1, options.count { it.catalogId == "c2" })
+    }
+
+    @Test fun personalHygieneGetsItsOwnIcon() {
+        assertEquals(BpmSymbol.Hand, reportIcon("Higiene del personal").symbol)
+        assertEquals(BpmSymbol.Wrench, reportIcon("Equipo dañado").symbol)
+    }
 }

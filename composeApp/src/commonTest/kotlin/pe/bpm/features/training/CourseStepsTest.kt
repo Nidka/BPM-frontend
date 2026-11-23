@@ -4,6 +4,7 @@ import pe.bpm.core.designsystem.BpmStepState
 import pe.bpm.features.training.domain.*
 import pe.bpm.features.training.presentation.assignmentMeta
 import pe.bpm.features.training.presentation.assignmentProgress
+import pe.bpm.features.training.presentation.assignmentProgressNote
 import pe.bpm.features.training.presentation.courseRing
 import pe.bpm.features.training.presentation.continueAssignment
 import pe.bpm.features.training.presentation.courseMainActionLabel
@@ -68,7 +69,10 @@ class CourseStepsTest {
         val base = assignment("a", AssignmentProgress.IN_PROGRESS)
         assertNull(assignmentProgress(base))
         assertEquals(0.6f, assignmentProgress(base.copy(percent = 60)))
-        assertEquals(1f, assignmentProgress(base.copy(percent = 140)))
+        assertEquals(0.95f, assignmentProgress(base.copy(percent = 140)))
+        assertEquals(1f, assignmentProgress(base.copy(status = AssignmentProgress.COMPLETED, percent = 100)))
+        assertEquals("Viste todas las lecciones. Falta la evaluación final.", assignmentProgressNote(base.copy(percent = 100)))
+        assertEquals("60 % del curso", assignmentProgressNote(base.copy(percent = 60)))
     }
 
     @Test fun courseWithoutLessonsHasNoSteps() {

@@ -3,7 +3,6 @@ package pe.bpm.app
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +62,7 @@ internal fun PlatformOrganizationsContent(
                 Text(it.message, style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             }
             if (page.errors.isNotEmpty()) BpmChunkyButton("Volver a intentar", actions.onRetry, tone = BpmChunkyTone.White)
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (busy && rows.isEmpty()) BpmSkeletonList(rows = 3, card = false)
             if (rows.isEmpty() && !busy && state.errors.isEmpty() && page.errors.isEmpty())
                 Text(if (page.request.query.isBlank()) "Todavía no hay organizaciones. Crea la primera con «Nueva organización»." else "No encontramos coincidencias. Prueba con otro nombre.",
                     style = BpmPlayType.sub, color = BpmPlayColors.muted)
@@ -111,8 +110,7 @@ internal fun PlatformIndicatorsContent(
             Text(organizationSubtitle(organization), style = BpmPlayType.sub, color = BpmPlayColors.muted)
             BpmChunkyButton("Cambiar de organización", actions.onOrganizations, tone = BpmChunkyTone.White)
         }
-        if (dashboard.loading && kpis == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-        KpiRow(adminKpis(kpis))
+        if (dashboard.loading && kpis == null) BpmSkeletonKpis() else KpiRow(adminKpis(kpis))
         dashboard.failure?.takeIf { kpis == null }?.let {
             Text(reportFailureMessage(it), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             if (it.retryable) BpmChunkyButton("Volver a intentar", onRefreshDashboard, tone = BpmChunkyTone.White)
@@ -120,7 +118,7 @@ internal fun PlatformIndicatorsContent(
         BpmPlayCard(Modifier.fillMaxWidth()) {
             Text("Sedes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
             Text("Cumplimiento de los últimos 30 días", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-            if (report.loading && compliance == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (report.loading && compliance == null) BpmSkeletonList(rows = 3, card = false)
             if (rows.isEmpty()) Text("Esta organización todavía no tiene sedes.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
             Column(Modifier.fillMaxWidth()) {
                 rows.forEachIndexed { index, row ->

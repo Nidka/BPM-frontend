@@ -1,7 +1,6 @@
 package pe.bpm.features.reports.presentation
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +26,7 @@ fun CertificateVerificationScreen(code: String, viewModel: CertificateVerificati
         run {
             Brand()
             BpmPageHeader("Verificación de constancia de cumplimiento")
-            if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (state.loading) BpmSkeletonCard(lines = 3)
             state.certificate?.let { cert ->
                 BpmCard(Modifier.fillMaxWidth()) {
                     Eyebrow("CONSTANCIA VÁLIDA")

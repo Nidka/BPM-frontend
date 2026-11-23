@@ -58,7 +58,7 @@ import pe.bpm.core.domain.DecimalInput
         if (state.published == null) DraftSaveNotice(state.localStatus, onProtectDraft)
         when {
             state.restoring -> {
-                if (state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED) BpmSkeletonDetail()
             }
             state.failure in setOf(PublicationFailure.ACCESS_DENIED, PublicationFailure.SESSION_REQUIRED) -> {
                 BpmCard(Modifier.fillMaxWidth()) { Text(publicationMessage(state.failure!!), color = MaterialTheme.colorScheme.error) }

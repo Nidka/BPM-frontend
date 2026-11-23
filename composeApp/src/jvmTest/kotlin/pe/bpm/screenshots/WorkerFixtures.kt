@@ -284,9 +284,9 @@ internal object WorkerFixtures {
     )
 
     /** Repositorio, transporte y borradores de incidencias en memoria para el arnés de capturas. */
-    class IncidentsFixture : IncidentsRepository, IncidentTransport, IncidentDraftRepository {
+    class IncidentsFixture(private val catalogRows: List<IncidentCatalog> = incidentCatalog) : IncidentsRepository, IncidentTransport, IncidentDraftRepository {
         override suspend fun authorize(org: String, site: String, role: String) = IncidentsResult.Success(Unit)
-        override suspend fun catalog(org: String, page: PageRequest) = IncidentsResult.Success(Page(incidentCatalog))
+        override suspend fun catalog(org: String, page: PageRequest) = IncidentsResult.Success(Page(catalogRows))
         override suspend fun incidents(org: String, site: String, status: IncidentStatus?, page: PageRequest) = IncidentsResult.Success(Page<IncidentSummary>(emptyList()))
         override suspend fun detail(org: String, id: String): IncidentsResult<IncidentDetail> = IncidentsResult.Failure(IncidentsFailure.NOT_FOUND)
         override suspend fun assignees(org: String, id: String, page: PageRequest) = IncidentsResult.Success(Page<IncidentAssignee>(emptyList()))

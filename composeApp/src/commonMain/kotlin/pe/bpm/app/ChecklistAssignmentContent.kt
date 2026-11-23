@@ -110,7 +110,7 @@ internal fun ChecklistAssignmentDetailContent(
             ) -> {
             Text(assignmentFailureMessage(state.failure!!), color = MaterialTheme.colorScheme.error)
         }
-        state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+        state.detailLoading -> BpmSkeletonDetail()
         state.detailFailure != null -> {
             Text(
                 assignmentFailureMessage(state.detailFailure),
@@ -172,7 +172,7 @@ internal fun ChecklistAssignmentDetailContent(
                 },
                 onOpenRun = onOpenRun,
             )
-            if (catalog.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (catalog.detailLoading) BpmSkeletonList(rows = 3, card = false)
             else if (catalog.detailFailure != null) {
                 Text(failureMessage(catalog.detailFailure), color = MaterialTheme.colorScheme.error)
                 BpmChunkyButton("Reintentar preguntas", { catalogActions.showTemplate(value.templateId) }, tone = BpmChunkyTone.White)

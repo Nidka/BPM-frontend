@@ -119,6 +119,15 @@ private val colors = lightColorScheme(
     onErrorContainer = BpmTokens.dangerText,
 )
 
+/** Esquema de alto contraste (Accesibilidad): texto de apoyo y bordes más oscuros, sin cambiar la paleta. */
+private val highContrastColors = colors.copy(
+    onSurfaceVariant = Color(0xFF2F3E44),
+    outline = Color(0xFF3F4D52),
+    outlineVariant = Color(0xFF7D8B90),
+    onBackground = Color(0xFF14262F),
+    onSurface = Color(0xFF14262F),
+)
+
 /**
  * Tipografía única de la app: **Baloo 2** (títulos, 800) y **Nunito** (todo lo demás), las mismas familias del estilo de
  * juego de Personal ([BpmPlayType]); así el ingreso y todos los roles se ven igual. Los tamaños conservan la escala de
@@ -157,7 +166,7 @@ private fun bpmTypography(): Typography {
 
 @Composable
 fun BpmTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = colors, typography = bpmTypography(), shapes = Shapes(
+    MaterialTheme(colorScheme = if (BpmContrast.high) highContrastColors else colors, typography = bpmTypography(), shapes = Shapes(
         small = RoundedCornerShape(14.dp), medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp))) {
         CompositionLocalProvider(LocalContentColor provides colors.onBackground, content = content)
     }

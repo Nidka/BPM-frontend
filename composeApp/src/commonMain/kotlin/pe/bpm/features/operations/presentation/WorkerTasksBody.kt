@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +53,7 @@ internal fun WorkerTasksBody(state: OperationsState, viewModel: OperationsViewMo
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) { WorkerDoneList(state, viewModel, onCleaningPhotos) }
         return
     }
-    if (state.todayLoading && !state.todayLoaded) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.todayLoading && !state.todayLoaded) BpmSkeletonList(rows = 3, card = false)
     state.todayFailure?.let { failure ->
         Text(failureText(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
         BpmChunkyButton("Reintentar", viewModel::refreshToday, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !state.todayLoading)

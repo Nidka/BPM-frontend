@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -55,11 +54,11 @@ internal fun ChefControlsContent(
                 Text(assignmentFailureMessage(scoped.failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
                 BpmChunkyButton("Reintentar", onRefresh, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
-            scoped == null || scoped.loading && scoped.items.isEmpty() -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            scoped == null || scoped.loading && scoped.items.isEmpty() -> BpmSkeletonList(rows = 4, card = false)
             scoped.items.none { it.active } -> BpmPlayEmpty(Res.drawable.mascot_done, "Sin controles programados", emptyMessage)
             else -> {
-                if (scoped.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (scoped.loading) BpmSkeletonList(rows = 3, card = false)
+                else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     controlOrder(scoped.items, userId).forEach { item ->
                         ChefControlRow(item, controlState(item, userId), controlDetail(item, userId) { clockOf(runCatching { displayDateTime(it) }.getOrDefault("")) },
                             onOpen = { onOpenControl(item) })

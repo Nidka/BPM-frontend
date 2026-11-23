@@ -143,7 +143,7 @@ private fun CoursePath(
                 if (index == 0) Image(painterResource(Res.drawable.mascot_class), contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).padding(top = 96.dp).width(96.dp))
             }
             failed -> BpmChunkyButton("Abrir el curso", { onOpenCourse(id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
-            else -> Text("Cargando lecciones…", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+            else -> BpmSkeletonList(rows = 3, label = "Cargando lecciones")
         }
     }
 }
@@ -254,7 +254,7 @@ private fun PathPills(achievements: MyAchievements?) {
         streak?.let { BpmStatPill(BpmSymbol.Flame, it.currentDays.toString(), BpmPlayTone.Streak, contentDescription = "Racha de ${it.currentDays} días") }
         BpmStatPill(BpmSymbol.Bolt, achievements.totals.experiencePoints.toString(), BpmPlayTone.Gold, contentDescription = "${achievements.totals.experiencePoints} puntos de experiencia")
         Spacer(Modifier.weight(1f))
-        streak?.let { BpmStatPill(BpmSymbol.Target, lessonGoalLabel(it.activeToday), BpmPlayTone.Action, contentDescription = "Meta de hoy: " + if (it.activeToday) "cumplida" else "una lección") }
+        streak?.let { BpmStatPill(BpmSymbol.Target, lessonGoalLabel(it.activeToday) + " lección", BpmPlayTone.Action, contentDescription = "Lección de hoy: " + if (it.activeToday) "hecha" else "falta una lección") }
     }
 }
 
@@ -264,12 +264,12 @@ private fun ColumnScope.PathRail(achievements: MyAchievements?) {
     PathPills(achievements)
     val activeToday = achievements?.streak?.activeToday == true
     BpmPlayCard {
-        Text("Meta de hoy", style = BpmPlayType.h2, color = BpmPlayColors.ink)
+        Text("Lección de hoy", style = BpmPlayType.h2, color = BpmPlayColors.ink)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            BpmChunkyProgress(if (activeToday) 1f else 0f, Modifier.weight(1f), BpmPlayTone.Gold, contentDescription = "Meta de hoy")
+            BpmChunkyProgress(if (activeToday) 1f else 0f, Modifier.weight(1f), BpmPlayTone.Gold, contentDescription = "Lección de hoy")
             Text(lessonGoalLabel(activeToday), style = BpmPlayType.pill, color = BpmPlayColors.gold.shadow)
         }
-        Text(if (activeToday) "¡Meta cumplida! Hoy ya aprendiste." else "Completa 1 lección hoy para mantener tu racha.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+        Text(if (activeToday) "¡Lección hecha! Hoy ya aprendiste." else "Completa 1 lección hoy para mantener tu racha. La meta completa del día está en Hoy.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
     }
     achievements?.pending?.minByOrNull { it.criterionThreshold }?.let { next ->
         BpmPlayCard {

@@ -185,7 +185,7 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         val content: @Composable () -> Unit = {
             Shell(WorkspaceDestination.Home, homeContent = {
                 WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
-                    onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
+                    onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME, onNormative = {})
             })
         }
         content
@@ -196,7 +196,7 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         val content: @Composable () -> Unit = {
             Shell(WorkspaceDestination.Home, homeContent = {
                 WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
-                    onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
+                    onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME, onNormative = {})
             })
         }
         content
@@ -237,6 +237,23 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         }
         content
     },
+    // Organización sin categorías creadas: las integradas siempre están y no hay nada que bloquee el reporte.
+    ScreenSpec("reportar-sin-catalogo", full = false) {
+        val fixture = F.IncidentsFixture(emptyList())
+        val incidents = IncidentsViewModel(ManageIncidents(fixture, fixture, fixture), ::nextId, { NOW })
+        incidents.open(F.USER, F.ORG, "WORKER", F.SITE, "America/Lima")
+        incidents.picker(IncidentPicker.CATALOG)
+        incidents.newReport()
+        val content: @Composable () -> Unit = {
+            Shell(
+                WorkspaceDestination.Tasks,
+                secondaryContent = { WorkerReportContent(incidents, onClose = {}, onEvidence = { _, _, _, _ -> }, onOpenList = {}, modifier = Modifier.fillMaxSize()) },
+                secondaryEditor = true, focusMode = true, playFocus = true,
+            )
+        }
+        content
+    },
+    ScreenSpec("esqueletos") { { SkeletonGallery() } },
     ScreenSpec("camino") {
         val learner = learnerVm()
         val content: @Composable () -> Unit = {
@@ -424,6 +441,17 @@ private fun J1PartTwo() {
     J1Label("Navegación (barra inferior)")
     BpmPlayBottomBar(listOf(BpmPlayNavItem("Hoy", BpmSymbol.Home, true) {}, BpmPlayNavItem("Aprender", BpmSymbol.Route, false) {},
         BpmPlayNavItem("Tareas", BpmSymbol.Control, false) {}, BpmPlayNavItem("Perfil", BpmSymbol.Account, false) {}))
+}
+
+@Composable
+private fun SkeletonGallery() {
+    androidx.compose.foundation.layout.Column(Modifier.padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
+        BpmSkeletonKpis()
+        BpmSkeletonList(rows = 3)
+        BpmSkeletonCard(lines = 2, action = true)
+        BpmSkeletonVideo()
+        BpmSkeletonDetail()
+    }
 }
 
 @Composable

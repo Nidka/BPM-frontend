@@ -31,7 +31,9 @@ fun prepareIncident(form: IncidentForm, site: String, key: String): PendingIncid
                     "REPORT" -> {
                         put("id", form.id)
                         put("locationId", site)
-                        put("catalogId", values["catalogId"].orEmpty())
+                        // Categoría de la organización (catalogId) o integrada (catalogCode); el servidor acepta una de las dos.
+                        if (values["catalogId"].orEmpty().isNotEmpty()) put("catalogId", values["catalogId"].orEmpty())
+                        else put("catalogCode", values["catalogCode"].orEmpty())
                         put("description", values["description"].orEmpty().trim())
                         put("clientOperationId", form.id)
                         put("clientCreatedAt", form.createdAt)

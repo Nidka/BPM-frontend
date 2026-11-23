@@ -50,8 +50,7 @@ fun ChecklistCatalogScreen(
             placeholder = "Nombre, área o descripción", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search))
         when {
             state.loading -> {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text("Cargando controles…")
+                BpmSkeletonList(rows = 4, card = false)
             }
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text("No pudimos cargar los controles", style = MaterialTheme.typography.titleMedium)
@@ -76,10 +75,10 @@ fun ChecklistCatalogScreen(
         if (templateId != null) {
             BpmListDetail(list = { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) { list() } }, detail = {
             when {
-                state.detailLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                state.detailLoading -> BpmSkeletonDetail()
                 state.detailFailure != null -> { Text(failureMessage(state.detailFailure), color = MaterialTheme.colorScheme.error); BpmChunkyButton("Reintentar", onRefresh, tone = BpmChunkyTone.White) }
                 state.detail != null && state.detail.id == templateId -> ChecklistDetail(state.detail, if (management) null else onStart, if (management) onAssign else null, if (management) onVersions else null)
-                else -> Text("Cargando plantilla…")
+                else -> BpmSkeletonDetail()
             }
             })
             return@Column

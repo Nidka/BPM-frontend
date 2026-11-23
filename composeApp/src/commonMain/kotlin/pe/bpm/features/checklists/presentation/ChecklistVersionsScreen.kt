@@ -42,7 +42,7 @@ fun ChecklistVersionsScreen(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         val current = state.current
         Text(current?.name ?: "Versiones de la plantilla", style = MaterialTheme.typography.headlineSmall)
-        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading) BpmSkeletonList(rows = 3, card = false)
         state.failure?.let {
             Text(versionFailureMessage(it), color = MaterialTheme.colorScheme.error)
             if (state.conflict || state.mode == VersionMode.History) BpmChunkyButton("Recargar plantilla", onReload, tone = BpmChunkyTone.White)
@@ -59,7 +59,7 @@ fun ChecklistVersionsScreen(
         }
         when {
             state.viewing != null || state.viewingLoading || state.viewingFailure != null -> {
-                if (state.viewingLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.viewingLoading) BpmSkeletonDetail()
                 state.viewingFailure?.let { Text(versionFailureMessage(it), color = MaterialTheme.colorScheme.error) }
                 state.viewing?.let {
                     Text("Versión ${it.versionNumber} · ${it.items.size} preguntas", style = MaterialTheme.typography.titleMedium)

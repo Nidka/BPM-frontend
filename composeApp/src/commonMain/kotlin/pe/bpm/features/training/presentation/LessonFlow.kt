@@ -96,6 +96,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
     // El texto de la lección hace de transcripción accesible del video y de lectura sin video.
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow(if (lesson.video != null || lesson.externalVideo != null) "TRANSCRIPCIÓN Y TEXTO" else "CONTENIDO")
+        BpmListenButton(lesson.title + ". " + lesson.content)
         Text(lesson.content.ifBlank { "Esta lección no tiene texto." })
     }
     val questionCount = course.questions.count { it.lessonId == lesson.id }
@@ -138,7 +139,7 @@ internal fun ColumnScope.LessonVideoSection(state: TrainingState, lesson: Traini
                 if (!online && !saved) Text("Este video necesita conexión. Descárgalo desde el curso para verlo sin conexión; mientras tanto puedes leer el texto de la lección.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            VideoState.Loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Preparando el video…") }
+            VideoState.Loading -> BpmSkeletonVideo()
             is VideoState.Ready -> {
                 LessonVideoPlayer(video.ticket.url, video.ticket.mimeType, viewModel::onVideoError, Modifier.fillMaxWidth().aspectRatio(16f / 9f), lesson.captionsVtt)
                 BpmTextButton(onClick = viewModel::closeVideo) { Text("Ocultar video") }
@@ -282,6 +283,9 @@ private fun VideoTranscript(lessonId: String, captionsVtt: String) {
             .semantics { stateDescription = if (open) "Abierta" else "Cerrada" }) {
             Text(if (open) "Ocultar transcripción del video" else "Ver transcripción del video")
         }
-        if (open) Text(transcript, style = MaterialTheme.typography.bodyMedium)
+        if (open) {
+            BpmListenButton(transcript, label = "Escuchar la transcripción")
+            Text(transcript, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }

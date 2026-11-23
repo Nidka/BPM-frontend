@@ -68,8 +68,8 @@ object IncidentsRules {
             }
             "REPORT" -> {
                 text("description", 1, 4000)
-                if (form.values["catalogId"].isNullOrEmpty())
-                    put("catalogId", "Selecciona un criterio del catálogo.")
+                if (form.values["catalogId"].isNullOrEmpty() && form.values["catalogCode"].isNullOrEmpty())
+                    put("catalogId", "Elige qué tipo de problema es.")
             }
             "ASSIGN" -> {
                 text("description", 1, 2000)

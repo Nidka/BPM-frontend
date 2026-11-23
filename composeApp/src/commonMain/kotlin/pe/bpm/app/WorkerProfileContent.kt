@@ -91,6 +91,8 @@ internal fun WorkerProfileContent(
     modifier: Modifier = Modifier,
     /** Rol que se muestra bajo el nombre: «Personal» o «Jefe de cocina» (el perfil es el mismo para ambos). */
     roleLabel: String = "Personal",
+    /** Guarda tamaño del texto, alto contraste y «Escuchar» (sección «Accesibilidad»). */
+    onAccessibility: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit = { _, _, _ -> },
 ) {
     LaunchedEffect(userId, organizationId) {
         learner.open(userId, organizationId, member = true)
@@ -100,7 +102,7 @@ internal fun WorkerProfileContent(
     val achievements = state.achievements
     val streak = achievements?.streak
     BpmPlayColumns(modifier, rail = {
-        SettingsCard(settings, onSound, onVibration)
+        SettingsCard(settings, onSound, onVibration, onAccessibility)
         AccountCard(onDevices, onAcceptInvitation, onLogout)
     }) { railVisible ->
         ProfileHeader(displayName, organizationName, roleLabel)
@@ -116,7 +118,7 @@ internal fun WorkerProfileContent(
         }
         CertificatesCard(certificateCourses(state.assignments), state.assignmentsLoaded, onOpenCourse, onLearn)
         if (!railVisible) {
-            SettingsCard(settings, onSound, onVibration)
+            SettingsCard(settings, onSound, onVibration, onAccessibility)
             AccountCard(onDevices, onAcceptInvitation, onLogout)
         }
     }
@@ -267,12 +269,40 @@ private fun CertificatesCard(courses: List<MyAssignment>, loaded: Boolean, onOpe
 
 /** Ajustes: «Sonido» y «Vibración» (preferencia local de este dispositivo). */
 @Composable
-internal fun SettingsCard(settings: BpmFeedbackSettings, onSound: (Boolean) -> Unit, onVibration: (Boolean) -> Unit) {
+internal fun SettingsCard(
+    settings: BpmFeedbackSettings, onSound: (Boolean) -> Unit, onVibration: (Boolean) -> Unit,
+    onAccessibility: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit = { _, _, _ -> },
+) {
     BpmPlayCard {
         Text("Ajustes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
-        SwitchRow("Sonido", "Un sonido corto al acertar y al terminar.", settings.sound, onSound)
+        SwitchRow("Sonido", "Un sonido corto al acertar y al terminar. El mensaje siempre se ve también en pantalla.", settings.sound, onSound)
         SwitchRow("Vibración", "Una vibración suave al responder.", settings.vibration, onVibration)
         Text("Se guarda solo en este dispositivo.", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+    }
+    AccessibilityCard(settings, onAccessibility)
+}
+
+/** Tamaños del texto que se ofrecen: normal, grande y muy grande (se suman al tamaño de letra del sistema). */
+internal val textScaleOptions = listOf(1f to "Normal", 1.15f to "Grande", 1.3f to "Muy grande")
+
+/**
+ * «Accesibilidad» (todos los roles): tamaño del texto, alto contraste y «Escuchar» (lectura en voz alta). Cada cambio se
+ * aplica al instante en toda la app y se guarda en este dispositivo. Lenguaje simple, sin términos técnicos.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+internal fun AccessibilityCard(settings: BpmFeedbackSettings, onChange: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit) {
+    BpmPlayCard {
+        Text("Accesibilidad", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+        Text("Tamaño del texto", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            textScaleOptions.forEach { (scale, label) ->
+                BpmFilterChip(settings.textScale == scale, { onChange(scale, settings.highContrast, settings.readAloud) }, label = { Text(label) })
+            }
+        }
+        SwitchRow("Más contraste", "Letras y bordes más oscuros para leer mejor.", settings.highContrast) { onChange(settings.textScale, it, settings.readAloud) }
+        SwitchRow("Escuchar", "Muestra un botón para que el teléfono lea en voz alta las lecciones y las preguntas.", settings.readAloud) { onChange(settings.textScale, settings.highContrast, it) }
+        Text("Los videos tienen subtítulos y su texto debajo. Se guarda solo en este dispositivo.", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
     }
 }
 

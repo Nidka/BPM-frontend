@@ -17,7 +17,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         AccountMessages(state.failure, state.notice)
-        if (state.loading && state.organization == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading && state.organization == null) BpmSkeletonCard(lines = 3)
         when {
             state.organizationForm != null -> OrganizationFormCard(state.organizationForm!!, state.busy, viewModel)
             state.locationForm != null -> LocationFormCard(state.locationForm!!, state.busy, viewModel)

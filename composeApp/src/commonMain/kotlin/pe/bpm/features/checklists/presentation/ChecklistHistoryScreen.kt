@@ -25,7 +25,7 @@ import pe.bpm.features.checklists.domain.*
             }
         }
         when {
-            state.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            state.loading -> BpmSkeletonList(rows = 4, card = false)
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text(failureMessage(state.failure), color = MaterialTheme.colorScheme.error)
                 BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)
@@ -57,7 +57,7 @@ import pe.bpm.features.checklists.domain.*
 }
 
 @Composable fun ChecklistHistoryDetailScreen(state: ChecklistHistoryState, onRetry: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
-    if (state.detailLoading) { LinearProgressIndicator(Modifier.fillMaxWidth()); return }
+    if (state.detailLoading) { BpmSkeletonDetail(); return }
     if (state.detailFailure != null) {
         Text("No pudimos consultar esta revisión. Puede que tu acceso haya cambiado.")
         BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White); return

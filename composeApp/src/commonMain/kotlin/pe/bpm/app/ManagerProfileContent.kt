@@ -32,9 +32,10 @@ internal fun ManagerProfileContent(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     onLearn: (() -> Unit)? = null,
+    onAccessibility: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit = { _, _, _ -> },
 ) {
     BpmPlayColumns(modifier, alignStart = true, rail = {
-        SettingsCard(settings, onSound, onVibration)
+        SettingsCard(settings, onSound, onVibration, onAccessibility)
     }) { railVisible ->
         ProfileHeader(displayName, detail, roleLabel)
         if (onLearn != null) BpmPlayCard(Modifier.fillMaxWidth()) {
@@ -42,6 +43,6 @@ internal fun ManagerProfileContent(
             BpmChunkyButton("Ir a Academia", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
         AccountCard(onDevices, onAcceptInvitation, onLogout)
-        if (!railVisible) SettingsCard(settings, onSound, onVibration)
+        if (!railVisible) SettingsCard(settings, onSound, onVibration, onAccessibility)
     }
 }

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +42,7 @@ internal class AdminInicioActions(
     val onAssignCourse: () -> Unit,
     val onInvite: () -> Unit,
     val onNormative: () -> Unit,
+    val onReport: () -> Unit,
     val onStudySurvey: (() -> Unit)?,
     val onSites: () -> Unit,
 )
@@ -87,8 +87,7 @@ internal fun AdminInicioContent(
             },
             calmText = "Sin controles vencidos, incidencias ni avisos abiertos, y las sedes al día.",
         )
-        if (dashboard.loading && kpis == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-        KpiRow(tiles)
+        if (dashboard.loading && kpis == null) BpmSkeletonKpis() else KpiRow(tiles)
         dashboard.failure?.takeIf { kpis == null }?.let {
             Text(reportFailureMessage(it), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             if (it.retryable) BpmChunkyButton("Volver a intentar", onRefreshDashboard, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
@@ -97,8 +96,11 @@ internal fun AdminInicioContent(
         BpmPlayCard(Modifier.fillMaxWidth()) {
             Text("Sedes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
             Text("Cumplimiento de los últimos 30 días", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-            if (report.loading && compliance == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (rows.isEmpty()) Text("Todavía no hay sedes. Agrega la primera en Empresa.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+            if (report.loading && compliance == null) BpmSkeletonList(rows = 3, card = false)
+            if (rows.isEmpty()) {
+                Text("Todavía no hay sedes. Agrega la primera para empezar a programar controles y asignar personas.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+                BpmChunkyButton("Agregar sede", actions.onSites, Modifier.fillMaxWidth())
+            }
             Column(Modifier.fillMaxWidth()) {
                 rows.forEachIndexed { index, row ->
                     BpmDataRow(row.name, subtitle = row.subtitle, progress = row.progress, value = row.value, tone = row.tone,
@@ -137,6 +139,7 @@ private fun AdminRail(actions: AdminInicioActions) {
         BpmChunkyButton("Programar control", actions.onSchedule, Modifier.fillMaxWidth())
         BpmChunkyButton("Asignar curso", actions.onAssignCourse, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         BpmChunkyButton("Invitar persona", actions.onInvite, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+        BpmChunkyButton("Reportar un problema", actions.onReport, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert)
     }
     BpmPlayCard(Modifier.fillMaxWidth()) {
         Text("Reportes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })

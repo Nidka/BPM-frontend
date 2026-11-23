@@ -36,7 +36,7 @@ private fun tabLabel(tab: ResearchTab) = when (tab) {
 fun ResearchScreen(viewModel: ResearchViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (state.accessLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.accessLoading) BpmSkeletonCard(lines = 3)
         state.failure?.let { failure ->
             Text(researchFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             BpmChunkyButton("Volver a intentar", viewModel::retry, tone = BpmChunkyTone.White)
@@ -88,7 +88,7 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
         return
     }
     BpmChunkyButton("Publicar nueva versión", viewModel::startDocument, Modifier.bpmPrimaryButtonWidth())
-    if (state.documentsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.documentsLoading) BpmSkeletonList(rows = 3, card = false)
     ErrorLine(state.documentsFailure)
     if (state.documentsFailure != null) BpmChunkyButton("Volver a intentar", { viewModel.loadDocuments(force = true) }, tone = BpmChunkyTone.White)
     if (state.documentsLoaded && state.documents.isEmpty()) EmptyState("Sin documentos", "Todavía no se publicó ningún consentimiento; nadie puede participar hasta que exista uno.")
@@ -129,7 +129,7 @@ private fun InstrumentsTab(controller: InstrumentsController) {
         return
     }
     BpmChunkyButton("Importar cuestionario (JSON)", controller::startImport, Modifier.bpmPrimaryButtonWidth())
-    if (state.loading || state.openingId != null) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.loading || state.openingId != null) BpmSkeletonList(rows = 3, card = false)
     ErrorLine(state.failure)
     if (state.failure != null && state.items.isEmpty()) BpmChunkyButton("Volver a intentar", { controller.load(force = true) }, tone = BpmChunkyTone.White)
     if (state.loaded && state.items.isEmpty()) EmptyState("Sin cuestionarios", "Importa el cuestionario CAP para comenzar.")
@@ -215,7 +215,7 @@ private fun ResultsTab(controller: AnalysisController) {
     ErrorLine(state.exportFailure)
     BpmChunkyButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.bpmPrimaryButtonWidth(), enabled = !state.exporting && state.pendingExport == null)
     Text("El archivo no incluye correos, nombres ni identificadores de usuario; las empresas se identifican con un código opaco.", style = MaterialTheme.typography.bodySmall)
-    if (state.resultsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.resultsLoading) BpmSkeletonList(rows = 3)
     ErrorLine(state.resultsFailure)
     if (state.resultsFailure != null) BpmChunkyButton("Volver a intentar", controller::refreshResults, tone = BpmChunkyTone.White)
     val results = state.results ?: return
@@ -335,7 +335,7 @@ private fun NeedsTab(controller: AnalysisController) {
     OrganizationFilter(state, controller, label = "Filtrar por empresa")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     BpmChunkyButton("Registrar necesidad", controller::startNeed, Modifier.bpmPrimaryButtonWidth())
-    if (state.needsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.needsLoading) BpmSkeletonList(rows = 3, card = false)
     ErrorLine(state.needsFailure)
     if (state.needsFailure != null) BpmChunkyButton("Volver a intentar", controller::refreshNeeds, tone = BpmChunkyTone.White)
     val page = state.needs ?: return
@@ -363,7 +363,8 @@ private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
     BpmTextField(state.grantEmail, viewModel::editGrantEmail, "Correo de la persona", Modifier.fillMaxWidth(), enabled = !state.grantBusy,
         error = if (state.grantEmailInvalid) "Escribe un correo válido." else null, inputKind = BpmInputKind.Email)
     BpmChunkyButton("Conceder acceso", viewModel::grant, Modifier.bpmPrimaryButtonWidth(), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
-    if (state.grantBusy || state.grantsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (state.grantsLoading) BpmSkeletonList(rows = 3, card = false)
+    if (state.grantBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.grantsFailure)
     if (state.grantsLoaded && state.grants.isEmpty()) EmptyState("Sin concesiones", "Todavía no se concedió acceso a nadie.")
     BpmGridLayout(state.grants) { grant, cardModifier ->

@@ -34,7 +34,7 @@ fun IncidentsScreen(
         s.failure?.let { Text(incidentFailureText(it), color = MaterialTheme.colorScheme.error) }
         s.notice?.let { Text(it) }
         pe.bpm.core.offline.PendingOperationsNotice("incidents")
-        if (s.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (s.loading) BpmSkeletonList(rows = 3, card = false)
         // Lista–detalle: desde 840 dp el detalle de una incidencia se muestra junto a la lista.
         val listBody: @Composable () -> Unit = {
                 if (IncidentsAccess.canAuthor(s.role))
@@ -149,7 +149,7 @@ fun IncidentsScreen(
             e.form != null -> IncidentFormContent(s, e, viewModel)
             s.showHistory -> {
                 Text("Historial de la incidencia", style = MaterialTheme.typography.titleLarge)
-                if (s.history.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (s.history.loading) BpmSkeletonList(rows = 3, card = false)
                 s.history.failure?.let {
                     Text(incidentFailureText(it))
                     BpmTextButton(viewModel::history) { Text("Reintentar historial") }
@@ -196,7 +196,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
         "Buscar por nombre",
         loading = loading,
     )
-    if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (loading) BpmSkeletonList(rows = 3, card = false)
     failure?.let {
         Text(incidentFailureText(it))
         BpmTextButton({ vm.picker(s.picker) }) { Text("Reintentar consulta") }

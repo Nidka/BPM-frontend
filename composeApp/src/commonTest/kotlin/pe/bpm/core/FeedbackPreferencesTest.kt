@@ -27,4 +27,16 @@ class FeedbackPreferencesTest {
         prefs.setVibration(false)
         assertEquals(BpmFeedbackSettings(sound = true, vibration = false), prefs.state.value)
     }
+
+    @Test fun accessibilityRoundTripsAndIsClamped() = runTest {
+        val big = BpmFeedbackSettings(textScale = 1.3f, highContrast = true, readAloud = false)
+        assertEquals(big, decodeFeedbackSettings(encodeFeedbackSettings(big)))
+        // Un valor fuera de rango (archivo editado a mano) se acota; lo ausente vale «normal, sin contraste, con Escuchar».
+        assertEquals(1.3f, decodeFeedbackSettings("""{"textScale":9}""").textScale)
+        assertEquals(1f, decodeFeedbackSettings("""{"textScale":0.2}""").textScale)
+        assertEquals(BpmFeedbackSettings(sound = false), decodeFeedbackSettings("""{"sound":false}"""))
+        val prefs = FeedbackPreferences()
+        prefs.setAccessibility(1.15f, true, false)
+        assertEquals(BpmFeedbackSettings(textScale = 1.15f, highContrast = true, readAloud = false), prefs.state.value)
+    }
 }

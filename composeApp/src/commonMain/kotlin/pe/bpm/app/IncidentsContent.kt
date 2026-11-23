@@ -39,7 +39,8 @@ internal fun IncidentsContent(
     }
     DisposableEffect(incidents, userId, org) { onDispose { incidents.reset() } }
     // El personal con una sola sede reporta sin elegirla; con varias elige una vez.
-    val worker = role == "WORKER" && onClose != null
+    // Reportar es igual para quien puede hacerlo (Personal, Jefe de cocina, Administrador): modo enfoque con una sede automática.
+    val worker = role in setOf("WORKER", "CHEF", "ADMIN") && onClose != null
     val onlySite = if (worker) workspace.workspace?.locations?.singleOrNull() else null
     LaunchedEffect(onlySite?.id) {
         if (onlySite != null && siteId == null) {
@@ -53,7 +54,7 @@ internal fun IncidentsContent(
         val ready = state.userId == userId && state.organizationId == org && state.siteId == siteId && state.role == role
         var showList by rememberSaveable(userId, org) { mutableStateOf(false) }
         when {
-            !ready -> BpmPlayStage(modifier, onClose = onClose, centered = true) { Text("Preparando el reporte…", style = BpmPlayType.sub, color = BpmPlayColors.muted) }
+            !ready -> BpmPlayStage(modifier, onClose = onClose, centered = true) { BpmSkeletonCard(lines = 2, label = "Preparando el reporte") }
             showList && editor.form == null -> Column(modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BpmTextButton({ showList = false }, modifier = Modifier.heightIn(min = BpmSpacing.touch)) {
                     BpmIcon(BpmSymbol.Back)
@@ -112,7 +113,7 @@ internal fun IncidentsContent(
                     state.role == role
             )
                 IncidentsScreen(incidents, Modifier.weight(1f), onEvidence)
-            else LinearProgressIndicator(Modifier.fillMaxWidth())
+            else BpmSkeletonList(rows = 4, card = false)
         }
     }
 }

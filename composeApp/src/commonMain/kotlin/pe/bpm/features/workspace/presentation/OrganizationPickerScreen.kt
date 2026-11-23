@@ -47,7 +47,7 @@ import pe.bpm.features.workspace.domain.WorkspaceError
         BpmSearchField(query, { onUserActivity(); onSearch(it.take(160)) }, "Buscar organización", enabled = !loading, loading = page.loading)
         Errors(errors + page.errors)
         if (page.errors.isNotEmpty()) BpmTextButton(onClick = onRetry) { Text("Reintentar") }
-        if (loading || page.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (loading || page.loading) BpmSkeletonList(rows = 3, card = false)
         LazyColumn(Modifier.weight(1f, fill = false).fillMaxWidth(), state = scroll, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             item(key = "notice") { notice() }
             if (matches.isEmpty() && !loading && !page.loading && errors.isEmpty() && page.errors.isEmpty()) item {
