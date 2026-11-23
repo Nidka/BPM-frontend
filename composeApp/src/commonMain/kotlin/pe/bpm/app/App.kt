@@ -242,6 +242,12 @@ fun App(
     }
     var academyOnAssignments by remember { mutableStateOf(false) }
     var accountsOnInvitations by remember { mutableStateOf(false) }
+    // Las pestañas de arranque («Invitar persona», «Asignar curso») valen una sola vez: al salir de esa sección se olvidan.
+    LaunchedEffect(entry?.destination?.route) {
+        val current = entry?.destination?.route
+        if (current != WorkspaceDestination.Team.route && current != ACCOUNTS_MANAGEMENT) accountsOnInvitations = false
+        if (current != TRAINING_MANAGEMENT) academyOnAssignments = false
+    }
     var helpRoute by remember { mutableStateOf(WorkspaceDestination.Home.route) }
     var introPrompted by remember { mutableStateOf(false) }
     val learnerRoot by trainingLearner.state.collectAsStateWithLifecycle()
@@ -414,6 +420,10 @@ fun App(
         pe.bpm.core.designsystem.LocalBpmFeedbackSettings provides feedbackSettings,
         pe.bpm.features.research.presentation.LocalStudyPrompt provides studyPromptState,
         LocalFirstSteps provides firstStepsState,
+        pe.bpm.features.checklists.presentation.LocalScheduledControls provides pe.bpm.features.checklists.presentation.ScheduledControls(
+            assignmentState.takeIf { it.userId == profile?.id && it.organizationId == workspaceState.selected }?.items.orEmpty()) { item ->
+            if (item.run != null) nav.navigate(if (item.run.status == "SUBMITTED") "control/revisiones/${item.run.id}" else "control/ejecucion/${item.run.id}") { launchSingleTop = true }
+            else { autoStartAssignment = item.id; nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } } },
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(systemDensity.density, systemDensity.fontScale * feedbackSettings.textScale)) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
         banner = { if (profile != null) Column { OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow); pe.bpm.core.offline.OtherAccountNotice(offlineUi) } }) {
@@ -742,8 +752,8 @@ fun App(
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
                                 onTraining = { academyOnAssignments = false; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
-                                onAccounts = { accountsOnInvitations = false; nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
-                                onInvite = { accountsOnInvitations = true; nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                onAccounts = { accountsOnInvitations = false; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                onInvite = { accountsOnInvitations = true; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
                                 homeContent = if (currentWorkspace?.role == "WORKER") ({
@@ -803,7 +813,7 @@ fun App(
                                             // Programar un control empieza por elegir la plantilla publicada (Plantillas → Programar en una sede).
                                             onSchedule = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                             onAssignCourse = { academyOnAssignments = true; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
-                                            onInvite = { accountsOnInvitations = true; nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                            onInvite = { accountsOnInvitations = true; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                             onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
                                             onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
                                             onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
@@ -812,6 +822,10 @@ fun App(
                                 onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
                                 chefTeam = if (destination == WorkspaceDestination.Team && chefPlay && currentWorkspace != null) ({
                                     ChefTeamContent(teamOf(currentWorkspace.members, currentWorkspace.locations.map { it.id }.toSet(), profile.id), currentWorkspace.locations)
+                                }) else if (destination == WorkspaceDestination.Team && adminPlay && currentWorkspace != null) ({
+                                    // Una sola pantalla de equipo para el administrador: personas, invitaciones y sedes en pestañas (antes «Equipo» y «Cuentas y equipo»).
+                                    AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), currentWorkspace.canManage, true, team, accountInvitations, accountOrganization,
+                                        organizationName = currentWorkspace.organization.name, startOnInvitations = accountsOnInvitations)
                                 }) else null,
                                 workerProfile = if (destination == WorkspaceDestination.Account && learnerPlay && currentWorkspace != null) ({
                                     WorkerProfileContent(trainingLearner, profile.id, currentWorkspace.organization.id, profile.displayName, currentWorkspace.organization.name,

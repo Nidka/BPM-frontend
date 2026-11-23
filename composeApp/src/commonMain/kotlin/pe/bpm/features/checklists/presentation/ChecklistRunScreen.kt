@@ -11,6 +11,18 @@ import pe.bpm.features.checklists.domain.*
 
 data class ChecklistRunLocation(val id: String, val name: String)
 
+/**
+ * Controles programados y vigentes de la persona, para avisar ANTES de «Comenzar revisión» que esta plantilla ya está programada en la sede
+ * elegida (el servidor rechaza una revisión libre en ese caso): en vez del error, se ofrece abrir el control de hoy. [onOpen] lo abre.
+ */
+class ScheduledControls(val items: List<ChecklistAssignment>, val onOpen: (ChecklistAssignment) -> Unit)
+
+val LocalScheduledControls = compositionLocalOf<ScheduledControls?> { null }
+
+/** El control programado y activo de [templateId] en [locationId] que aún no tiene revisión, si existe. */
+fun scheduledFor(items: List<ChecklistAssignment>, templateId: String, locationId: String): ChecklistAssignment? =
+    items.firstOrNull { it.active && it.templateId == templateId && it.locationId == locationId && it.run?.status != "SUBMITTED" }
+
 /** Vista de ejecución: emite acciones, no accede a red ni determina la autorización. */
 @Composable fun ChecklistRunScreen(state: ChecklistRunState, template: ChecklistTemplate?, loadingTemplate: Boolean,
     templateError: String?, locations: List<ChecklistRunLocation>, locationQuery: String, locationPage: Int,
@@ -55,7 +67,13 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 Text("Aquí registras lo que observas en tu local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con tu nombre y la fecha.")
                 ChecklistLocationSelector(locations,location,locationName,locationQuery,locationPage,locationsLoading,locationsFailed,
                     previousLocations,nextLocations,!state.busy&&!state.pending,onLocationSearch,onLocationPrevious,onLocationNext,onLocationRetry){location=it.id;locationName=it.name}
-                BpmChunkyButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } }, Modifier.bpmPrimaryButtonWidth(), enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
+                val scheduledControls = LocalScheduledControls.current
+                val scheduled = location?.let { scheduledControls?.let { s -> scheduledFor(s.items, template.id, it) } }
+                if (scheduled != null) {
+                    Text("Este control ya está programado para esa sede. Ábrelo desde aquí para hacerlo: así queda ligado a lo que tu administrador pidió.", color = MaterialTheme.colorScheme.primary)
+                    BpmChunkyButton("Abrir el control programado", { scheduledControls?.onOpen?.invoke(scheduled) }, Modifier.bpmPrimaryButtonWidth())
+                }
+                BpmChunkyButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } }, Modifier.bpmPrimaryButtonWidth(), tone = if (scheduled != null) BpmChunkyTone.White else BpmChunkyTone.Action, enabled = scheduled == null && location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }
             return@Column
         }
