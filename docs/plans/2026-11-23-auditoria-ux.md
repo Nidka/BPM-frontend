@@ -312,3 +312,16 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 - **Incidencia de proceso**: el despliegue de 01ce36f quedó en «failure» porque el trabajo de iOS del CI se canceló solo; producción siguió con el
   fallo de H3 más de 1 h hasta que un commit nuevo (7fbfa88) relanzó CI y despliegue. Conviene que el despliegue no dependa de un trabajo cancelado por la infraestructura.
 - H12 (nuevo): el filtro de estados de incidencias mostraba dos chips «Validada» (estados `CLOSED` y `VERIFIED`); el servidor cierra con `CLOSED`, se quitó `VERIFIED`.
+
+## 15. Cierre de pendientes (selector de fecha, equipo, pestañas) y verificación
+
+| # | Pendiente | Resultado | Estado |
+|---|---|---|---|
+| P1 | Barrido del Administrador a 768 dp y revisión a 1280 dp tras unificar el equipo | Inicio, Controles, Equipo (2 columnas de tarjetas), Empresa, Aprender, Seguimiento, Incidencias, Ajustes, Ayuda y Perfil se ven bien a 768; Equipo a 1280 con pestañas Equipo · Invitaciones · Organización y sedes | Hecho |
+| P2 | «Asignar curso» desde la persona | Acción «Asignar curso» en la tarjeta de cada persona activa de Equipo: abre el asistente de Academia con esa persona ya elegida (`startCreateFor`) | Hecho |
+| P3 | Selector de fecha | `BpmDatePicker` + `BpmCalendar` en el sistema de diseño: campo que muestra la fecha en palabras, calendario en línea (sin ventana emergente, igual en Android, iOS y web), atajos Hoy/Mañana/En 1 semana, mínimo, «Quitar fecha», días ≥ 44 dp con fecha completa y estado («Elegido», «No disponible», «hoy») para lector de pantalla, flechas de mes de 48 dp. Pruebas de calendario (`BpmCalendarTest`: validez, bisiestos, día de la semana, sumar días). Usado en: fecha límite de asignación de curso, vencimiento de lote de insumos y fecha límite de incidencia (la hora sigue siendo un campo HH:mm) | Hecho |
+| P4 | Pestañas de Equipo estables | Equipo usa `BpmSegmentedTabs` (un tercio de ancho cada una); las pestañas de Academia reservan el sitio del ✓ (`reserveCheck`) | Hecho |
+| P5a | Chip único «Validada» | Verificado en vivo a 768 dp tras el despliegue de 23f51c8 | Hecho |
+| P5b | Aviso de control ya programado | Verificado en vivo (Jefe, plantilla ya programada en la sede): aparece «Este control ya está programado…» con «Abrir el control programado» y «Comenzar revisión» desactivado. Al probar el botón se vio que llevaba a la ejecución de una revisión ajena y la app volvía al acceso; ahora abre la revisión (solo lectura si es de otra persona, ejecución si es propia) | Hecho |
+| P6 | Despliegue de 23f51c8 | El despliegue terminó en `success` (23:07 UTC) | Hecho |
+| P7 | Selector de hora | La hora límite de una incidencia sigue escribiéndose HH:mm | Pendiente |
