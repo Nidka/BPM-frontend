@@ -45,7 +45,7 @@ fun CertificateVerificationScreen(code: String, viewModel: CertificateVerificati
                         if (failure == ReportFailure.CERTIFICATE_NOT_FOUND) "No encontramos una constancia con ese código. Revisa que el enlace esté completo."
                         else reportFailureMessage(failure),
                         color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                    if (failure.retryable) BpmSecondaryButton(onClick = viewModel::retry) { Text("Reintentar") }
+                    if (failure.retryable) BpmChunkyButton("Reintentar", viewModel::retry, tone = BpmChunkyTone.White)
                 }
             }
         }

@@ -30,8 +30,7 @@ fun ConnectionScreen(state: ConnectionUiState, onRetry: () -> Unit) {
                 }
                 is ConnectionUiState.Unavailable -> Text(state.message)
             }
-            RaisedButton(if (connected) "Volver a comprobar" else "Reintentar conexión", onRetry,
-                modifier = Modifier.fillMaxWidth(), enabled = state !is ConnectionUiState.Checking)
+            BpmChunkyButton(if (connected) "Volver a comprobar" else "Reintentar conexión", onRetry, Modifier.fillMaxWidth(), enabled = state !is ConnectionUiState.Checking)
         }
     }
 }

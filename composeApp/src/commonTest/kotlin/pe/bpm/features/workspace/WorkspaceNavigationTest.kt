@@ -32,7 +32,8 @@ class WorkspaceNavigationTest {
         assertTrue(WorkspaceDestination.Company in admin)
         assertFalse(WorkspaceDestination.Operations in admin)
         assertFalse(WorkspaceDestination.Learn in admin)
-        assertFalse(WorkspaceDestination.Account in workspacePrimaryDestinations(admin))
+        // La super administración tiene «Perfil» como destino propio (Organizaciones · Indicadores · Acceso · Perfil).
+        assertTrue(WorkspaceDestination.Account in workspacePrimaryDestinations(admin))
         val chef = workspaceDestinations("CHEF", false)
         assertTrue(WorkspaceDestination.Operations in chef)
         assertTrue(WorkspaceDestination.Learn in chef)
@@ -61,9 +62,20 @@ class WorkspaceNavigationTest {
         assertEquals(listOf("Inicio", "Controles", "Equipo", "Academia", "Empresa"), nav("ADMIN", false))
     }
 
-    @Test fun platformAdminKeepsTrackingEvenWhenItsWorkspaceShowsAnAdminRole() {
+    @Test fun platformAdminKeepsTheOrganizationRoutesEvenWhenItsWorkspaceShowsAnAdminRole() {
         val available = workspaceDestinations("ADMIN", true)
-        assertTrue(WorkspaceDestination.Supervision in workspacePrimaryDestinations(available, "ADMIN"))
+        // Empresa, Equipo y Seguimiento siguen permitidos (son la organización abierta), pero ya no son destinos de la barra.
+        for (route in listOf(WorkspaceDestination.Company, WorkspaceDestination.Team, WorkspaceDestination.Supervision, WorkspaceDestination.Indicators)) assertTrue(route in available, route.route)
+        assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Indicators, WorkspaceDestination.Account), workspacePrimaryDestinations(available, "ADMIN"))
+        assertFalse(WorkspaceDestination.Indicators in workspaceDestinations("ADMIN", false))
+    }
+
+    @Test fun platformAdminNavigationIsOrganizationsIndicatorsAccessProfile() {
+        // El rol del espacio abierto (ADMIN, CHEF…) no cambia la barra ni sus etiquetas.
+        for (role in listOf(null, "ADMIN", "CHEF", "WORKER")) for (grants in listOf(false, true))
+            assertEquals(listOf("Organizaciones", "Indicadores", "Acceso", "Perfil"), nav(role, true, grants = grants), "rol=$role accesos=$grants")
+        assertEquals("Organizaciones", destinationLabel(WorkspaceDestination.Home, null, platformAdmin = true))
+        assertEquals("Inicio", destinationLabel(WorkspaceDestination.Home, null))
     }
 
     @Test fun accountLivesInTheHeaderForAdminAndInTheNavigationForChefAndWorker() {
@@ -98,7 +110,7 @@ class WorkspaceNavigationTest {
 
     private fun nav(role: String?, platform: Boolean, research: Boolean = false, grants: Boolean = false) =
         workspaceNavigation(workspacePrimaryDestinations(workspaceDestinations(role, platform), role), workspaceShortcuts(role, platform, research, grants))
-            .map { when (it) { is WorkspaceNavItem.Section -> destinationLabel(it.destination, role); is WorkspaceNavItem.Shortcut -> it.shortcut.label } }
+            .map { when (it) { is WorkspaceNavItem.Section -> destinationLabel(it.destination, if (platform) null else role, platform); is WorkspaceNavItem.Shortcut -> it.shortcut.label } }
 
     @Test fun chefGetsFiveDestinationsAndNoIncidentsShortcut() {
         assertEquals(listOf("Turno", "Controles", "Equipo", "Aprender", "Perfil"), nav("CHEF", false))
@@ -108,10 +120,10 @@ class WorkspaceNavigationTest {
         assertEquals(listOf("Inicio", "Investigación"), nav(null, false, research = true))
     }
 
-    @Test fun bpmTeamSeesCompaniesTrackingAndAccessWithinFiveEntries() {
+    @Test fun bpmTeamSeesOrganizationsIndicatorsAndAccessWithinFiveEntries() {
         val items = nav(null, true, research = true, grants = true)
         assertTrue(items.size <= 5)
-        assertEquals(listOf("Inicio", "Empresas", "Seguimiento", "Acceso", "Empresa"), items)
+        assertEquals(listOf("Organizaciones", "Indicadores", "Acceso", "Perfil"), items)
     }
 
     @Test fun everyRoleAndShortcutCombinationFitsFiveEntriesWithoutTruncation() {

@@ -46,7 +46,7 @@ internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalu
                 Text("Evaluación enviada: se calificará al conectarse", style = MaterialTheme.typography.titleLarge)
                 Text("Tus respuestas están guardadas en este dispositivo. El servidor las calificará cuando recuperes la conexión y verás el resultado en el curso.")
             }
-            RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.bpmPrimaryButtonWidth())
+            BpmChunkyButton("Volver al curso", viewModel::closeEvaluation, Modifier.bpmPrimaryButtonWidth())
         }
         return
     }
@@ -75,7 +75,7 @@ internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalu
                 BpmQuestionPickerChip(position, { navigatorOpen = true }, enabled = !locked,
                     modifier = Modifier.semantics { contentDescription = "$position. Abrir la lista de preguntas" })
                 if (navigatorOpen) BpmQuestionNavigatorSheet(answered, index, viewModel::goToQuestion, { navigatorOpen = false }) {
-                    RaisedButton("Revisar y enviar", { navigatorOpen = false; viewModel.openReview() }, Modifier.fillMaxWidth(), enabled = !locked)
+                    BpmChunkyButton("Revisar y enviar", { navigatorOpen = false; viewModel.openReview() }, Modifier.fillMaxWidth(), enabled = !locked)
                 }
             }
         }
@@ -91,7 +91,7 @@ internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalu
             val last = index >= questions.lastIndex
             BpmInlineActions(compactSecondaryFixed = true,
                 secondary = { BackButton("Anterior", "Pregunta anterior", viewModel::previousQuestion, enabled = index > 0) },
-                primary = { RaisedButton(if (last) "Revisar respuestas" else "Siguiente pregunta", if (last) viewModel::openReview else viewModel::nextQuestion, Modifier.fillMaxWidth()) })
+                primary = { BpmChunkyButton(if (last) "Revisar respuestas" else "Siguiente pregunta", if (last) viewModel::openReview else viewModel::nextQuestion, Modifier.fillMaxWidth()) })
         }
     }
     if (inPane) BpmSupportPaneLayout(
@@ -163,7 +163,7 @@ private fun EvaluationReview(label: String, state: TrainingState, course: Traini
         BpmActionBar {
             BpmInlineActions(compactSecondaryFixed = true,
                 secondary = { BackButton("Volver", "Volver a las preguntas", viewModel::closeReview, enabled = !locked) },
-                primary = { RaisedButton(if (retrying) "Reintentar envío" else "Enviar evaluación", viewModel::submitEvaluation, Modifier.fillMaxWidth(), enabled = viewModel.canSubmitEvaluation()) })
+                primary = { BpmChunkyButton(if (retrying) "Reintentar envío" else "Enviar evaluación", viewModel::submitEvaluation, Modifier.fillMaxWidth(), enabled = viewModel.canSubmitEvaluation()) })
         }
     }
 }
@@ -226,12 +226,12 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
     }
     BpmActionBar {
         BpmInlineActions(primary = when {
-            next != null -> ({ RaisedButton("Siguiente curso", { onOpenCourse?.invoke(next.courseId) }, Modifier.fillMaxWidth()) })
-            retry -> ({ RaisedButton("Intentar otra vez", {
+            next != null -> ({ BpmChunkyButton("Siguiente curso", { onOpenCourse?.invoke(next.courseId) }, Modifier.fillMaxWidth()) })
+            retry -> ({ BpmChunkyButton("Intentar otra vez", {
                 val lesson = viewModel.state.value.evaluation?.lessonId
                 if (attempt.attemptType == AttemptType.MODULE && lesson != null) viewModel.startModuleEvaluation(lesson) else viewModel.startEvaluation(attempt.attemptType)
             }, Modifier.fillMaxWidth()) })
-            else -> ({ RaisedButton("Volver al curso", viewModel::closeEvaluation, Modifier.fillMaxWidth()) })
+            else -> ({ BpmChunkyButton("Volver al curso", viewModel::closeEvaluation, Modifier.fillMaxWidth()) })
         })
     }
 

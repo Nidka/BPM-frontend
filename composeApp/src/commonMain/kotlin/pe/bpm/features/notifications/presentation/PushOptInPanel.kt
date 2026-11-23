@@ -45,20 +45,11 @@ fun PushOptInPanel(viewModel: NotificationDevicesViewModel) {
           Text(
             "Dispositivo registrado por el servidor. La entrega de cada aviso depende del proveedor."
           )
-          BpmSecondaryButton(viewModel::disable, enabled = !s.busy) {
-            Text("Desactivar notificaciones")
-          }
+          BpmChunkyButton("Desactivar notificaciones", viewModel::disable, tone = BpmChunkyTone.White, enabled = !s.busy)
         } else {
-          RaisedButton(
-            "Activar notificaciones",
-            viewModel::enable,
-            Modifier.fillMaxWidth(),
-            enabled = !s.busy,
-          )
+          BpmChunkyButton("Activar notificaciones", viewModel::enable, Modifier.fillMaxWidth(), enabled = !s.busy)
           if (s.failure == NotificationFailure.CONFLICT)
-            BpmSecondaryButton(viewModel::disable, enabled = !s.busy) {
-              Text("Limpiar vinculación de este dispositivo")
-            }
+            BpmChunkyButton("Limpiar vinculación de este dispositivo", viewModel::disable, tone = BpmChunkyTone.White, enabled = !s.busy)
         }
       }
     }

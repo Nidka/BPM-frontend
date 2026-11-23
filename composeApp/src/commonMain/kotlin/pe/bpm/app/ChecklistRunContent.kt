@@ -26,10 +26,8 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
         return
     }
     if (onWorkOffline != null && scoped.run?.status == "DRAFT" && scoped.run.performedBy == userId) {
-        pe.bpm.core.designsystem.BpmSecondaryButton(onClick = { onWorkOffline(scoped.run.id) },
-            enabled = !scoped.busy && !scoped.dirty && !scoped.pending && !scoped.conflicted && scoped.failure == null) {
-            androidx.compose.material3.Text("Trabajar sin conexión")
-        }
+        pe.bpm.core.designsystem.BpmChunkyButton("Trabajar sin conexión", { onWorkOffline(scoped.run.id) }, tone = pe.bpm.core.designsystem.BpmChunkyTone.White,
+            enabled = !scoped.busy && !scoped.dirty && !scoped.pending && !scoped.conflicted && scoped.failure == null)
         if (scoped.dirty) androidx.compose.material3.Text("Guarda primero tus respuestas para preparar esta revisión sin conexión.")
     }
     val page = workspace.pages[WorkspaceResource.Locations]

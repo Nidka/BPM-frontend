@@ -1,6 +1,7 @@
 package pe.bpm.app
 
-import pe.bpm.core.designsystem.BpmFilterChip
+import pe.bpm.core.designsystem.BpmSegmentedTabs
+import pe.bpm.core.designsystem.BpmTabOption
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -37,10 +38,7 @@ internal fun ReportsContent(
         if (canAdminister) admin.open(userId, organizationId, role)
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (canAdminister) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            BpmFilterChip(selected = section == 0, onClick = { section = 0 }, label = { Text("Cumplimiento") }, modifier = Modifier.heightIn(min = 48.dp))
-            BpmFilterChip(selected = section == 1, onClick = { section = 1 }, label = { Text("Equipo y constancias") }, modifier = Modifier.heightIn(min = 48.dp))
-        }
+        if (canAdminister) BpmSegmentedTabs(listOf(BpmTabOption("0", "Cumplimiento"), BpmTabOption("1", "Equipo y constancias")), section.toString(), { section = it.toInt() })
         if (section == 0 || !canAdminister) ReportsScreen(reports, reportsState, locations)
         else ReportsAdminScreen(admin, adminState)
     }

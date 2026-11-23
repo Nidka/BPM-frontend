@@ -53,10 +53,7 @@ fun SessionExpirationNotice(status: SessionStatus, onContinue: () -> Unit, onLog
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                 if (status.continuing) LinearProgressIndicator(Modifier.fillMaxWidth())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    BpmSecondaryButton(onClick = if (warning.reason == SessionExpiryReason.INACTIVITY) onContinue else onLogout,
-                        enabled = !status.continuing, modifier = Modifier.focusRequester(primary).onFocusChanged { primaryFocused = it.isFocused }) {
-                        Text(if (status.continuing) "Comprobando…" else if (warning.reason == SessionExpiryReason.INACTIVITY) "Seguir conectado" else "Volver a iniciar sesión")
-                    }
+                    BpmChunkyButton(if (status.continuing) "Comprobando…" else if (warning.reason == SessionExpiryReason.INACTIVITY) "Seguir conectado" else "Volver a iniciar sesión", if (warning.reason == SessionExpiryReason.INACTIVITY) onContinue else onLogout, Modifier.focusRequester(primary).onFocusChanged { primaryFocused = it.isFocused }, tone = BpmChunkyTone.White, enabled = !status.continuing)
                     if (warning.reason == SessionExpiryReason.INACTIVITY)
                         BpmTextButton(onClick = onLogout, enabled = !status.continuing, modifier = Modifier.focusRequester(secondary)) { Text("Cerrar sesión") }
                 }

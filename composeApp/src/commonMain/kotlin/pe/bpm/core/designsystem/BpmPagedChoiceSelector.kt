@@ -35,7 +35,7 @@ fun BpmPagedChoiceSelector(
 ) {
     BpmSearchField(query, onSearch, searchLabel, enabled = enabled)
     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (failed) BpmSecondaryButton(onClick = onRetry) { Text("Reintentar consulta") }
+    if (failed) BpmChunkyButton("Reintentar consulta", onRetry, tone = BpmChunkyTone.White)
     else {
         if (options.isEmpty()) Text(emptyMessage)
         if (options.isNotEmpty())

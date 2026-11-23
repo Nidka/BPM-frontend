@@ -124,7 +124,7 @@ internal fun WorkerProfileContent(
 
 /** Avatar de 64 dp con las iniciales, el nombre (Baloo 2) y «{rol} · {org}». */
 @Composable
-private fun ProfileHeader(displayName: String, organizationName: String, roleLabel: String) {
+internal fun ProfileHeader(displayName: String, organizationName: String, roleLabel: String) {
     Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(64.dp).background(BpmPlayColors.action.soft, CircleShape).border(BpmPlayBorder, BpmPlayColors.navBorder, CircleShape).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
             Text(initialsOf(displayName), style = BpmPlayType.h1.copy(fontSize = 22.sp), color = BpmPlayColors.action.face)
@@ -265,7 +265,7 @@ private fun CertificatesCard(courses: List<MyAssignment>, loaded: Boolean, onOpe
 
 /** Ajustes: «Sonido» y «Vibración» (preferencia local de este dispositivo). */
 @Composable
-private fun SettingsCard(settings: BpmFeedbackSettings, onSound: (Boolean) -> Unit, onVibration: (Boolean) -> Unit) {
+internal fun SettingsCard(settings: BpmFeedbackSettings, onSound: (Boolean) -> Unit, onVibration: (Boolean) -> Unit) {
     BpmPlayCard {
         Text("Ajustes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         SwitchRow("Sonido", "Un sonido corto al acertar y al terminar.", settings.sound, onSound)
@@ -293,7 +293,7 @@ private fun SwitchRow(label: String, detail: String, checked: Boolean, onChange:
 
 /** Cuenta: «Mis dispositivos», «Aceptar una invitación» y «Cerrar sesión» (acciones existentes de la cuenta). */
 @Composable
-private fun AccountCard(onDevices: () -> Unit, onAcceptInvitation: () -> Unit, onLogout: () -> Unit) {
+internal fun AccountCard(onDevices: () -> Unit, onAcceptInvitation: () -> Unit, onLogout: () -> Unit) {
     BpmPlayCard {
         Text("Cuenta", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         BpmChunkyButton("Mis dispositivos", onDevices, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)

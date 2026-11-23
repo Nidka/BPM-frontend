@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
     BpmCard(Modifier.fillMaxWidth()) {
         Text("¿Descartar este borrador?")
         Text("Se eliminarán los cambios de este dispositivo que todavía no enviaste.")
-        RaisedButton("Seguir editando", onKeep, enabled = enabled)
+        BpmChunkyButton("Seguir editando", onKeep, Modifier.bpmPrimaryButtonWidth(), enabled = enabled)
         BpmTextButton(onClick = onDiscard, enabled = enabled) { Text("Descartar borrador") }
     }
 }

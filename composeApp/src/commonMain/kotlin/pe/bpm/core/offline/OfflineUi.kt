@@ -1,5 +1,7 @@
 package pe.bpm.core.offline
 
+import pe.bpm.core.designsystem.BpmChunkyTone
+import pe.bpm.core.designsystem.BpmChunkyButton
 import pe.bpm.core.designsystem.BpmType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -145,9 +147,7 @@ fun PendingChangesScreen(
         BpmTextButton(onBack) { Text("Volver") }
         BpmPageHeader("Cambios pendientes",
             description = if (state.status.online) "Conectado" else "Sin conexión: se enviarán al recuperarla.")
-        BpmSecondaryButton(onSync, Modifier.fillMaxWidth(), enabled = state.status.online && !state.syncing) {
-            Text(if (state.syncing) "Enviando…" else "Sincronizar ahora")
-        }
+        BpmChunkyButton(if (state.syncing) "Enviando…" else "Sincronizar ahora", onSync, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.status.online && !state.syncing)
         state.notice?.let { message ->
             Row(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalAlignment = Alignment.CenterVertically) {
                 Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -180,7 +180,7 @@ private fun PendingCard(item: PendingItem, now: Long, onRetry: (String) -> Unit,
         if (item.state != PendingState.SENT && item.state != PendingState.SENDING) {
             // Con fuente grande o ancho compacto los dos botones pasan a dos líneas en lugar de cortarse.
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (item.canRetry) BpmSecondaryButton({ onRetry(item.id) }) { Text("Reintentar") }
+                if (item.canRetry) BpmChunkyButton("Reintentar", { onRetry(item.id) }, tone = BpmChunkyTone.White)
                 BpmTextButton(onDiscard) { Text(if (item.state == PendingState.NEEDS_REVIEW) "Descartar y recargar" else "Descartar") }
             }
         }

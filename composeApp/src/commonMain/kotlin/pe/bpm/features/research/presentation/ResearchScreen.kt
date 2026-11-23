@@ -2,6 +2,7 @@ package pe.bpm.features.research.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
@@ -38,14 +39,15 @@ fun ResearchScreen(viewModel: ResearchViewModel, modifier: Modifier = Modifier) 
         if (state.accessLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure ->
             Text(researchFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            BpmSecondaryButton(onClick = viewModel::retry) { Text("Volver a intentar") }
+            BpmChunkyButton("Volver a intentar", viewModel::retry, tone = BpmChunkyTone.White)
         }
         if (state.access != null && !state.hasAccess) {
             EmptyState("Sin acceso", "Tu cuenta no tiene una concesión de investigación. Solicítala a un administrador general de BPM.")
             return@Column
         }
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-        if (state.tabs.size > 1) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Una sola fila desplazable (como los filtros del catálogo): cinco pestañas no se parten en tres líneas en el teléfono.
+        if (state.tabs.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.tabs.forEach { tab -> BpmFilterChip(state.tab == tab, { viewModel.selectTab(tab) }, { Text(tabLabel(tab)) }) }
         }
         when (state.tab) {
@@ -85,10 +87,10 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
         BpmFormActions("Publicar versión", viewModel::publishDocument, busy = state.documentBusy, onCancel = viewModel::cancelDocument)
         return
     }
-    RaisedButton("Publicar nueva versión", viewModel::startDocument, Modifier.bpmPrimaryButtonWidth())
+    BpmChunkyButton("Publicar nueva versión", viewModel::startDocument, Modifier.bpmPrimaryButtonWidth())
     if (state.documentsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.documentsFailure)
-    if (state.documentsFailure != null) BpmSecondaryButton(onClick = { viewModel.loadDocuments(force = true) }) { Text("Volver a intentar") }
+    if (state.documentsFailure != null) BpmChunkyButton("Volver a intentar", { viewModel.loadDocuments(force = true) }, tone = BpmChunkyTone.White)
     if (state.documentsLoaded && state.documents.isEmpty()) EmptyState("Sin documentos", "Todavía no se publicó ningún consentimiento; nadie puede participar hasta que exista uno.")
     state.documents.forEach { document ->
         var expanded by remember(document.version) { mutableStateOf(false) }
@@ -126,18 +128,18 @@ private fun InstrumentsTab(controller: InstrumentsController) {
         BpmFormActions("Importar como borrador", controller::confirmImport, enabled = form.text.isNotBlank(), busy = form.busy, onCancel = controller::cancelImport)
         return
     }
-    RaisedButton("Importar cuestionario (JSON)", controller::startImport, Modifier.bpmPrimaryButtonWidth())
+    BpmChunkyButton("Importar cuestionario (JSON)", controller::startImport, Modifier.bpmPrimaryButtonWidth())
     if (state.loading || state.openingId != null) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.failure)
-    if (state.failure != null && state.items.isEmpty()) BpmSecondaryButton(onClick = { controller.load(force = true) }) { Text("Volver a intentar") }
+    if (state.failure != null && state.items.isEmpty()) BpmChunkyButton("Volver a intentar", { controller.load(force = true) }, tone = BpmChunkyTone.White)
     if (state.loaded && state.items.isEmpty()) EmptyState("Sin cuestionarios", "Importa el cuestionario CAP para comenzar.")
     BpmGridLayout(state.items) { item, cardModifier ->
         BpmCard(cardModifier) {
             Eyebrow(item.code + if (item.isCap) " · CAP" else "")
             Text(item.name, style = MaterialTheme.typography.titleMedium)
             Text(item.publishedVersionNumber?.let { "Versión publicada: $it" } ?: "Sin versión publicada", style = MaterialTheme.typography.bodySmall)
-            if (item.hasDraft) BpmSecondaryButton(onClick = { controller.openDraft(item.id) }, enabled = state.openingId == null, modifier = Modifier.fillMaxWidth()) { Text("Editar borrador") }
-            else if (item.publishedVersionNumber != null) BpmSecondaryButton(onClick = { controller.newVersion(item.id) }, enabled = state.openingId == null, modifier = Modifier.fillMaxWidth()) { Text("Crear nueva versión") }
+            if (item.hasDraft) BpmChunkyButton("Editar borrador", { controller.openDraft(item.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.openingId == null)
+            else if (item.publishedVersionNumber != null) BpmChunkyButton("Crear nueva versión", { controller.newVersion(item.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.openingId == null)
         }
     }
 }
@@ -150,14 +152,14 @@ private fun DraftEditor(editor: DraftEditorState, controller: InstrumentsControl
     if (editor.discarding) {
         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
             Text("Tienes cambios sin guardar", style = MaterialTheme.typography.titleMedium)
-            BpmSecondaryButton(onClick = controller::discardEditor) { Text("Descartar cambios y salir") }
+            BpmChunkyButton("Descartar cambios y salir", controller::discardEditor, tone = BpmChunkyTone.White)
             BpmTextButton(onClick = controller::keepEditing) { Text("Seguir editando") }
         }
     }
     editor.questions.forEachIndexed { index, question -> QuestionEditor(index, question, editor.questions.size, !editor.busy, controller) }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         QuestionType.entries.forEach { type ->
-            BpmSecondaryButton(onClick = { controller.addQuestion(type) }, enabled = !editor.busy && editor.questions.size < ResearchLimits.MAX_QUESTIONS) { Text("Agregar: " + typeLabel(type)) }
+            BpmChunkyButton("Agregar: " + typeLabel(type), { controller.addQuestion(type) }, tone = BpmChunkyTone.White, enabled = !editor.busy && editor.questions.size < ResearchLimits.MAX_QUESTIONS)
         }
     }
     if (editor.showIssues && editor.problems.isNotEmpty()) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
@@ -165,11 +167,11 @@ private fun DraftEditor(editor: DraftEditorState, controller: InstrumentsControl
         editor.problems.forEach { Text("• $it") }
     }
     ErrorLine(editor.failure)
-    if (editor.failure == ResearchFailure.DRAFT_CONFLICT) BpmSecondaryButton(onClick = controller::reloadDraft) { Text("Recargar borrador del servidor") }
+    if (editor.failure == ResearchFailure.DRAFT_CONFLICT) BpmChunkyButton("Recargar borrador del servidor", controller::reloadDraft, tone = BpmChunkyTone.White)
     if (editor.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        BpmSecondaryButton(onClick = controller::save, enabled = editor.dirty && !editor.busy) { Text(if (editor.dirty) "Guardar borrador" else "Borrador guardado") }
-        RaisedButton("Publicar versión", controller::publish, Modifier.bpmPrimaryButtonWidth(), enabled = !editor.busy)
+        BpmChunkyButton(if (editor.dirty) "Guardar borrador" else "Borrador guardado", controller::save, tone = BpmChunkyTone.White, enabled = editor.dirty && !editor.busy)
+        BpmChunkyButton("Publicar versión", controller::publish, Modifier.bpmPrimaryButtonWidth(), enabled = !editor.busy)
         BpmTextButton(onClick = { controller.closeEditor() }, enabled = !editor.busy) { Text("Volver a la lista") }
     }
 }
@@ -185,7 +187,7 @@ private fun QuestionEditor(index: Int, question: DraftQuestion, total: Int, enab
                 BpmChoiceRow("Es la respuesta correcta", question.correctOption == option, enabled = enabled) { controller.setCorrect(index, option) }
                 if (question.options.size > 2) BpmTextButton(onClick = { controller.removeOption(index, option) }, enabled = enabled) { Text("Quitar la opción ${option + 1}") }
             }
-            if (question.options.size < 6) BpmSecondaryButton(onClick = { controller.addOption(index) }, enabled = enabled) { Text("Agregar opción") }
+            if (question.options.size < 6) BpmChunkyButton("Agregar opción", { controller.addOption(index) }, tone = BpmChunkyTone.White, enabled = enabled)
         } else {
             Text("Escala de 5 niveles con las etiquetas estándar del estudio.", style = MaterialTheme.typography.bodySmall)
         }
@@ -211,18 +213,18 @@ private fun ResultsTab(controller: AnalysisController) {
     OrganizationFilter(state, controller, label = "Exportar respuestas de")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     ErrorLine(state.exportFailure)
-    RaisedButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.bpmPrimaryButtonWidth(), enabled = !state.exporting && state.pendingExport == null)
+    BpmChunkyButton(if (state.exporting) "Preparando archivo…" else "Descargar CSV anonimizado", controller::export, Modifier.bpmPrimaryButtonWidth(), enabled = !state.exporting && state.pendingExport == null)
     Text("El archivo no incluye correos, nombres ni identificadores de usuario; las empresas se identifican con un código opaco.", style = MaterialTheme.typography.bodySmall)
     if (state.resultsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.resultsFailure)
-    if (state.resultsFailure != null) BpmSecondaryButton(onClick = controller::refreshResults) { Text("Volver a intentar") }
+    if (state.resultsFailure != null) BpmChunkyButton("Volver a intentar", controller::refreshResults, tone = BpmChunkyTone.White)
     val results = state.results ?: return
     Text("Versión ${results.version.versionNumber} del cuestionario", style = MaterialTheme.typography.titleMedium)
     if (results.page.items.isEmpty()) EmptyState("Sin resultados", "Todavía no hay empresas con personas participantes.")
     BpmGridLayout(results.page.items) { result, cardModifier -> ResultCard(result, cardModifier) }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BpmSecondaryButton(onClick = controller::previousResults, enabled = state.hasPreviousResults && !state.resultsLoading) { Text("Página anterior") }
-        BpmSecondaryButton(onClick = controller::nextResults, enabled = results.page.nextToken.isNotEmpty() && !state.resultsLoading) { Text("Página siguiente") }
+        BpmChunkyButton("Página anterior", controller::previousResults, tone = BpmChunkyTone.White, enabled = state.hasPreviousResults && !state.resultsLoading)
+        BpmChunkyButton("Página siguiente", controller::nextResults, tone = BpmChunkyTone.White, enabled = results.page.nextToken.isNotEmpty() && !state.resultsLoading)
     }
 }
 
@@ -280,7 +282,7 @@ private fun OrganizationFilter(state: AnalysisState, controller: AnalysisControl
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = MaterialTheme.typography.labelLarge)
         Box {
-            BpmSecondaryButton(onClick = { open = true }) { Text(selected?.name ?: "Todas las empresas") }
+            BpmChunkyButton(selected?.name ?: "Todas las empresas", { open = true }, tone = BpmChunkyTone.White)
             DropdownMenu(open, { open = false }) {
                 DropdownMenuItem(text = { Text("Todas las empresas") }, onClick = { controller.selectOrganization(null); open = false })
                 state.organizations.forEach { org -> DropdownMenuItem(text = { Text(org.name) }, onClick = { controller.selectOrganization(org.id); open = false }) }
@@ -313,7 +315,7 @@ private fun NeedsTab(controller: AnalysisController) {
         Text("Empresa", style = MaterialTheme.typography.labelLarge)
         var open by remember { mutableStateOf(false) }
         Box {
-            BpmSecondaryButton(onClick = { open = true }, enabled = !form.busy) { Text(state.organizations.firstOrNull { it.id == form.organizationId }?.name ?: "Elegir empresa") }
+            BpmChunkyButton(state.organizations.firstOrNull { it.id == form.organizationId }?.name ?: "Elegir empresa", { open = true }, tone = BpmChunkyTone.White, enabled = !form.busy)
             DropdownMenu(open, { open = false }) {
                 state.organizations.forEach { org -> DropdownMenuItem(text = { Text(org.name) }, onClick = { controller.editNeed { it.copy(organizationId = org.id) }; open = false }) }
             }
@@ -332,10 +334,10 @@ private fun NeedsTab(controller: AnalysisController) {
     }
     OrganizationFilter(state, controller, label = "Filtrar por empresa")
     state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-    RaisedButton("Registrar necesidad", controller::startNeed, Modifier.bpmPrimaryButtonWidth())
+    BpmChunkyButton("Registrar necesidad", controller::startNeed, Modifier.bpmPrimaryButtonWidth())
     if (state.needsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.needsFailure)
-    if (state.needsFailure != null) BpmSecondaryButton(onClick = controller::refreshNeeds) { Text("Volver a intentar") }
+    if (state.needsFailure != null) BpmChunkyButton("Volver a intentar", controller::refreshNeeds, tone = BpmChunkyTone.White)
     val page = state.needs ?: return
     if (page.items.isEmpty()) EmptyState("Sin necesidades", "No hay necesidades registradas para este filtro.")
     BpmGridLayout(page.items) { need, cardModifier ->
@@ -347,8 +349,8 @@ private fun NeedsTab(controller: AnalysisController) {
         }
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BpmSecondaryButton(onClick = controller::previousNeeds, enabled = state.hasPreviousNeeds && !state.needsLoading) { Text("Página anterior") }
-        BpmSecondaryButton(onClick = controller::nextNeeds, enabled = page.nextToken.isNotEmpty() && !state.needsLoading) { Text("Página siguiente") }
+        BpmChunkyButton("Página anterior", controller::previousNeeds, tone = BpmChunkyTone.White, enabled = state.hasPreviousNeeds && !state.needsLoading)
+        BpmChunkyButton("Página siguiente", controller::nextNeeds, tone = BpmChunkyTone.White, enabled = page.nextToken.isNotEmpty() && !state.needsLoading)
     }
 }
 
@@ -360,7 +362,7 @@ private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
     Text("Solo las personas con una concesión pueden ver resultados y exportaciones. Ni los administradores de empresa ni los administradores generales ven estos datos sin ella.")
     BpmTextField(state.grantEmail, viewModel::editGrantEmail, "Correo de la persona", Modifier.fillMaxWidth(), enabled = !state.grantBusy,
         error = if (state.grantEmailInvalid) "Escribe un correo válido." else null, inputKind = BpmInputKind.Email)
-    RaisedButton("Conceder acceso", viewModel::grant, Modifier.bpmPrimaryButtonWidth(), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
+    BpmChunkyButton("Conceder acceso", viewModel::grant, Modifier.bpmPrimaryButtonWidth(), enabled = !state.grantBusy && state.grantEmail.isNotBlank())
     if (state.grantBusy || state.grantsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
     ErrorLine(state.grantsFailure)
     if (state.grantsLoaded && state.grants.isEmpty()) EmptyState("Sin concesiones", "Todavía no se concedió acceso a nadie.")
@@ -373,9 +375,9 @@ private fun AccessTab(state: ResearchState, viewModel: ResearchViewModel) {
             if (grant.active) {
                 if (state.revokingUserId == grant.userId) {
                     Text("¿Retirar el acceso de ${grant.email}?")
-                    BpmSecondaryButton(onClick = viewModel::confirmRevoke, enabled = !state.grantBusy) { Text("Sí, retirar acceso") }
+                    BpmChunkyButton("Sí, retirar acceso", viewModel::confirmRevoke, tone = BpmChunkyTone.White, enabled = !state.grantBusy)
                     BpmTextButton(onClick = viewModel::cancelRevoke) { Text("Cancelar") }
-                } else BpmSecondaryButton(onClick = { viewModel.askRevoke(grant.userId) }, enabled = !state.grantBusy) { Text("Retirar acceso") }
+                } else BpmChunkyButton("Retirar acceso", { viewModel.askRevoke(grant.userId) }, tone = BpmChunkyTone.White, enabled = !state.grantBusy)
             }
         }
     }

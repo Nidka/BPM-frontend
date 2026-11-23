@@ -545,7 +545,6 @@ fun App(
                         val activeShortcut = when (route) {
                             INCIDENT_EXECUTION -> WorkspaceShortcut.Incidents
                             RESEARCH_PANEL -> if (WorkspaceShortcut.Access in shortcuts) WorkspaceShortcut.Access else WorkspaceShortcut.Research
-                            ORGANIZATION_PICKER -> WorkspaceShortcut.Companies
                             else -> null
                         }?.takeIf { it in shortcuts }
                         // El aviso de acceso se descarta al navegar a otra sección permitida; no debe seguir a la persona por toda la app.
@@ -610,6 +609,15 @@ fun App(
                                     onOpen = { nav.navigate("empresa/controles-programados/${it.id}") { launchSingleTop = true } },
                                     assignments::requestDeactivate, assignments::confirmDeactivate) })
                                 else -> null
+                            }
+                            // Cambiar de organización: descarta lo que dependía de la anterior y entra en [target] (la super administración, en su espacio).
+                            fun openOrganization(id: String, target: String) {
+                                if (workspaceState.saving) return
+                                checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
+                                templateEditor.reset()
+                                runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset(); resetTrainingPlus(); resetReports()
+                                workspace.select(id)
+                                resetTo(target)
                             }
                             val managementContent: (@Composable () -> Unit)? = if (!managingTemplates) null else {
                                 { pe.bpm.core.offline.ServerOnly {
@@ -690,14 +698,23 @@ fun App(
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } })
-                                }) else if (adminPlay) null else if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
-                                    if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole))
-                                        pe.bpm.features.reports.presentation.DashboardPanel(reportsDashboardState, reportsDashboard::refresh, { nav.navigate(REPORTS) { launchSingleTop = true } })
-                                    // El ADMIN miembro también ejecuta controles: junto al panel ve los de hoy en todas sus sedes.
-                                    if (currentWorkspace?.role == "ADMIN" && profile.platformRole != "SUPER_ADMIN")
-                                        ChecklistAssignmentsScreen(scopedAssignments, false, assignments::search, assignments::refresh, assignments::previous, assignments::next,
-                                            onOpen = { item -> if (item.run != null) openAssignedRun(item.run) else nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } },
-                                            assignments::requestDeactivate, assignments::confirmDeactivate, title = "Controles de hoy")
+                                }) else null,
+                                // Super administración: Organizaciones (todas) e Indicadores (de la organización abierta).
+                                platformHome = if (profile.platformRole == "SUPER_ADMIN") ({
+                                    PlatformOrganizationsContent(workspaceState, reportsDashboardState, PlatformOrganizationsActions(
+                                        onOpen = { id ->
+                                            if (id == workspaceState.selected && currentWorkspace?.organization?.id == id) nav.navigate(WorkspaceDestination.Company.route) { launchSingleTop = true }
+                                            else openOrganization(id, WorkspaceDestination.Company.route)
+                                        },
+                                        onSearch = workspace::organizationSearch, onNext = workspace::organizationNext, onPrevious = workspace::organizationPrevious,
+                                        onRetry = workspace::organizationRetry, onUserActivity = identity::userActivity))
+                                }) else null,
+                                platformIndicators = if (profile.platformRole == "SUPER_ADMIN") ({
+                                    PlatformIndicatorsContent(profile.id, currentWorkspace?.organization, currentWorkspace?.locations.orEmpty(), reportsDashboardState,
+                                        reportsDashboard::refresh, reportsView, PlatformIndicatorsActions(
+                                            onReports = { nav.navigate(REPORTS) { launchSingleTop = true } },
+                                            onOrganizations = { nav.navigate(WorkspaceDestination.Home.route) { launchSingleTop = true } },
+                                            onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } }))
                                 }) else null,
                                 adminHome = if (adminPlay && currentWorkspace != null) ({
                                     // Inicio del administrador: franja de atención, indicadores, sedes con barra y acciones rápidas.
@@ -731,6 +748,18 @@ fun App(
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                         onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
                                         onLogout = ::requestLogout, roleLabel = if (chefPlay) "Jefe de cocina" else "Personal")
+                                }) else if (destination == WorkspaceDestination.Account && (adminPlay || profile.platformRole == "SUPER_ADMIN")) ({
+                                    // Perfil del administrador y de la super administración: el de Personal y Jefe sin racha ni insignias.
+                                    ManagerProfileContent(profile.displayName,
+                                        if (profile.platformRole == "SUPER_ADMIN") "Administrador general" else "Administrador",
+                                        if (profile.platformRole == "SUPER_ADMIN") profile.email else currentWorkspace?.organization?.name.orEmpty(),
+                                        settings = feedbackSettings,
+                                        onSound = { on -> feedbackScope.launch { feedbackPreferences.setSound(on) } },
+                                        onVibration = { on -> feedbackScope.launch { feedbackPreferences.setVibration(on) } },
+                                        onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
+                                        onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
+                                        onLogout = ::requestLogout,
+                                        onLearn = if (adminPlay) ({ nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } }) else null)
                                 }) else null,
                                 hiddenCourseIds = assignedCourseIds,
                                 learnHeader = if (destination == WorkspaceDestination.Learn && currentWorkspace != null) ({
@@ -942,21 +971,12 @@ fun App(
                                 onShortcut = { shortcut -> leaveRun { when (shortcut) {
                                     WorkspaceShortcut.Incidents -> nav.navigate(INCIDENT_EXECUTION) { launchSingleTop = true }
                                     WorkspaceShortcut.Research, WorkspaceShortcut.Access -> nav.navigate(RESEARCH_PANEL) { launchSingleTop = true }
-                                    WorkspaceShortcut.Companies -> nav.navigate(ORGANIZATION_PICKER) { launchSingleTop = true }
                                 } } },
                                 onVerifySession = identity::verifySession,
                                 sessionBusy = identityState.busy,
                                 sessionMessage = identityState.errors.firstOrNull()?.message,
                                 sessionConfirmation = identityState.verificationMessage,
-                                onSelect = { id ->
-                                    if (!workspaceState.saving) {
-                                        checklists.reset(); history.reset(); assignments.reset(); assignmentForm.reset()
-                                        templateEditor.reset()
-                                        runs.reset(); offlineRuns.reset(); dailyOperations.reset(); incidents.reset(); alerts.reset(); notificationDevices.reset(); training.reset(); trainingAuthoring.reset(); team.reset(); accountInvitations.reset(); accountOrganization.reset(); invitationAccept.reset(); myDevices.reset(); survey.reset(); research.reset(); resetTrainingPlus(); resetReports()
-                                        workspace.select(id)
-                                        resetTo(WorkspaceDestination.Home.route)
-                                    }
-                                },
+                                onSelect = { id -> openOrganization(id, WorkspaceDestination.Home.route) },
                                 onRefresh = {
                                     workspace.load()
                                     if (destination == WorkspaceDestination.Operations) checklists.refresh()

@@ -50,6 +50,13 @@ internal fun WorkspaceScreen(
      * Inicio, Equipo, Academia y Empresa (Controles lo arma [checklistContent]); super administración conserva el anterior.
      */
     adminHome: (@Composable () -> Unit)? = null,
+    /**
+     * Super administración: [platformHome] (Organizaciones: indicadores y lista de todas las organizaciones, con «Nueva
+     * organización» en la cabecera) y [platformIndicators] (Indicadores de la organización abierta). Entrar en una
+     * organización lleva a su espacio (Empresa), con «Todas las organizaciones» para volver.
+     */
+    platformHome: (@Composable () -> Unit)? = null,
+    platformIndicators: (@Composable () -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null,
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -87,7 +94,7 @@ internal fun WorkspaceScreen(
     val navItems = workspaceNavigation(workspacePrimaryDestinations(available, role), shortcuts)
     // Todos los roles comparten la navegación del sistema: barra inferior hasta 839 dp y menú lateral de 230 dp desde 840 dp.
     // El personal (WORKER) y el jefe de cocina (CHEF) tienen «Perfil» como destino propio: no necesitan el avatar de la cabecera.
-    val profileInNav = profileInNavigation(role, available)
+    val profileInNav = profileInNavigation(role, available) || viewer.canCreateOrganization
     val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     val contentScroll = rememberScrollState()
     val actionSlot = remember { BpmActionBarSlot() }
@@ -102,7 +109,13 @@ internal fun WorkspaceScreen(
         // Con altura baja (móvil horizontal) la navegación lateral no cabe: se usa la barra inferior.
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
         val navMode = BpmNavigationMode.of(windowClass, maxHeight)
-        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(labelRole), item.playSymbol(labelRole), item.isSelected(if (adminShell && section == WorkspaceDestination.Supervision) WorkspaceDestination.Operations else section, activeShortcut)) { item.open(navigate, onShortcut) } }
+        // La organización abierta (Empresa, Equipo y revisiones) cuelga de Organizaciones en la barra de la super administración.
+        val navSection = when {
+            adminShell && section == WorkspaceDestination.Supervision -> WorkspaceDestination.Operations
+            superAdmin && section in setOf(WorkspaceDestination.Company, WorkspaceDestination.Team, WorkspaceDestination.Supervision) -> WorkspaceDestination.Home
+            else -> section
+        }
+        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(labelRole, superAdmin), item.playSymbol(labelRole, superAdmin), item.isSelected(navSection, activeShortcut)) { item.open(navigate, onShortcut) } }
         val wide = navMode != BpmNavigationMode.BottomBar
         ProvideBpmWindowClass(windowClass, maxHeight) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
@@ -110,12 +123,12 @@ internal fun WorkspaceScreen(
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 if (!(focusMode && playFocus)) WorkspaceTopBar(workspace?.organization?.name, wide, windowClass,
                     onAccount = if (section == WorkspaceDestination.Account || WorkspaceDestination.Account !in available || profileInNav) null else ({ navigate(WorkspaceDestination.Account) }),
-                    canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin),
+                    canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin) && !(superAdmin && section == WorkspaceDestination.Home),
                     enabled = !state.saving && !secondaryBusy,
-                    onToggleOrganization = onChooseOrganization,
+                    onToggleOrganization = if (superAdmin) ({ navigate(WorkspaceDestination.Home) }) else onChooseOrganization,
                     onAlerts=onAlerts,unreadCount=unreadAlertCount,
                     focusTitle = if (focusMode) focusTitle ?: "" else null,
- onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
+ onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null || activeShortcut != null && form == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel, bare = focusMode && playFocus) { taskContent() }
                 // Una sola rama para la pantalla alojada con o sin modo enfoque del personal: si fueran ramas distintas, entrar
@@ -136,8 +149,15 @@ internal fun WorkspaceScreen(
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
                 } else key(section, secondaryTitle) { Box(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll)) { BpmScreenFrame(if (secondaryContent != null) secondaryPattern else BpmPattern.Panel) {
                     // El título de la pantalla va primero; los avisos y accesos de apoyo se muestran debajo.
-                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(profileInNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, labelRole),
-                        actions = if (adminShell && secondaryContent == null && workspace?.canManage == true) when (section) {
+                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(profileInNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (superAdmin && section == WorkspaceDestination.Company && workspace != null) workspace.organization.name else if (section == WorkspaceDestination.Home && !superAdmin) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, labelRole, superAdmin),
+                        description = if (superAdmin && secondaryContent == null) when (section) {
+                            WorkspaceDestination.Home -> "Todas las organizaciones de BPM. Abre una para ver su espacio."
+                            WorkspaceDestination.Indicators -> workspace?.let { "Cumplimiento, controles y capacitación de ${it.organization.name}." }
+                            else -> null
+                        } else null,
+                        actions = if (superAdmin && secondaryContent == null && section == WorkspaceDestination.Home) ({
+                            BpmChunkyButton("Nueva organización", { open(WorkspaceFormKind.Organization) })
+                        }) else if (adminShell && secondaryContent == null && workspace?.canManage == true) when (section) {
                             WorkspaceDestination.Team -> ({
                                 BpmChunkyButton("Invitar persona", onAccounts)
                                 BpmChunkyButton("Agregar persona", { open(WorkspaceFormKind.Member) }, tone = BpmChunkyTone.White)
@@ -186,7 +206,7 @@ internal fun WorkspaceScreen(
                         }
                         }
                     }
-                    if (section != WorkspaceDestination.Account && workspace == null && !state.loading) {
+                    if (section != WorkspaceDestination.Account && workspace == null && !state.loading && !(superAdmin && (section == WorkspaceDestination.Home || section == WorkspaceDestination.Indicators))) {
                         BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                             val placeholder = workspacePlaceholder(state, superAdmin)
                             Text(placeholder.title, style = MaterialTheme.typography.headlineSmall)
@@ -197,7 +217,10 @@ internal fun WorkspaceScreen(
                         }
                     }
                     if (secondaryContent != null) secondaryContent()
+                    else if (superAdmin && section == WorkspaceDestination.Home) platformHome?.invoke()
+                    else if (superAdmin && section == WorkspaceDestination.Indicators) platformIndicators?.invoke()
                     else workspace?.let { current -> when (section) {
+                        WorkspaceDestination.Indicators -> Unit
                         WorkspaceDestination.Tasks -> Unit
                         WorkspaceDestination.Account -> Unit
                         // El personal (WORKER) ve solo su pantalla «Hoy»; el Home genérico de sedes/cursos/controles no le aplica.
@@ -210,15 +233,17 @@ internal fun WorkspaceScreen(
                         WorkspaceDestination.Company -> if (adminShell) AdminCompanyContent(current,
                             WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry),
                             AdminCompanyActions(onManageTemplates, onDailyOperations, onAlertRules, onWebhooks, onAccounts)) else {
+                            if (superAdmin) BpmBackLink(label = "Todas las organizaciones") { navigate(WorkspaceDestination.Home) }
                             BpmCard(Modifier.fillMaxWidth()) {
-                                Eyebrow("ORGANIZACIÓN")
-                                Text(current.organization.name, style = MaterialTheme.typography.titleLarge)
+                                // La super administración ya ve el nombre como título de la pantalla.
+                                if (!superAdmin) Text(current.organization.name, style = MaterialTheme.typography.titleLarge)
                                 // La razón social solo se muestra si difiere del nombre comercial.
                                 if (current.organization.legalName.isNotBlank() && current.organization.legalName != current.organization.name) Text(current.organization.legalName)
+                                if (current.organization.taxId.isNotBlank()) Text("RUC ${current.organization.taxId}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
                                 if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
                             }
-                            if (current.canManage) BpmGridLayout(listOf<@Composable (Modifier) -> Unit>(
+                            if (current.canManage) BpmGridLayout(listOfNotNull<@Composable (Modifier) -> Unit>(
                                 { m -> BpmActionTile(BpmSymbol.Control, "Plantillas de control", "Prepara preguntas y publica los criterios de tu equipo.", onManageTemplates, m) },
                                 { m -> BpmActionTile(BpmSymbol.Sprout, "Operación diaria", "Proveedores, productos, planes de limpieza y registros de tus sedes.", onDailyOperations, m) },
                                 { m -> BpmActionTile(BpmSymbol.Bell, "Reglas de avisos", "Elige cuándo avisar a las personas responsables.", onAlertRules, m) },
@@ -226,16 +251,19 @@ internal fun WorkspaceScreen(
                                 { m -> BpmActionTile(BpmSymbol.Team, "Cuentas y equipo", "Roles, sedes, invitaciones y datos de la organización.", onAccounts, m) },
                                 { m -> BpmActionTile(BpmSymbol.Learn, "Academia BPM", "Cursos con lecciones, video y evaluaciones.", onTraining, m) },
                                 { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Envía los avisos a n8n u otra herramienta con webhooks firmados.", onWebhooks, m) },
+                                // La super administración también llega al equipo y a las revisiones de la organización abierta.
+                                if (superAdmin) { m -> BpmActionTile(BpmSymbol.Team, "Equipo de la organización", "Personas, roles y sedes asignadas.", { navigate(WorkspaceDestination.Team) }, m) } else null,
+                                if (superAdmin) { m -> BpmActionTile(BpmSymbol.Eye, "Revisiones del equipo", "Qué revisó cada persona y cada sede.", { navigate(WorkspaceDestination.Supervision) }, m) } else null,
                             )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }
                             WorkspacePagedList(WorkspaceResource.Locations, state, onPageSearch, onPageNext, onPagePrevious, onPageRetry) {
                             if (current.locations.isEmpty()) EmptyState("Sin sedes para mostrar", "No hay sedes disponibles para esta búsqueda y tus permisos actuales.")
-                            BpmGridLayout(current.locations) { location, cardModifier -> BpmCard(cardModifier) {
-                                Text(location.name, style = MaterialTheme.typography.titleMedium)
-                                Text(location.address)
-                                if (location.district.isNotBlank()) Text(location.district, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (location.contactPhone.isNotBlank()) Text(location.contactPhone)
-                            } }
+                            if (current.locations.isNotEmpty()) BpmPlayCard(Modifier.fillMaxWidth()) {
+                                current.locations.forEachIndexed { index, location ->
+                                    BpmDataRow(location.name, subtitle = listOf(location.address, location.district, location.contactPhone).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { null },
+                                        divider = index < current.locations.lastIndex)
+                                }
+                            }
                             }
                         }
                         WorkspaceDestination.Team -> if (chefTeam != null) chefTeam() else if (adminShell) AdminTeamContent(current,
@@ -357,8 +385,8 @@ internal fun memberLocations(member: Member, locations: List<Location>): String 
 
 
 /** Etiqueta del elemento de navegación. */
-private fun WorkspaceNavItem.label(role: String?): String = when (this) {
-    is WorkspaceNavItem.Section -> destinationLabel(destination, role)
+private fun WorkspaceNavItem.label(role: String?, platformAdmin: Boolean = false): String = when (this) {
+    is WorkspaceNavItem.Section -> destinationLabel(destination, role, platformAdmin)
     is WorkspaceNavItem.Shortcut -> shortcut.label
 }
 
@@ -374,9 +402,10 @@ private fun WorkspaceNavItem.open(navigate: (WorkspaceDestination) -> Unit, onSh
 }
 
 /** Iconos de la navegación (para todos los roles): Aprender usa el camino en Personal y el libro en el resto. */
-private fun WorkspaceNavItem.playSymbol(role: String?): BpmSymbol = when (this) {
+private fun WorkspaceNavItem.playSymbol(role: String?, platformAdmin: Boolean = false): BpmSymbol = when (this) {
     is WorkspaceNavItem.Section -> when (destination) {
-        WorkspaceDestination.Home -> BpmSymbol.Home
+        WorkspaceDestination.Home -> if (platformAdmin) BpmSymbol.Company else BpmSymbol.Home
+        WorkspaceDestination.Indicators -> BpmSymbol.Target
         WorkspaceDestination.Learn -> if (role == "WORKER") BpmSymbol.Route else BpmSymbol.Learn
         WorkspaceDestination.Account -> BpmSymbol.Account
         WorkspaceDestination.Team -> BpmSymbol.Team
@@ -387,7 +416,6 @@ private fun WorkspaceNavItem.playSymbol(role: String?): BpmSymbol = when (this) 
     is WorkspaceNavItem.Shortcut -> when (shortcut) {
         WorkspaceShortcut.Incidents -> BpmSymbol.Alert
         WorkspaceShortcut.Research -> BpmSymbol.Sprout
-        WorkspaceShortcut.Companies -> BpmSymbol.Company
-        WorkspaceShortcut.Access -> BpmSymbol.Team
+        WorkspaceShortcut.Access -> BpmSymbol.Lock
     }
 }

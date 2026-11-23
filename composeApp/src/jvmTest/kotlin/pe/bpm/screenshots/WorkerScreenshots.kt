@@ -447,7 +447,7 @@ class WorkerScreenshots {
         val report = StringBuilder()
         val failures = mutableListOf<String>()
         try {
-            for (spec in workerScreens) {
+            for (spec in workerScreens + platformScreens) {
                 val sheetImages = mutableListOf<Pair<String, BufferedImage>>()
                 for (size in ScreenshotSizes) {
                     try {

@@ -32,16 +32,9 @@ internal fun EvidenceQuestionAction(
     canEdit: Boolean,
     onOpen: (Boolean) -> Unit,
 ) {
-    BpmSecondaryButton(
-        onClick = { onOpen(canEdit) },
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fotos: $label" },
-    ) {
-        Text(
-            if (count == 0) {
+    BpmChunkyButton(if (count == 0) {
                 if (canEdit) "Adjuntar foto" else "Consultar fotos"
-            } else "${if (canEdit) "Gestionar" else "Ver"} fotos · $count"
-        )
-    }
+            } else "${if (canEdit) "Gestionar" else "Ver"} fotos · $count", { onOpen(canEdit) }, Modifier.fillMaxWidth().semantics { contentDescription = "Fotos: $label" }, tone = BpmChunkyTone.White)
 }
 
 /** Hoja en móvil y diálogo acotado en escritorio; no desmonta el formulario de respuestas. */

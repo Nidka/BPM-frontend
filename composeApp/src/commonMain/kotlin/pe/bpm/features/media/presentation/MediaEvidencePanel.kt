@@ -58,7 +58,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
                     EvidenceStatus.FAILED -> "No pudimos validar esta foto. Retírala y elige otra."
                     EvidenceStatus.DELETED -> "Foto retirada"
                 })
-                if (file.status == EvidenceStatus.AVAILABLE) BpmSecondaryButton(onClick = { viewModel.view(file.id) }, enabled = !state.busy && !state.loading) { Text("Ver foto") }
+                if (file.status == EvidenceStatus.AVAILABLE) BpmChunkyButton("Ver foto", { viewModel.view(file.id) }, tone = BpmChunkyTone.White, enabled = !state.busy && !state.loading)
                 if (state.canEdit) BpmTextButton(onClick = { viewModel.requestRemove(file.id) }, enabled = !state.busy && !state.loading) { Text("Retirar foto") }
             }
         }
@@ -67,31 +67,31 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
             Text("Esta foto todavía no se ha guardado. Reintenta el envío antes de cerrar este panel. Si lo cierras, tendrás que volver a seleccionarla.")
             if (state.pendingNeedsConfirmation) Text("Al reintentar comprobaremos si la foto ya se guardó.")
             if (!state.busy) {
-                RaisedButton("Reintentar envío", viewModel::retry, enabled = state.canEdit && !state.loading)
-                BpmSecondaryButton(onClick = viewModel::discardPending, enabled = !state.loading) { Text("Quitar selección") }
+                BpmChunkyButton("Reintentar envío", viewModel::retry, Modifier.bpmPrimaryButtonWidth(), enabled = state.canEdit && !state.loading)
+                BpmChunkyButton("Quitar selección", viewModel::discardPending, tone = BpmChunkyTone.White, enabled = !state.loading)
                 Text("Si una foto pendiente sigue en la lista, puedes retirarla.", style = MaterialTheme.typography.bodySmall)
             }
         }
         if (state.canEdit) {
             Text("Para guardar fotos necesitas conexión. Reintenta cualquier envío pendiente antes de cerrar este panel.", style = MaterialTheme.typography.bodySmall)
-            RaisedButton("Elegir foto", picker, enabled = state.canSelect)
+            BpmChunkyButton("Elegir foto", picker, Modifier.bpmPrimaryButtonWidth(), enabled = state.canSelect)
             state.policy?.let { policy ->
                 Text("Máximo ${formatPhotoLimit(policy.maxBytes)} por foto y hasta ${policy.maxFiles} fotos en esta sección.", style = MaterialTheme.typography.bodySmall)
                 if (!policy.uploadAvailable) Text("El envío de fotos no está disponible en este momento. Puedes consultar las fotos existentes.")
             }
         } else Text("Puedes consultar las fotos guardadas.")
-        if (state.failure != null) BpmSecondaryButton(onClick = viewModel::refresh, enabled = !state.loading && !state.busy) { Text("Reintentar consulta") }
+        if (state.failure != null) BpmChunkyButton("Reintentar consulta", viewModel::refresh, tone = BpmChunkyTone.White, enabled = !state.loading && !state.busy)
         state.removalCandidate?.let { file ->
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.errorContainer) {
                 Text("¿Retirar ${file.originalName}?", style = BpmType.bodyStrong)
                 Text("Dejará de contar como evidencia.")
-                RaisedButton("Confirmar retirada", viewModel::confirmRemove, enabled = !state.busy)
-                BpmSecondaryButton(onClick = viewModel::cancelRemove, enabled = !state.busy) { Text("Conservar foto") }
+                BpmChunkyButton("Confirmar retirada", viewModel::confirmRemove, Modifier.bpmPrimaryButtonWidth(), enabled = !state.busy)
+                BpmChunkyButton("Conservar foto", viewModel::cancelRemove, tone = BpmChunkyTone.White, enabled = !state.busy)
             }
         }
         state.preview?.let { preview ->
             EvidencePreviewImage(preview)
-            BpmSecondaryButton(onClick = viewModel::hidePreview) { Text("Cerrar imagen") }
+            BpmChunkyButton("Cerrar imagen", viewModel::hidePreview, tone = BpmChunkyTone.White)
         }
     }
 }

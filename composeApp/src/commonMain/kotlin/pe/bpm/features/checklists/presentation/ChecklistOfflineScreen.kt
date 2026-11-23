@@ -26,19 +26,19 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
         if (state.localConflict) BpmCard(Modifier.fillMaxWidth()) {
             Text("Otra pestaña modificó esta revisión. No reemplazaremos sus respuestas con las tuyas.")
             Text("Puedes revisar la copia guardada después de confirmar el descarte de tus cambios pendientes.")
-            BpmSecondaryButton(onClick = { resolving = true }, enabled = !state.busy) { Text("Revisar copia guardada") }
+            BpmChunkyButton("Revisar copia guardada", { resolving = true }, tone = BpmChunkyTone.White, enabled = !state.busy)
         }
         state.failure?.let { reason ->
             Text(runFailureMessage(reason), color = MaterialTheme.colorScheme.error)
             if (state.entries.isEmpty() && reason !in setOf(RunFailure.SESSION, RunFailure.DENIED))
-                BpmSecondaryButton(onClick = onRetryOpen, enabled = !state.busy) { Text("Recuperar mis controles") }
+                BpmChunkyButton("Recuperar mis controles", onRetryOpen, tone = BpmChunkyTone.White, enabled = !state.busy)
         }
         if (detailId == null) {
             // El título «Controles en este dispositivo» ya lo pinta WorkspaceScreen (secondaryTitle de la ruta sin conexión).
             Text("Puedes responder los controles que preparaste aunque pierdas la conexión. Los resultados se confirman cuando se envían.")
             if (state.pendingCount > 0) {
                 Text("${state.pendingCount} ${if (state.pendingCount == 1) "control pendiente" else "controles pendientes"} de confirmar")
-                RaisedButton("Enviar pendientes", onSync, enabled = !state.syncing && !state.busy)
+                BpmChunkyButton("Enviar pendientes", onSync, Modifier.bpmPrimaryButtonWidth(), enabled = !state.syncing && !state.busy)
             }
             if (state.entries.isEmpty() && !state.busy) BpmCard(Modifier.fillMaxWidth()) {
                 Text("Todavía no preparaste controles", style = MaterialTheme.typography.titleMedium)
@@ -48,9 +48,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
                 Text(entry.run.templateName.ifBlank { "Revisión BPM" }, style = MaterialTheme.typography.titleLarge)
                 Text(entry.run.locationName.ifBlank { "Sede de la revisión" })
                 Text(offlineRunLabel(entry))
-                BpmSecondaryButton(onClick = { onOpen(entry.run.id) }, enabled = !state.busy) {
-                    Text(if (entry.editable) "Continuar revisión" else "Ver revisión")
-                }
+                BpmChunkyButton(if (entry.editable) "Continuar revisión" else "Ver revisión", { onOpen(entry.run.id) }, tone = BpmChunkyTone.White, enabled = !state.busy)
             } }
             return@Column
         }
@@ -68,7 +66,7 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
         if (entry.status == OfflineRunStatus.ATTENTION) BpmCard(Modifier.fillMaxWidth()) {
             Text("Conservamos tus respuestas. El envío necesita revisión; no reemplazaremos los datos guardados por otra sesión.")
             Text("Si prefieres la revisión del servidor, puedes cargarla después de confirmar que descartas tus respuestas locales.")
-            BpmSecondaryButton(onClick = { resolving = true }, enabled = !state.busy) { Text("Usar versión del servidor") }
+            BpmChunkyButton("Usar versión del servidor", { resolving = true }, tone = BpmChunkyTone.White, enabled = !state.busy)
         }
         if (state.reviewing) Text("Revisa tus respuestas antes de finalizar", style = MaterialTheme.typography.titleLarge)
         ChecklistAnswerEditor(entry.run.items, entry.inputs, entry.editable && !state.busy && state.localStatus != DraftSaveStatus.FAILED,
@@ -78,18 +76,18 @@ fun ChecklistOfflineScreen(state: ChecklistOfflineState, detailId: String?, onOp
                 Text("Se enviará cuando haya conexión. Después de confirmar el envío ya no podrás editar las respuestas.")
                 // Flujo por pasos: en pantalla compacta estas acciones quedan fijas al pie.
                 BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                    RaisedButton("Finalizar y enviar cuando haya conexión", { onQueue(true) }, Modifier.fillMaxWidth(), enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED)
-                    BpmSecondaryButton(onClick = onBackToEdit, modifier = Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Seguir editando") }
+                    BpmChunkyButton("Finalizar y enviar cuando haya conexión", { onQueue(true) }, Modifier.fillMaxWidth(), enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED)
+                    BpmChunkyButton("Seguir editando", onBackToEdit, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !state.busy)
                 } }
             } else {
                 BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                    RaisedButton("Revisar y finalizar", onReview, Modifier.fillMaxWidth(), enabled = !state.busy)
-                    BpmSecondaryButton(onClick = { onQueue(false) }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED) { Text("Enviar borrador sin finalizar") }
+                    BpmChunkyButton("Revisar y finalizar", onReview, Modifier.fillMaxWidth(), enabled = !state.busy)
+                    BpmChunkyButton("Enviar borrador sin finalizar", { onQueue(false) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !state.busy && state.localStatus != DraftSaveStatus.FAILED)
                 } }
             }
         } else if (entry.upload != null && entry.status != OfflineRunStatus.ATTENTION) {
             Text("Tus respuestas están protegidas. Confirma el envío antes de seguir editando.")
-            BpmSecondaryButton(onClick = onSync, enabled = !state.syncing && !state.busy) { Text("Reintentar envío") }
+            BpmChunkyButton("Reintentar envío", onSync, tone = BpmChunkyTone.White, enabled = !state.syncing && !state.busy)
         }
         if (entry.run.status == "SUBMITTED")
             Text("Cumplimiento confirmado: ${entry.run.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %")

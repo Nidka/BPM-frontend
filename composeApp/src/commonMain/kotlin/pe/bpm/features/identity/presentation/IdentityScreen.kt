@@ -153,7 +153,7 @@ fun IdentityScreen(
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (profile != null) {
                         AuthButton("Verificar sesión", !state.busy, onVerify)
-                        BpmSecondaryButton(onClick = { password = ""; confirmation = ""; email = ""; onLogout() }, modifier = Modifier.fillMaxWidth()) { Text("Cerrar sesión") }
+                        BpmChunkyButton("Cerrar sesión", { password = ""; confirmation = ""; email = ""; onLogout() }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                     } else {
                         if (state.mode != AuthMode.Verification) AuthButton(when (state.mode) {
                             AuthMode.Register -> "Crear cuenta"; AuthMode.Recovery -> "Enviar instrucciones"; else -> "Iniciar sesión"
@@ -176,15 +176,14 @@ fun IdentityScreen(
                                 else -> "Enviar correo de verificación"
                             }
                             if (needsVerificationEmail) AuthButton(resendLabel, !state.busy && state.resendCooldownSeconds == 0, onResend)
-                            else BpmSecondaryButton(onClick = onResend, enabled = !state.busy && state.resendCooldownSeconds == 0,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(resendLabel) }
+                            else BpmChunkyButton(resendLabel, onResend, Modifier.fillMaxWidth().heightIn(min = 52.dp), tone = BpmChunkyTone.White, enabled = !state.busy && state.resendCooldownSeconds == 0)
                             if (state.resendCooldownSeconds > 0) Text("Puedes reenviar en ${state.resendCooldownSeconds} s.",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.mode == AuthMode.Verification && needsVerificationEmail)
                             BpmTextButton(onClick = onConfirmEmail, enabled = !state.busy) { Text(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo") }
                         if (state.mode == AuthMode.Register && state.errors.any { it.code == "REGISTRATION_REJECTED" }) {
-                            BpmSecondaryButton(onClick = { changeMode(AuthMode.Login) }, modifier = Modifier.fillMaxWidth()) { Text("Ir a iniciar sesión") }
+                            BpmChunkyButton("Ir a iniciar sesión", { changeMode(AuthMode.Login) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                             BpmTextButton(onClick = { changeMode(AuthMode.Recovery) }) { Text("Recuperar contraseña") }
                         }
                         if (state.mode == AuthMode.Login) BpmTextButton(onClick = { changeMode(AuthMode.Recovery) }, enabled = !state.busy) { Text("¿Olvidaste tu contraseña?") }
@@ -215,5 +214,5 @@ private fun AuthField(value: String, onValue: (String) -> Unit, label: String, e
 
 @Composable
 private fun AuthButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    RaisedButton(label, onClick, modifier = Modifier.fillMaxWidth(), enabled = enabled)
+    BpmChunkyButton(label, onClick, Modifier.fillMaxWidth(), enabled = enabled)
 }

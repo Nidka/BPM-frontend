@@ -3,6 +3,8 @@ package pe.bpm.features.workspace.presentation
 /** Rutas públicas estables; los roles se leen desde la API y nunca desde la URL. */
 enum class WorkspaceDestination(val route: String, val label: String) {
     Home("inicio", "Inicio"),
+    /** Indicadores de la organización elegida (solo super administración). */
+    Indicators("indicadores", "Indicadores"),
     Learn("aprender", "Aprender"),
     Operations("control", "Control"),
     Supervision("seguimiento", "Seguimiento"),
@@ -19,10 +21,13 @@ enum class WorkspaceDestination(val route: String, val label: String) {
 /**
  * Etiqueta visible de un destino según el rol. El personal (WORKER) ve «Hoy», «Tareas» y «Perfil»; el jefe de cocina
  * (CHEF) ve «Turno», «Controles» y «Perfil»; el administrador de la organización (ADMIN) ve «Controles» y «Academia» y la antigua sección de
- * seguimiento se titula también «Controles» (sus revisiones del equipo son una sección de Controles); el resto de roles conserva [WorkspaceDestination.label]. Solo cambia el
+ * seguimiento se titula también «Controles» (sus revisiones del equipo son una sección de Controles); la super administración ve «Organizaciones»,
+ * «Indicadores» y «Perfil» (con [platformAdmin]); el resto de roles conserva [WorkspaceDestination.label]. Solo cambia el
  * texto: la ruta y el control de acceso no dependen de él.
  */
-fun destinationLabel(destination: WorkspaceDestination, role: String?): String = when {
+fun destinationLabel(destination: WorkspaceDestination, role: String?, platformAdmin: Boolean = false): String = when {
+    platformAdmin && destination == WorkspaceDestination.Home -> "Organizaciones"
+    platformAdmin && destination == WorkspaceDestination.Account -> "Perfil"
     role == "CHEF" && destination == WorkspaceDestination.Home -> "Turno"
     role == "CHEF" && destination == WorkspaceDestination.Operations -> "Controles"
     role == "CHEF" && destination == WorkspaceDestination.Account -> "Perfil"
@@ -38,7 +43,8 @@ fun destinationLabel(destination: WorkspaceDestination, role: String?): String =
 /** Política de presentación; el backend autoriza cada operación empresarial. */
 fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<WorkspaceDestination> {
     return when {
-        platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
+        // Super administración: Organizaciones · Indicadores · Acceso (atajo) · Perfil; Empresa, Equipo y Seguimiento son las rutas de la organización abierta.
+        platformAdmin -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Indicators, WorkspaceDestination.Supervision, WorkspaceDestination.Team, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "ADMIN" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Supervision, WorkspaceDestination.Company, WorkspaceDestination.Account)
         role == "CHEF" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Account)
         role == "WORKER" -> listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Tasks, WorkspaceDestination.Account)
@@ -52,6 +58,8 @@ fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<Workspace
  * Todas las rutas disponibles siguen permitidas.
  */
 fun workspacePrimaryDestinations(available: List<WorkspaceDestination>, role: String? = null): List<WorkspaceDestination> {
+    // Super administración (la única con «Indicadores»): Organizaciones · Indicadores · (Acceso) · Perfil.
+    if (WorkspaceDestination.Indicators in available) return listOf(WorkspaceDestination.Home, WorkspaceDestination.Indicators, WorkspaceDestination.Account)
     // El personal (WORKER) tiene «Perfil» como cuarto destino de la barra: Hoy · Aprender · Tareas · Perfil; el jefe de cocina
     // (CHEF), como quinto: Turno · Controles · Equipo · Aprender · Perfil.
     // El administrador de la organización (con Controles) navega Inicio · Controles · Equipo · Academia · Empresa: «Seguimiento»
@@ -79,23 +87,21 @@ object OperatingScope {
 
 /**
  * Accesos de la navegación principal que no son secciones propias sino atajos a pantallas existentes
- * (incidencias, investigación, empresas, acceso de investigación). Se colocan [after] la sección indicada.
+ * (incidencias, investigación, acceso de investigación). Se colocan [after] la sección indicada.
  */
 enum class WorkspaceShortcut(val label: String, val after: WorkspaceDestination) {
     Incidents("Incidencias", WorkspaceDestination.Operations),
     Research("Investigación", WorkspaceDestination.Home),
-    Companies("Empresas", WorkspaceDestination.Home),
-    Access("Acceso", WorkspaceDestination.Supervision),
+    Access("Acceso", WorkspaceDestination.Indicators),
 }
 
 /**
- * Atajos por rol: la persona investigadora ve Investigación; el equipo BPM ve Empresas y, si concede accesos, Acceso.
+ * Atajos por rol: la persona investigadora ve Investigación; la super administración siempre ve Acceso (concesiones e investigación; el servidor autoriza).
  * Las incidencias del jefe de cocina ya no son un destino: viven como sección dentro de Turno y Controles.
  * El servidor sigue autorizando cada operación.
  */
 fun workspaceShortcuts(role: String?, platformAdmin: Boolean, canResearch: Boolean, canManageGrants: Boolean): List<WorkspaceShortcut> = buildList {
-    if (platformAdmin) add(WorkspaceShortcut.Companies)
-    if (platformAdmin && canManageGrants) add(WorkspaceShortcut.Access)
+    if (platformAdmin) add(WorkspaceShortcut.Access)
     else if (canResearch || canManageGrants) add(WorkspaceShortcut.Research)
 }
 

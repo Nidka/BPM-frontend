@@ -42,8 +42,8 @@ internal fun ChefControlsContent(
     emptyMessage: String = "Tu administrador puede programar los controles de tus sedes.",
     title: String = "Controles de hoy",
     moreTitle: String = "Más en Controles",
-    /** Columna alineada a la izquierda con su cabecera (administrador) y bloque inicial opcional, p. ej. los botones de programación. */
-    alignStart: Boolean = false,
+    /** Columna alineada a la izquierda con la cabecera de la pantalla (igual en Jefe y Administrador) y bloque inicial opcional, p. ej. los botones de programación. */
+    alignStart: Boolean = true,
     top: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val scoped = assignments.takeIf { it.userId == userId }

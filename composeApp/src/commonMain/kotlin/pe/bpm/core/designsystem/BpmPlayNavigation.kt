@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.painterResource
 import pe.bpm.resources.*
 
+/** Con más de esta cantidad de letras una etiqueta se considera larga y se compacta para caber. */
+private const val LongLabel = 10
+
 /** Destino de la navegación de juego: [label] (se muestra en mayúsculas), [icon], si está [selected] y su [onClick]. */
 @Immutable
 data class BpmPlayNavItem(val label: String, val icon: BpmSymbol, val selected: Boolean, val onClick: () -> Unit)
@@ -57,7 +60,8 @@ fun BpmPlayBottomBar(items: List<BpmPlayNavItem>, modifier: Modifier = Modifier)
         items.forEach { item ->
             val color = if (item.selected) BpmPlayColors.action.face else BpmPlayColors.navInactive
             Column(
-                Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).selectable(item.selected, role = Role.Tab, onClick = item.onClick),
+                // Una etiqueta larga («Organizaciones») pide más ancho que las demás para no cortarse.
+                Modifier.weight(if (item.label.length > LongLabel) 1.35f else 1f).clip(RoundedCornerShape(14.dp)).selectable(item.selected, role = Role.Tab, onClick = item.onClick),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(
@@ -68,7 +72,7 @@ fun BpmPlayBottomBar(items: List<BpmPlayNavItem>, modifier: Modifier = Modifier)
                 ) { BpmIcon(item.icon, tint = color, modifier = Modifier.size(26.dp)) }
                 Spacer(Modifier.height(2.dp))
                 // Con cinco destinos (Jefe, Administrador) las etiquetas largas («Seguimiento») ya no caben a 11,5 sp en 360 dp.
-                Text(item.label.uppercase(), color = color, style = if (items.size > 4) BpmPlayType.navLabel.copy(fontSize = 10.sp, letterSpacing = 0.sp) else BpmPlayType.navLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text(item.label.uppercase(), color = color, style = if (items.size > 4 || item.label.length > LongLabel) BpmPlayType.navLabel.copy(fontSize = 10.sp, letterSpacing = 0.sp) else BpmPlayType.navLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
             }
         }
     }
@@ -97,11 +101,12 @@ fun BpmPlaySideMenu(brand: String, items: List<BpmPlayNavItem>, modifier: Modifi
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).selectable(item.selected, role = Role.Tab, onClick = item.onClick)
                     .then(if (item.selected) Modifier.background(BpmPlayColors.action.soft) else Modifier)
                     .border(BpmPlayBorder, if (item.selected) BpmPlayColors.navBorder else Color.Transparent, RoundedCornerShape(14.dp))
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 BpmIcon(item.icon, tint = color, modifier = Modifier.size(28.dp))
-                Text(item.label.uppercase(), color = color, style = BpmPlayType.sideLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.label.uppercase(), color = color, style = if (item.label.length > LongLabel) BpmPlayType.sideLabel.copy(fontSize = 14.sp, letterSpacing = 0.1.sp) else BpmPlayType.sideLabel,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

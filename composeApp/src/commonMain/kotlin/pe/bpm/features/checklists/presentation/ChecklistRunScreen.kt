@@ -26,22 +26,22 @@ data class ChecklistRunLocation(val id: String, val name: String)
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         if (state.dirty || state.pending || state.localStatus == pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             DraftSaveNotice(state.localStatus, onProtectDraft)
-        if (state.pending && state.failure == null) BpmSecondaryButton(onClick = onRetry, enabled = !state.busy) { Text("Comprobar operación pendiente") }
+        if (state.pending && state.failure == null) BpmChunkyButton("Comprobar operación pendiente", onRetry, tone = BpmChunkyTone.White, enabled = !state.busy)
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failure?.let { failure -> BpmCard(Modifier.fillMaxWidth()) {
             Text(runFailureMessage(failure), color = MaterialTheme.colorScheme.error)
-            if(failure in setOf(RunFailure.ASSIGNMENT_REQUIRED,RunFailure.ASSIGNMENT_STARTED)) BpmSecondaryButton(onClick=onBack){Text("Ver controles programados")}
+            if(failure in setOf(RunFailure.ASSIGNMENT_REQUIRED,RunFailure.ASSIGNMENT_STARTED)) BpmChunkyButton("Ver controles programados", onBack, tone = BpmChunkyTone.White)
             if (state.pending) {
                 Text("No pudimos confirmar esta operación. Reintenta para comprobar el resultado antes de continuar.")
-                BpmSecondaryButton(onClick = onRetry, enabled = !state.busy) { Text("Reintentar operación") }
+                BpmChunkyButton("Reintentar operación", onRetry, tone = BpmChunkyTone.White, enabled = !state.busy)
             } else if (failure == RunFailure.CONFLICT) {
                 Text("Tus cambios no se sobrescriben automáticamente. Cargar la versión guardada descartará las respuestas locales sin guardar.")
                 if (confirmReload) {
-                    BpmSecondaryButton(onClick = { confirmReload = false; onReload() }) { Text("Confirmar carga de versión guardada") }
+                    BpmChunkyButton("Confirmar carga de versión guardada", { confirmReload = false; onReload() }, tone = BpmChunkyTone.White)
                     BpmTextButton(onClick = { confirmReload = false }) { Text("Conservar mis respuestas") }
-                } else BpmSecondaryButton(onClick = { confirmReload = true }) { Text("Revisar versión guardada") }
+                } else BpmChunkyButton("Revisar versión guardada", { confirmReload = true }, tone = BpmChunkyTone.White)
             } else if (state.run == null && failure !in setOf(RunFailure.DENIED, RunFailure.SESSION, RunFailure.NOT_FOUND))
-                BpmSecondaryButton(onClick = onReload, enabled = !state.busy) { Text("Reintentar consulta") }
+                BpmChunkyButton("Reintentar consulta", onReload, tone = BpmChunkyTone.White, enabled = !state.busy)
         } }
         val run = state.run
         if (run == null) {
@@ -55,8 +55,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 Text("El chef registra aquí lo que observa en el local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con fecha y responsable.")
                 ChecklistLocationSelector(locations,location,locationName,locationQuery,locationPage,locationsLoading,locationsFailed,
                     previousLocations,nextLocations,!state.busy&&!state.pending,onLocationSearch,onLocationPrevious,onLocationNext,onLocationRetry){location=it.id;locationName=it.name}
-                RaisedButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } },
-                    enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
+                BpmChunkyButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } }, Modifier.bpmPrimaryButtonWidth(), enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }
             return@Column
         }
@@ -71,7 +70,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 Text("Control finalizado", style = MaterialTheme.typography.titleLarge)
                 Text("Cumplimiento: ${run.compliancePercent?.toString()?.removeSuffix(".0")?.replace('.', ',')} %")
                 Text("Las respuestas enviadas ya no se pueden editar.")
-                BpmSecondaryButton(onClick = onBack) { Text("Ver mis revisiones") }
+                BpmChunkyButton("Ver mis revisiones", onBack, tone = BpmChunkyTone.White)
             }
         } else {
             Text(if (state.reviewing) "Revisa antes de finalizar" else "Responde el control", style = MaterialTheme.typography.titleLarge)
@@ -85,13 +84,13 @@ data class ChecklistRunLocation(val id: String, val name: String)
                 Text("Al finalizar, las respuestas quedarán cerradas y se mostrará tu resultado.")
                 // Flujo por pasos: en pantalla compacta estas acciones quedan fijas al pie.
                 BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                RaisedButton("Confirmar y finalizar control", onSubmit, Modifier.fillMaxWidth(), enabled = state.editable)
-                BpmSecondaryButton(onClick = onBackToEdit, modifier = Modifier.fillMaxWidth(), enabled = state.editable) { Text("Volver a las respuestas") }
+                BpmChunkyButton("Confirmar y finalizar control", onSubmit, Modifier.fillMaxWidth(), enabled = state.editable)
+                BpmChunkyButton("Volver a las respuestas", onBackToEdit, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.editable)
                 } }
             } else {
                 BpmActionBar { Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                RaisedButton("Guardar borrador", onSave, Modifier.fillMaxWidth(), enabled = state.editable && state.dirty)
-                BpmSecondaryButton(onClick = onReview, modifier = Modifier.fillMaxWidth(), enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts)) { Text("Revisar y finalizar") }
+                BpmChunkyButton("Guardar borrador", onSave, Modifier.fillMaxWidth(), enabled = state.editable && state.dirty)
+                BpmChunkyButton("Revisar y finalizar", onReview, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.editable && !state.dirty && validRunAnswers(run.items, run.answers, complete = true, evidenceCounts = run.evidenceCounts))
                 } }
             }
         }

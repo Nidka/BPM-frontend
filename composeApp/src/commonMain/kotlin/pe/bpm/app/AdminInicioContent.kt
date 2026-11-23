@@ -115,7 +115,7 @@ internal fun AdminInicioContent(
 
 /** Cuatro indicadores: en una fila desde la clase expandida (600 dp de columna) y de dos en dos en las demás. */
 @Composable
-private fun KpiRow(tiles: List<AdminKpi>) {
+internal fun KpiRow(tiles: List<AdminKpi>) {
     val tile: @Composable (AdminKpi, Modifier) -> Unit = { kpi, m ->
         BpmKpiTile(kpi.label, kpi.value, m, kpi.tone, progress = kpi.progress, support = kpi.support, featured = kpi === tiles.first())
     }
