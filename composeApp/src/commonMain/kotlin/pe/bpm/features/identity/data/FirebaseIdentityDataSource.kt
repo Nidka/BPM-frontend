@@ -30,7 +30,7 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
         val postBody = Parameters.build {
             append("id_token", idToken); append("providerId", "google.com"); append("nonce", nonce)
         }.formUrlEncode()
-        val response = jsonPost("signInWithIdp", FederatedRequest(postBody))
+        val response = retryingNetwork { jsonPost("signInWithIdp", FederatedRequest(postBody)) }
         if (!response.status.isSuccess()) reject(response, IdentityStage.SIGN_IN)
         val credential = response.body<FederatedResponse>()
         if (credential.needConfirmation || credential.pendingToken.isNotEmpty() || credential.errorMessage.isNotEmpty())
@@ -42,7 +42,7 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
     }
 
     override suspend fun signIn(email: String, password: String): FirebaseCredential = identityDataRequest(IdentityStage.SIGN_IN) {
-        val response = jsonPost("signInWithPassword", SignInRequest(email, password, true))
+        val response = retryingNetwork { jsonPost("signInWithPassword", SignInRequest(email, password, true)) }
         if (!response.status.isSuccess()) reject(response, IdentityStage.SIGN_IN)
         response.body<FirebaseCredential>().also { validate(it, IdentityStage.SIGN_IN) }
     }
@@ -73,10 +73,12 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
     }
 
     override suspend fun renew(refresh: String): RefreshCredential = identityDataRequest(IdentityStage.TOKEN_RENEWAL) {
-        val response = client.submitForm(
-            url = "https://securetoken.googleapis.com/v1/token?key=${key()}",
-            formParameters = Parameters.build { append("grant_type", "refresh_token"); append("refresh_token", refresh) },
-        )
+        val response = retryingNetwork {
+            client.submitForm(
+                url = "https://securetoken.googleapis.com/v1/token?key=${key()}",
+                formParameters = Parameters.build { append("grant_type", "refresh_token"); append("refresh_token", refresh) },
+            ) { identityTimeout() }
+        }
         if (!response.status.isSuccess()) reject(response, IdentityStage.TOKEN_RENEWAL)
         response.body<RefreshCredential>().also {
             if (it.idToken.isBlank() || it.refreshToken.isBlank() || it.uid.isBlank() || (it.expiresIn.toLongOrNull() ?: 0) !in 61..86400)
@@ -93,6 +95,7 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
         val publicKey = key()
         return client.post("https://identitytoolkit.googleapis.com/v1/accounts:$action") {
             url { parameters.append("key", publicKey) }
+            identityTimeout()
             contentType(ContentType.Application.Json)
             if (spanish) header("X-Firebase-Locale", "es")
             setBody(body)
@@ -102,7 +105,7 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
     private suspend fun key(): String {
         apiKey?.let { return it }
         val value = if (config.publicConfigUrl != null) {
-            val response = client.get(config.publicConfigUrl)
+            val response = retryingNetwork { client.get(config.publicConfigUrl) { identityTimeout() } }
             if (!response.status.isSuccess()) throw IdentityDataException(identityFailure("AUTH_NOT_CONFIGURED", IdentityDiagnostic(IdentityStage.PUBLIC_CONFIGURATION, response.status.value, "CONFIGURATION")))
             response.body<PublicConfigDto>().firebaseApiKey
         } else config.firebaseApiKey

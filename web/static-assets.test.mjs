@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
@@ -15,6 +15,8 @@ test('archivos estáticos: compresión, caché inmutable con hash y revalidació
   await writeFile(join(root, '0a9ab08110b046c37ad9.wasm'), wasm);
   await writeFile(join(root, 'composeApp.js'), 'console.log("bpm");'.repeat(200));
   await writeFile(join(root, 'logo.png'), Buffer.alloc(5000, 1));
+  await mkdir(join(root, 'composeResources'), { recursive: true });
+  await writeFile(join(root, 'composeResources', 'ic_users.xml'), '<vector/>');
   const app = createAppServer({ distDir: root, apiBaseUrl: 'http://127.0.0.1:9', allowInsecureForTests: true });
   app.listen(0, '127.0.0.1');
   await once(app, 'listening');
@@ -50,6 +52,10 @@ test('archivos estáticos: compresión, caché inmutable con hash y revalidació
 
   const plain = await raw('/composeApp.js', { 'Accept-Encoding': 'identity' });
   assert.equal(plain.headers.get('content-encoding'), null);
+
+  // Los recursos de Compose (iconos) se sirven con caché de una hora y revalidación en segundo plano, no con revalidación por cada uso.
+  const icon = await raw('/composeResources/ic_users.xml');
+  assert.equal(icon.headers.get('cache-control'), 'public, max-age=3600, stale-while-revalidate=86400');
 
   const png = await raw('/logo.png', { 'Accept-Encoding': 'gzip, br' });
   assert.equal(png.headers.get('content-encoding'), null);

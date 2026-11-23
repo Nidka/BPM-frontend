@@ -19,7 +19,7 @@ internal interface BpmIdentityGateway {
 
 internal class BpmIdentityDataSource(private val client: HttpClient, private val config: AppConfig) : BpmIdentityGateway {
     override suspend fun profile(token: String, onSessionResponse: (HttpResponse) -> Unit): IdentityResult<Profile> = identityOperation(IdentityStage.PROFILE_READ) {
-        readProfile(client.get("${config.apiBaseUrl}/api/v1/me") { bearerAuth(token) }, onSessionResponse, IdentityStage.PROFILE_READ)
+        readProfile(retryingNetwork { client.get("${config.apiBaseUrl}/api/v1/me") { bearerAuth(token); identityTimeout() } }, onSessionResponse, IdentityStage.PROFILE_READ)
     }
 
     override suspend fun enroll(token: String, displayName: String, onSessionResponse: (HttpResponse) -> Unit): IdentityResult<Profile> = identityOperation(IdentityStage.PROFILE_ENROLLMENT) {

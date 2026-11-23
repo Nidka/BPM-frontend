@@ -55,7 +55,7 @@ internal fun identityFailure(code: String, diagnostic: IdentityDiagnostic? = nul
         "UNAUTHENTICATED" -> "Tu sesión terminó. Inicia sesión nuevamente."
         "SESSION_EXPIRED" -> "Tu sesión venció por tiempo o inactividad. Inicia sesión nuevamente."
         "RATE_LIMITED" -> "Demasiados intentos. Espera un momento antes de volver a intentar."
-        "TIMEOUT" -> "La conexión tardó demasiado. Inténtalo nuevamente."
+        "TIMEOUT" -> "La conexión está lenta y no pudimos terminar el acceso. Revisa tu internet y vuelve a intentarlo."
         "NETWORK_ERROR" -> "No pudimos conectar. Vuelve a intentarlo."
         "INVALID_RESPONSE" -> "No pudimos verificar tu sesión. Inténtalo nuevamente."
         "GOOGLE_CANCELLED" -> "Se canceló el acceso con Google."

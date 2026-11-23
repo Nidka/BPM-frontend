@@ -966,7 +966,8 @@ fun App(
                                                 }
                                                 nav.navigate(target) { launchSingleTop = true }
                                             })
-                                    }, detail = { ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, evidence = { item ->
+                                    }, detail = { ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, viewerName = profile.displayName,
+                                    onStartOwn = { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } }, evidence = { item ->
                                     scopedHistoryState.detail?.let { reviewed -> EvidenceQuestionAction(item.label, reviewed.evidenceCounts[item.id] ?: 0, false,
                                         onOpen = { evidenceQuestion = EvidenceQuestion(reviewed.id, item.id, item.label); evidence.open(profile.id, reviewed.organizationId, reviewed.id, item.id, false) }) }
                                 }) }) }) else if (chefRunStage) ({

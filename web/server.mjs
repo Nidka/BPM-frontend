@@ -283,7 +283,11 @@ export function createAppServer({
           'Content-Type': types[extension] || 'application/octet-stream',
           ETag: etag,
           // Con hash en el nombre el archivo es inmutable; el resto se revalida con ETag en cada visita.
-          'Cache-Control': hashedAsset.test(file) ? 'public, max-age=31536000, immutable' : 'no-cache',
+          // Iconos, fuentes e imágenes de Compose (`/composeResources/`): sin hash en el nombre, pero cambian solo al desplegar. Con `no-cache` cada
+          // pantalla nueva revalidaba decenas de iconos con una petición cada uno; con una hora fresca y revalidación en segundo plano salen de la
+          // caché del navegador y se reduce la ventana en la que una petición lenta o cancelada deja un icono en blanco.
+          'Cache-Control': hashedAsset.test(file) ? 'public, max-age=31536000, immutable'
+            : decoded.startsWith('/composeResources/') ? 'public, max-age=3600, stale-while-revalidate=86400' : 'no-cache',
           Vary: 'Accept-Encoding',
         };
         if (request.headers['if-none-match'] === etag) { response.writeHead(304, headers); return response.end(); }

@@ -56,7 +56,11 @@ import pe.bpm.features.checklists.domain.*
     }
 }
 
-@Composable fun ChecklistHistoryDetailScreen(state: ChecklistHistoryState, onRetry: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {}) {
+@Composable fun ChecklistHistoryDetailScreen(
+    state: ChecklistHistoryState, onRetry: () -> Unit, evidence: @Composable (ChecklistItem) -> Unit = {},
+    /** Nombre de quien mira la pantalla: si la revisión en curso es de otra persona se rotula «En curso por …» y se ofrece hacer la propia. */
+    viewerName: String? = null, onStartOwn: (() -> Unit)? = null,
+) {
     if (state.detailLoading) { BpmSkeletonDetail(); return }
     if (state.detailFailure != null) {
         Text("No pudimos consultar esta revisión. Puede que tu acceso haya cambiado.")
@@ -64,10 +68,22 @@ import pe.bpm.features.checklists.domain.*
     }
     val run = state.detail ?: return
     val finished = run.status == "SUBMITTED"
+    // Una revisión en curso de OTRA persona no es un error: se dice quién la hace y se ofrece hacer la propia.
+    val byOther = !finished && viewerName != null && run.performedByName.isNotBlank() && run.performedByName != viewerName
     // Detalle del registro (specs/LAYOUT.md §5): datos en dos columnas desde 520 dp y respuestas en orden debajo.
     BpmDetailPane(run.templateName.ifBlank { "Revisión BPM" },
-        status = if (finished) BpmRecordStatus("Finalizada", BpmTone.Success) else BpmRecordStatus("En curso", BpmTone.Info),
-        subtitle = if (finished) "Las respuestas están cerradas." else "Esta vista permite consultar las respuestas guardadas.") {
+        status = when {
+            finished -> BpmRecordStatus("Finalizada", BpmTone.Success)
+            byOther -> BpmRecordStatus("En curso por ${run.performedByName}", BpmTone.Warning)
+            else -> BpmRecordStatus("En curso", BpmTone.Info)
+        },
+        eyebrow = "Revisión",
+        subtitle = when {
+            finished -> "Las respuestas están cerradas."
+            byOther -> "La está haciendo ${run.performedByName}. Tú solo puedes consultarla; mientras tanto puedes hacer tu propio control."
+            else -> "Esta vista permite consultar las respuestas guardadas."
+        },
+        actions = if (byOther && onStartOwn != null) ({ BpmChunkyButton("Hacer mi propio control", onStartOwn) }) else null) {
         BpmSection("Datos de la revisión") {
             BpmDetailFields(listOf(
                 BpmDetailField("Sede", run.locationName),
