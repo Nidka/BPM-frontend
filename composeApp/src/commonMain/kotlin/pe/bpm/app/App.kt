@@ -422,7 +422,7 @@ fun App(
         LocalFirstSteps provides firstStepsState,
         pe.bpm.features.checklists.presentation.LocalScheduledControls provides pe.bpm.features.checklists.presentation.ScheduledControls(
             assignmentState.takeIf { it.userId == profile?.id && it.organizationId == workspaceState.selected }?.items.orEmpty()) { item ->
-            if (item.run != null) nav.navigate(if (item.run.status == "SUBMITTED") "control/revisiones/${item.run.id}" else "control/ejecucion/${item.run.id}") { launchSingleTop = true }
+            if (item.run != null) nav.navigate(if (item.run.status == "DRAFT" && item.run.performedBy == profile?.id) "control/ejecucion/${item.run.id}" else "control/revisiones/${item.run.id}") { launchSingleTop = true }
             else { autoStartAssignment = item.id; nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } } },
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(systemDensity.density, systemDensity.fontScale * feedbackSettings.textScale)) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
@@ -826,7 +826,10 @@ fun App(
                                 }) else if (destination == WorkspaceDestination.Team && adminPlay && currentWorkspace != null) ({
                                     // Una sola pantalla de equipo para el administrador: personas, invitaciones y sedes en pestañas (antes «Equipo» y «Cuentas y equipo»).
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), currentWorkspace.canManage, true, team, accountInvitations, accountOrganization,
-                                        organizationName = currentWorkspace.organization.name, startTab = accountsTab, scrollable = false)
+                                        organizationName = currentWorkspace.organization.name, startTab = accountsTab, scrollable = false,
+                                        onAssignCourse = { id, name ->
+                                            trainingAssignments.open(workspaceState.selected.orEmpty(), true); trainingAssignments.startCreateFor(id, name)
+                                            academyOnAssignments = true; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } })
                                 }) else null,
                                 workerProfile = if (destination == WorkspaceDestination.Account && learnerPlay && currentWorkspace != null) ({
                                     WorkerProfileContent(trainingLearner, profile.id, currentWorkspace.organization.id, profile.displayName, currentWorkspace.organization.name,

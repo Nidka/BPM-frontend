@@ -40,6 +40,8 @@ fun BpmFilterChip(
     label: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Reserva el sitio de la marca ✓ aunque no esté elegida: en una fila de pestañas los chips no se mueven al cambiar la selección. */
+    reserveCheck: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
@@ -62,6 +64,7 @@ fun BpmFilterChip(
             CompositionLocalProvider(LocalContentColor provides ink) {
                 ProvideTextStyle(BpmPlayType.key.copy(fontSize = 14.sp)) {
                     if (selected) BpmIcon(BpmSymbol.Check, tint = ink, modifier = Modifier.size(18.dp))
+                    else if (reserveCheck) androidx.compose.foundation.layout.Spacer(Modifier.size(18.dp))
                     label()
                 }
             }

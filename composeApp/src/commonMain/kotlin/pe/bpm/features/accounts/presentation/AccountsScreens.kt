@@ -24,16 +24,19 @@ fun AccountsManagementScreen(
     startTab: String = "team",
     /** Falso cuando el shell ya desplaza la pantalla (Equipo del administrador): anidar dos desplazamientos verticales cierra la app. */
     scrollable: Boolean = true,
+    /** «Asignar curso» en la tarjeta de una persona (id y nombre); nulo oculta la acción. */
+    onAssignCourse: ((String, String) -> Unit)? = null,
 ) {
     val teamState by team.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable(startTab) { mutableStateOf(when (startTab) { "invitations" -> AccountsTab.Invitations.name; "organization" -> AccountsTab.Organization.name; else -> AccountsTab.Team.name }) }
     Column(modifier.then(if (scrollable) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
-        BpmFilterChips(AccountsTab.entries.map { it.name to it.label }, tab) { tab = it }
+        // Pestañas de ancho fijo (un tercio cada una): al elegir una, las demás no se mueven.
+        BpmSegmentedTabs(AccountsTab.entries.map { BpmTabOption(it.name, it.label) }, tab, { tab = it })
         when (tab) {
             AccountsTab.Invitations.name -> InvitationsPane(invitations)
             AccountsTab.Organization.name -> OrganizationPane(organization)
-            else -> TeamPane(team, currentUserId)
+            else -> TeamPane(team, currentUserId, onAssignCourse)
         }
     }
 }

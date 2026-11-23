@@ -142,6 +142,12 @@ internal fun IncidentFormContent(
         }
         val navigation = rememberBpmFormNavigation(fields.map { it.key })
         fields.forEach { field ->
+            if (field.key == "dueDate") {
+                // La fecha límite se elige en un calendario (no se escribe «yyyy-MM-dd»); la hora sigue siendo un campo HH:mm.
+                BpmDatePicker(f.values["dueDate"].orEmpty(), { editor.edit("dueDate", it) }, "Fecha límite en la sede", optional = false,
+                    min = BpmCalendar.today().iso, error = e.errors["dueDate"], enabled = !e.busy)
+                return@forEach
+            }
             BpmTextField(
                 f.values[field.key].orEmpty(),
                 { editor.edit(field.key, it) },

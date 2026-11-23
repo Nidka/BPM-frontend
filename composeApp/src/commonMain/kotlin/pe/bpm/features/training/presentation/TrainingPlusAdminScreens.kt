@@ -132,7 +132,7 @@ private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentFor
         },
         BpmFormStep("¿Hasta cuándo?", description = "Revisa el resumen. La fecha límite es opcional.") {
             BpmDetailFields(listOf(BpmDetailField("Curso", form.courseTitle), BpmDetailField("Para", targetSummary(form))))
-            BpmTextField(form.dueDate, { v -> viewModel.edit { it.copy(dueDate = v.filter { c -> c.isDigit() || c == '-' }.take(10)) } }, "Fecha límite (AAAA-MM-DD, opcional)",
+            BpmDatePicker(form.dueDate, { v -> viewModel.edit { it.copy(dueDate = v) } }, "Fecha límite (opcional)", optional = true, min = BpmCalendar.today().iso,
                 error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (hora universal).")
         },
     )

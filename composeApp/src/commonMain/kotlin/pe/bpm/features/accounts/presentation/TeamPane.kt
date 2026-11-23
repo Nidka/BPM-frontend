@@ -13,7 +13,7 @@ import pe.bpm.features.accounts.domain.*
 
 /** Equipo: miembros activos/inactivos con edición de rol y sedes, baja, reactivación y transferencia. */
 @Composable
-internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String) {
+internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String, onAssignCourse: ((String, String) -> Unit)? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         AccountMessages(state.failure, state.notice)
@@ -38,6 +38,7 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String) {
                     onAction = { if (active) viewModel.edit(member) else viewModel.askReactivate(member) },
                     textActions = if (!active) emptyList() else buildList {
                         if (member.role != MemberRole.ADMIN && !self) add("Transferir administración" to { viewModel.askTransfer(member) })
+                        onAssignCourse?.let { assign -> add("Asignar curso" to { assign(member.id, member.name) }) }
                         add("Desactivar" to { viewModel.askDeactivate(member) })
                     },
                     enabled = !state.busy)

@@ -62,7 +62,8 @@ test('screens do not reset shared tab ViewModels when they leave the composition
 // desplaza el shell) anidaba dos desplazamientos y Compose lanza «measured with an infinity maximum height». Ahí va con scrollable = false.
 test('accounts screen hosted inside the Team slot does not nest a second vertical scroll', async () => {
   const text = await readFile(new URL('commonMain/kotlin/pe/bpm/app/App.kt', sourceRoot), 'utf8');
-  const hosted = text.match(/destination == WorkspaceDestination\.Team && adminPlay[\s\S]{0,500}?AccountsManagementContent\([\s\S]{0,400}?\)\s*\}\)/);
+  const start = text.indexOf('destination == WorkspaceDestination.Team && adminPlay');
+  const hosted = start < 0 ? null : [text.slice(start, text.indexOf('}) else null', start))];
   assert.ok(hosted, 'no se encontró AccountsManagementContent en la ranura de Equipo');
   assert.match(hosted[0], /scrollable = false/);
 });

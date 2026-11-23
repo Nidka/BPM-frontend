@@ -278,6 +278,15 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         content
     },
     ScreenSpec("esqueletos") { { SkeletonGallery() } },
+    // Selector de fecha: cerrado, abierto con una fecha y con días anteriores a «min» deshabilitados.
+    ScreenSpec("selector-fecha", full = false) {
+        {
+            androidx.compose.foundation.layout.Column(Modifier.padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
+                BpmDatePicker("", {}, "Fecha límite (opcional)", supportingText = "Vence al terminar ese día (hora universal).")
+                androidx.compose.runtime.key("abierto") { BpmDatePicker(BpmCalendar.today().plusDays(3).iso, {}, "Fecha límite (opcional)", min = BpmCalendar.today().iso, supportingText = "Vence al terminar ese día (hora universal).", initiallyOpen = true) }
+            }
+        }
+    },
     // Ayuda contextual, introducción de la primera vez y lista «Primeros pasos» (Personal y Administrador).
     ScreenSpec("ayuda") {
         { Shell(WorkspaceDestination.Account, secondaryContent = { pe.bpm.app.HelpContent(pe.bpm.app.HelpTopic.Home, pe.bpm.app.GuideRole.Worker, onReplay = {}, onSettings = {}) }, secondaryEditor = true, secondaryTitle = "Ayuda") }

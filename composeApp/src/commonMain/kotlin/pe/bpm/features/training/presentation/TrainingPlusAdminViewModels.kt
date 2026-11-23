@@ -176,6 +176,11 @@ class TrainingAssignmentAdminViewModel(
     // ---- Alta --------------------------------------------------------------------------------
 
     fun startCreate() { loadCourses(); mutable.value = mutable.value.copy(form = AssignmentForm(), formFailure = null, notice = null) }
+    /** «Asignar curso» desde la ficha de una persona: abre el asistente con esa persona ya elegida como destinataria. */
+    fun startCreateFor(userId: String, userName: String) {
+        loadCourses()
+        mutable.value = mutable.value.copy(form = AssignmentForm(kind = TargetKind.USER, userId = userId, userName = userName), formFailure = null, notice = null)
+    }
     fun cancelCreate() { if (!mutable.value.saving) mutable.value = mutable.value.copy(form = null, formFailure = null) }
 
     fun edit(change: (AssignmentForm) -> AssignmentForm) {

@@ -345,21 +345,13 @@ private fun ReceiptItemEditor(
                 rule = InputRules.text(1, 100),
                 navigation = nav["batchCode"],
             )
-            BpmTextField(
+            BpmDatePicker(
                 item.expirationDate.orEmpty(),
-                { value ->
-                    vm.item(index) { it.copy(expirationDate = value.takeIf(String::isNotBlank)) }
-                },
-                "Vencimiento (opcional, yyyy-MM-dd)",
-                placeholder = "yyyy-MM-dd",
+                { value -> vm.item(index) { it.copy(expirationDate = value.takeIf(String::isNotBlank)) } },
+                "Vencimiento (opcional)",
+                optional = true,
                 enabled = state.editable,
                 error = error("expirationDate"),
-                rule =
-                    InputRule {
-                        if (it.isEmpty() || OperationsRules.date(it)) null
-                        else "Usa una fecha válida yyyy-MM-dd."
-                    },
-                navigation = nav["expirationDate"],
             )
             BpmTextField(
                 item.quantity,

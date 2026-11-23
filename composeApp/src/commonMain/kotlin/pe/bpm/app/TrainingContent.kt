@@ -91,7 +91,7 @@ internal fun TrainingPlusAdminContent(
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (canManage && !tabsLocked) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Cursos", "Asignaciones", "Rutas", "Logros").forEachIndexed { index, label ->
-                BpmFilterChip(tab == index, { tab = index }, { Text(label) })
+                BpmFilterChip(tab == index, { tab = index }, { Text(label) }, reserveCheck = true)
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
