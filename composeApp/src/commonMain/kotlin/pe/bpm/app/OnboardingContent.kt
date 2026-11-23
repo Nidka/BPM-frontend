@@ -116,6 +116,7 @@ private fun StepRow(step: FirstStep, onClick: () -> Unit) {
             Text(step.title, style = BpmPlayType.rowTitle, color = if (step.done) BpmPlayColors.correct.shadow else BpmPlayColors.ink)
             Text(step.detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
         }
-        BpmPlayChip(if (step.done) "Hecho" else "Pendiente", if (step.done) BpmPlayTone.Correct else BpmPlayTone.Gold)
+        // En teléfono la ficha «Pendiente» quita ancho al texto: lo pendiente lo dice el icono de meta y el lector de pantalla («Pendiente»).
+        if (step.done || currentWindowClass != BpmWindowClass.Compact) BpmPlayChip(if (step.done) "Hecho" else "Pendiente", if (step.done) BpmPlayTone.Correct else BpmPlayTone.Gold)
     }
 }

@@ -249,3 +249,15 @@ Hecha con Playwright a 1280 y 390 dp y con el arnés de capturas. Solo se leyó 
 | E7 | Todos · iconos | Cambiar de pantalla varias veces | Algunas capturas muestran huecos donde van iconos (Equipo, Academia, campana, rueda, «Insumos y limpieza»…); no es reproducible a voluntad y los recursos no devuelven errores HTTP, así que parece una carga de recursos de Compose para web que no termina | Sin causa confirmada; conviene precargar los iconos del shell al arrancar | Pendiente |
 | E8 | Todos · acceso | Iniciar sesión desde un headless | A veces la llamada de acceso se cancela y aparece «La conexión tardó demasiado»; reintentar funciona | No es de la interfaz; revisar el tiempo máximo de la llamada de acceso | Pendiente |
 | E9 | Admin · Invitar persona, Academia → asignar curso, Seguimiento | — | **No se recorrieron de punta a punta** en vivo por el límite de tiempo (la tarea de invitar y asignar crea datos y requiere el correo real) | — | Pendiente |
+
+### 11.1 Verificación en vivo (appbpm.com, organización «Prueba BPM»)
+
+- **Enter envía el acceso** en la web (probado a 390 y 1280 dp con Personal, Jefe y Administrador).
+- **Introducción** de la primera vez (5 tarjetas, «Escuchar», «Saltar»): aparece al entrar y lleva a Inicio al terminar.
+- **Primeros pasos**: Personal «1 de 3» (la tarea de hoy se marcó sola), Administrador «3 de 4» (sede, equipo y control programado detectados
+  con datos reales; falta «Asigna un curso»).
+- **Ayuda («?»)**: abre «Ayuda: Inicio» con el rol, pasos, glosario y «Ver primeros pasos otra vez»; se confirmó en Administrador a 1280 dp.
+  En teléfono el «?» está entre la campana y la rueda.
+- **Navegación**: Turno del Jefe → Insumos y limpieza → Turno ya conserva «Tareas del turno 1/1» (antes «Sin datos»).
+- Notas de la verificación: el acceso a veces tarda más de 10 s o se cancela (E8), y la lista «Primeros pasos» en teléfono pierde la ficha
+  «Pendiente» (el icono de meta y el lector de pantalla la sustituyen).
