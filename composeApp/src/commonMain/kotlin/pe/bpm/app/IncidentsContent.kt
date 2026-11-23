@@ -37,7 +37,8 @@ internal fun IncidentsContent(
     LaunchedEffect(userId, org, role, siteId, zone) {
         incidents.open(userId, org, role, siteId, zone)
     }
-    DisposableEffect(incidents, userId, org) { onDispose { incidents.reset() } }
+    // Sin reset al salir (ver DailyOperationsContent): el mismo ViewModel lo usa la raíz (`refreshIfStale`) y el reporte rápido; `open` lo
+    // reorienta por persona, empresa, rol y sede, y el cierre de sesión lo reinicia.
     // El personal con una sola sede reporta sin elegirla; con varias elige una vez.
     // Reportar es igual para quien puede hacerlo (Personal, Jefe de cocina, Administrador): modo enfoque con una sede automática.
     val worker = role in setOf("WORKER", "CHEF", "ADMIN") && onClose != null

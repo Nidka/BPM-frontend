@@ -45,7 +45,10 @@ internal fun DailyOperationsContent(
         operations.open(userId, org, role, siteId)
         if(sourceReceiptId!=null && siteId==sourceSiteId) operations.receiptDetail(sourceReceiptId)
     }
-    DisposableEffect(operations, userId, org) { onDispose { operations.reset() } }
+    // Sin reset al salir: `operations` es el mismo ViewModel de Hoy, Tareas y Turno. Cerrar esta pantalla lo vaciaba DESPUÉS de que la
+    // pantalla de destino ya había cargado sus datos (la saliente se retira cuando termina la transición) y Hoy/Turno quedaban
+    // sin datos. El estado se conserva (volver es instantáneo) y `open` lo reorienta si cambian persona, empresa, rol o sede;
+    // el cierre de sesión sí lo reinicia.
     // Secciones adicionales: turnos (todos menos WORKER) y movimientos de stock (supervisión y CHEF).
     val showShifts = shifts != null && role != "WORKER" && ShiftAccess.canRead(role)
     val showStock = stock != null && StockAccess.canView(role)
@@ -54,7 +57,6 @@ internal fun DailyOperationsContent(
         if (showShifts) shifts?.open(userId, org, role, siteId)
         if (showStock) stock?.open(userId, org, role, siteId)
     }
-    DisposableEffect(shifts, stock, userId, org) { onDispose { shifts?.reset(); stock?.reset() } }
     val stockState = stock?.state?.collectAsStateWithLifecycle()?.value
     // Un movimiento confirmado cambia el saldo: se vuelve a consultar el stock PEPS.
     LaunchedEffect(stockState?.saved?.input?.id) { if (stockState?.saved != null) operations.refresh() }

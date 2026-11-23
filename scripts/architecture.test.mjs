@@ -42,3 +42,18 @@ test('production dependencies preserve feature and layer boundaries on every pla
   }
   assert.deepEqual(violations, [], violations.join('\n'));
 });
+
+// Regresión «los datos no cargan al navegar» (2026-11-23): `operations` e `incidents` son los mismos ViewModels de Hoy, Tareas, Turno y
+// los reportes. Una pantalla secundaria que los reiniciaba en `onDispose` los vaciaba DESPUÉS de que la pantalla de destino ya había
+// cargado (la saliente se retira al terminar la transición), y la destino quedaba sin datos. El reinicio es solo del cierre de sesión.
+test('screens do not reset shared tab ViewModels when they leave the composition', async () => {
+  const shared = ['operations', 'shifts', 'stock', 'incidents', 'trainingLearner', 'dailyOperations'];
+  const offenders = [];
+  for (const file of await kotlinFiles(new URL('commonMain/kotlin/pe/bpm/app/', sourceRoot))) {
+    const text = await readFile(file, 'utf8');
+    for (const match of text.matchAll(/onDispose\s*\{([^}]*)\}/g))
+      for (const name of shared)
+        if (new RegExp(`\\b${name}\\??\\.reset\\(\\)`).test(match[1])) offenders.push(`${file.pathname.split('/').pop()}: onDispose { ${name}.reset() }`);
+  }
+  assert.deepEqual(offenders, []);
+});
