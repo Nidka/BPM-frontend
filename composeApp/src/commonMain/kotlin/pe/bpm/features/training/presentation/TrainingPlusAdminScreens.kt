@@ -214,7 +214,7 @@ fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Mod
                 BpmFilterChip(state.status == null, { viewModel.filter(null) }, { Text("Todas") })
                 PathStatus.entries.forEach { status -> BpmFilterChip(state.status == status, { viewModel.filter(status) }, { Text(pathStatusLabel(status)) }) }
             }
-            if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin rutas", "Todavía no hay rutas con este filtro.")
+            if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin rutas", "Todavía no hay rutas con este filtro. Crea la primera para ordenar los cursos de tu equipo.") { BpmChunkyButton("Crear ruta", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth()) }
             BpmGridLayout(state.items) { path, m ->
                 BpmCard(m, onClick = { viewModel.openPath(path) }, onClickLabel = "Abrir ruta") {
                     Eyebrow(pathStatusLabel(path.status).uppercase())

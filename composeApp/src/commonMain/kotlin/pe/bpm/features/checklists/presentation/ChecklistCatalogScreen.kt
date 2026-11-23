@@ -100,7 +100,9 @@ private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, select
 @Composable
 private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> Unit)?, onAssign: ((String) -> Unit)?, onVersions: ((String) -> Unit)? = null) {
     // Detalle del registro (specs/LAYOUT.md §5): un solo botón principal; programar y versiones quedan como secundarios.
-    BpmDetailPane(template.name, status = BpmRecordStatus("Versión ${template.versionNumber}"), subtitle = template.area,
+    BpmDetailPane(template.name, status = BpmRecordStatus("Versión ${template.versionNumber}"), subtitle = template.area, eyebrow = "Control",
+        facts = listOf(BpmDetailFact("Preguntas", template.items.size.toString()), BpmDetailFact("Obligatorias", template.items.count { it.required }.toString()),
+            BpmDetailFact("Con evidencia", template.items.count { it.evidenceRequiredOnFailure }.toString())),
         actions = if (onStart == null && onAssign == null && onVersions == null) null else ({
             when {
                 onStart != null -> BpmChunkyButton("Preparar revisión", { onStart(template.id) }, Modifier.bpmPrimaryButtonWidth())
@@ -114,7 +116,7 @@ private fun ChecklistDetail(template: ChecklistTemplate, onStart: ((String) -> U
             Text(if (onStart != null) "Para responder estas preguntas, pulsa Preparar revisión y elige la sede." else "Tu equipo utilizará estas preguntas al realizar el control desde su sección Control.",
                 style = MaterialTheme.typography.bodyMedium)
         }
-        Text(if (template.items.size == 1) "1 pregunta" else "${template.items.size} preguntas", style = MaterialTheme.typography.titleMedium)
+        BpmListenButton(template.name + ". " + template.items.joinToString(" ") { "${it.displayOrder}. ${it.label}." }, label = "Escuchar las preguntas")
         template.items.forEach { item -> Question(item) }
     }
 }

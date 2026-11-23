@@ -57,7 +57,7 @@ internal fun WorkspaceScreen(
      */
     platformHome: (@Composable () -> Unit)? = null,
     platformIndicators: (@Composable () -> Unit)? = null,
- onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null,
+ onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null, onSettings:(()->Unit)?=null,
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
     secondaryEditor: Boolean = false,
@@ -126,7 +126,7 @@ internal fun WorkspaceScreen(
                     canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin) && !(superAdmin && section == WorkspaceDestination.Home),
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = if (superAdmin) ({ navigate(WorkspaceDestination.Home) }) else onChooseOrganization,
-                    onAlerts=onAlerts,unreadCount=unreadAlertCount,
+                    onAlerts=onAlerts,unreadCount=unreadAlertCount, onSettings = onSettings,
                     focusTitle = if (focusMode) focusTitle ?: "" else null,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null || activeShortcut != null && form == null) null else onCloseForm)
                 if (state.loading && workspace == null) BpmSkeletonDashboard()

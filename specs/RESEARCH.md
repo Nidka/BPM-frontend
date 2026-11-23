@@ -56,5 +56,9 @@ importador acepta `source`/`generalData` pero no los reenvía. El CSV se reenví
   «Necesita tu revisión». Investigación (resultados, instrumentos, exportación) agrupa sus acciones en `ServerOnly`.
 - Pruebas: `OfflineResearchTest` (encolado, consentimiento sin red, lectura guardada, 409 duplicado, lectura local primero).
 
+## Integración en el recorrido (2026-11-23)
+
+La encuesta ya no es solo una tarjeta en Hoy: ver `docs/plans/2026-11-23-auditoria-ux.md` §9.4 (invitación por paso, borrador local, estilo de juego, Escuchar).
+
 ## Pendiente
 Verificar en dispositivo el guardado del CSV (Android/iOS; sin SDK ni macOS aquí) y la accesibilidad con lector de pantalla.

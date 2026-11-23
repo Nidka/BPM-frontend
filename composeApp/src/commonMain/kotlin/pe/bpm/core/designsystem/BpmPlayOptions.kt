@@ -61,7 +61,7 @@ fun BpmOptionTile(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (key != null) Box(Modifier.size(32.dp).border(BpmPlayBorder, spec.keyBorder, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+        if (key != null) Box(Modifier.defaultMinSize(32.dp, 32.dp).border(BpmPlayBorder, spec.keyBorder, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
             Text(key, color = spec.keyText, style = BpmPlayType.key)
         }
         Text(text, color = spec.text, style = BpmPlayType.option, modifier = Modifier.weight(1f))

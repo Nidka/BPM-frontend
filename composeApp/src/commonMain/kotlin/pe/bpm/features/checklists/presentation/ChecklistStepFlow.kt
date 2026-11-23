@@ -158,6 +158,7 @@ private fun QuestionStage(
             val place = listOf(item.sectionName, if (item.required) "" else "Opcional").filter { it.isNotBlank() }.joinToString(" · ")
             if (place.isNotBlank()) BpmPlayChip(place, BpmPlayTone.Action, Modifier.semantics { heading() }, uppercase = false)
             Text(item.label, style = BpmPlayType.h1.copy(fontSize = 26.sp, lineHeight = 30.sp), color = BpmPlayColors.ink)
+            BpmListenButton(item.label + (stepCriterion(item)?.let { ". $it" } ?: ""), label = "Escuchar el paso")
         }
         when (item.responseType) {
             ChecklistResponseType.COMPLIANCE -> ComplianceTiles(input.value, !busy) { onEdit(item.id, input.copy(value = it)) }

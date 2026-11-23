@@ -130,7 +130,16 @@ internal fun ColumnScope.LessonVideoSection(state: TrainingState, lesson: Traini
         ExternalLessonVideo(external.embedUrl, external.watchUrl, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
         BpmTextButton(onClick = { runCatching { uriHandler.openUri(external.watchUrl) } }) { Text("Abrir video en el navegador") }
     }
+    // «Solo audio y texto»: sin el video, con la transcripción abierta y un botón para escucharla (baja visión, poco internet).
+    var audioOnly by androidx.compose.runtime.saveable.rememberSaveable(lesson.id) { mutableStateOf(false) }
+    val settings = pe.bpm.core.designsystem.LocalBpmFeedbackSettings.current
     if (lesson.video != null) {
+        BpmTextButton(onClick = { audioOnly = !audioOnly }, modifier = Modifier.heightIn(min = BpmSpacing.touch)
+            .semantics { stateDescription = if (audioOnly) "Activado" else "Desactivado" }) {
+            Text(if (audioOnly) "Ver el video" else "Solo audio y texto")
+        }
+    }
+    if (lesson.video != null && !audioOnly) {
         when (val video = state.video) {
             VideoState.Idle -> {
                 val saved = state.downloads.downloaded(lesson.video.mediaId)
@@ -141,7 +150,7 @@ internal fun ColumnScope.LessonVideoSection(state: TrainingState, lesson: Traini
             }
             VideoState.Loading -> BpmSkeletonVideo()
             is VideoState.Ready -> {
-                LessonVideoPlayer(video.ticket.url, video.ticket.mimeType, viewModel::onVideoError, Modifier.fillMaxWidth().aspectRatio(16f / 9f), lesson.captionsVtt)
+                LessonVideoPlayer(video.ticket.url, video.ticket.mimeType, viewModel::onVideoError, Modifier.fillMaxWidth().aspectRatio(16f / 9f), if (settings.captions) lesson.captionsVtt else "")
                 BpmTextButton(onClick = viewModel::closeVideo) { Text("Ocultar video") }
             }
             is VideoState.Failed -> BpmCard(Modifier.fillMaxWidth()) {
@@ -150,7 +159,7 @@ internal fun ColumnScope.LessonVideoSection(state: TrainingState, lesson: Traini
             }
         }
     }
-    if (lesson.video != null && lesson.captionsVtt.isNotBlank()) VideoTranscript(lesson.id, lesson.captionsVtt)
+    if (lesson.video != null) VideoTranscript(lesson.id, lesson.captionsVtt, lesson.content, audioOnly || settings.transcript)
 }
 
 /** Posición en una secuencia: rótulo («Lección 3 de 5») y barra segmentada fina; juntos son un solo indicador (regla G1). */
@@ -274,17 +283,18 @@ internal fun KeyPointsCard(points: List<String>, modifier: Modifier = Modifier) 
  * botón de texto accesible por teclado y lector de pantalla.
  */
 @Composable
-private fun VideoTranscript(lessonId: String, captionsVtt: String) {
-    val transcript = remember(captionsVtt) { WebVtt.transcript(WebVtt.parse(captionsVtt)) }
+private fun VideoTranscript(lessonId: String, captionsVtt: String, lessonText: String, startOpen: Boolean) {
+    // La transcripción sale de los subtítulos; sin ellos, el texto de la lección hace de transcripción.
+    val transcript = remember(captionsVtt, lessonText) { WebVtt.transcript(WebVtt.parse(captionsVtt)).ifBlank { lessonText } }
     if (transcript.isBlank()) return
-    var open by androidx.compose.runtime.saveable.rememberSaveable(lessonId) { mutableStateOf(false) }
+    var open by androidx.compose.runtime.saveable.rememberSaveable(lessonId, startOpen) { mutableStateOf(startOpen) }
     BpmCard(Modifier.fillMaxWidth()) {
         BpmTextButton(onClick = { open = !open }, modifier = Modifier.heightIn(min = BpmSpacing.touch)
             .semantics { stateDescription = if (open) "Abierta" else "Cerrada" }) {
             Text(if (open) "Ocultar transcripción del video" else "Ver transcripción del video")
         }
         if (open) {
-            BpmListenButton(transcript, label = "Escuchar la transcripción")
+            BpmListenButton(transcript, label = "Escuchar resumen")
             Text(transcript, style = MaterialTheme.typography.bodyMedium)
         }
     }

@@ -289,7 +289,8 @@ class AppGraph(
     @OptIn(ExperimentalUuidApi::class)
     fun surveyViewModel() = pe.bpm.features.research.presentation.SurveyViewModel(
         pe.bpm.features.research.domain.LoadParticipation(researchRepository), pe.bpm.features.research.domain.RecordConsent(researchRepository),
-        pe.bpm.features.research.domain.SubmitSurvey(researchRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, localFirst)
+        pe.bpm.features.research.domain.SubmitSurvey(researchRepository), { Uuid.random().toString() }, { Clock.System.now().toString() }, localFirst,
+        pe.bpm.features.research.data.LocalSurveyDraftStore(offlineRuntime.store))
     fun researchViewModel() = pe.bpm.features.research.presentation.ResearchViewModel(
         pe.bpm.features.research.domain.LoadResearchAccess(researchRepository), pe.bpm.features.research.domain.ManageAccessGrants(researchRepository),
         pe.bpm.features.research.domain.ManageConsentDocuments(researchRepository), pe.bpm.features.research.domain.ManageInstruments(researchRepository),

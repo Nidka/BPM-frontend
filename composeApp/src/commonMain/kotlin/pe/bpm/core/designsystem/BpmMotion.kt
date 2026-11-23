@@ -51,9 +51,13 @@ object BpmMotion {
     fun <T> fadeIn(): FiniteAnimationSpec<T> = tween(MEDIUM, easing = enter)
 }
 
-/** Verdadero si la persona pidió reducir el movimiento en su sistema o navegador. */
+/** Verdadero si el sistema o el navegador piden reducir el movimiento (cada plataforma lo lee a su manera). */
 @Composable
-expect fun rememberReduceMotion(): Boolean
+expect fun rememberSystemReduceMotion(): Boolean
+
+/** Verdadero si la persona pidió reducir el movimiento en su sistema o en «Ajustes › Accesibilidad» de la app. */
+@Composable
+fun rememberReduceMotion(): Boolean = rememberSystemReduceMotion() || LocalBpmFeedbackSettings.current.reduceMotion
 
 /**
  * Aparición escalonada: el elemento sube unos dp mientras se vuelve opaco, con retraso según

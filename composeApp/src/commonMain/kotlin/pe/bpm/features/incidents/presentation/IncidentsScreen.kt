@@ -82,7 +82,7 @@ fun IncidentsScreen(
                     BpmTextButton(viewModel::refresh) { Text("Reintentar consulta") }
                 if (s.catalogMode) {
                     if (s.catalog.rows.isEmpty() && !s.loading && s.failure == null)
-                        EmptyState("Sin criterios", "Todavía no hay criterios para esta consulta. Cambia la búsqueda o usa «Crear criterio».")
+                        EmptyState("Sin criterios", "Todavía no hay criterios para esta consulta. Cambia la búsqueda o crea el primero; mientras, todos pueden reportar con las categorías integradas.") { BpmChunkyButton("Crear criterio", viewModel::newCatalog, Modifier.bpmPrimaryButtonWidth()) }
                     BpmGridLayout(s.catalog.rows) { value, cardModifier ->
                         BpmCard(cardModifier) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -249,7 +249,11 @@ private fun IncidentDetailContent(
     val workflow = IncidentsAccess.visibleActions(d.allowedActions, i.status, d.actions, s.userId)
     // Detalle del registro (specs/LAYOUT.md §5): la primera acción del flujo es la principal; las demás, secundarias.
     BpmDetailPane(i.name, status = BpmRecordStatus(incidentStatusLabel(i.status.name), incidentStatusTone(i.status)),
-        subtitle = i.description, onBack = vm::closeDetail,
+        subtitle = i.description, onBack = vm::closeDetail, eyebrow = i.area,
+        chips = listOf(BpmDetailChip("Riesgo ${incidentRiskLabel(i.riskLevel)}", when (i.riskLevel) {
+            IncidentRisk.LOW -> BpmPlayTone.Correct; IncidentRisk.MEDIUM -> BpmPlayTone.Gold; IncidentRisk.HIGH, IncidentRisk.CRITICAL -> BpmPlayTone.Error })),
+        facts = listOf(BpmDetailFact("Reportó", i.reportedByName), BpmDetailFact("Fecha del reporte", displayDateTime(i.createdAt)),
+            BpmDetailFact("Fotos", "${d.beforeCount} antes · ${d.afterCount} después")),
         actions = {
             workflow.forEachIndexed { index, type ->
                 val self = type == IncidentActionType.VERIFY && IncidentsAccess.isSelfVerification(d.actions, s.userId)
@@ -260,14 +264,7 @@ private fun IncidentDetailContent(
             BpmChunkyButton("Consultar historial", vm::history, tone = BpmChunkyTone.White)
         }) {
         pe.bpm.core.offline.PendingBadge(i.id)
-        BpmSection("Datos de la incidencia") {
-            BpmDetailFields(listOf(
-                BpmDetailField("Área", i.area),
-                BpmDetailField("Riesgo", incidentRiskLabel(i.riskLevel).replaceFirstChar { it.uppercase() }),
-                BpmDetailField("Reportó", i.reportedByName),
-                BpmDetailField("Fecha del reporte", displayDateTime(i.createdAt)),
-            ))
-        }
+        BpmListenButton(i.name + ". " + i.description, label = "Escuchar el reporte")
         BpmSection("Criterio aplicado", description = "Versión ${d.catalogVersion} del catálogo") { Text(d.normativeCriterion) }
         val supervisor = s.role in setOf("CHEF", "ADMIN", "SUPER_ADMIN")
         val beforeWritable =

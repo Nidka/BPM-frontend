@@ -71,6 +71,13 @@ internal fun IncidentsContent(
     if (worker && choosing) {
         // Personal con varias sedes (o sin la lista cargada): elige una vez, con el mismo estilo del reporte.
         BpmPlayStage(modifier, onClose = onClose, closeDescription = "Salir del reporte") {
+            if (workspace.workspace?.locations.isNullOrEmpty() && !workspace.loading) {
+                // Reportar necesita una sede (el servidor ubica el problema en ella): se dice qué hacer en lugar de dejar la pantalla vacía.
+                BpmPlayEmpty(pe.bpm.resources.Res.drawable.mascot_fix, "Aún no tienes una sede asignada",
+                    "Para reportar un problema necesitamos saber en qué sede estás. Pide a tu jefe o administrador que te asigne una; si es urgente, avísale en persona.",
+                    action = { BpmChunkyButton("Entendido", onClose!!, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White) })
+                return@BpmPlayStage
+            }
             BpmMascotRow(pe.bpm.resources.Res.drawable.mascot_fix, "¿En qué sede estás?", imageWidth = 72.dp)
             WorkspaceSiteSelector(workspace, workspaceActions, siteId, siteName, true) {
                 siteId = it.id

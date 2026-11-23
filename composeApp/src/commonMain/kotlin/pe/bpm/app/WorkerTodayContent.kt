@@ -121,7 +121,7 @@ internal fun WorkerTodayContent(
             })
         }
         if (!railVisible) GoalCard(goal)
-        onStudySurvey?.let { open -> StudySurveyCard(open) }
+        pe.bpm.features.research.presentation.StudyPromptCard()
         state.assignmentsFailure?.takeIf { state.assignments.isEmpty() }?.let { failure ->
             Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             BpmChunkyButton("Volver a intentar", learner::refreshAssignments, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
@@ -136,7 +136,9 @@ internal fun WorkerTodayContent(
             }
         }
         when {
-            site == null -> PlayNote("Todavía no tienes una sede asignada. Pide a tu administrador que te agregue a una.")
+            site == null -> BpmPlayEmpty(Res.drawable.mascot_ready, "Aún no tienes una sede asignada",
+                "Tu administrador te asignará una y aquí verás tus tareas. Mientras tanto, puedes aprender: tus lecciones no dependen de la sede.",
+                action = { BpmChunkyButton("Ir a Aprender", onLearn, Modifier.fillMaxWidth()) })
             ops.todayFailure != null -> {
                 Text(failureText(ops.todayFailure!!), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
                 BpmChunkyButton("Reintentar", operations::refreshToday, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !ops.todayLoading)

@@ -6,7 +6,7 @@ import androidx.compose.runtime.remember
 
 /** Web: media query `prefers-reduced-motion`. */
 @Composable
-actual fun rememberReduceMotion(): Boolean = remember { browserPrefersReducedMotion() }
+actual fun rememberSystemReduceMotion(): Boolean = remember { browserPrefersReducedMotion() }
 
 @JsFun("() => window.matchMedia('(prefers-reduced-motion: reduce)').matches")
 private external fun browserPrefersReducedMotion(): Boolean

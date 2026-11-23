@@ -94,7 +94,9 @@ object BpmBrand {
     BpmChunkyShell(onClick, modifier.fillMaxWidth(), BpmChunkyTone.Action, enabled && !pe.bpm.core.offline.serverActionBlocked(), bpmButtonTextStyle(),
         compact = size == BpmButtonSize.Compact) { Text(label) }
 @Composable fun Eyebrow(text:String){Text(text,style=BpmType.labelStrong,color=MaterialTheme.colorScheme.primary)}
-@Composable fun EmptyState(title:String,description:String){BpmCard(Modifier.fillMaxWidth()){
+/** Estado vacío: dice qué pasa y, con [action], ofrece a un toque lo que lo arregla (por ejemplo «Crear curso» para quien administra). */
+@Composable fun EmptyState(title:String,description:String,action:(@Composable () -> Unit)?=null){BpmCard(Modifier.fillMaxWidth()){
     Text(title,style=MaterialTheme.typography.titleMedium)
     Text(description,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    action?.invoke()
 }}

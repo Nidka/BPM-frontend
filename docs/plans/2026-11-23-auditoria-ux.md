@@ -24,9 +24,9 @@ ofrece el botón que lo arregla.
 | B5 | Jefe de cocina y Administrador no tenían entrada rápida para reportar | Turno (Jefe), Inicio (Admin) | Botón «Reportar un problema» en Turno y en «Acciones rápidas» del Inicio; ruta `reportar` en modo enfoque para cualquier rol que pueda reportar; sede automática si hay una sola | Hecho |
 | B6 | Formulario clásico de incidencia pedía «Elegir criterio del catálogo» (vacío sin catálogo) | Incidencias (formulario) | Fichas con las mismas categorías integradas + las de la organización | Hecho |
 | B7 | Inicio del administrador sin sedes: texto sin acción | Inicio (Admin) | Botón «Agregar sede» a un toque | Hecho |
-| B8 | Personal sin sede asignada: solo texto («Pide a tu administrador…») | Hoy (Personal) | Es una dependencia real (no hay datos que mostrar); el texto dice qué pedir. Falta ofrecer «Reportar» y «Aprender» aunque no haya sede | Pendiente |
+| B8 | Personal sin sede asignada: solo texto («Pide a tu administrador…») | Hoy (Personal) | Estado vacío con el tomate y botón «Ir a Aprender» (las lecciones no dependen de la sede). «Reportar» sigue disponible y, sin sede, explica por qué hace falta una y qué hacer en lugar de una pantalla vacía (el servidor ubica el problema en una sede) | Hecho |
 | B9 | Controles sin programar (Jefe) y plantillas vacías (Personal/Jefe) dicen «tu administrador…» sin acción | Controles | Para el administrador ya existe «Programar control» en su pantalla; el vacío de Personal/Jefe no puede resolverse por ellos | Parcial |
-| B10 | Vacíos de administración (rutas, cursos, criterios) con texto pero sin botón en el propio vacío | Academia, Incidencias | El botón de crear está en la cabecera de cada pantalla; no se duplicó en el vacío | Pendiente |
+| B10 | Vacíos de administración (rutas, cursos, criterios) con texto pero sin botón en el propio vacío | Academia, Incidencias | `EmptyState` acepta una acción: «Crear curso», «Crear ruta» y «Crear criterio» dentro del propio vacío | Hecho |
 
 ## 2. Hallazgos de la pantalla Hoy (Personal, escritorio 1280–2000 dp)
 
@@ -94,9 +94,9 @@ simple y guardado en el dispositivo (`FeedbackPreferences`):
 | X3 | Escuchar (voz en voz alta) | `BpmListenButton` + `TextSpeaker` por plataforma: Android `TextToSpeech`, iOS `AVSpeechSynthesizer`, web `speechSynthesis`; se oculta sin soporte o si se apaga «Escuchar». En ideas de «Lo esencial», lectura de la lección, preguntas (con sus opciones) y transcripción | Hecho (no probado en dispositivos físicos) |
 | X4 | Sordera / poca audición | Todo sonido ya tenía equivalente visual (franja de respuesta con título y explicación, celebración con texto); el aviso de Sonido lo dice. Vibración opcional | Hecho |
 | X5 | Movimiento reducido | Confeti, celebración, camino, franja de respuesta, aparición y ahora el destello de los esqueletos lo respetan (`rememberReduceMotion`) | Hecho |
-| X6 | Lectores de pantalla y 48 dp | Regiones de carga con descripción; botón «Escuchar» ≥ 48 dp; interruptores de 56 dp. Revisión completa de descripciones de todos los iconos y de objetivos táctiles de pantallas heredadas | Parcial |
-| X7 | No depender solo del color | Estados con ficha de texto («1 VENCIDA», «LECCIÓN HECHA», «TAREAS 2/7»); respuestas con rótulo («¡Muy bien!», «Casi»). Quedan filas de administración que distinguen por color y borde | Parcial |
-| X8 | Texto «Muy grande» en cajas de alto fijo | Puede recortar texto en algunas fichas pequeñas a 360 dp; verificar con el escalado máximo | Pendiente |
+| X6 | Lectores de pantalla y 48 dp | Regiones de carga con descripción; botón «Escuchar» ≥ 48 dp; interruptores de 56 dp con estado en palabras («Activado»); filas de datos (`BpmDataRow`) leídas como una frase (nombre, detalle, cifra, estado); filas de ajustes y enlaces de 48 dp | Parcial: no se revisó uno por uno cada icono de las pantallas heredadas con TalkBack/VoiceOver |
+| X7 | No depender solo del color | Estados con ficha de texto («1 VENCIDA», «LECCIÓN HECHA», «TAREAS 2/7»); respuestas con rótulo; las filas de administración con tono de error y sin ficha ahora llevan icono y «REQUIERE ATENCIÓN» | Hecho |
+| X8 | Texto «Muy grande» en cajas de alto fijo | Banda del curso y número de opción sin alto fijo; títulos de fila de tareas, controles y tarea rápida duplican sus líneas a ×1,3 (`bpmTitleLines`); verificado con la captura `hoy-texto-grande` | Hecho en Hoy, Reportar y Ajustes; el resto de pantallas heredadas sin captura |
 
 ## 7. Texto plano → énfasis y fichas
 
@@ -105,7 +105,7 @@ simple y guardado en el dispositivo (`FeedbackPreferences`):
 | T1 | Hoy: meta, turno, vencidas | Fichas con conteo y estado (3 DE 8, TURNO TARDE, 1 VENCIDA) | Hecho |
 | T2 | Sigue aprendiendo | Porcentaje y mensaje de evaluación pendiente | Hecho |
 | T3 | Reportar | Ficha con el tipo elegido en «Cuéntanos qué pasó» | Hecho |
-| T4 | Pantallas de administración heredadas (Material) | Muchas listas siguen en texto plano con `BpmStatusChip` solo en algunas filas | Pendiente |
+| T4 | Pantallas de administración heredadas (Material) | Muchas listas siguen en texto plano con `BpmStatusChip` solo en algunas filas. Los detalles ya usan fichas y datos clave (sección 9) | Parcial |
 
 ## 8. Otros hallazgos sin resolver
 
@@ -113,3 +113,76 @@ simple y guardado en el dispositivo (`FeedbackPreferences`):
 - `BpmSkeleton*` usan un destello continuo; en pantallas con muchas regiones simultáneas podría limitarse a una sola
   animación compartida (rendimiento en Android antiguos).
 - Los avisos de «sin conexión» y «Requiere conexión» de video no tienen aún acción alternativa a un toque.
+
+## 9. Fase 2: una anatomía, Ajustes, accesibilidad total y encuesta del estudio
+
+### 9.1 Plantillas de detalle, ajustes y configuración (`core/designsystem/BpmScaffolds.kt`)
+
+- **`BpmDetailScaffold`**: «Volver» · antetítulo · título · fichas de estado (`BpmDetailChip`, siempre texto) · datos clave
+  (`BpmDetailFact`, leídos como «rótulo: valor») · acciones del registro (un botón principal y secundarios, pasan de línea
+  sin cortarse) · secciones · acción principal fija al pie en compacta (`primaryAction`, vía `BpmActionBar`). Mide hasta
+  720 dp y se alinea a la izquierda; dentro de lista–detalle se adapta al panel.
+- **`BpmSettingsScaffold`** + `BpmSettingsSection` + filas `BpmSettingToggle` (SÍ/NO además del interruptor y
+  «Activado/Desactivado» al lector), `BpmSettingChoice` y `BpmSettingLink`. **`BpmFormScaffold`** para formularios de
+  configuración (título, descripción y acciones al pie).
+- **Migración**: `BpmDetailPane` (ya usado por detalle de control, historial, asignación, equipo, incidencia, organización y
+  operaciones) ahora es un envoltorio de `BpmDetailScaffold`, así que **todos esos detalles pasan a la misma anatomía** sin
+  tocar cada pantalla. Detalle de incidencia: antetítulo con el área, fichas de estado y de riesgo, datos clave (quién
+  reportó, fecha, fotos) y «Escuchar el reporte». Detalle de control: datos clave (preguntas, obligatorias, con evidencia)
+  y «Escuchar las preguntas». **Ajustes** es la primera pantalla construida directamente sobre `BpmSettingsScaffold`.
+- **Pendiente**: los formularios de alta/edición de empresa, sedes y equipo siguen en `BpmFormLayout` (que ya cumple el
+  patrón de formulario de `specs/LAYOUT.md`); migrarlos a `BpmFormScaffold` queda para una pasada propia porque su
+  validación y borradores están acoplados al layout. La guía del curso y el detalle de organización del superadministrador
+  usan sus propios paneles de juego.
+
+### 9.2 Perfil y Ajustes separados
+
+- **Perfil** muestra solo quién eres: identidad, racha/insignias/constancias (Personal y Jefe) y rol. Una tarjeta lleva a
+  «Ajustes» y a «Encuesta del estudio».
+- **Ajustes** (ruta `ajustes`, engranaje en la cabecera y entrada desde Perfil, igual en Personal, Jefe, Administrador y
+  Superadministrador): *Accesibilidad* (tamaño del texto, más contraste, Escuchar, subtítulos, transcripción siempre abierta,
+  reducir movimiento), *Sonido y vibración*, *Avisos* (a «Mis avisos») y *Cuenta* (dispositivos, invitación, cerrar sesión).
+  No hay selector de idioma: la app solo está en español. Todo se guarda en el dispositivo (`FeedbackPreferences`).
+
+### 9.3 Accesibilidad visual y auditiva
+
+- «Escuchar» ahora también está en: preguntas de práctica y de evaluación (con sus opciones), pasos de un control,
+  guía del curso, tarea rápida, reporte (opciones y paso «Cuéntanos qué pasó»), consentimiento y preguntas de la encuesta,
+  detalle de incidencia y de control, y la transcripción («Escuchar resumen»).
+- Video: subtítulos encendidos según el ajuste, transcripción siempre abierta si se pide y modo **«Solo audio y texto»**
+  (oculta el video, abre la transcripción —o el texto de la lección si no hay subtítulos— y la lee en voz alta).
+- «Reducir movimiento» de Ajustes se suma al del sistema (`rememberReduceMotion`): esqueletos, confeti, celebraciones y
+  camino lo respetan.
+- **Por verificar en dispositivo**: velocidad de reproducción y botón de subtítulos dependen de los controles nativos de
+  cada reproductor; la voz en español depende de las voces instaladas en el teléfono.
+- **No se hizo**: botón flotante «Escuchar esta pantalla» que lea cualquier pantalla (Compose no expone de forma portable el
+  árbol de semántica para extraer texto); se cubrieron las pantallas con texto significativo con botones propios.
+
+### 9.4 Encuesta del estudio (cuestionario CAP)
+
+Definición (Requerimientos/ResumenProyectoBPM.md §8.1 y el instrumento «Encuesta estructurada pre y post uso del
+aplicativo»): conocimientos (8 de opción múltiple), actitudes (8 Likert) y prácticas (10 de frecuencia), para
+manipuladores, cocineros, supervisores y responsables; **pretest antes de implementar el aplicativo y postest al
+finalizar el pilotaje (3 meses)**; consentimiento informado voluntario y retirable; una sola entrega por momento.
+
+Lo que ya existía (backend V9 y cliente): consentimiento, instrumento versionado, entrega idempotente, sin puntajes al
+participante, exportación anonimizada. **No faltaba backend.** Lo que faltaba era la integración en el recorrido:
+
+- **Invitación en el flujo** (`studyPrompt`, `StudyPromptCard`): «Antes de empezar» (consentimiento) → «Encuesta inicial»
+  → «Encuesta final» cuando pasan 90 días desde la inicial (`PILOT_DAYS`, calculado con la fecha de entrega que ya guarda el
+  servidor). Aparece arriba de Hoy (Personal), Turno (Jefe), Inicio (Administrador) y Aprender; «Ahora no» la deja para
+  después en la sesión; nunca bloquea nada; no se muestra a quien retiró su consentimiento ni a la super administración.
+  El enlace permanente «Encuesta del estudio» vive en Perfil.
+- **Estilo de juego y modo enfoque** (`SurveyScreen` reescrita): resumen con el tomate y fichas «Al empezar / Al terminar» →
+  consentimiento con «Acepto participar» / «Ahora no» → una pregunta por pantalla con progreso, opciones numeradas,
+  atajos 1–9, «Escuchar la pregunta» → gracias. Sin puntajes ni respuestas correctas.
+- **Retomable**: las respuestas a medias se guardan en el dispositivo (`LocalSurveyDraftStore`, solo ids de pregunta y valores)
+  y se retoman en la primera sin responder; se borran al enviar, al retirar el consentimiento y con el cierre de sesión.
+  Antes se perdían al salir de la pantalla.
+- **Anónima y voluntaria**: código seudónimo, consentimiento solo con conexión (acto legal), respuestas sin conexión por la
+  Outbox. Salir de la encuesta ya no reinicia la participación (`leave`), para que la invitación siga correcta.
+- Pruebas: `StudyPromptTest` (cuándo toca cada paso, retiro respetado, versión distinta del instrumento) y borrador en
+  `SurveyViewModelTest`.
+- **Decisión pendiente de la investigadora**: la fecha de fin de piloto se infiere (90 días desde la inicial); si el estudio
+  necesita una fecha fija por empresa, hay que agregar un campo en el backend (no existe hoy). También hay que publicar en
+  producción el consentimiento y el cuestionario CAP: sin ellos la invitación no se muestra.

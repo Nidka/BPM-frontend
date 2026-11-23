@@ -35,6 +35,9 @@ class FeedbackPreferences(private val store: LocalStore? = null) {
     suspend fun setAccessibility(textScale: Float, highContrast: Boolean, readAloud: Boolean) =
         update(mutable.value.copy(textScale = textScale.coerceIn(1f, 1.3f), highContrast = highContrast, readAloud = readAloud))
 
+    /** Guarda las preferencias completas (pantalla «Ajustes»); acota el tamaño del texto al rango válido. */
+    suspend fun save(next: BpmFeedbackSettings) = update(next.copy(textScale = next.textScale.coerceIn(1f, 1.3f)))
+
     private suspend fun update(next: BpmFeedbackSettings) {
         mutable.value = next
         runCatching { store?.put(COLLECTION, KEY, encodeFeedbackSettings(next)) }
@@ -48,7 +51,7 @@ class FeedbackPreferences(private val store: LocalStore? = null) {
 
 /** JSON guardado de las preferencias: `{"sound":true,"vibration":false,"textScale":1.15,"highContrast":false,"readAloud":true}`. */
 internal fun encodeFeedbackSettings(settings: BpmFeedbackSettings): String =
-    """{"sound":${settings.sound},"vibration":${settings.vibration},"textScale":${settings.textScale},"highContrast":${settings.highContrast},"readAloud":${settings.readAloud}}"""
+    """{"sound":${settings.sound},"vibration":${settings.vibration},"textScale":${settings.textScale},"highContrast":${settings.highContrast},"readAloud":${settings.readAloud},"reduceMotion":${settings.reduceMotion},"captions":${settings.captions},"transcript":${settings.transcript}}"""
 
 /** Lee el JSON guardado; un campo ausente o un texto dañado valen «activo» y nunca lanzan. */
 internal fun decodeFeedbackSettings(json: String): BpmFeedbackSettings = runCatching {
@@ -59,5 +62,8 @@ internal fun decodeFeedbackSettings(json: String): BpmFeedbackSettings = runCatc
         textScale = (root["textScale"]?.jsonPrimitive?.floatOrNull ?: 1f).coerceIn(1f, 1.3f),
         highContrast = root["highContrast"]?.jsonPrimitive?.booleanOrNull ?: false,
         readAloud = root["readAloud"]?.jsonPrimitive?.booleanOrNull ?: true,
+        reduceMotion = root["reduceMotion"]?.jsonPrimitive?.booleanOrNull ?: false,
+        captions = root["captions"]?.jsonPrimitive?.booleanOrNull ?: true,
+        transcript = root["transcript"]?.jsonPrimitive?.booleanOrNull ?: false,
     )
 }.getOrDefault(BpmFeedbackSettings())

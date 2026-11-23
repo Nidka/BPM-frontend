@@ -22,6 +22,12 @@ data class BpmFeedbackSettings(
     val highContrast: Boolean = false,
     /** Muestra «Escuchar» (lectura en voz alta) donde la plataforma tiene síntesis de voz. */
     val readAloud: Boolean = true,
+    /** Sin animaciones ni destellos aunque el sistema no lo pida. */
+    val reduceMotion: Boolean = false,
+    /** Subtítulos de los videos encendidos desde el inicio. */
+    val captions: Boolean = true,
+    /** La transcripción de cada video aparece abierta, sin tener que pedirla. */
+    val transcript: Boolean = false,
 )
 
 /** Preferencias vigentes para [rememberBpmFeedbackEffects]; sin proveedor valen los valores por defecto (todo activo). */

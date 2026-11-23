@@ -84,6 +84,7 @@ internal fun WorkerLearnContent(
     val active = remember(ordered, state.pathCourses) { activeCourseId(ordered.map { state.pathCourses[it.course.id] }) }
     BpmPlayColumns(rail = { PathRail(state.achievements) }) { railVisible ->
         if (!railVisible) PathPills(state.achievements)
+        pe.bpm.features.research.presentation.StudyPromptCard()
         state.assignmentsFailure?.takeIf { state.assignments.isEmpty() }?.let { failure ->
             Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             BpmChunkyButton("Volver a intentar", learner::refreshAssignments, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)

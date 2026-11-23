@@ -6,4 +6,4 @@ import platform.UIKit.UIAccessibilityIsReduceMotionEnabled
 
 /** iOS: preferencia «Reducir movimiento» de Accesibilidad. */
 @Composable
-actual fun rememberReduceMotion(): Boolean = remember { UIAccessibilityIsReduceMotionEnabled() }
+actual fun rememberSystemReduceMotion(): Boolean = remember { UIAccessibilityIsReduceMotionEnabled() }

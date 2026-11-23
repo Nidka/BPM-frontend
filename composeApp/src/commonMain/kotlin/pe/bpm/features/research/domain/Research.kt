@@ -112,6 +112,15 @@ fun SurveyMoment.label(): String = when (this) {
     SurveyMoment.POSTTEST -> "Encuesta final"
 }
 
+/**
+ * Respuestas a medias de un momento, guardadas en este dispositivo para retomarlas (solo ids de pregunta y valores:
+ * nada que identifique a la persona). Se borran al enviar o al retirar el consentimiento.
+ */
+interface SurveyDraftStore {
+    suspend fun read(moment: SurveyMoment, instrumentVersionId: String): Map<String, Int>?
+    suspend fun write(moment: SurveyMoment, instrumentVersionId: String, answers: Map<String, Int>?)
+}
+
 interface ParticipationRepository {
     suspend fun participation(org: String): ResearchResult<Participation>
     suspend fun recordConsent(org: String, documentVersion: String, accepted: Boolean): ResearchResult<Participation>

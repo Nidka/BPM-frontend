@@ -126,6 +126,7 @@ internal fun ColumnScope.PlayCourseGuide(course: TrainingCourse, state: Training
     }
     if (total > 0) BpmChunkyButton(courseMainActionLabel(course), viewModel::resume, Modifier.fillMaxWidth())
     Text("Lo esencial", style = BpmPlayType.h2, color = BpmPlayColors.ink)
+    BpmListenButton(info.title + ". " + info.description + " " + course.lessons.mapIndexed { i, l -> "Lección ${i + 1}: ${l.title}." }.joinToString(" "), label = "Escuchar el curso")
     if (course.lessons.isEmpty()) Text("Este curso todavía no tiene lecciones publicadas.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
     val done = course.progress.completedLessonIds.toSet()
     course.lessons.forEachIndexed { index, lesson ->

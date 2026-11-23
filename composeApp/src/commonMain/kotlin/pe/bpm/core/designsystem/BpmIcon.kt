@@ -30,7 +30,7 @@ enum class BpmSymbol(internal val resource: DrawableResource) {
     Target(Res.drawable.ic_target), Thermometer(Res.drawable.ic_thermo), Spray(Res.drawable.ic_spray),
     Box(Res.drawable.ic_box), Hand(Res.drawable.ic_hand), Bug(Res.drawable.ic_bug),
     Wrench(Res.drawable.ic_wrench), Drop(Res.drawable.ic_drop), Eye(Res.drawable.ic_eye),
-    Dots(Res.drawable.ic_dots), WifiOff(Res.drawable.ic_wifi_off),
+    Dots(Res.drawable.ic_dots), WifiOff(Res.drawable.ic_wifi_off), Settings(Res.drawable.ic_settings),
 }
 
 /** La etiqueta pertenece al control; los íconos decorativos reciben una descripción nula. */

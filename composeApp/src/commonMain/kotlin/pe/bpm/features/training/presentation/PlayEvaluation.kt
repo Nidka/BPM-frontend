@@ -101,6 +101,7 @@ private fun PlayEvaluationQuestion(course: TrainingCourse, evaluation: Evaluatio
     ) {
         Box(Modifier.fillMaxWidth()) { EvaluationChip(evaluationChipLabel(evaluation.type, course.version.passingScore)) }
         Text(question.questionText, style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink, modifier = Modifier.fillMaxWidth())
+        BpmListenButton(question.questionText + ". " + question.options.mapIndexed { i, o -> "Opción ${i + 1}: $o." }.joinToString(" "), label = "Escuchar la pregunta")
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             question.options.forEachIndexed { option, text ->
                 BpmOptionTile(text, (option + 1).toString(), if (picked == option) BpmOptionState.Selected else BpmOptionState.Idle,

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -21,6 +22,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +65,11 @@ fun BpmDataRow(
     }
     val names: @Composable (Modifier) -> Unit = { m ->
         Column(m) {
+            // Sin ficha de estado, un tono de error no puede quedar solo en el color de la barra: lleva su icono y palabra.
+            if (tone == BpmPlayTone.Error && status == null) Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                BpmIcon(BpmSymbol.Alert, tint = BpmPlayColors.error.shadow, modifier = Modifier.size(16.dp))
+                Text("REQUIERE ATENCIÓN", style = BpmPlayType.statLabel, color = BpmPlayColors.error.shadow)
+            }
             Text(title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) Text(subtitle, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -76,7 +83,9 @@ fun BpmDataRow(
         .clip(RoundedCornerShape(12.dp))
     BpmFeedback(BpmPlayColors.action.face) {
         val row = if (onClick != null) base.clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick) else base
-        val content = row.semantics { this.selected = selected }.heightIn(min = BpmSpacing.touch).padding(horizontal = 4.dp, vertical = 8.dp)
+        // Una sola frase para el lector de pantalla: nombre, detalle, cifra y estado, en ese orden.
+        val spoken = listOfNotNull(title, subtitle, value, status?.text).joinToString(". ")
+        val content = row.semantics(mergeDescendants = true) { this.selected = selected; contentDescription = spoken }.heightIn(min = BpmSpacing.touch).padding(horizontal = 4.dp, vertical = 8.dp)
         if (stacked) Column(content, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 names(Modifier.weight(1f))

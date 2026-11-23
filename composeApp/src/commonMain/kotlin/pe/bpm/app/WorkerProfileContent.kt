@@ -80,19 +80,12 @@ internal fun WorkerProfileContent(
     organizationId: String,
     displayName: String,
     organizationName: String,
-    settings: BpmFeedbackSettings,
-    onSound: (Boolean) -> Unit,
-    onVibration: (Boolean) -> Unit,
+    onSettings: () -> Unit,
     onOpenCourse: (String) -> Unit,
     onLearn: () -> Unit,
-    onDevices: () -> Unit,
-    onAcceptInvitation: () -> Unit,
-    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     /** Rol que se muestra bajo el nombre: «Personal» o «Jefe de cocina» (el perfil es el mismo para ambos). */
     roleLabel: String = "Personal",
-    /** Guarda tamaño del texto, alto contraste y «Escuchar» (sección «Accesibilidad»). */
-    onAccessibility: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit = { _, _, _ -> },
 ) {
     LaunchedEffect(userId, organizationId) {
         learner.open(userId, organizationId, member = true)
@@ -101,10 +94,7 @@ internal fun WorkerProfileContent(
     val state by learner.state.collectAsStateWithLifecycle()
     val achievements = state.achievements
     val streak = achievements?.streak
-    BpmPlayColumns(modifier, rail = {
-        SettingsCard(settings, onSound, onVibration, onAccessibility)
-        AccountCard(onDevices, onAcceptInvitation, onLogout)
-    }) { railVisible ->
+    BpmPlayColumns(modifier, rail = { SettingsEntryCard(onSettings) }) { railVisible ->
         ProfileHeader(displayName, organizationName, roleLabel)
         if (!LocalOnline.current) BpmPlayNotice("Sin conexión: se muestran tus últimos logros. Se actualizarán al volver la red.")
         state.achievementsFailure?.takeIf { achievements == null }?.let { failure ->
@@ -117,10 +107,7 @@ internal fun WorkerProfileContent(
             BadgeGrid(badgeOrder(achievements.achievements))
         }
         CertificatesCard(certificateCourses(state.assignments), state.assignmentsLoaded, onOpenCourse, onLearn)
-        if (!railVisible) {
-            SettingsCard(settings, onSound, onVibration, onAccessibility)
-            AccountCard(onDevices, onAcceptInvitation, onLogout)
-        }
+        if (!railVisible) SettingsEntryCard(onSettings)
     }
 }
 
@@ -267,69 +254,11 @@ private fun CertificatesCard(courses: List<MyAssignment>, loaded: Boolean, onOpe
     }
 }
 
-/** Ajustes: «Sonido» y «Vibración» (preferencia local de este dispositivo). */
+/** Entrada a «Ajustes»: el Perfil muestra solo quién eres; accesibilidad, sonido, dispositivos y cerrar sesión viven en Ajustes. */
 @Composable
-internal fun SettingsCard(
-    settings: BpmFeedbackSettings, onSound: (Boolean) -> Unit, onVibration: (Boolean) -> Unit,
-    onAccessibility: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit = { _, _, _ -> },
-) {
+internal fun SettingsEntryCard(onSettings: () -> Unit) {
     BpmPlayCard {
-        Text("Ajustes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
-        SwitchRow("Sonido", "Un sonido corto al acertar y al terminar. El mensaje siempre se ve también en pantalla.", settings.sound, onSound)
-        SwitchRow("Vibración", "Una vibración suave al responder.", settings.vibration, onVibration)
-        Text("Se guarda solo en este dispositivo.", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
-    }
-    AccessibilityCard(settings, onAccessibility)
-}
-
-/** Tamaños del texto que se ofrecen: normal, grande y muy grande (se suman al tamaño de letra del sistema). */
-internal val textScaleOptions = listOf(1f to "Normal", 1.15f to "Grande", 1.3f to "Muy grande")
-
-/**
- * «Accesibilidad» (todos los roles): tamaño del texto, alto contraste y «Escuchar» (lectura en voz alta). Cada cambio se
- * aplica al instante en toda la app y se guarda en este dispositivo. Lenguaje simple, sin términos técnicos.
- */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-internal fun AccessibilityCard(settings: BpmFeedbackSettings, onChange: (textScale: Float, highContrast: Boolean, readAloud: Boolean) -> Unit) {
-    BpmPlayCard {
-        Text("Accesibilidad", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
-        Text("Tamaño del texto", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            textScaleOptions.forEach { (scale, label) ->
-                BpmFilterChip(settings.textScale == scale, { onChange(scale, settings.highContrast, settings.readAloud) }, label = { Text(label) })
-            }
-        }
-        SwitchRow("Más contraste", "Letras y bordes más oscuros para leer mejor.", settings.highContrast) { onChange(settings.textScale, it, settings.readAloud) }
-        SwitchRow("Escuchar", "Muestra un botón para que el teléfono lea en voz alta las lecciones y las preguntas.", settings.readAloud) { onChange(settings.textScale, settings.highContrast, it) }
-        Text("Los videos tienen subtítulos y su texto debajo. Se guarda solo en este dispositivo.", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
-    }
-}
-
-/** Fila con interruptor: toda la fila conmuta (`Role.Switch`, mínimo 56 dp de alto) y el interruptor es solo visual. */
-@Composable
-private fun SwitchRow(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(12.dp))
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
-        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
-            Text(detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
-        }
-        Switch(checked, null, colors = SwitchDefaults.colors(checkedTrackColor = BpmPlayColors.action.face, checkedThumbColor = Color.White,
-            uncheckedTrackColor = BpmPlayColors.lock, uncheckedThumbColor = BpmPlayColors.muted, uncheckedBorderColor = BpmPlayColors.muted))
-    }
-}
-
-/** Cuenta: «Mis dispositivos», «Aceptar una invitación» y «Cerrar sesión» (acciones existentes de la cuenta). */
-@Composable
-internal fun AccountCard(onDevices: () -> Unit, onAcceptInvitation: () -> Unit, onLogout: () -> Unit) {
-    BpmPlayCard {
-        Text("Cuenta", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
-        BpmChunkyButton("Mis dispositivos", onDevices, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
-        BpmChunkyButton("Aceptar una invitación", onAcceptInvitation, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
-        BpmChunkyButton("Cerrar sesión", onLogout, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Logout)
+        BpmSettingLink("Ajustes", "Tamaño del texto, contraste, «Escuchar», sonido, dispositivos y cerrar sesión.", onSettings, symbol = BpmSymbol.Settings)
+        pe.bpm.features.research.presentation.StudyLinkRow()
     }
 }

@@ -25,6 +25,8 @@ import pe.bpm.core.designsystem.*
     onBack: (() -> Unit)? = null,
  onAlerts: (() -> Unit)? = null, unreadCount:Int? = null,
     onAccount: (() -> Unit)? = null,
+    /** «Ajustes» (engranaje): accesibilidad, sonido y cuenta; disponible en todos los roles. */
+    onSettings: (() -> Unit)? = null,
     /** Modo enfoque: no nulo cambia la cabecera a cerrar (X) + este título, sin avisos ni cuenta. */
     focusTitle: String? = null,
 ) {
@@ -47,6 +49,11 @@ import pe.bpm.core.designsystem.*
             if(onAlerts!=null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 IconButton(onClick=onAlerts,enabled=enabled,modifier=Modifier.semantics{contentDescription=if(unreadCount==null) "Mis avisos" else "Mis avisos. $unreadCount sin leer"}) {
                     BadgedBox(badge={if(unreadCount!=null && unreadCount>0) Badge{Text(if(unreadCount>99) "99+" else unreadCount.toString())}}){BpmIcon(BpmSymbol.Bell)}
+                }
+            }
+            if (onSettings != null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
+                IconButton(onClick = onSettings, enabled = enabled, modifier = Modifier.semantics { contentDescription = "Ajustes" }) {
+                    BpmIcon(BpmSymbol.Settings)
                 }
             }
             // «Mi cuenta» sale de la navegación principal y vive en el avatar de la cabecera.

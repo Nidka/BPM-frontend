@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -49,7 +50,7 @@ fun BpmCourseCard(
         BpmFeedback(MaterialTheme.colorScheme.primary) {
             Surface(shape = shape, color = MaterialTheme.colorScheme.surface, border = BorderStroke(2.dp, border)) {
                 Column(Modifier.fillMaxHeight().clickable(role = Role.Button, onClick = onClick)) {
-                    Box(Modifier.fillMaxWidth().height(72.dp).background(band).padding(horizontal = BpmSpacing.lg), contentAlignment = Alignment.CenterStart) {
+                    Box(Modifier.fillMaxWidth().heightIn(min = 72.dp).background(band).padding(horizontal = BpmSpacing.lg), contentAlignment = Alignment.CenterStart) {
                         Text(code, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Column(Modifier.fillMaxWidth().padding(BpmSpacing.lg), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {

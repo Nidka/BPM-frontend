@@ -4,4 +4,4 @@ import androidx.compose.runtime.Composable
 
 /** Escritorio/JVM (pruebas): sin preferencia del sistema disponible. */
 @Composable
-actual fun rememberReduceMotion(): Boolean = false
+actual fun rememberSystemReduceMotion(): Boolean = false

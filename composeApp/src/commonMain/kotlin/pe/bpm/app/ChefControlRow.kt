@@ -61,7 +61,7 @@ private fun ControlSummary(name: String, detail: String, state: ChefControlState
             BpmIcon(icon.symbol, tint = shade.ink, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2)
+            Text(name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = bpmTitleLines())
             Text(detail, style = BpmPlayType.rowDetail, color = if (state == ChefControlState.Late) BpmPlayColors.error.shadow else BpmPlayColors.muted, maxLines = 2)
         }
     }

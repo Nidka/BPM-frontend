@@ -249,7 +249,6 @@ fun BpmDetailFields(fields: List<BpmDetailField>, modifier: Modifier = Modifier)
  * la lista), título con [status], [subtitle], [actions] del registro (un solo botón principal; el resto secundarios)
  * y sus secciones ([content]).
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BpmDetailPane(
     title: String,
@@ -259,24 +258,22 @@ fun BpmDetailPane(
     onBack: (() -> Unit)? = null,
     backLabel: String = "Volver a la lista",
     actions: (@Composable () -> Unit)? = null,
+    eyebrow: String? = null,
+    facts: List<BpmDetailFact> = emptyList(),
+    chips: List<BpmDetailChip> = emptyList(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
-        if (onBack != null && !LocalBpmDetailBeside.current)
-            BpmTextButton(onClick = onBack, modifier = Modifier.heightIn(min = BpmSpacing.touch)) {
-                BpmIcon(BpmSymbol.Back, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.size(BpmSpacing.sm))
-                Text(backLabel)
-            }
-        Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                if (status != null) BpmStatusChip(status.text, status.tone)
-            }
-            subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        // Las acciones del registro saltan de línea si no caben (360 dp): nunca se cortan ni desbordan.
-        if (actions != null) FlowRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalArrangement = Arrangement.spacedBy(BpmSpacing.md)) { actions() }
-        content()
-    }
+    // Una sola anatomía de detalle para todos los roles: este panel es BpmDetailScaffold con la ficha de estado del registro.
+    BpmDetailScaffold(
+        title, modifier, onBack = if (LocalBpmDetailBeside.current) null else onBack, backLabel = backLabel, eyebrow = eyebrow, subtitle = subtitle,
+        chips = listOfNotNull(status?.let { BpmDetailChip(it.text, it.tone.playTone()) }) + chips, facts = facts, actions = actions, content = content,
+    )
+}
+
+/** Tono del estilo de juego equivalente al tono semántico de un estado de registro. */
+internal fun BpmTone.playTone(): BpmPlayTone = when (this) {
+    BpmTone.Neutral, BpmTone.Info -> BpmPlayTone.Action
+    BpmTone.Success -> BpmPlayTone.Correct
+    BpmTone.Warning -> BpmPlayTone.Gold
+    BpmTone.Danger -> BpmPlayTone.Error
 }

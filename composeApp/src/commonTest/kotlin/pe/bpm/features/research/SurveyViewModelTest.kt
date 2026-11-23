@@ -139,4 +139,37 @@ class SurveyViewModelTest {
             assertNotNull(model.state.value.participation)
         }
     }
+
+    private class MemoryDrafts : SurveyDraftStore {
+        val saved = mutableMapOf<String, Map<String, Int>>()
+        override suspend fun read(moment: SurveyMoment, instrumentVersionId: String) = saved["$moment:$instrumentVersionId"]
+        override suspend fun write(moment: SurveyMoment, instrumentVersionId: String, answers: Map<String, Int>?) {
+            if (answers.isNullOrEmpty()) saved.remove("$moment:$instrumentVersionId") else saved["$moment:$instrumentVersionId"] = answers
+        }
+    }
+
+    @Test fun halfAnsweredSurveyIsSavedAndResumedAfterLeaving() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val repo = FakeParticipationRepository()
+        val drafts = MemoryDrafts()
+        var n = 0
+        val model = SurveyViewModel(LoadParticipation(repo), RecordConsent(repo), SubmitSurvey(repo),
+            { "00000000-0000-4000-8000-${(++n).toString().padStart(12, '0')}" }, { STAMP }, drafts = drafts)
+        try {
+            model.open("user", "org"); advanceUntilIdle()
+            model.start(SurveyMoment.PRETEST); advanceUntilIdle()
+            model.answer(Q1, 1); advanceUntilIdle()
+            assertEquals(1, drafts.saved.size)
+            // Salir descarta lo de pantalla pero conserva la participación y el borrador.
+            model.leave()
+            assertNotNull(model.state.value.participation)
+            assertTrue(model.state.value.answers.isEmpty())
+            model.start(SurveyMoment.PRETEST); advanceUntilIdle()
+            assertEquals(1, model.state.value.answers.size)
+            assertEquals(1, model.state.value.index)
+            // Enviar todo borra el borrador.
+            model.answerAll(); model.submit(); advanceUntilIdle()
+            assertTrue(drafts.saved.isEmpty())
+        } finally { model.reset(); model.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
 }

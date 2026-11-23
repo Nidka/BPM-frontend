@@ -174,6 +174,7 @@ private fun CategoryStep(
     viewModel: IncidentsViewModel, onOpenList: () -> Unit,
 ) {
     BpmMascotRow(Res.drawable.mascot_fix, "¿Qué tipo de problema es?", imageWidth = 72.dp)
+    BpmListenButton("¿Qué tipo de problema es? " + options.joinToString(". ") { it.name } + ".", label = "Escuchar las opciones")
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         options.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -205,7 +206,9 @@ private fun DescribeStep(
         Text("Cuéntanos qué pasó", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink, modifier = Modifier.weight(1f, fill = false))
         selected?.let { BpmPlayChip(it.name, BpmPlayTone.Streak, uppercase = false) }
     }
-    Text(if (selected?.code == "OTRO") "Escribe con tus palabras lo que viste." else "Si quieres, agrega un detalle. Con elegir el tipo ya puedes enviarlo.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    val help = if (selected?.code == "OTRO") "Escribe con tus palabras lo que viste." else "Si quieres, agrega un detalle. Con elegir el tipo ya puedes enviarlo."
+    Text(help, style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    BpmListenButton("Cuéntanos qué pasó. $help")
     BpmTextField(note, onNote, "Qué pasó", Modifier.fillMaxWidth(), enabled = enabled, error = e.errors["description"], rule = InputRules.text(0, 1000), singleLine = false)
     BpmTextField(place, onPlace, "Dónde (cocina, almacén, salón…) · opcional", Modifier.fillMaxWidth(), enabled = enabled, rule = InputRules.text(0, 120))
     BpmChoiceTile("Tomar una foto después de enviar", BpmSymbol.Camera, BpmPlayTone.Streak, wantPhoto, { onPhoto(!wantPhoto) }, Modifier.fillMaxWidth(), horizontal = true)

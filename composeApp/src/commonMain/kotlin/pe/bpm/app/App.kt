@@ -219,6 +219,16 @@ fun App(
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
     val currentWorkspace = workspaceState.workspace
+    // Estudio CAP: la participación se consulta al entrar (miembros, no la super administración) para invitar a la encuesta
+    // inicial y, pasado el piloto, a la final desde Hoy, Turno, Inicio y Aprender; nunca bloquea nada.
+    val surveyState by survey.state.collectAsStateWithLifecycle()
+    LaunchedEffect(profile?.id, currentWorkspace?.organization?.id) {
+        if (profile != null && profile.platformRole != "SUPER_ADMIN" && currentWorkspace != null) survey.open(profile.id, currentWorkspace.organization.id)
+    }
+    val studyPromptState = if (profile != null && profile.platformRole != "SUPER_ADMIN" && currentWorkspace != null && surveyState.participation?.survey != null)
+        pe.bpm.features.research.presentation.StudyPromptState(
+            pe.bpm.features.research.domain.studyPrompt(surveyState.participation, kotlin.time.Clock.System.now().toString())) { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }
+    else null
     // El ADMIN supervisa a todo el equipo en «Seguimiento», pero en «Control» ve solo sus propias revisiones.
     val onControlRoute = entry?.destination?.route?.startsWith(WorkspaceDestination.Operations.route) == true
     LaunchedEffect(profile?.id, currentWorkspace?.organization?.id, currentWorkspace?.role, profile?.platformRole, onControlRoute) {
@@ -358,6 +368,7 @@ fun App(
     val systemDensity = androidx.compose.ui.platform.LocalDensity.current
     CompositionLocalProvider(LocalOnline provides offlineUi.status.online, pe.bpm.core.offline.LocalPendingMarks provides offlineUi.marks,
         pe.bpm.core.designsystem.LocalBpmFeedbackSettings provides feedbackSettings,
+        pe.bpm.features.research.presentation.LocalStudyPrompt provides studyPromptState,
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(systemDensity.density, systemDensity.fontScale * feedbackSettings.textScale)) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
         banner = { if (profile != null) Column { OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow); pe.bpm.core.offline.OtherAccountNotice(offlineUi) } }) {
@@ -415,7 +426,7 @@ fun App(
                     WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE, REPORT_PROBLEM)
                     WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, TEMPLATE_VERSIONS, ALERT_RULES, DAILY_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
-                    WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT)
+                    WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT, SETTINGS)
                     else -> listOf(destination.route)
                 }
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
@@ -461,6 +472,7 @@ fun App(
                     val managingTraining = route == TRAINING_MANAGEMENT
                     val managingAccounts = route == ACCOUNTS_MANAGEMENT
                     val viewingDevices = route == DEVICES
+                    val viewingSettings = route == SETTINGS
                     val acceptingInvitation = route == INVITATION_ACCEPT
                     val studySurvey = route == STUDY_SURVEY
                     val researching = route == RESEARCH_PANEL
@@ -489,7 +501,7 @@ fun App(
                         else action()
                     }
                     fun closeForm() {
-                        if (managingAccounts || viewingDevices || acceptingInvitation) { navigateBack(destination.route); return }
+                        if (managingAccounts || viewingDevices || acceptingInvitation || viewingSettings) { navigateBack(destination.route); return }
                         if (learningCourse) {
                             // Una evaluación sin enviar pide confirmación antes de perder las respuestas.
                             if (pe.bpm.features.training.presentation.needsExitConfirmation(training.state.value)) { confirmEvaluationExit = true; return }
@@ -675,6 +687,7 @@ fun App(
                                 onAlertRules={nav.navigate(ALERT_RULES){launchSingleTop=true}},
                                 onWebhooks = { nav.navigate(WEBHOOKS_MANAGEMENT) { launchSingleTop = true } },
                                 onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
+                                onSettings = if (viewingSettings) null else ({ leaveRun { nav.navigate(SETTINGS) { launchSingleTop = true } } }),
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
                                 onTraining = { nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
@@ -750,27 +763,16 @@ fun App(
                                 }) else null,
                                 workerProfile = if (destination == WorkspaceDestination.Account && learnerPlay && currentWorkspace != null) ({
                                     WorkerProfileContent(trainingLearner, profile.id, currentWorkspace.organization.id, profile.displayName, currentWorkspace.organization.name,
-                                        settings = feedbackSettings,
-                                        onSound = { on -> feedbackScope.launch { feedbackPreferences.setSound(on) } },
-                                        onVibration = { on -> feedbackScope.launch { feedbackPreferences.setVibration(on) } },
-                                        onAccessibility = { scale, contrast, listen -> feedbackScope.launch { feedbackPreferences.setAccessibility(scale, contrast, listen) } },
+                                        onSettings = { nav.navigate(SETTINGS) { launchSingleTop = true } },
                                         onOpenCourse = { course -> courseIntent = null; nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
-                                        onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
-                                        onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
-                                        onLogout = ::requestLogout, roleLabel = if (chefPlay) "Jefe de cocina" else "Personal")
+                                        roleLabel = if (chefPlay) "Jefe de cocina" else "Personal")
                                 }) else if (destination == WorkspaceDestination.Account && (adminPlay || profile.platformRole == "SUPER_ADMIN")) ({
                                     // Perfil del administrador y de la super administración: el de Personal y Jefe sin racha ni insignias.
                                     ManagerProfileContent(profile.displayName,
                                         if (profile.platformRole == "SUPER_ADMIN") "Administrador general" else "Administrador",
                                         if (profile.platformRole == "SUPER_ADMIN") profile.email else currentWorkspace?.organization?.name.orEmpty(),
-                                        settings = feedbackSettings,
-                                        onSound = { on -> feedbackScope.launch { feedbackPreferences.setSound(on) } },
-                                        onVibration = { on -> feedbackScope.launch { feedbackPreferences.setVibration(on) } },
-                                        onAccessibility = { scale, contrast, listen -> feedbackScope.launch { feedbackPreferences.setAccessibility(scale, contrast, listen) } },
-                                        onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
-                                        onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
-                                        onLogout = ::requestLogout,
+                                        onSettings = { nav.navigate(SETTINGS) { launchSingleTop = true } },
                                         onLearn = if (adminPlay) ({ nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } }) else null)
                                 }) else null,
                                 hiddenCourseIds = assignedCourseIds,
@@ -803,7 +805,7 @@ fun App(
                                     pe.bpm.features.operations.presentation.WorkerQuickTask(dailyOperations, onCleaningPhotos = { execution -> openCleaningPhotos(execution) },
                                         backLabel = "Volver a Hoy", modifier = Modifier.fillMaxSize())
                                 }) else if (studySurvey) ({
-                                    SurveyContent(profile.id, workspaceState.selected.orEmpty(), survey)
+                                    SurveyContent(profile.id, workspaceState.selected.orEmpty(), survey, onClose = { if (!survey.back()) navigateBack(destination.route) })
                                 }) else if (researching) ({
                                     pe.bpm.core.offline.ServerOnly { ResearchContent(profile.id, research) }
                                 }) else if (learningCourse) ({
@@ -829,6 +831,12 @@ fun App(
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
                                         organizationName = workspaceState.workspace?.organization?.name.orEmpty())
+                                }) else if (viewingSettings) ({
+                                    SettingsContent(feedbackSettings, { next -> feedbackScope.launch { feedbackPreferences.save(next) } },
+                                        onAlerts = if (currentWorkspace != null) ({ nav.navigate(ALERT_INBOX) { launchSingleTop = true } }) else null,
+                                        onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
+                                        onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
+                                        onLogout = ::requestLogout)
                                 }) else if (viewingDevices) ({
                                     DevicesContent(profile.id, myDevices)
                                 }) else if (acceptingInvitation) ({
@@ -945,7 +953,7 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
                                     }) }) else managementContent,
-                                secondaryEditor = workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryEditor = workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || viewingSettings || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
                                     learningCourse && courseOverview -> BpmPattern.Panel
@@ -955,10 +963,10 @@ fun App(
                                     else -> BpmPattern.Panel
                                 },
                                 secondaryWideOnExpanded = learningCourse && courseWidePane,
-                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || reportProblem || chefRunStage,
-                                playFocus = learnerPlay,
+                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || reportProblem || studySurvey || chefRunStage,
+                                playFocus = learnerPlay || reportProblem || studySurvey,
                                 focusTitle = courseTitle,
-                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingSettings) "Ajustes" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -1179,6 +1187,8 @@ private const val REPORT_PROBLEM = "reportar"
 private const val TRAINING_COURSE = "aprender/{courseId}"
 private const val TRAINING_MANAGEMENT = "empresa/academia"
 private const val STUDY_SURVEY = "estudio"
+/** Ajustes: accesibilidad, sonido, avisos y cuenta; la misma pantalla para todos los roles. */
+private const val SETTINGS = "ajustes"
 private const val RESEARCH_PANEL = "investigacion"
 
 private const val ACCOUNTS_MANAGEMENT = "empresa/cuentas"

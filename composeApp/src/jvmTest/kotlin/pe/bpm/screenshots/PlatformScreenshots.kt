@@ -229,8 +229,7 @@ internal val platformScreens: List<ScreenSpec> = listOf(
     ScreenSpec("super-perfil") {
         val content: @Composable () -> Unit = {
             SuperShell(WorkspaceDestination.Account, workerProfile = {
-                pe.bpm.app.ManagerProfileContent("Equipo BPM", "Administrador general", "equipo@bpm.pe", pe.bpm.core.designsystem.BpmFeedbackSettings(sound = true, vibration = false),
-                    {}, {}, {}, {}, {})
+                pe.bpm.app.ManagerProfileContent("Equipo BPM", "Administrador general", "equipo@bpm.pe", onSettings = {})
             })
         }
         content

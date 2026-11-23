@@ -76,6 +76,7 @@ internal fun AdminInicioContent(
     val attention = adminAttention(kpis?.pendingChecks?.overdue, kpis?.openIncidents, kpis?.openAlerts, rows.count { it.tone == BpmPlayTone.Error })
 
     BpmPlayColumns(modifier, rail = { AdminRail(actions) }, alignStart = true) { railVisible ->
+        pe.bpm.features.research.presentation.StudyPromptCard()
         if (kpis != null || attention.isNotEmpty()) BpmAttentionBar(
             attention.map { entry ->
                 BpmAttentionItem(entry.text, when (entry.kind) {

@@ -100,8 +100,8 @@ internal fun ChefTurnoContent(
     BpmPlayColumns(modifier, rail = {
         LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje")
         IncidentsCard(kpis?.openIncidents, onIncidents)
-        onStudySurvey?.let { StudySurveyCard(it) }
     }) { railVisible ->
+        pe.bpm.features.research.presentation.StudyPromptCard()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text(title, style = BpmPlayType.h1, color = BpmPlayColors.ink, modifier = Modifier.weight(1f, fill = false).semantics { heading() })
             if (site != null && locations.size == 1) BpmPlayChip(site.name, BpmPlayTone.Action, uppercase = false)
@@ -180,7 +180,6 @@ internal fun ChefTurnoContent(
         if (!railVisible) {
             LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje")
             IncidentsCard(kpis?.openIncidents, onIncidents)
-            onStudySurvey?.let { StudySurveyCard(it) }
         }
     }
 }

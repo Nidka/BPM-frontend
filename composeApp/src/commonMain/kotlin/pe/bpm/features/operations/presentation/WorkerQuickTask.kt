@@ -155,6 +155,7 @@ private fun TaskSteps(
 private fun ResultStep(plan: CleaningPlan?, planName: String, result: CleaningResult, onPick: (CleaningResult) -> Unit) {
     TaskHeader(plan, planName)
     Text("¿Cómo quedó?", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
+    BpmListenButton("${plan?.task ?: planName}. ¿Cómo quedó? Elige: bien, con observación, o no se pudo hacer.", label = "Escuchar la tarea")
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BpmChoiceTile("Bien", BpmSymbol.Check, BpmPlayTone.Correct, result == CleaningResult.COMPLETED, { onPick(CleaningResult.COMPLETED) }, Modifier.weight(1f).fillMaxHeight())
         BpmChoiceTile("Con observación", BpmSymbol.Eye, BpmPlayTone.Gold, result == CleaningResult.OBSERVED, { onPick(CleaningResult.OBSERVED) }, Modifier.weight(1f).fillMaxHeight())
@@ -215,7 +216,7 @@ private fun TaskHeader(plan: CleaningPlan?, fallbackName: String) {
             BpmIcon(icon.symbol, tint = shade.ink, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(plan?.task ?: fallbackName, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2)
+            Text(plan?.task ?: fallbackName, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = bpmTitleLines())
             if (detail.isNotBlank()) Text(detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = 2)
         }
     }

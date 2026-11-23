@@ -62,7 +62,7 @@ fun BpmMissionRow(
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = BpmPlayType.rowTitle, color = if (done) BpmPlayColors.correct.shadow else BpmPlayColors.ink,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    maxLines = bpmTitleLines(), overflow = TextOverflow.Ellipsis)
                 Text(detail, style = BpmPlayType.rowDetail, color = if (late && !done) BpmPlayColors.error.face else BpmPlayColors.muted)
             }
             Box(Modifier.size(BpmSpacing.touch).clip(CircleShape)

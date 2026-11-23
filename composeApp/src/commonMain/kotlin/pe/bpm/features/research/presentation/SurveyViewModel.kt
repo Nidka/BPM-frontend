@@ -54,6 +54,7 @@ class SurveyViewModel(
     private val newId: () -> String,
     private val now: () -> String,
     private val localFirst: pe.bpm.core.offline.LocalFirstReader = pe.bpm.core.offline.LocalFirstReader.Direct,
+    private val drafts: SurveyDraftStore? = null,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(SurveyState())
     val state: StateFlow<SurveyState> = mutable.asStateFlow()
@@ -80,6 +81,42 @@ class SurveyViewModel(
     }
 
     fun refresh() = load()
+
+    /**
+     * Sale de la encuesta sin perder la participación (la invitación de Hoy/Aprender la sigue usando): vuelve al resumen y
+     * descarta lo que estaba en pantalla. Las respuestas a medias quedan en el borrador local para retomarlas.
+     */
+    fun leave() {
+        val s = mutable.value
+        if (s.userId == null) return
+        actionJob?.cancel()
+        generation++
+        mutable.value = s.copy(screen = SurveyPane.OVERVIEW, moment = null, index = 0, answers = emptyMap(), pending = null, submitting = false,
+            consentBusy = false, confirmingRevoke = false, showMissing = false, completedMoment = null, completedQueued = false, notice = null, failure = null)
+    }
+
+    private fun saveDraft(s: SurveyState, answers: Map<String, Int>?) {
+        val store = drafts ?: return
+        val moment = s.moment ?: return
+        val version = s.survey?.instrumentVersionId ?: return
+        viewModelScope.launch { store.write(moment, version, answers) }
+    }
+
+    private fun restoreDraft(moment: SurveyMoment) {
+        val store = drafts ?: return
+        val version = mutable.value.survey?.instrumentVersionId ?: return
+        viewModelScope.launch {
+            val saved = store.read(moment, version) ?: return@launch
+            val s = mutable.value
+            val survey = s.survey ?: return@launch
+            if (s.moment != moment || s.answers.isNotEmpty() || s.pending != null) return@launch
+            val valid = saved.filter { (id, value) -> survey.questions.firstOrNull { it.id == id }?.let { SurveyRules.isValidValue(it, value) } == true }
+            if (valid.isEmpty()) return@launch
+            val first = survey.questions.indexOfFirst { valid[it.id] == null }
+            mutable.value = s.copy(answers = valid, index = if (first >= 0) first else 0,
+                notice = "Retomamos tus respuestas: te quedaste en la pregunta ${(if (first >= 0) first else 0) + 1}.")
+        }
+    }
 
     private fun load() {
         val org = mutable.value.organizationId ?: return
@@ -155,7 +192,13 @@ class SurveyViewModel(
             val current = mutable.value
             mutable.value = when (result) {
                 is ResearchResult.Success -> withParticipation(current.copy(consentBusy = false), result.value)
-                    .let { next -> if (accepted) next else next.copy(moment = null, answers = emptyMap(), pending = null, index = 0) }
+                    .let { next ->
+                        if (accepted) next else {
+                            // Retirar el consentimiento borra también las respuestas a medias guardadas en el dispositivo.
+                            SurveyMoment.entries.forEach { m -> next.survey?.let { survey -> viewModelScope.launch { drafts?.write(m, survey.instrumentVersionId, null) } } }
+                            next.copy(moment = null, answers = emptyMap(), pending = null, index = 0)
+                        }
+                    }
                     .copy(screen = SurveyPane.OVERVIEW, notice = message)
                 is ResearchResult.Failure -> current.copy(consentBusy = false, failure = result.reason)
             }
@@ -174,6 +217,7 @@ class SurveyViewModel(
         mutable.value = if (s.moment == moment && s.answers.isNotEmpty())
             s.copy(screen = SurveyPane.QUESTIONS, failure = null, notice = null)
         else s.copy(screen = SurveyPane.QUESTIONS, moment = moment, index = 0, answers = emptyMap(), pending = null, showMissing = false, failure = null, notice = null)
+        if (!(s.moment == moment && s.answers.isNotEmpty())) restoreDraft(moment)
     }
 
     /** Registra la respuesta; se ignora si es inválida o si el envío ya está en curso o pendiente. */
@@ -181,7 +225,9 @@ class SurveyViewModel(
         val s = mutable.value
         val question = s.survey?.questions?.firstOrNull { it.id == questionId } ?: return
         if (s.pending != null || s.submitting || !SurveyRules.isValidValue(question, value)) return
-        mutable.value = s.copy(answers = s.answers + (questionId to value), failure = null)
+        val next = s.answers + (questionId to value)
+        mutable.value = s.copy(answers = next, failure = null)
+        saveDraft(s, next)
     }
 
     fun next() {
@@ -226,6 +272,7 @@ class SurveyViewModel(
             val current = mutable.value
             when (result) {
                 is ResearchResult.Success -> {
+                    saveDraft(current, null)
                     val record = SubmissionRecord(result.value.moment, result.value.instrumentVersionId, result.value.submittedAt)
                     val updated = current.participation?.let { it.copy(submissions = it.submissions + record) }
                     mutable.value = current.copy(submitting = false, pending = null, answers = emptyMap(), moment = null, index = 0,
@@ -233,6 +280,7 @@ class SurveyViewModel(
                 }
                 // Sin conexión: la entrega queda en la Outbox con el mismo UUID y se envía al sincronizar.
                 is ResearchResult.Failure -> if (result.reason == ResearchFailure.QUEUED) {
+                    saveDraft(current, null)
                     mutable.value = current.copy(submitting = false, pending = null, answers = emptyMap(), moment = null, index = 0,
                         screen = SurveyPane.DONE, completedMoment = submission.moment, completedQueued = true, failure = null)
                 } else onSubmitFailure(current, result.reason)

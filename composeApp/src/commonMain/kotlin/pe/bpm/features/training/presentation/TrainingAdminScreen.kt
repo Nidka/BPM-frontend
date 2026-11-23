@@ -62,7 +62,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
             BpmFilterChip(state.statusFilter == status, { viewModel.filter(status) }, { Text(statusLabel(status)) })
         }
     }
-    if (state.courses.isEmpty() && !state.loading) EmptyState("Sin cursos", "Todavía no hay cursos con este filtro. Crea el primero.")
+    if (state.courses.isEmpty() && !state.loading) EmptyState("Sin cursos", "Todavía no hay cursos con este filtro. Crea el primero.") { BpmChunkyButton("Crear curso", viewModel::startCreate, Modifier.bpmPrimaryButtonWidth()) }
     BpmGridLayout(state.courses) { course, cardModifier ->
         BpmCard(cardModifier, onClick = { viewModel.openDraft(course.id) }, onClickLabel = if (course.hasDraft) "Editar borrador" else "Preparar nueva versión") {
             Eyebrow(course.code)

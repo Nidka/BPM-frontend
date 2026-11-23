@@ -148,6 +148,7 @@ private fun Shell(
     secondaryWideOnExpanded: Boolean = false,
     focusMode: Boolean = false,
     focusTitle: String? = null,
+    secondaryTitle: String? = null,
     playFocus: Boolean = false,
     workerLearn: (@Composable (@Composable () -> Unit) -> Unit)? = null,
     workerProfile: (@Composable () -> Unit)? = null,
@@ -167,7 +168,7 @@ private fun Shell(
         taskContent = taskContent,
         secondaryContent = secondaryContent, secondaryEditor = secondaryEditor, secondaryPattern = secondaryPattern,
         secondaryWideOnExpanded = secondaryWideOnExpanded,
-        focusMode = focusMode, focusTitle = focusTitle, playFocus = playFocus, workerLearn = workerLearn, workerProfile = workerProfile,
+        focusMode = focusMode, focusTitle = focusTitle, secondaryTitle = secondaryTitle, playFocus = playFocus, workerLearn = workerLearn, workerProfile = workerProfile,
         onOrganizationSearch = {}, onOrganizationNext = {}, onOrganizationPrevious = {}, onOrganizationRetry = {},
         onPageSearch = { _, _ -> }, onPageNext = {}, onPagePrevious = {}, onPageRetry = {},
     )
@@ -205,9 +206,32 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         val learner = learnerVm()
         val content: @Composable () -> Unit = {
             Shell(WorkspaceDestination.Account, workerProfile = {
-                WorkerProfileContent(learner, F.USER, F.ORG, F.DISPLAY_NAME, "Cocina Andina", BpmFeedbackSettings(sound = true, vibration = false),
-                    onSound = {}, onVibration = {}, onOpenCourse = {}, onLearn = {}, onDevices = {}, onAcceptInvitation = {}, onLogout = {})
+                WorkerProfileContent(learner, F.USER, F.ORG, F.DISPLAY_NAME, "Cocina Andina", onSettings = {}, onOpenCourse = {}, onLearn = {})
             })
+        }
+        content
+    },
+    // Ajustes (accesibilidad, sonido, avisos y cuenta): la misma pantalla para todos los roles.
+    ScreenSpec("ajustes") {
+        val content: @Composable () -> Unit = {
+            Shell(WorkspaceDestination.Account, secondaryContent = {
+                pe.bpm.app.SettingsContent(BpmFeedbackSettings(), {}, onAlerts = {}, onDevices = {}, onAcceptInvitation = {}, onLogout = {})
+            }, secondaryEditor = true, secondaryTitle = "Ajustes")
+        }
+        content
+    },
+    // Texto «Muy grande» (×1,3): comprueba que nada se recorta en las fichas y pantallas principales.
+    ScreenSpec("hoy-texto-grande", full = false) {
+        val learner = learnerVm()
+        val operations = operationsVm()
+        val content: @Composable () -> Unit = {
+            val base = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density, 1.3f)) {
+                Shell(WorkspaceDestination.Home, homeContent = {
+                    WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
+                        onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME, onNormative = {})
+                })
+            }
         }
         content
     },
