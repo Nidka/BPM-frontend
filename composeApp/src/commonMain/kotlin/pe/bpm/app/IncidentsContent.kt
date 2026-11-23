@@ -12,6 +12,7 @@ import pe.bpm.features.incidents.presentation.IncidentsScreen
 import pe.bpm.features.incidents.presentation.IncidentsViewModel
 import pe.bpm.features.workspace.presentation.WorkspaceState
 import pe.bpm.features.workspace.presentation.WorkspaceViewModel
+import pe.bpm.resources.mascot_fix
 
 /** La raíz proporciona contexto autorizado y conecta fotos mediante callbacks. */
 @Composable
@@ -52,7 +53,7 @@ internal fun IncidentsContent(
         val ready = state.userId == userId && state.organizationId == org && state.siteId == siteId && state.role == role
         var showList by rememberSaveable(userId, org) { mutableStateOf(false) }
         when {
-            !ready -> LinearProgressIndicator(modifier.fillMaxWidth())
+            !ready -> BpmPlayStage(modifier, onClose = onClose, centered = true) { Text("Preparando el reporte…", style = BpmPlayType.sub, color = BpmPlayColors.muted) }
             showList && editor.form == null -> Column(modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BpmTextButton({ showList = false }, modifier = Modifier.heightIn(min = BpmSpacing.touch)) {
                     BpmIcon(BpmSymbol.Back)
@@ -63,6 +64,19 @@ internal fun IncidentsContent(
             }
             else -> pe.bpm.features.incidents.presentation.WorkerReportContent(incidents, onClose!!, onEvidence,
                 onOpenList = { incidents.picker(null); showList = true }, modifier = modifier.fillMaxSize())
+        }
+        return
+    }
+    if (worker && choosing) {
+        // Personal con varias sedes (o sin la lista cargada): elige una vez, con el mismo estilo del reporte.
+        BpmPlayStage(modifier, onClose = onClose, closeDescription = "Salir del reporte") {
+            BpmMascotRow(pe.bpm.resources.Res.drawable.mascot_fix, "¿En qué sede estás?", imageWidth = 72.dp)
+            WorkspaceSiteSelector(workspace, workspaceActions, siteId, siteName, true) {
+                siteId = it.id
+                siteName = it.name
+                zone = it.timezone
+                choosing = false
+            }
         }
         return
     }

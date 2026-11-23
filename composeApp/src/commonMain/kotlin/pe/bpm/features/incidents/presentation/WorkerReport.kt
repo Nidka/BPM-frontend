@@ -85,7 +85,15 @@ fun WorkerReportContent(
         return
     }
     if (form == null) {
-        BpmPlayStage(modifier, onClose = onClose, centered = true) { Text("Preparando el reporte…", style = BpmPlayType.sub, color = BpmPlayColors.muted) }
+        BpmPlayStage(modifier, onClose = onClose, centered = true) {
+            val failure = s.failure
+            if (failure != null && !s.authorized) {
+                // Sin sede autorizada no hay reporte: se dice qué pasó y se puede reintentar, nunca una barra sin fin.
+                BpmMascotRow(Res.drawable.mascot_fix, "No pudimos preparar el reporte", imageWidth = 72.dp)
+                Text(incidentFailureText(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                BpmChunkyButton("Volver a intentar", viewModel::refresh, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report)
+            } else Text("Preparando el reporte…", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+        }
         return
     }
     ReportSteps(s, e, form.values, viewModel, onClose, onOpenList, wantPhoto, { wantPhoto = it }, { sent = true }, modifier)

@@ -71,7 +71,8 @@ class IncidentsViewModel(
         )
             return
         reset()
-        mutable.value = IncidentsState(userId, organizationId, siteId, role, timeZone)
+        // Con nombres: el primer parámetro del estado es `notice`, no `userId` (en posición todo quedaba corrido un lugar).
+        mutable.value = IncidentsState(userId = userId, organizationId = organizationId, siteId = siteId, role = role, timeZone = timeZone)
         if (siteId == null) return
         val expected = generation
         mutable.value = mutable.value.copy(loading = true)
@@ -310,7 +311,12 @@ class IncidentsViewModel(
 
     fun newVersion(value: IncidentCatalog) = editor.new("CATALOG", catalog = value)
 
-    fun action(type: IncidentActionType) = editor.new(type.name, mutable.value.detail)
+    fun action(type: IncidentActionType) {
+        val s = mutable.value
+        // Quien corrigió no valida su propia corrección, aunque el servidor ofrezca la acción.
+        if (type == IncidentActionType.VERIFY && s.detail != null && IncidentsAccess.isSelfVerification(s.detail.actions, s.userId)) return
+        editor.new(type.name, s.detail)
+    }
 
     fun picker(value: IncidentPicker?) {
         pickerJob?.cancel()
