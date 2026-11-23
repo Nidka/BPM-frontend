@@ -10,12 +10,21 @@ import pe.bpm.features.workspace.presentation.WorkspaceViewModel
 @Composable internal fun ChecklistRunContent(userId: String, workspace: WorkspaceState,
     catalog: ChecklistCatalogState, run: ChecklistRunState, runs: ChecklistRunViewModel,
     workspaceActions: WorkspaceViewModel, catalogActions: ChecklistCatalogViewModel,
-    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit, onWorkOffline: ((String) -> Unit)? = null, evidence: @Composable (pe.bpm.features.checklists.domain.ChecklistItem) -> Unit = {}) {
+    starting: Boolean, templateId: String?, runId: String?, onStarted: (String) -> Unit, onBack: () -> Unit, onWorkOffline: ((String) -> Unit)? = null, evidence: @Composable (pe.bpm.features.checklists.domain.ChecklistItem) -> Unit = {},
+    /** Jefe de cocina: con el control en borrador (o recién finalizado) se muestra una pregunta por pantalla; [onClose] es la X y [notices] va arriba. */
+    stepwise: Boolean = false, onClose: () -> Unit = {}, notices: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {}) {
     val org = workspace.workspace?.organization?.id ?: return
     LaunchedEffect(userId, org, runId) { runs.open(userId, org, runId) }
     LaunchedEffect(starting, templateId, org) { if (starting) catalogActions.showTemplate(templateId) }
     LaunchedEffect(starting, run.run?.id) { if (starting || run.run?.id != runId) run.run?.id?.let(onStarted) }
     val scoped = run.takeIf { it.userId == userId && it.organizationId == org && (runId == null || it.run == null || it.run.id == runId) } ?: ChecklistRunState(busy = true)
+    if (stepwise && usesStepStage(scoped, userId, runId)) {
+        ChecklistStepFlow(scoped, runs::edit, runs::save, runs::review, runs::confirmSubmit, runs::backToEdit,
+            onRetry = runs::retry, onProtectDraft = { if (scoped.pending) runs.retry() else runs.protectDraft() }, onClose = onClose, onFinished = onBack,
+            notices = notices, evidence = evidence,
+            onWorkOffline = if (onWorkOffline != null && scoped.run?.status == "DRAFT") ({ scoped.run?.id?.let(onWorkOffline) }) else null)
+        return
+    }
     if (onWorkOffline != null && scoped.run?.status == "DRAFT" && scoped.run.performedBy == userId) {
         pe.bpm.core.designsystem.BpmSecondaryButton(onClick = { onWorkOffline(scoped.run.id) },
             enabled = !scoped.busy && !scoped.dirty && !scoped.pending && !scoped.conflicted && scoped.failure == null) {

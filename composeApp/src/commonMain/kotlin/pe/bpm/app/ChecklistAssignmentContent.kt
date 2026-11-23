@@ -87,6 +87,9 @@ internal fun ChecklistAssignmentDetailContent(
     catalogActions: ChecklistCatalogViewModel,
     onOpenRun: (AssignedChecklistRun) -> Unit,
     onStarted: (String) -> Unit,
+    /** «Empezar» desde Turno o Controles: inicia la revisión sin pedir otro toque cuando ya se puede (sin operación pendiente). */
+    autoStart: Boolean = false,
+    onAutoStarted: () -> Unit = {},
 ) {
     var starting by remember(organizationId, assignmentId) { mutableStateOf(false) }
     LaunchedEffect(assignmentId, state.organizationId) {
@@ -151,6 +154,15 @@ internal fun ChecklistAssignmentDetailContent(
                         it.id == value.templateId &&
                         it.versionId == value.templateVersionId
                 }
+            val startable = !management && value.active && value.run == null && scopedRun != null && template != null &&
+                !(scopedRun.busy || scopedRun.pending || scopedRun.dirty || scopedRun.failure != null)
+            LaunchedEffect(autoStart, startable) {
+                if (autoStart && startable) {
+                    onAutoStarted()
+                    starting = true
+                    runs.begin(value.locationId, value.templateVersionId, value.id)
+                }
+            }
             ChecklistAssignmentDetailScreen(
                 value,
                 userId,

@@ -41,8 +41,10 @@ internal fun WorkspaceScreen(
      */
     workerLearn: (@Composable (catalog: @Composable () -> Unit) -> Unit)? = null,
     hiddenCourseIds: Set<String> = emptySet(),
-    /** Perfil del personal (WORKER): reemplaza por completo la pantalla «Mi cuenta» (avatar, racha, insignias, ajustes y cuenta). */
+    /** Perfil del personal (WORKER) y del jefe de cocina (CHEF): reemplaza por completo la pantalla «Mi cuenta» (avatar, racha, insignias, ajustes y cuenta). */
     workerProfile: (@Composable () -> Unit)? = null,
+    /** Equipo del jefe de cocina (CHEF): lista–detalle de solo lectura con las personas de sus sedes; reemplaza la lista de gestión. */
+    chefTeam: (@Composable () -> Unit)? = null,
  onAlerts:(()->Unit)?=null, unreadAlertCount:Int?=null, onAlertRules:()->Unit={}, onWebhooks:()->Unit={}, onNormative:(()->Unit)?=null,
     taskContent: @Composable () -> Unit = {},
     secondaryContent: (@Composable () -> Unit)? = null,
@@ -76,8 +78,8 @@ internal fun WorkspaceScreen(
     val available = workspaceDestinations(role, viewer.canCreateOrganization)
     val navItems = workspaceNavigation(workspacePrimaryDestinations(available, role), shortcuts)
     // Todos los roles comparten la navegación del sistema: barra inferior hasta 839 dp y menú lateral de 230 dp desde 840 dp.
-    // Solo el personal (WORKER) tiene «Perfil» como destino propio, así que no necesita el avatar de la cabecera.
-    val profileInNav = role == "WORKER" && WorkspaceDestination.Tasks in available
+    // El personal (WORKER) y el jefe de cocina (CHEF) tienen «Perfil» como destino propio: no necesitan el avatar de la cabecera.
+    val profileInNav = profileInNavigation(role, available)
     val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     val contentScroll = rememberScrollState()
     val actionSlot = remember { BpmActionBarSlot() }
@@ -183,7 +185,7 @@ internal fun WorkspaceScreen(
                         WorkspaceDestination.Account -> Unit
                         // El personal (WORKER) ve solo su pantalla «Hoy»; el Home genérico de sedes/cursos/controles no le aplica.
                         WorkspaceDestination.Home -> {
-                            if (current.role == "WORKER" && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
+                            if ((current.role == "WORKER" || current.role == "CHEF") && homeContent != null) homeContent() else { homeContent?.invoke(); Home(current, learningAllowed = WorkspaceDestination.Learn in available, onLearn = { navigate(WorkspaceDestination.Learn) }, onCompany = { navigate(WorkspaceDestination.Company) }) }
                             // Buscador de normativa (RF-46/47): acceso para todos los roles.
                             if (onNormative != null) BpmActionTile(BpmSymbol.Learn, "Buscar en la normativa", "Encuentra lo que dice la norma sanitaria sobre temperaturas, higiene y más.", onNormative)
                         }
@@ -216,7 +218,7 @@ internal fun WorkspaceScreen(
                             } }
                             }
                         }
-                        WorkspaceDestination.Team -> {
+                        WorkspaceDestination.Team -> if (chefTeam != null) chefTeam() else {
                             // Una sola fila de acciones: la principal (agregar) y la de gestión; sin segundo título.
                             if (current.canManage) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -252,7 +254,8 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Operations, WorkspaceDestination.Supervision -> {
                             checklistContent()
-                            if (secondaryTitle == null) IncidentBanner(onIncidents)
+                            // El jefe de cocina ya tiene las incidencias dentro de Controles (su propia tarjeta); no se repite el banner.
+                            if (secondaryTitle == null && role != "CHEF") IncidentBanner(onIncidents)
                         }
                     } }
                 } } }

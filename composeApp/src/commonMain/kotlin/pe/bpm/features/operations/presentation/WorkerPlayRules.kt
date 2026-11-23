@@ -78,8 +78,11 @@ private fun normalized(text: String): String =
  * Icono de una tarea por palabras de su nombre o su área: temperatura/cámara → termómetro; manos y agua → gota;
  * recepción, insumos y vencimientos → caja; equipos → llave; plagas → insecto; el resto (limpieza y desinfección) → rociador.
  */
-internal fun missionIcon(plan: CleaningPlan): MissionIcon {
-    val t = normalized(plan.task + " " + plan.area)
+internal fun missionIcon(plan: CleaningPlan): MissionIcon = missionIconFor(plan.task + " " + plan.area)
+
+/** Igual que [missionIcon] pero por un texto cualquiera (el nombre de un control programado, por ejemplo). */
+internal fun missionIconFor(text: String): MissionIcon {
+    val t = normalized(text)
     fun has(vararg words: String) = words.any { it in t }
     return when {
         has("temperatura", "°c", "camara", "refriger", "congel") -> MissionIcon(BpmSymbol.Thermometer, BpmPlayTone.Action)

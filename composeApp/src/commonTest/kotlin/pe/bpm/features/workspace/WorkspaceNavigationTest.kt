@@ -37,6 +37,7 @@ class WorkspaceNavigationTest {
         assertTrue(WorkspaceDestination.Operations in chef)
         assertTrue(WorkspaceDestination.Learn in chef)
         assertFalse(WorkspaceDestination.Company in chef)
+        assertTrue(WorkspaceDestination.Team in chef)
     }
 
     @Test fun organizationAdminSupervisesAndAlsoPerformsDailyReviews() {
@@ -49,31 +50,41 @@ class WorkspaceNavigationTest {
             WorkspaceDestination.Supervision, WorkspaceDestination.Company), primary)
     }
 
-    @Test fun accountLivesInTheHeaderAndChefHasNoTeamList() {
-        for (role in listOf("ADMIN", "CHEF")) {
-            val primary = workspacePrimaryDestinations(workspaceDestinations(role, false))
-            assertFalse(WorkspaceDestination.Account in primary, role)
-            assertTrue(WorkspaceDestination.Account in workspaceDestinations(role, false), role)
-        }
-        assertFalse(WorkspaceDestination.Team in workspaceDestinations("CHEF", false))
-        assertTrue(WorkspaceDestination.Account in workspaceDestinations("WORKER", false))
+    @Test fun accountLivesInTheHeaderForAdminAndInTheNavigationForChefAndWorker() {
+        val admin = workspacePrimaryDestinations(workspaceDestinations("ADMIN", false), "ADMIN")
+        assertFalse(WorkspaceDestination.Account in admin)
+        assertTrue(WorkspaceDestination.Account in workspaceDestinations("ADMIN", false))
+        for (role in listOf("CHEF", "WORKER")) assertTrue(WorkspaceDestination.Account in workspacePrimaryDestinations(workspaceDestinations(role, false), role), role)
+        assertTrue(WorkspaceDestination.Team in workspaceDestinations("CHEF", false))
+        assertFalse(WorkspaceDestination.Team in workspaceDestinations("WORKER", false))
+    }
+
+    @Test fun chefNavigationIsShiftControlsTeamLearnProfile() {
+        val primary = workspacePrimaryDestinations(workspaceDestinations("CHEF", false), "CHEF")
+        assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Operations, WorkspaceDestination.Team, WorkspaceDestination.Learn, WorkspaceDestination.Account), primary)
+        assertEquals(listOf("Turno", "Controles", "Equipo", "Aprender", "Perfil"), primary.map { destinationLabel(it, "CHEF") })
+        // Las incidencias dejan de ser un destino del jefe: viven dentro de Turno y Controles.
+        assertTrue(workspaceShortcuts("CHEF", false, canResearch = false, canManageGrants = false).isEmpty())
+        // El administrador conserva sus etiquetas.
+        assertEquals("Inicio", destinationLabel(WorkspaceDestination.Home, "ADMIN"))
+        assertEquals("Control", destinationLabel(WorkspaceDestination.Operations, "ADMIN"))
     }
 
     @Test fun workerNavigationIsTodayLearnTasksProfile() {
         val primary = workspacePrimaryDestinations(workspaceDestinations("WORKER", false), "WORKER")
         assertEquals(listOf(WorkspaceDestination.Home, WorkspaceDestination.Learn, WorkspaceDestination.Tasks, WorkspaceDestination.Account), primary)
         assertEquals(listOf("Hoy", "Aprender", "Tareas", "Perfil"), primary.map { destinationLabel(it, "WORKER") })
-        // Los demás roles conservan sus etiquetas y «Mi cuenta» en la cabecera.
-        assertEquals("Mi cuenta", destinationLabel(WorkspaceDestination.Account, "CHEF"))
-        assertEquals("Mis tareas", destinationLabel(WorkspaceDestination.Tasks, "CHEF"))
+        // El administrador conserva sus etiquetas y «Mi cuenta» en la cabecera.
+        assertEquals("Mi cuenta", destinationLabel(WorkspaceDestination.Account, "ADMIN"))
+        assertEquals("Mis tareas", destinationLabel(WorkspaceDestination.Tasks, "ADMIN"))
     }
 
     private fun nav(role: String?, platform: Boolean, research: Boolean = false, grants: Boolean = false) =
         workspaceNavigation(workspacePrimaryDestinations(workspaceDestinations(role, platform), role), workspaceShortcuts(role, platform, research, grants))
             .map { when (it) { is WorkspaceNavItem.Section -> destinationLabel(it.destination, role); is WorkspaceNavItem.Shortcut -> it.shortcut.label } }
 
-    @Test fun chefGetsIncidentsAsItsOwnDestinationAndNoTeam() {
-        assertEquals(listOf("Inicio", "Control", "Incidencias", "Aprender"), nav("CHEF", false))
+    @Test fun chefGetsFiveDestinationsAndNoIncidentsShortcut() {
+        assertEquals(listOf("Turno", "Controles", "Equipo", "Aprender", "Perfil"), nav("CHEF", false))
     }
 
     @Test fun researcherWithoutOrganizationSeesHomeAndResearch() {

@@ -157,6 +157,8 @@ fun App(
     val nav = rememberNavController()
     // Camino de Aprender (WORKER): qué abrir al llegar al curso (lección o evaluación final); lo consume TrainingCourseContent.
     var courseIntent by remember { mutableStateOf<Pair<String, pe.bpm.features.training.presentation.CourseIntent>?>(null) }
+    // «Empezar» de un control programado (Turno y Controles del jefe de cocina): la ficha del control inicia la revisión sola.
+    var autoStartAssignment by remember { mutableStateOf<String?>(null) }
     val entry by nav.currentBackStackEntryAsState()
     var pendingRoute by rememberSaveable { mutableStateOf(WorkspaceDestination.Home.route) }
 
@@ -419,6 +421,13 @@ fun App(
                     val learningCourse = route == TRAINING_COURSE
                     // El personal (WORKER) estudia con el camino y las pantallas de juego; ADMIN y CHEF conservan las de siempre.
                     val workerPlay = currentWorkspace?.role == "WORKER"
+                    // El jefe de cocina (CHEF) comparte con el personal el camino de Aprender, las lecciones y el Perfil.
+                    val chefPlay = currentWorkspace?.role == "CHEF" && profile?.platformRole != "SUPER_ADMIN"
+                    val learnerPlay = workerPlay || chefPlay
+                    // Ejecución de un control del jefe: una pregunta por pantalla (modo enfoque), solo con el control en borrador o recién finalizado.
+                    val chefRunStage = chefPlay && route == CHECKLIST_RUN &&
+                        pe.bpm.features.checklists.presentation.usesStepStage(runState, profile?.id, routeEntry.arguments?.let { NavType.StringType[it, "runId"] }) &&
+                        runState.organizationId == workspaceState.selected
                     // Registro rápido de una tarea (modo enfoque): en Hoy lo muestra la raíz; en Tareas, la propia lista (que conserva su estado).
                     val workerQuick = workerPlay && (route == WorkspaceDestination.Home.route || route == WorkspaceDestination.Tasks.route) &&
                         (dailyState.form != null || dailyState.taskDone != null)
@@ -469,7 +478,7 @@ fun App(
                             // Una evaluación sin enviar pide confirmación antes de perder las respuestas.
                             if (pe.bpm.features.training.presentation.needsExitConfirmation(training.state.value)) { confirmEvaluationExit = true; return }
                             // El personal sale de lección, práctica y evaluación directo al camino.
-                            if (workerPlay) { navigateBack(destination.route); return }
+                            if (learnerPlay) { navigateBack(destination.route); return }
                             if (!training.back()) navigateBack(destination.route)
                             return
                         }
@@ -566,8 +575,13 @@ fun App(
                             fun openAssignedRun(run: pe.bpm.features.checklists.domain.AssignedChecklistRun) {
                                 val target = if (destination == WorkspaceDestination.Company) "seguimiento/${run.id}"
                                     else if (run.status == "DRAFT" && run.performedBy == profile.id) "control/ejecucion/${run.id}"
-                                    else if (destination == WorkspaceDestination.Home) "seguimiento/${run.id}" else "control/revisiones/${run.id}"
+                                    else if (destination == WorkspaceDestination.Home && !chefPlay) "seguimiento/${run.id}" else "control/revisiones/${run.id}"
                                 nav.navigate(target) { launchSingleTop = true }
+                            }
+                            // «Empezar» / «Continuar» / «Ver» de un control programado: sin revisión, abre su ficha e inicia sola.
+                            val openControl: (pe.bpm.features.checklists.domain.ChecklistAssignment) -> Unit = { item ->
+                                if (item.run != null) openAssignedRun(item.run)
+                                else { autoStartAssignment = item.id; nav.navigate("control/programacion/${item.id}") { launchSingleTop = true } }
                             }
                             val scopedAssignments = assignmentState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected }
                                 ?: ChecklistAssignmentsState(loading = true, detailLoading = true)
@@ -576,9 +590,12 @@ fun App(
                                     checklistState, checklists, workspace,
                                     onSaved = { assignments.refresh(); nav.navigate(ASSIGNMENT_MANAGEMENT) { popUpTo(ASSIGNMENT_CREATE) { inclusive = true }; launchSingleTop = true } },
                                     onDiscard = { navigateBack(TEMPLATE_MANAGEMENT) }) } })
-                                viewingAssignment -> ({ ChecklistAssignmentDetailContent(profile.id, workspaceState.selected.orEmpty(), assignmentId, managingAssignments,
+                                viewingAssignment -> ({
+                                    DisposableEffect(assignmentId) { onDispose { autoStartAssignment = null } }
+                                    ChecklistAssignmentDetailContent(profile.id, workspaceState.selected.orEmpty(), assignmentId, managingAssignments,
                                     scopedAssignments, assignments, runState, runs, checklistState, checklists, ::openAssignedRun,
-                                    onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(ASSIGNMENT_DETAIL) { inclusive = true }; launchSingleTop = true } }) })
+                                    onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(ASSIGNMENT_DETAIL) { inclusive = true }; launchSingleTop = true } },
+                                    autoStart = assignmentId != null && autoStartAssignment == assignmentId, onAutoStarted = { autoStartAssignment = null }) })
                                 route == ASSIGNMENT_MANAGEMENT -> ({ ChecklistAssignmentsScreen(scopedAssignments, true, assignments::search, assignments::refresh, assignments::previous, assignments::next,
                                     onOpen = { nav.navigate("empresa/controles-programados/${it.id}") { launchSingleTop = true } },
                                     assignments::requestDeactivate, assignments::confirmDeactivate) })
@@ -651,6 +668,18 @@ fun App(
                                         onReport = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } },
                                         onAchievements = { nav.navigate(TRAINING_ACHIEVEMENTS) { launchSingleTop = true } },
                                         displayName = profile.displayName)
+                                }) else if (chefPlay && currentWorkspace != null) ({
+                                    // Pantalla «Turno» del jefe de cocina: franja de atención, indicadores, controles de hoy, equipo y su aprendizaje.
+                                    ChefTurnoContent(profile.id, currentWorkspace.organization.id, currentWorkspace.locations,
+                                        teamOf(currentWorkspace.members, currentWorkspace.locations.map { it.id }.toSet(), profile.id),
+                                        trainingLearner, dailyOperations, scopedAssignments, assignments::refresh, reportsDashboardState, reportsDashboard::refresh,
+                                        onOpenControl = openControl,
+                                        onControls = { nav.navigate(WorkspaceDestination.Operations.route) { launchSingleTop = true } },
+                                        onTeam = { nav.navigate(WorkspaceDestination.Team.route) { launchSingleTop = true } },
+                                        onIncidents = { nav.navigate(INCIDENT_EXECUTION) { launchSingleTop = true } },
+                                        onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
+                                        onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                        onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } })
                                 }) else if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole) || currentWorkspace?.role == "ADMIN") ({
                                     if (pe.bpm.features.reports.domain.ReportAccess.canView(reportRole))
                                         pe.bpm.features.reports.presentation.DashboardPanel(reportsDashboardState, reportsDashboard::refresh, { nav.navigate(REPORTS) { launchSingleTop = true } })
@@ -661,7 +690,10 @@ fun App(
                                             assignments::requestDeactivate, assignments::confirmDeactivate, title = "Controles de hoy")
                                 }) else null,
                                 onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
-                                workerProfile = if (destination == WorkspaceDestination.Account && workerPlay && currentWorkspace != null) ({
+                                chefTeam = if (destination == WorkspaceDestination.Team && chefPlay && currentWorkspace != null) ({
+                                    ChefTeamContent(teamOf(currentWorkspace.members, currentWorkspace.locations.map { it.id }.toSet(), profile.id), currentWorkspace.locations)
+                                }) else null,
+                                workerProfile = if (destination == WorkspaceDestination.Account && learnerPlay && currentWorkspace != null) ({
                                     WorkerProfileContent(trainingLearner, profile.id, currentWorkspace.organization.id, profile.displayName, currentWorkspace.organization.name,
                                         settings = feedbackSettings,
                                         onSound = { on -> feedbackScope.launch { feedbackPreferences.setSound(on) } },
@@ -670,7 +702,7 @@ fun App(
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                         onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
-                                        onLogout = ::requestLogout)
+                                        onLogout = ::requestLogout, roleLabel = if (chefPlay) "Jefe de cocina" else "Personal")
                                 }) else null,
                                 hiddenCourseIds = assignedCourseIds,
                                 learnHeader = if (destination == WorkspaceDestination.Learn && currentWorkspace != null) ({
@@ -679,7 +711,7 @@ fun App(
                                         onAchievements = { nav.navigate(TRAINING_ACHIEVEMENTS) { launchSingleTop = true } },
                                         onPaths = { nav.navigate(TRAINING_PATHS) { launchSingleTop = true } })
                                 }) else null,
-                                workerLearn = if (destination == WorkspaceDestination.Learn && workerPlay && currentWorkspace != null) ({ catalog ->
+                                workerLearn = if (destination == WorkspaceDestination.Learn && learnerPlay && currentWorkspace != null) ({ catalog ->
                                     pe.bpm.features.training.presentation.WorkerLearnContent(trainingLearner, profile.id, currentWorkspace.organization.id, profile.platformRole != "SUPER_ADMIN",
                                         onOpenLesson = { course, lesson -> courseIntent = course to pe.bpm.features.training.presentation.CourseIntent.Lesson(lesson); nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         onOpenFinal = { course -> courseIntent = course to pe.bpm.features.training.presentation.CourseIntent.FinalEvaluation; nav.navigate("aprender/$course") { launchSingleTop = true } },
@@ -709,11 +741,11 @@ fun App(
                                     if (confirmEvaluationExit) AlertDialog(onDismissRequest = { confirmEvaluationExit = false },
                                         title = { Text("¿Salir sin enviar?") },
                                         text = { Text("Perderás las respuestas de este intento.") },
-                                        confirmButton = { BpmTextButton({ confirmEvaluationExit = false; if (workerPlay || !training.back()) navigateBack(destination.route) }) { Text("Salir") } },
+                                        confirmButton = { BpmTextButton({ confirmEvaluationExit = false; if (learnerPlay || !training.back()) navigateBack(destination.route) }) { Text("Salir") } },
                                         dismissButton = { BpmTextButton({ confirmEvaluationExit = false }) { Text("Seguir respondiendo") } })
                                     if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training,
                                         onOpenCourse = { id -> courseIntent = null; nav.navigate("aprender/$id") { launchSingleTop = true } },
-                                        worker = if (workerPlay) {
+                                        worker = if (learnerPlay) {
                                             val learner = trainingLearner.state.collectAsStateWithLifecycle().value
                                             val module = pe.bpm.features.training.presentation.moduleOf(learner.assignments, trainingCourseId)
                                             pe.bpm.features.training.presentation.WorkerCourseContext(
@@ -805,7 +837,26 @@ fun App(
                                     }, detail = { ChecklistHistoryDetailScreen(scopedHistoryState, onRetry = { history.select(runId) }, evidence = { item ->
                                     scopedHistoryState.detail?.let { reviewed -> EvidenceQuestionAction(item.label, reviewed.evidenceCounts[item.id] ?: 0, false,
                                         onOpen = { evidenceQuestion = EvidenceQuestion(reviewed.id, item.id, item.label); evidence.open(profile.id, reviewed.organizationId, reviewed.id, item.id, false) }) }
-                                }) }) }) else if (running) ({
+                                }) }) }) else if (chefRunStage) ({
+                                    ChecklistRunContent(profile.id, workspaceState, checklistState, runState,
+                                        runs, workspace, checklists, route == CHECKLIST_START, templateId, runId,
+                                        onStarted = { id -> nav.navigate("control/ejecucion/$id") { popUpTo(CHECKLIST_START) { inclusive = true }; launchSingleTop = true } },
+                                        onWorkOffline = if (scopedOfflineState.owner == null || scopedOfflineState.busy) null else { id -> offlineRuns.prepare(id) },
+                                        onBack = { nav.navigate(WorkspaceDestination.Operations.route) { popUpTo(WorkspaceDestination.Operations.route) { inclusive = false }; launchSingleTop = true } },
+                                        evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
+                                            onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
+                                        },
+                                        stepwise = true, onClose = ::closeForm,
+                                        notices = {
+                                            ChefRunNotices(exitPending = runState.pending, exitBusy = runState.busy, exitOpen = runExit != null,
+                                                offlineBusy = scopedOfflineState.busy,
+                                                offlineFailure = scopedOfflineState.failure?.let { pe.bpm.features.checklists.presentation.runFailureMessage(it) },
+                                                offlineDraftFailed = if (scopedOfflineState.localStatus == pe.bpm.core.presentation.DraftSaveStatus.FAILED) scopedOfflineState.notice.orEmpty() else null,
+                                                onKeepDraft = { val exit = runExit; runs.leave { runExit = null; exit?.invoke() } },
+                                                onDiscard = { val exit = runExit; runExit = null; runs.discard { exit?.invoke() } },
+                                                onContinue = { runExit = null })
+                                        })
+                                }) else if (running) ({
                                     if (runExit != null) BpmCard(Modifier.fillMaxWidth()) {
                                         Text(if (runState.pending || runState.busy) "Hay una operación sin confirmar" else "Hay respuestas sin guardar")
                                         Text("Puedes conservar el borrador en este dispositivo y retomarlo después con tu misma cuenta.")
@@ -825,7 +876,7 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
                                     }) }) else managementContent,
-                                secondaryEditor = workerQuickHome || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryEditor = workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
                                     learningCourse && courseOverview -> BpmPattern.Panel
@@ -835,8 +886,8 @@ fun App(
                                     else -> BpmPattern.Panel
                                 },
                                 secondaryWideOnExpanded = learningCourse && courseWidePane,
-                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay),
-                                playFocus = workerPlay,
+                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || chefRunStage,
+                                playFocus = learnerPlay,
                                 focusTitle = courseTitle,
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
@@ -886,7 +937,7 @@ fun App(
                                 noticeVisible = accessNotice != null,
                                 screenNotice = {
                                     if (destination == WorkspaceDestination.Home && route == WorkspaceDestination.Home.route) {
-                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN" && !workerPlay) BpmCard(Modifier.fillMaxWidth()) {
+                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN" && !learnerPlay) BpmCard(Modifier.fillMaxWidth()) {
                                             Text("Encuesta del estudio", style = MaterialTheme.typography.titleMedium)
                                             Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.")
                                             BpmSecondaryButton(onClick = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }) { Text("Abrir encuesta del estudio") }
@@ -915,7 +966,23 @@ fun App(
                                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                                 },
                                 checklistContent = {
-                                    if (route == WorkspaceDestination.Operations.route) {
+                                    if (route == WorkspaceDestination.Operations.route && chefPlay) {
+                                        // «Controles» del jefe de cocina: los controles del periodo con «Empezar» y los accesos de la sección (incidencias incluidas).
+                                        val openIncidents = reportsDashboardState.kpis?.openIncidents
+                                        ChefControlsContent(profile.id, scopedAssignments, listOf(
+                                            ChefControlLink(BpmSymbol.Alert, "Incidencias", when (openIncidents) {
+                                                null -> "Consulta lo reportado y atiende las correcciones."
+                                                0 -> "No hay incidencias abiertas."
+                                                1 -> "1 abierta: atiéndela y valida el cierre."
+                                                else -> "$openIncidents abiertas: atiéndelas y valida el cierre."
+                                            }) { nav.navigate(INCIDENT_EXECUTION) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Sprout, "Insumos y limpieza", "Recepciones, lotes y tareas de tu sede.") { nav.navigate(DAILY_EXECUTION) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Control, if (offlineState.pendingCount > 0) "En este dispositivo · ${offlineState.pendingCount} pendientes" else "Controles en este dispositivo",
+                                                "Revisiones guardadas para trabajar sin conexión.") { nav.navigate(CHECKLIST_OFFLINE) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Clock, "Mis revisiones", "Historial de tus controles.") { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Learn, "Otras plantillas", "Consulta las plantillas publicadas.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
+                                        ), assignments::refresh, assignments::previous, assignments::next, openControl)
+                                    } else if (route == WorkspaceDestination.Operations.route) {
                                         // Panel de Control: controles de hoy como contenido principal y accesos a la derecha (clase grande) o debajo.
                                         BpmPanelLayout(support = {
                                             BpmActionTile(BpmSymbol.Sprout, "Insumos y limpieza", "Recepciones, lotes y tareas de tu sede.",

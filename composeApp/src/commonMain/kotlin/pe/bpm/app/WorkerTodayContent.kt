@@ -116,13 +116,7 @@ internal fun WorkerTodayContent(
             })
         }
         if (!railVisible) GoalCard(goal.chip, goal.progress, goal.complete)
-        onStudySurvey?.let { open ->
-            BpmPlayCard {
-                Text("Encuesta del estudio", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
-                Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-                BpmChunkyButton("Abrir encuesta", open, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
-            }
-        }
+        onStudySurvey?.let { open -> StudySurveyCard(open) }
         state.assignmentsFailure?.takeIf { state.assignments.isEmpty() }?.let { failure ->
             Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             BpmChunkyButton("Volver a intentar", learner::refreshAssignments, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
@@ -150,6 +144,16 @@ internal fun WorkerTodayContent(
         }
         LearnCard(next, state.assignmentsLoaded, onLearn, onContinueCourse)
         BpmChunkyButton("Reportar un problema", onReport, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert)
+    }
+}
+
+/** Invitación a la encuesta del estudio CAP (voluntaria y anónima). */
+@Composable
+internal fun StudySurveyCard(onOpen: () -> Unit) {
+    BpmPlayCard {
+        Text("Encuesta del estudio", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+        Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+        BpmChunkyButton("Abrir encuesta", onOpen, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
     }
 }
 
@@ -184,12 +188,12 @@ private fun PlayNote(text: String) {
     Text(text, style = BpmPlayType.sub, color = BpmPlayColors.muted, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
 }
 
-/** «Sigue aprendiendo»: la capacitación que toca (con su avance) y un botón al camino; sin pendientes, un refuerzo. */
+/** «Sigue aprendiendo» ([title]): la capacitación que toca (con su avance) y un botón al camino; sin pendientes, un refuerzo. */
 @Composable
-private fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit, onContinue: (String) -> Unit) {
+internal fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit, onContinue: (String) -> Unit, title: String = "Sigue aprendiendo") {
     if (next == null && !loaded) return
     BpmPlayCard {
-        Text("Sigue aprendiendo", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+        Text(title, style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         if (next != null) {
             val started = next.status == AssignmentProgress.IN_PROGRESS
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {

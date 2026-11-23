@@ -89,6 +89,8 @@ internal fun WorkerProfileContent(
     onAcceptInvitation: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Rol que se muestra bajo el nombre: «Personal» o «Jefe de cocina» (el perfil es el mismo para ambos). */
+    roleLabel: String = "Personal",
 ) {
     LaunchedEffect(userId, organizationId) {
         learner.open(userId, organizationId, member = true)
@@ -101,7 +103,7 @@ internal fun WorkerProfileContent(
         SettingsCard(settings, onSound, onVibration)
         AccountCard(onDevices, onAcceptInvitation, onLogout)
     }) { railVisible ->
-        ProfileHeader(displayName, organizationName)
+        ProfileHeader(displayName, organizationName, roleLabel)
         if (!LocalOnline.current) BpmPlayNotice("Sin conexión: se muestran tus últimos logros. Se actualizarán al volver la red.")
         state.achievementsFailure?.takeIf { achievements == null }?.let { failure ->
             Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -120,9 +122,9 @@ internal fun WorkerProfileContent(
     }
 }
 
-/** Avatar de 64 dp con las iniciales, el nombre (Baloo 2) y «Personal · {org}». */
+/** Avatar de 64 dp con las iniciales, el nombre (Baloo 2) y «{rol} · {org}». */
 @Composable
-private fun ProfileHeader(displayName: String, organizationName: String) {
+private fun ProfileHeader(displayName: String, organizationName: String, roleLabel: String) {
     Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(64.dp).background(BpmPlayColors.action.soft, CircleShape).border(BpmPlayBorder, BpmPlayColors.navBorder, CircleShape).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
             Text(initialsOf(displayName), style = BpmPlayType.h1.copy(fontSize = 22.sp), color = BpmPlayColors.action.face)
@@ -130,7 +132,7 @@ private fun ProfileHeader(displayName: String, organizationName: String) {
         Column(Modifier.weight(1f)) {
             Text(displayName.ifBlank { "Mi perfil" }, style = BpmPlayType.h1.copy(fontSize = 24.sp), color = BpmPlayColors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
-            Text(if (organizationName.isBlank()) "Personal" else "Personal · $organizationName", style = BpmPlayType.sub, color = BpmPlayColors.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(if (organizationName.isBlank()) roleLabel else "$roleLabel · $organizationName", style = BpmPlayType.sub, color = BpmPlayColors.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
