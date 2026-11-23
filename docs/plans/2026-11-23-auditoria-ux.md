@@ -282,3 +282,24 @@ prueba en esa organización). Se abrieron también, como Administrador, Equipo, 
 | E14 | Todos · carga inicial | El esqueleto aparecía sobre el título «Hola, …» | El título no se dibuja mientras el espacio carga | Hecho |
 | F1 | Formularios | Migrar los formularios restantes a `BpmFormScaffold` | **No se migraron**: `BpmFormLayout` ya cumple la anatomía de formulario (columna de 720 dp, secciones, acciones al final) y sus títulos los pone el shell; `BpmFormScaffold` queda disponible para formularios nuevos | Pendiente |
 | M1 | 390 dp Jefe y Administrador | No se recorrieron en vivo (solo Personal a 390) | — | Pendiente |
+
+## 14. Pasada móvil (390 y 768 dp) Jefe y Administrador, acciones reales en «Prueba BPM»
+
+Barrido con Playwright a 390 y 768 dp: Jefe (Turno, Controles, Equipo, Aprender, Perfil, Ajustes, Ayuda, Reportar) y Administrador (Inicio, Controles,
+Equipo, Academia, Seguimiento, Incidencias, Empresa, Ajustes, Ayuda, Perfil). Acciones reales hechas en la organización de prueba: **se envió una
+invitación** a `bpm-invitado-fd3760@yopmail.com` (asistente de 3 pasos → enlace listo para copiar/compartir), **se asignó el Módulo 1 a Pedro** (asistente de 3 pasos).
+La edición y reversión de un campo de sede **no pudo hacerse porque «Editar sede» cerraba la app** (ver H3).
+
+| # | Dónde | Hallazgo | Corrección | Estado |
+|---|---|---|---|---|
+| H1 | Control · «Comenzar revisión» | Se avisaba del control ya programado solo DESPUÉS de pulsar y con un error | Al elegir la sede, si la plantilla ya está programada y vigente allí, aparece el aviso y «Abrir el control programado» (y «Comenzar revisión» queda secundario y desactivado). `ScheduledControls`/`scheduledFor` | Hecho (sin probar en vivo: no hay un control de ese tipo sin hacer en la organización) |
+| H2 | Admin · dos pantallas de equipo | «Equipo» y «Cuentas y equipo» duplicadas | Una sola: «Equipo» del administrador muestra pestañas Equipo · Invitaciones · Organización y sedes; «Invitar persona», «Gestionar» y «Editar datos/sede» abren la pestaña que toca | Hecho |
+| H3 | Admin · «Editar sede/datos» | **Cerraba la app** (`Vertically scrollable component was measured with an infinity maximum height`): la unificación (H2, commit 3869722, ya desplegado) alojó la pantalla de cuentas, que desplaza en vertical, dentro de un espacio que ya desplaza | `scrollable = false` en esa ranura + prueba de arquitectura que lo exige. Hubo una ventana en producción con el fallo hasta el despliegue de 01ce36f | Hecho |
+| H4 | Admin · Invitar | Debajo del asistente seguía la lista de invitaciones; con una sola sede había que marcarla a mano antes de «Enviar invitación» | La lista se oculta mientras hay formulario o enlace; la sede única queda marcada | Hecho |
+| H5 | Admin · Incidencias y operación diaria | Con una sola sede preguntaban «¿En qué sede trabajarás?» (solo Personal la saltaba) | Cualquier rol con una sola sede la usa sin preguntar | Hecho |
+| H6 | Inicio (Jefe/Admin) en teléfono | «Primeros pasos» ocupaba media pantalla | En teléfono solo se listan los pasos pendientes (los hechos cuentan en «3 de 4») | Hecho |
+| H7 | Jefe · Primeros pasos | «Haz tu primer control» no se marcaba aunque ya había uno finalizado | Se cuenta con las revisiones finalizadas propias | Hecho |
+| H8 | Admin · Asignar curso | Aviso «verán en «Mis capacitaciones»» (esa pantalla se llama «Aprender») | Texto corregido | Hecho |
+| H9 | Admin · Asignar curso, paso 3 | La fecha límite se escribe a mano como AAAA-MM-DD | Sin selector de fecha; queda anotado | Pendiente |
+| H10 | Admin · Equipo en teléfono | Las pestañas se reacomodan al cambiar la marcada (el ancho del «✓» cambia el salto de línea), así el segundo toque cae en otro lugar | Sin cambio | Pendiente |
+| H11 | 768 dp (Jefe) | Turno, Controles y Reportar se ven bien: columna centrada de 640 dp y barra inferior | — | Verificado |
