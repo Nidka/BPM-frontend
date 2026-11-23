@@ -232,3 +232,20 @@ participante, exportación anonimizada. **No faltaba backend.** Lo que faltaba e
   vuelve a ver la introducción (se salta en un toque). Si se necesita por usuario, hay que agregar un campo de preferencias en el
   backend.
 - Pruebas: `OnboardingRulesTest` (tarjetas por rol, pasos automáticos, ayuda por ruta, persistencia).
+
+## 12. Pasada de uso en vivo: Jefe de cocina y Administrador (appbpm.com, organización «Prueba BPM»)
+
+Hecha con Playwright a 1280 y 390 dp y con el arnés de capturas. Solo se leyó y se navegó; no se enviaron formularios que creen datos
+(la organización de prueba ya tenía una revisión «En curso» de Ana). Capturas en `scratchpad/pw/e2e-*.png` (no se versionan).
+
+| # | Rol · pantalla | Qué se probó | Hallazgo | Corrección | Estado |
+|---|---|---|---|---|---|
+| E1 | Jefe · Turno → «VER» un control | Abrir el único control de hoy | Abre el «Detalle de revisión» **de otra persona** (Ana), de solo lectura, con «Mis revisiones» vacío al lado: parece un error y no hay cómo hacer uno propio | Se dejó el detalle (es lo correcto para un control ajeno) y se agregó el camino claro de E2 | Parcial |
+| E2 | Jefe · Controles | Hacer un control propio | Eran **5 toques** y el acceso se llamaba «Otras plantillas» (Controles → Otras plantillas → Abrir plantilla → Preparar revisión → sede) | Botón principal «Hacer un control ahora» arriba y el acceso se renombra «Empezar otro control» (elige una plantilla y complétala en tu sede) | Hecho |
+| E3 | Admin · Controles → «Programar control» | Programar un control | 4 toques (Programar control → Abrir plantilla → Programar en una sede → formulario) y la pantalla intermedia decía «Plantillas de control» con el texto fijo «Crea una primera versión…» aunque ya hubiera plantillas | Texto según el estado («Elige una plantilla para programarla en una sede, o crea una nueva» / «Aún no tienes plantillas…») y «Crear plantilla» pasa a secundario cuando ya hay plantillas | Hecho |
+| E4 | Admin · Plantilla | Detalle de plantilla | Ya usa la anatomía única: antetítulo «CONTROL», ficha de versión, datos clave (preguntas, obligatorias, con evidencia), acción principal «Programar en una sede», «Escuchar las preguntas» | — | Hecho |
+| E5 | Admin · Empresa | Datos y sedes | Las tarjetas de «Gestión» mezclan iconos presentes y espacios en blanco | Ver E7 | Pendiente |
+| E6 | Jefe · Equipo / Turno | Ver al equipo | «Aún no hay personas para mostrar» aunque la sede tiene personal: el servidor solo entrega la lista de miembros a quien puede administrar | Requiere un endpoint o filtro por sede para el Jefe en el backend | Pendiente (backend) |
+| E7 | Todos · iconos | Cambiar de pantalla varias veces | Algunas capturas muestran huecos donde van iconos (Equipo, Academia, campana, rueda, «Insumos y limpieza»…); no es reproducible a voluntad y los recursos no devuelven errores HTTP, así que parece una carga de recursos de Compose para web que no termina | Sin causa confirmada; conviene precargar los iconos del shell al arrancar | Pendiente |
+| E8 | Todos · acceso | Iniciar sesión desde un headless | A veces la llamada de acceso se cancela y aparece «La conexión tardó demasiado»; reintentar funciona | No es de la interfaz; revisar el tiempo máximo de la llamada de acceso | Pendiente |
+| E9 | Admin · Invitar persona, Academia → asignar curso, Seguimiento | — | **No se recorrieron de punta a punta** en vivo por el límite de tiempo (la tarea de invitar y asignar crea datos y requiere el correo real) | — | Pendiente |

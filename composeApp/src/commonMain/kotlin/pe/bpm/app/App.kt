@@ -700,11 +700,14 @@ fun App(
                                         val scopedManagement = checklistState.takeIf { it.userId == profile.id && it.organizationId == workspaceState.selected } ?: ChecklistCatalogState(loading = true)
                                         if (templateId == null && scopedManagement.failure !in setOf(ChecklistFailure.ACCESS_DENIED, ChecklistFailure.SESSION_REQUIRED)) {
                                             BpmChunkyButton("Controles programados", { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } }, tone = BpmChunkyTone.White)
-                                            Text("Crea una primera versión y revisa las preguntas antes de publicarla.")
+                                            val hasTemplates = scopedManagement.templates.isNotEmpty()
+                                            // Con plantillas: el paso siguiente es elegir una para programarla; sin ellas, crear la primera.
+                                            Text(if (hasTemplates) "Elige una plantilla para programarla en una sede, o crea una nueva."
+                                            else "Aún no tienes plantillas. Crea la primera y revisa sus preguntas antes de publicarla.")
                                             BpmChunkyButton("Crear plantilla", {
                                                 if (templateEditorState.published != null) templateEditor.reset()
                                                 nav.navigate(TEMPLATE_CREATE) { launchSingleTop = true }
-                                            }, Modifier.bpmPrimaryButtonWidth())
+                                            }, if (hasTemplates) Modifier else Modifier.bpmPrimaryButtonWidth(), tone = if (hasTemplates) BpmChunkyTone.White else BpmChunkyTone.Action)
                                         }
                                         LaunchedEffect(templateId, checklistState.userId, checklistState.organizationId) {
                                             if (checklistState.organizationId == workspaceState.selected) checklists.showTemplate(templateId)
@@ -1100,8 +1103,10 @@ fun App(
                                             ChefControlLink(BpmSymbol.Control, if (offlineState.pendingCount > 0) "En este dispositivo · ${offlineState.pendingCount} pendientes" else "Controles en este dispositivo",
                                                 "Revisiones guardadas para trabajar sin conexión.") { nav.navigate(CHECKLIST_OFFLINE) { launchSingleTop = true } },
                                             ChefControlLink(BpmSymbol.Clock, "Mis revisiones", "Historial de tus controles.") { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } },
-                                            ChefControlLink(BpmSymbol.Learn, "Otras plantillas", "Consulta las plantillas publicadas.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
-                                        ), assignments::refresh, assignments::previous, assignments::next, openControl)
+                                            ChefControlLink(BpmSymbol.Learn, "Empezar otro control", "Elige una plantilla publicada y complétala en tu sede.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
+                                        ), assignments::refresh, assignments::previous, assignments::next, openControl,
+                                            // Hacer un control ahora: un solo botón arriba en lugar de buscarlo en «Otras plantillas» (antes eran 5 toques).
+                                            top = { BpmChunkyButton("Hacer un control ahora", { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } }, Modifier.fillMaxWidth()) })
                                     } else if (route == WorkspaceDestination.Operations.route && adminPlay) {
                                         // «Controles» del administrador: controles de todas las sedes, programación y accesos (revisiones del equipo e incidencias incluidas).
                                         val openIncidents = reportsDashboardState.kpis?.openIncidents
@@ -1117,7 +1122,7 @@ fun App(
                                             ChefControlLink(BpmSymbol.Control, if (offlineState.pendingCount > 0) "En este dispositivo · ${offlineState.pendingCount} pendientes" else "Controles en este dispositivo",
                                                 "Revisiones guardadas para trabajar sin conexión.") { nav.navigate(CHECKLIST_OFFLINE) { launchSingleTop = true } },
                                             ChefControlLink(BpmSymbol.Clock, "Mis revisiones", "Historial de tus controles.") { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } },
-                                            ChefControlLink(BpmSymbol.Learn, "Otras plantillas", "Consulta las plantillas publicadas.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
+                                            ChefControlLink(BpmSymbol.Learn, "Empezar otro control", "Elige una plantilla publicada y complétala en tu sede.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
                                         ), onSchedule = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                             onScheduled = { nav.navigate(ASSIGNMENT_MANAGEMENT) { launchSingleTop = true } },
                                             assignments::refresh, assignments::previous, assignments::next, openControl)
