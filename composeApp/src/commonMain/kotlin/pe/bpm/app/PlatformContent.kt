@@ -53,6 +53,7 @@ internal fun PlatformOrganizationsContent(
     val rows = platformOrganizationRows(state.organizations, state.selected, kpis)
     val busy = state.loading || page.loading
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        FirstStepsCard()
         KpiRow(tiles)
         BpmPlayCard(Modifier.fillMaxWidth()) {
             Text("Todas las organizaciones", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })

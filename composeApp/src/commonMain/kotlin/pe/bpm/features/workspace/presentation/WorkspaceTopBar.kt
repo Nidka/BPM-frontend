@@ -27,6 +27,8 @@ import pe.bpm.core.designsystem.*
     onAccount: (() -> Unit)? = null,
     /** «Ajustes» (engranaje): accesibilidad, sonido y cuenta; disponible en todos los roles. */
     onSettings: (() -> Unit)? = null,
+    /** «Ayuda» («?»): qué es la pantalla actual y cómo usarla; en todas las pantallas con cabecera. */
+    onHelp: (() -> Unit)? = null,
     /** Modo enfoque: no nulo cambia la cabecera a cerrar (X) + este título, sin avisos ni cuenta. */
     focusTitle: String? = null,
 ) {
@@ -49,6 +51,11 @@ import pe.bpm.core.designsystem.*
             if(onAlerts!=null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
                 IconButton(onClick=onAlerts,enabled=enabled,modifier=Modifier.semantics{contentDescription=if(unreadCount==null) "Mis avisos" else "Mis avisos. $unreadCount sin leer"}) {
                     BadgedBox(badge={if(unreadCount!=null && unreadCount>0) Badge{Text(if(unreadCount>99) "99+" else unreadCount.toString())}}){BpmIcon(BpmSymbol.Bell)}
+                }
+            }
+            if (onHelp != null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {
+                IconButton(onClick = onHelp, enabled = enabled, modifier = Modifier.semantics { contentDescription = "Ayuda" }) {
+                    BpmIcon(BpmSymbol.Help)
                 }
             }
             if (onSettings != null && focusTitle == null) BpmFeedback(MaterialTheme.colorScheme.primary) {

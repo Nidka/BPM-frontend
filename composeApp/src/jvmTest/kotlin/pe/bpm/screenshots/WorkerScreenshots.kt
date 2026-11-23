@@ -278,6 +278,21 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         content
     },
     ScreenSpec("esqueletos") { { SkeletonGallery() } },
+    // Ayuda contextual, introducción de la primera vez y lista «Primeros pasos» (Personal y Administrador).
+    ScreenSpec("ayuda") {
+        { Shell(WorkspaceDestination.Account, secondaryContent = { pe.bpm.app.HelpContent(pe.bpm.app.HelpTopic.Home, pe.bpm.app.GuideRole.Worker, onReplay = {}, onSettings = {}) }, secondaryEditor = true, secondaryTitle = "Ayuda") }
+    },
+    ScreenSpec("primeros-pasos-intro", full = false) {
+        { Shell(WorkspaceDestination.Home, secondaryContent = { pe.bpm.app.OnboardingIntro(pe.bpm.app.GuideRole.Worker, onFinish = {}) }, secondaryEditor = true, focusMode = true, playFocus = true) }
+    },
+    ScreenSpec("primeros-pasos-lista", full = false) {
+        {
+            val steps = pe.bpm.app.firstSteps(pe.bpm.app.GuideRole.Admin, pe.bpm.app.StepSignals(locations = 1))
+            androidx.compose.runtime.CompositionLocalProvider(pe.bpm.app.LocalFirstSteps provides pe.bpm.app.FirstStepsState(steps, {}, {})) {
+                Shell(WorkspaceDestination.Home, homeContent = { pe.bpm.app.FirstStepsCard() })
+            }
+        }
+    },
     // Los esqueletos replican la disposición real en cada clase de ancho: pantalla de juego (columna + panel), rejilla y lista–detalle.
     ScreenSpec("esqueleto-hoy", full = false) { { Shell(WorkspaceDestination.Home, homeContent = { BpmSkeletonScreen() }) } },
     ScreenSpec("esqueleto-rejilla", full = false) {

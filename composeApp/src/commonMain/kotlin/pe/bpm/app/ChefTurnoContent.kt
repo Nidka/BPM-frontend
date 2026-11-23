@@ -101,6 +101,7 @@ internal fun ChefTurnoContent(
         LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje")
         IncidentsCard(kpis?.openIncidents, onIncidents)
     }) { railVisible ->
+        FirstStepsCard()
         pe.bpm.features.research.presentation.StudyPromptCard()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text(title, style = BpmPlayType.h1, color = BpmPlayColors.ink, modifier = Modifier.weight(1f, fill = false).semantics { heading() })

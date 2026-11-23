@@ -121,6 +121,7 @@ internal fun WorkerTodayContent(
             })
         }
         if (!railVisible) GoalCard(goal)
+        FirstStepsCard()
         pe.bpm.features.research.presentation.StudyPromptCard()
         state.assignmentsFailure?.takeIf { state.assignments.isEmpty() }?.let { failure ->
             Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

@@ -111,6 +111,8 @@ fun App(
     val incidents = viewModel<pe.bpm.features.incidents.presentation.IncidentsViewModel> { owner.graph.incidentsViewModel() }
     // Sonido y vibración (Perfil): preferencia local de la cuenta activa, guardada en el almacén local.
     val feedbackPreferences = owner.graph.feedbackPreferences
+    val onboardingPreferences = owner.graph.onboardingPreferences
+    val onboarding by onboardingPreferences.state.collectAsStateWithLifecycle()
     val feedbackSettings by feedbackPreferences.state.collectAsStateWithLifecycle()
     val feedbackScope = rememberCoroutineScope()
     val training = viewModel<pe.bpm.features.training.presentation.TrainingViewModel> { owner.graph.trainingViewModel() }
@@ -195,7 +197,7 @@ fun App(
             if (nav.currentDestination?.route == LOGIN) resetTo(pendingRoute)
         }
     }
-    LaunchedEffect(profile?.id) { if (profile != null) feedbackPreferences.load() }
+    LaunchedEffect(profile?.id) { if (profile != null) { feedbackPreferences.load(); onboardingPreferences.load() } else onboardingPreferences.reset() }
     LaunchedEffect(profile?.id, researchState.userId) { if (profile != null) research.loadAccess(profile.id) }
     LaunchedEffect(nav) { onNavHostReady(nav) }
     // Solo las vistas de consulta se revalidan al entrar o volver al primer plano.
@@ -228,6 +230,46 @@ fun App(
     val studyPromptState = if (profile != null && profile.platformRole != "SUPER_ADMIN" && currentWorkspace != null && surveyState.participation?.survey != null)
         pe.bpm.features.research.presentation.StudyPromptState(
             pe.bpm.features.research.domain.studyPrompt(surveyState.participation, kotlin.time.Clock.System.now().toString())) { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }
+    else null
+    // «Primeros pasos» y «Ayuda»: rol de guía, introducción de la primera vez y lista de pasos de arranque por rol.
+    val guideRole = when {
+        profile == null -> null
+        profile.platformRole == "SUPER_ADMIN" -> GuideRole.Super
+        currentWorkspace?.role == "ADMIN" -> GuideRole.Admin
+        currentWorkspace?.role == "CHEF" -> GuideRole.Chef
+        currentWorkspace?.role == "WORKER" -> GuideRole.Worker
+        else -> null
+    }
+    var helpRoute by remember { mutableStateOf(WorkspaceDestination.Home.route) }
+    var introPrompted by remember { mutableStateOf(false) }
+    val learnerRoot by trainingLearner.state.collectAsStateWithLifecycle()
+    LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route) {
+        // La introducción sale una sola vez, al llegar a la pantalla de inicio; se salta con «Saltar» y se repite desde «Ayuda».
+        if (guideRole != null && onboarding.loaded && !onboarding.introSeen && !introPrompted && entry?.destination?.route == WorkspaceDestination.Home.route) {
+            introPrompted = true
+            nav.navigate(ONBOARDING) { launchSingleTop = true }
+        }
+    }
+    fun goToStep(step: FirstStep) {
+        feedbackScope.launch { onboardingPreferences.markStep(step.id) }
+        val route = when (step.target) {
+            StepTarget.Learn -> WorkspaceDestination.Learn.route
+            StepTarget.Tasks -> WorkspaceDestination.Tasks.route
+            StepTarget.Controls -> WorkspaceDestination.Operations.route
+            StepTarget.Team -> WorkspaceDestination.Team.route
+            StepTarget.Company -> WorkspaceDestination.Company.route
+            StepTarget.Academy -> if (guideRole == GuideRole.Admin) TRAINING_MANAGEMENT else WorkspaceDestination.Learn.route
+            StepTarget.Report -> REPORT_PROBLEM
+            StepTarget.Home, StepTarget.Organizations -> WorkspaceDestination.Home.route
+            StepTarget.Indicators -> WorkspaceDestination.Indicators.route
+        }
+        nav.navigate(route) { launchSingleTop = true }
+    }
+    val firstStepsState = if (guideRole != null && onboarding.loaded && !onboarding.hidden) FirstStepsState(
+        firstSteps(guideRole, StepSignals(manual = onboarding.done, locations = currentWorkspace?.locations?.size ?: 0, members = currentWorkspace?.members?.size ?: 0,
+            scheduledControls = assignmentState.items.any { it.active }, tasksDone = dailyState.todayPlans.count { it.today?.done == true },
+            lessonsStarted = (learnerRoot.achievements?.totals?.experiencePoints ?: 0) > 0, organizations = workspaceState.organizations.size)),
+        ::goToStep) { feedbackScope.launch { onboardingPreferences.hide(true) } }
     else null
     // El ADMIN supervisa a todo el equipo en «Seguimiento», pero en «Control» ve solo sus propias revisiones.
     val onControlRoute = entry?.destination?.route?.startsWith(WorkspaceDestination.Operations.route) == true
@@ -369,6 +411,7 @@ fun App(
     CompositionLocalProvider(LocalOnline provides offlineUi.status.online, pe.bpm.core.offline.LocalPendingMarks provides offlineUi.marks,
         pe.bpm.core.designsystem.LocalBpmFeedbackSettings provides feedbackSettings,
         pe.bpm.features.research.presentation.LocalStudyPrompt provides studyPromptState,
+        LocalFirstSteps provides firstStepsState,
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(systemDensity.density, systemDensity.fontScale * feedbackSettings.textScale)) {
     SessionContent(sessionStatus, identity::userActivity, identity::continueSession, ::requestLogout,
         banner = { if (profile != null) Column { OfflineStatusBar(offlineUi, onOpen = { nav.navigate(PENDING_CHANGES) { launchSingleTop = true } }, onSync = offlineVm::syncNow); pe.bpm.core.offline.OtherAccountNotice(offlineUi) } }) {
@@ -423,10 +466,10 @@ fun App(
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL,
                         INCIDENT_MANAGEMENT, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
-                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE, REPORT_PROBLEM)
+                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE, REPORT_PROBLEM, ONBOARDING)
                     WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, TEMPLATE_VERSIONS, ALERT_RULES, DAILY_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
-                    WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT, SETTINGS)
+                    WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT, SETTINGS, HELP)
                     else -> listOf(destination.route)
                 }
                 (routes + WorkspaceFormKind.entries.filter { it.destination == destination }.map { it.route })
@@ -473,6 +516,8 @@ fun App(
                     val managingAccounts = route == ACCOUNTS_MANAGEMENT
                     val viewingDevices = route == DEVICES
                     val viewingSettings = route == SETTINGS
+                    val viewingHelp = route == HELP
+                    val onboardingRoute = route == ONBOARDING
                     val acceptingInvitation = route == INVITATION_ACCEPT
                     val studySurvey = route == STUDY_SURVEY
                     val researching = route == RESEARCH_PANEL
@@ -501,7 +546,7 @@ fun App(
                         else action()
                     }
                     fun closeForm() {
-                        if (managingAccounts || viewingDevices || acceptingInvitation || viewingSettings) { navigateBack(destination.route); return }
+                        if (managingAccounts || viewingDevices || acceptingInvitation || viewingSettings || viewingHelp) { navigateBack(destination.route); return }
                         if (learningCourse) {
                             // Una evaluación sin enviar pide confirmación antes de perder las respuestas.
                             if (pe.bpm.features.training.presentation.needsExitConfirmation(training.state.value)) { confirmEvaluationExit = true; return }
@@ -687,6 +732,7 @@ fun App(
                                 onAlertRules={nav.navigate(ALERT_RULES){launchSingleTop=true}},
                                 onWebhooks = { nav.navigate(WEBHOOKS_MANAGEMENT) { launchSingleTop = true } },
                                 onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
+                                onHelp = if (viewingHelp || onboardingRoute) null else ({ helpRoute = route; nav.navigate(HELP) { launchSingleTop = true } }),
                                 onSettings = if (viewingSettings) null else ({ leaveRun { nav.navigate(SETTINGS) { launchSingleTop = true } } }),
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
@@ -831,6 +877,12 @@ fun App(
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
                                         organizationName = workspaceState.workspace?.organization?.name.orEmpty())
+                                }) else if (onboardingRoute) ({
+                                    OnboardingIntro(guideRole ?: GuideRole.Worker, onFinish = { feedbackScope.launch { onboardingPreferences.markIntroSeen() }; navigateBack(destination.route) })
+                                }) else if (viewingHelp) ({
+                                    HelpContent(helpTopicForRoute(helpRoute), guideRole ?: GuideRole.Worker,
+                                        onReplay = { feedbackScope.launch { onboardingPreferences.replay() }; introPrompted = true; nav.navigate(ONBOARDING) { launchSingleTop = true } },
+                                        onSettings = { nav.navigate(SETTINGS) { launchSingleTop = true } })
                                 }) else if (viewingSettings) ({
                                     SettingsContent(feedbackSettings, { next -> feedbackScope.launch { feedbackPreferences.save(next) } },
                                         onAlerts = if (currentWorkspace != null) ({ nav.navigate(ALERT_INBOX) { launchSingleTop = true } }) else null,
@@ -953,7 +1005,7 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
                                     }) }) else managementContent,
-                                secondaryEditor = workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || viewingSettings || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryEditor = workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || viewingSettings || viewingHelp || onboardingRoute || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
                                     learningCourse && courseOverview -> BpmPattern.Panel
@@ -963,10 +1015,10 @@ fun App(
                                     else -> BpmPattern.Panel
                                 },
                                 secondaryWideOnExpanded = learningCourse && courseWidePane,
-                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || reportProblem || studySurvey || chefRunStage,
-                                playFocus = learnerPlay || reportProblem || studySurvey,
+                                focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || reportProblem || studySurvey || onboardingRoute || chefRunStage,
+                                playFocus = learnerPlay || reportProblem || studySurvey || onboardingRoute,
                                 focusTitle = courseTitle,
-                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingSettings) "Ajustes" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingHelp) "Ayuda" else if (viewingSettings) "Ajustes" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
@@ -1189,6 +1241,10 @@ private const val TRAINING_MANAGEMENT = "empresa/academia"
 private const val STUDY_SURVEY = "estudio"
 /** Ajustes: accesibilidad, sonido, avisos y cuenta; la misma pantalla para todos los roles. */
 private const val SETTINGS = "ajustes"
+/** Ayuda contextual («?»): para qué sirve la pantalla de origen, cómo usarla y un glosario. */
+private const val HELP = "ayuda"
+/** Introducción de la primera vez («Primeros pasos»), en modo enfoque; se repite desde Ayuda. */
+private const val ONBOARDING = "primeros-pasos"
 private const val RESEARCH_PANEL = "investigacion"
 
 private const val ACCOUNTS_MANAGEMENT = "empresa/cuentas"

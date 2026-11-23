@@ -104,6 +104,8 @@ class AppGraph(
     private val localFirst = pe.bpm.core.offline.LocalFirstReader.Cached
     /** Sonido y vibración del estilo de juego (Perfil): preferencia local de la cuenta activa, sin servidor. */
     val feedbackPreferences = pe.bpm.core.presentation.FeedbackPreferences(offlineRuntime.store)
+    /** «Primeros pasos» de la cuenta activa: introducción vista y pasos hechos, en este dispositivo. */
+    val onboardingPreferences = pe.bpm.core.presentation.OnboardingPreferences(offlineRuntime.store)
     private val platformEngine = if (httpClientOverride == null) platformHttpEngine() else null
     private val offlineEngine = platformEngine?.let { OfflineHttpEngine(it, offlineRuntime.http, config.apiBaseUrl) }
     private val httpClient: HttpClient = httpClientOverride ?: createHttpClient(offlineEngine!!)

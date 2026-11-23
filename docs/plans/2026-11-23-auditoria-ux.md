@@ -209,3 +209,26 @@ participante, exportación anonimizada. **No faltaba backend.** Lo que faltaba e
 - **Hallazgo aparte (no es de navegación)**: el Jefe de cocina ve «Aún no hay personas» en Equipo y Turno porque el servidor solo envía
   la lista de miembros a quien puede administrar (`organizations/adapters/postgres/pages.go`, `CanManage`); hace falta un endpoint o
   filtro por sede para el Jefe. Pendiente de backend.
+
+## 11. Primeros pasos y Ayuda (todos los roles)
+
+- **Ayuda («?» en la cabecera de todas las pantallas con cabecera)**: abre `ayuda` con el tema de la pantalla de origen
+  (`helpTopicForRoute`): para qué sirve, cómo usarla en 2–4 pasos, «Palabras que verás» (BPM, sede, control, turno, incidencia,
+  evidencia, racha, constancia…, filtradas por rol), «Ver primeros pasos otra vez» y «¿Necesitas más ayuda?» (a tu jefe o
+  administrador; no hay un correo o teléfono de soporte definido en los requerimientos, así que no se inventó uno). Mismo
+  andamio de detalle, con «Escuchar esta ayuda». En modo enfoque (lección, reporte, encuesta, control paso a paso) la pantalla
+  ya trae su propia X y no muestra «?»: la ayuda de esos flujos se abre desde la pantalla de la que se entró.
+- **Introducción de la primera vez** (`primeros-pasos`, modo enfoque): 4–5 tarjetas con el tomate por rol (Personal, Jefe,
+  Administrador y Superadministrador), español simple, «Saltar» o la X, puntos de avance, «Escuchar» en cada una y Enter/→
+  para seguir. Sale una sola vez al llegar a Inicio; se repite desde Ayuda.
+- **Lista «Primeros pasos»** (tarjeta arriba de Hoy, Turno, Inicio y Organizaciones): Personal (primera lección, primera tarea,
+  cómo reportar), Jefe (revisar el turno, primer control, mirar al equipo, aprender), Administrador (crear sede, invitar al
+  equipo, programar el primer control, asignar un curso) y Superadministrador (abrir organización, ver indicadores). Los pasos
+  que se pueden saber con datos reales se marcan solos (sede creada, más de un miembro, controles programados, XP > 0, tarea
+  hecha hoy); el resto se marca al abrirlos. Cada paso lleva a donde se hace; «Ocultar por ahora» la quita y Ayuda la vuelve a
+  mostrar.
+- **Persistencia**: por persona **en este dispositivo** (`OnboardingPreferences` sobre el `LocalStore` de la cuenta, como las
+  preferencias de accesibilidad). No hay endpoint en el backend para guardarlo por usuario; una cuenta que entra en otro teléfono
+  vuelve a ver la introducción (se salta en un toque). Si se necesita por usuario, hay que agregar un campo de preferencias en el
+  backend.
+- Pruebas: `OnboardingRulesTest` (tarjetas por rol, pasos automáticos, ayuda por ruta, persistencia).
