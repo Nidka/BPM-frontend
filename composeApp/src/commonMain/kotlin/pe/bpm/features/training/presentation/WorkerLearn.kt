@@ -131,7 +131,7 @@ private fun CoursePath(
     val colors = BpmPlayColors.unitColors
     val completed = isCompletedCourse(assignment, course)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        BpmUnitBanner("Módulo ${index + 1} · ${assignment.course.code}", assignment.course.title, colors[index % colors.size], onGuide = { onOpenCourse(id) },
+        BpmUnitBanner(unitKicker(assignment), assignment.course.title, colors[index % colors.size], onGuide = { onOpenCourse(id) },
             guideDescription = "Lo esencial de ${assignment.course.title}")
         when {
             completed -> CompletedCourse { onOpenCourse(id) }
@@ -184,7 +184,7 @@ private fun CompletedCourse(onOpen: () -> Unit) {
 private fun LessonPath(nodes: List<PathNodeModel>, active: Boolean, onClick: (PathNodeModel) -> Unit) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         nodes.forEachIndexed { index, node ->
-            val dx = ZigzagOffsets[index % ZigzagOffsets.size]
+            val dx = pathNodeOffset(index, nodes.size)
             Column(Modifier.offset { IntOffset(dx.dp.roundToPx(), 0) }, horizontalAlignment = Alignment.CenterHorizontally) {
                 val current = node.state == BpmPathNodeState.Current
                 when {
@@ -200,9 +200,6 @@ private fun LessonPath(nodes: List<PathNodeModel>, active: Boolean, onClick: (Pa
         }
     }
 }
-
-/** Desplazamientos horizontales (dp) del zigzag, igual que en [BpmLearningPath]. */
-private val ZigzagOffsets = intArrayOf(0, -60, 0, 60)
 
 /**
  * Lección desbloqueada que no es la del nodo «Empezar»: óvalo claro de 72 × 66 dp con relieve y un triángulo de

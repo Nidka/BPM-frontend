@@ -95,3 +95,14 @@ internal fun evaluationChipLabel(type: AttemptType, passingScore: Int): String =
     AttemptType.MODULE -> "Evaluación de lección · suma XP"
     AttemptType.DIAGNOSTIC -> "Evaluación diagnóstica · no emite constancia"
 }
+
+/**
+ * Antetítulo de la cabecera de un curso en el camino: solo el código del curso y, si la asignación tiene fecha límite,
+ * «Asignado · vence 25 nov» (sin numerar módulos: los títulos de los cursos ya traen su propio número).
+ */
+internal fun unitKicker(assignment: MyAssignment): String =
+    assignment.dueAt?.takeIf { it.isNotBlank() }?.let { "${assignment.course.code} · Asignado · vence ${readableDate(it)}" } ?: assignment.course.code
+
+/** Desplazamiento horizontal (dp) del nodo [index] de [count] en el camino: zigzag desde tres nodos; con uno o dos, todo centrado. */
+internal fun pathNodeOffset(index: Int, count: Int): Int =
+    if (count <= 2) 0 else intArrayOf(0, -60, 0, 60)[index % 4]

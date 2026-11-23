@@ -74,6 +74,10 @@ internal fun WorkerTodayContent(
     operations: OperationsViewModel,
     locations: List<Location>,
     onOpenCourse: (String) -> Unit,
+    /** «Continuar» de «Sigue aprendiendo»: abre la siguiente lección del curso, sin pasar por el camino. */
+    onContinueCourse: (String) -> Unit,
+    /** Abre la encuesta del estudio CAP; nulo si la cuenta no puede responderla. */
+    onStudySurvey: (() -> Unit)?,
     onLearn: () -> Unit,
     onTasks: () -> Unit,
     onReport: () -> Unit,
@@ -112,6 +116,13 @@ internal fun WorkerTodayContent(
             })
         }
         if (!railVisible) GoalCard(goal.chip, goal.progress, goal.complete)
+        onStudySurvey?.let { open ->
+            BpmPlayCard {
+                Text("Encuesta del estudio", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+                Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+                BpmChunkyButton("Abrir encuesta", open, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+            }
+        }
         state.assignmentsFailure?.takeIf { state.assignments.isEmpty() }?.let { failure ->
             Text(trainingFailureMessage(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             BpmChunkyButton("Volver a intentar", learner::refreshAssignments, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
@@ -137,7 +148,7 @@ internal fun WorkerTodayContent(
                 if (plans.size > MISSION_LIMIT) BpmChunkyButton("Ver todas las tareas", onTasks, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
         }
-        LearnCard(next, state.assignmentsLoaded, onLearn)
+        LearnCard(next, state.assignmentsLoaded, onLearn, onContinueCourse)
         BpmChunkyButton("Reportar un problema", onReport, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert)
     }
 }
@@ -175,7 +186,7 @@ private fun PlayNote(text: String) {
 
 /** «Sigue aprendiendo»: la capacitación que toca (con su avance) y un botón al camino; sin pendientes, un refuerzo. */
 @Composable
-private fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit) {
+private fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit, onContinue: (String) -> Unit) {
     if (next == null && !loaded) return
     BpmPlayCard {
         Text("Sigue aprendiendo", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
@@ -191,7 +202,7 @@ private fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit)
                 }
             }
             assignmentProgress(next)?.let { BpmChunkyProgress(it, Modifier.fillMaxWidth(), contentDescription = "Avance del curso") }
-            BpmChunkyButton(if (started) "Continuar" else "Empezar", onLearn, Modifier.fillMaxWidth())
+            BpmChunkyButton(if (started) "Continuar" else "Empezar", { onContinue(next.course.id) }, Modifier.fillMaxWidth())
         } else {
             Text("No tienes capacitaciones pendientes. Puedes seguir aprendiendo cuando quieras.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
             BpmChunkyButton("Ver el camino", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)

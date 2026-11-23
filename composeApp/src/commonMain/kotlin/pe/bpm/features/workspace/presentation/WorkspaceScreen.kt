@@ -135,14 +135,15 @@ internal fun WorkspaceScreen(
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
                     onAlerts=onAlerts,unreadCount=unreadAlertCount,
-                    focusTitle = if (focusMode) focusTitle ?: "" else null,
+                    focusTitle = if (focusMode) focusTitle ?: "" else null, play = playNav,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel, bare = focusMode && playFocus) { taskContent() }
-                else if (focusMode && playFocus && secondaryEditor && secondaryContent != null) Box(Modifier.weight(1f).fillMaxWidth()) { secondaryContent() }
+                // Una sola rama para la pantalla alojada con o sin modo enfoque del personal: si fueran ramas distintas, entrar
+                // en la lección movería el contenido de lugar, se descartaría su estado y el curso volvería a la guía.
                 else if (secondaryEditor && secondaryContent != null) HostedContent(Modifier.weight(1f).fillMaxWidth(),
                     if (secondaryWideOnExpanded && secondaryPattern == BpmPattern.StepFlow && (windowClass == BpmWindowClass.Expanded || windowClass == BpmWindowClass.Large)) BpmPattern.Panel else secondaryPattern,
-                    preview = secondaryPattern != BpmPattern.Form) { secondaryContent() }
+                    preview = secondaryPattern != BpmPattern.Form, bare = focusMode && playFocus) { secondaryContent() }
                 else if (form != null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Form, preview = false) {
                     pe.bpm.core.offline.ServerOnly {
                     WorkspaceForm(form, state, onClose = { if (!state.saving) { onCloseForm(); onClear() } },

@@ -49,6 +49,11 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, 
         PlayCoursePane(state, playCourse, viewModel, worker, onOpenCourse)
         return
     }
+    // Hoja del curso del personal: columna central de juego, sin las tarjetas del resto de roles.
+    if (worker != null && state.screen == TrainingPane.OVERVIEW) {
+        PlayCourseSheet(state, viewModel, worker, modifier)
+        return
+    }
     val maxWidth = when {
         worker != null -> BpmPatternRules.readingWidth
         state.screen == TrainingPane.OVERVIEW -> BpmSpacing.contentMax
@@ -72,7 +77,7 @@ fun TrainingScreen(viewModel: TrainingViewModel, modifier: Modifier = Modifier, 
         }
         val course = state.course ?: return@Column
         when (state.screen) {
-            TrainingPane.OVERVIEW -> if (worker != null) { if (worker.intent == null) PlayCourseGuide(course, state, viewModel) } else CourseOverview(course, state, viewModel)
+            TrainingPane.OVERVIEW -> CourseOverview(course, state, viewModel)
             TrainingPane.LESSON -> state.lesson?.let { LessonViewer(state, course, it, viewModel) }
             TrainingPane.STUDY -> state.study?.let { StudyPractice(it, viewModel) }
             TrainingPane.EVALUATION -> state.evaluation?.let { EvaluationPanel(state, course, it, viewModel, onOpenCourse) }

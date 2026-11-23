@@ -179,4 +179,16 @@ class PlayRulesTest {
             assertTrue(noLoader.state.value.pathCourses.isEmpty())
         } finally { noMember.viewModelScope.cancel(); noLoader.viewModelScope.cancel(); Dispatchers.resetMain() }
     }
+
+    @Test fun unitKickerIsTheCourseCodeAndTheDueDateWhenThereIsOne() {
+        val withDue = sampleMyAssignment()
+        assertEquals("M-01 · Asignado · vence 31 dic", unitKicker(withDue))
+        assertEquals("M-01", unitKicker(withDue.copy(dueAt = null)))
+        assertFalse(unitKicker(withDue).contains("Módulo"))
+    }
+
+    @Test fun shortPathsAreCenteredAndLongOnesZigzag() {
+        assertEquals(listOf(0, 0), (0 until 2).map { pathNodeOffset(it, 2) })
+        assertEquals(listOf(0, -60, 0, 60, 0), (0 until 5).map { pathNodeOffset(it, 5) })
+    }
 }

@@ -185,7 +185,7 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         val content: @Composable () -> Unit = {
             Shell(WorkspaceDestination.Home, homeContent = {
                 WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
-                    onOpenCourse = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
+                    onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
             })
         }
         content
@@ -196,7 +196,7 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         val content: @Composable () -> Unit = {
             Shell(WorkspaceDestination.Home, homeContent = {
                 WorkerTodayContent(learner, F.USER, F.ORG, operations, F.workspace.locations,
-                    onOpenCourse = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
+                    onOpenCourse = {}, onContinueCourse = {}, onStudySurvey = {}, onLearn = {}, onTasks = {}, onReport = {}, onAchievements = {}, displayName = F.DISPLAY_NAME)
             })
         }
         content

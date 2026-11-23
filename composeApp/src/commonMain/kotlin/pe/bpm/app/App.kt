@@ -644,6 +644,8 @@ fun App(
                                     // Pantalla «Hoy» del personal: asignaciones y logros reales; solo para WORKER.
                                     WorkerTodayContent(trainingLearner, profile.id, currentWorkspace.organization.id, dailyOperations, currentWorkspace.locations,
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                        onStudySurvey = if (profile.platformRole != "SUPER_ADMIN") ({ nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }) else null,
+                                        onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onTasks = { nav.navigate(WorkspaceDestination.Tasks.route) { launchSingleTop = true } },
                                         onReport = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } },
@@ -884,7 +886,7 @@ fun App(
                                 noticeVisible = accessNotice != null,
                                 screenNotice = {
                                     if (destination == WorkspaceDestination.Home && route == WorkspaceDestination.Home.route) {
-                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN") BpmCard(Modifier.fillMaxWidth()) {
+                                        if (currentWorkspace != null && profile.platformRole != "SUPER_ADMIN" && !workerPlay) BpmCard(Modifier.fillMaxWidth()) {
                                             Text("Encuesta del estudio", style = MaterialTheme.typography.titleMedium)
                                             Text("Participa de forma voluntaria y anónima en el estudio sobre buenas prácticas de manipulación.")
                                             BpmSecondaryButton(onClick = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }) { Text("Abrir encuesta del estudio") }
