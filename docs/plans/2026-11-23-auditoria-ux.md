@@ -303,3 +303,12 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 | H9 | Admin · Asignar curso, paso 3 | La fecha límite se escribe a mano como AAAA-MM-DD | Sin selector de fecha; queda anotado | Pendiente |
 | H10 | Admin · Equipo en teléfono | Las pestañas se reacomodan al cambiar la marcada (el ancho del «✓» cambia el salto de línea), así el segundo toque cae en otro lugar | Sin cambio | Pendiente |
 | H11 | 768 dp (Jefe) | Turno, Controles y Reportar se ven bien: columna centrada de 640 dp y barra inferior | — | Verificado |
+
+### 14.1 Verificación en vivo tras el despliegue de 7fbfa88 y acciones reales
+
+- «Editar organización/sede» ya no cierra la app (se confirmó a 390 dp). **Se editó el teléfono de la «Sede principal» a 999000111, se guardó y se revirtió
+  a vacío** (la ficha vuelve a mostrar solo dirección y zona horaria).
+- Invitación real enviada a `bpm-invitado-fd3760@yopmail.com` (rol Colaborador, Sede principal) y asignación del Módulo 1 a Pedro: ambas aparecen en sus listas.
+- **Incidencia de proceso**: el despliegue de 01ce36f quedó en «failure» porque el trabajo de iOS del CI se canceló solo; producción siguió con el
+  fallo de H3 más de 1 h hasta que un commit nuevo (7fbfa88) relanzó CI y despliegue. Conviene que el despliegue no dependa de un trabajo cancelado por la infraestructura.
+- H12 (nuevo): el filtro de estados de incidencias mostraba dos chips «Validada» (estados `CLOSED` y `VERIFIED`); el servidor cierra con `CLOSED`, se quitó `VERIFIED`.
