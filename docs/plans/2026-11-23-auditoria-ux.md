@@ -261,3 +261,24 @@ Hecha con Playwright a 1280 y 390 dp y con el arnés de capturas. Solo se leyó 
 - **Navegación**: Turno del Jefe → Insumos y limpieza → Turno ya conserva «Tareas del turno 1/1» (antes «Sin datos»).
 - Notas de la verificación: el acceso a veces tarda más de 10 s o se cancela (E8), y la lista «Primeros pasos» en teléfono pierde la ficha
   «Pendiente» (el icono de meta y el lector de pantalla la sustituyen).
+
+## 13. Segunda pasada en vivo (Jefe y Administrador) y arreglos de E6–E8
+
+Pasada con Playwright a 1280 dp (y 390 dp en Personal) en «Prueba BPM». Se completó **de punta a punta, como Jefe, un control**: Controles → Empezar otro
+control → plantilla → Preparar revisión → sede → dos preguntas → Revisar → «Confirmar y finalizar» → «¡Control finalizado! 100 %» (queda un registro de
+prueba en esa organización). Se abrieron también, como Administrador, Equipo, Invitaciones (asistente de 3 pasos), Academia, asignaciones y Sedes.
+
+| # | Dónde | Hallazgo | Corrección | Estado |
+|---|---|---|---|---|
+| E6 | Backend · workspace del Jefe | El Jefe no recibía miembros: «Aún no hay personas» | `TeamPage`: personas activas (Personal y otros Jefes) que comparten SUS sedes, sin correo, solo lectura; prueba que otra sede y los administradores no aparecen. Verificado en vivo: el Jefe ve a Pedro | Hecho (backend d429811) |
+| E7 | Todos · iconos en blanco | Intermitente; los 33 recursos devuelven 200 y no hay fallos de red, así que no es un error HTTP. Hipótesis: con `Cache-Control: no-cache` cada pantalla revalidaba decenas de iconos; una petición lenta deja el icono en blanco y la carga no se reintenta | `/composeResources/` con caché de 1 h y revalidación en segundo plano (prueba en `static-assets.test.mjs`). **Causa raíz no confirmada**; sigue visible a veces (ver Equipo del Jefe: faltaban Controles y Aprender) | Mitigado, no resuelto |
+| E8 | Acceso | El tope general de 12 s cancelaba el acceso en una red o un servidor lentos («La conexión tardó demasiado»); el arranque en frío del servidor lo agrava | Acceso, renovación, configuración pública y lectura del perfil: 30 s por llamada y hasta 2 reintentos (600 ms y 1,5 s) solo en llamadas seguras de repetir (no al crear cuenta ni enviar correos); mensaje «La conexión está lenta y no pudimos terminar el acceso…». Prueba `IdentityNetworkTest` | Hecho |
+| E1 | Jefe · revisión ajena en curso | Detalle de solo lectura que parecía un error | Ficha «En curso por <nombre>», explicación y botón «Hacer mi propio control» | Hecho |
+| E9 | Jefe · «Revisión de tu sede» | Con una sola sede había que elegirla con un radio antes de poder pulsar «Comenzar revisión»; el texto decía «El chef registra aquí…» | La única sede queda elegida sola; texto en segunda persona | Hecho |
+| E10 | Jefe · comenzar un control ya programado | El servidor rechaza un control libre si la plantilla está programada para la sede y el aviso (en rojo, tras pulsar) no decía qué hacer | Mensaje claro («Este control ya está programado para tu sede. Ábrelo desde «Controles de hoy»…»). Falta avisar **antes** de pulsar y llevar directo al control programado | Parcial |
+| E11 | Admin · «Invitar persona» | Abría «Cuentas y equipo» en la pestaña Equipo: 2 toques más hasta el formulario | Abre la pestaña Invitaciones (botón «Invitar por correo» → asistente de 3 pasos) | Hecho |
+| E12 | Admin · «Asignar curso» (Inicio) | Abría «Cursos de Academia» (edición de cursos) en lugar de las asignaciones | Abre la pestaña Asignaciones | Hecho |
+| E13 | Admin · dos pantallas de equipo | «Equipo» (lista–detalle) y «Cuentas y equipo» (tarjetas) conviven con nombres parecidos | Sin cambio: unificarlas es un rediseño propio | Pendiente |
+| E14 | Todos · carga inicial | El esqueleto aparecía sobre el título «Hola, …» | El título no se dibuja mientras el espacio carga | Hecho |
+| F1 | Formularios | Migrar los formularios restantes a `BpmFormScaffold` | **No se migraron**: `BpmFormLayout` ya cumple la anatomía de formulario (columna de 720 dp, secciones, acciones al final) y sus títulos los pone el shell; `BpmFormScaffold` queda disponible para formularios nuevos | Pendiente |
+| M1 | 390 dp Jefe y Administrador | No se recorrieron en vivo (solo Personal a 390) | — | Pendiente |

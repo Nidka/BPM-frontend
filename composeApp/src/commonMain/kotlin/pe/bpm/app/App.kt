@@ -240,6 +240,8 @@ fun App(
         currentWorkspace?.role == "WORKER" -> GuideRole.Worker
         else -> null
     }
+    var academyOnAssignments by remember { mutableStateOf(false) }
+    var accountsOnInvitations by remember { mutableStateOf(false) }
     var helpRoute by remember { mutableStateOf(WorkspaceDestination.Home.route) }
     var introPrompted by remember { mutableStateOf(false) }
     val learnerRoot by trainingLearner.state.collectAsStateWithLifecycle()
@@ -258,7 +260,7 @@ fun App(
             StepTarget.Controls -> WorkspaceDestination.Operations.route
             StepTarget.Team -> WorkspaceDestination.Team.route
             StepTarget.Company -> WorkspaceDestination.Company.route
-            StepTarget.Academy -> if (guideRole == GuideRole.Admin) TRAINING_MANAGEMENT else WorkspaceDestination.Learn.route
+            StepTarget.Academy -> if (guideRole == GuideRole.Admin) { academyOnAssignments = true; TRAINING_MANAGEMENT } else WorkspaceDestination.Learn.route
             StepTarget.Report -> REPORT_PROBLEM
             StepTarget.Home, StepTarget.Organizations -> WorkspaceDestination.Home.route
             StepTarget.Indicators -> WorkspaceDestination.Indicators.route
@@ -739,8 +741,9 @@ fun App(
                                 onSettings = if (viewingSettings) null else ({ leaveRun { nav.navigate(SETTINGS) { launchSingleTop = true } } }),
                                 onManageTemplates = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                 onDailyOperations = { nav.navigate(DAILY_MANAGEMENT) { launchSingleTop = true } },
-                                onTraining = { nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
-                                onAccounts = { nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                onTraining = { academyOnAssignments = false; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
+                                onAccounts = { accountsOnInvitations = false; nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                onInvite = { accountsOnInvitations = true; nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
                                 homeContent = if (currentWorkspace?.role == "WORKER") ({
@@ -799,8 +802,8 @@ fun App(
                                             onTeamReviews = { nav.navigate(WorkspaceDestination.Supervision.route) { launchSingleTop = true } },
                                             // Programar un control empieza por elegir la plantilla publicada (Plantillas → Programar en una sede).
                                             onSchedule = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
-                                            onAssignCourse = { nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
-                                            onInvite = { nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                            onAssignCourse = { academyOnAssignments = true; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
+                                            onInvite = { accountsOnInvitations = true; nav.navigate(ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                             onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
                                             onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
                                             onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
@@ -879,7 +882,7 @@ fun App(
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
-                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty())
+                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty(), startOnInvitations = accountsOnInvitations)
                                 }) else if (onboardingRoute) ({
                                     OnboardingIntro(guideRole ?: GuideRole.Worker, onFinish = { feedbackScope.launch { onboardingPreferences.markIntroSeen() }; navigateBack(destination.route) })
                                 }) else if (viewingHelp) ({
@@ -901,7 +904,7 @@ fun App(
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } })
                                 }) else if (managingTraining) ({
                                     pe.bpm.core.offline.ServerOnly { TrainingPlusAdminContent(workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState, workspace,
-                                        trainingAssignments, trainingPaths, trainingAchievements, tabsLocked = trainingAuthoringState.editor != null || trainingAuthoringState.creating != null) {
+                                        trainingAssignments, trainingPaths, trainingAchievements, tabsLocked = trainingAuthoringState.editor != null || trainingAuthoringState.creating != null, startOnAssignments = academyOnAssignments) {
                                         TrainingAdminContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, trainingAuthoring)
                                     } }
                                 }) else if(alertRoute) ({

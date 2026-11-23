@@ -52,7 +52,7 @@ data class ChecklistRunLocation(val id: String, val name: String)
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(template.name, style = MaterialTheme.typography.titleLarge)
                 Text("Versión ${template.versionNumber} · ${template.items.size} preguntas")
-                Text("El chef registra aquí lo que observa en el local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con fecha y responsable.")
+                Text("Aquí registras lo que observas en tu local. Elige la sede que vas a revisar; cada inicio crea una nueva revisión con tu nombre y la fecha.")
                 ChecklistLocationSelector(locations,location,locationName,locationQuery,locationPage,locationsLoading,locationsFailed,
                     previousLocations,nextLocations,!state.busy&&!state.pending,onLocationSearch,onLocationPrevious,onLocationNext,onLocationRetry){location=it.id;locationName=it.name}
                 BpmChunkyButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } }, Modifier.bpmPrimaryButtonWidth(), enabled = location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
@@ -104,7 +104,7 @@ internal fun runFailureMessage(reason: RunFailure) = when (reason) {
     RunFailure.NOT_FOUND -> "Este control o su sede ya no están disponibles."
     RunFailure.INVALID -> "Revisa las respuestas: usa el tipo indicado, hasta dos decimales y completa los campos obligatorios."
     RunFailure.CONFLICT -> "La versión del control cambió."
-    RunFailure.ASSIGNMENT_REQUIRED -> "Esta sede tiene un control programado. Ábrelo desde Control para registrar la revisión correspondiente."
+    RunFailure.ASSIGNMENT_REQUIRED -> "Este control ya está programado para tu sede. Ábrelo desde «Controles de hoy» para hacerlo: así queda ligado a lo que tu administrador pidió."
     RunFailure.ASSIGNMENT_STARTED -> "Ya se inició el control de este período. Consulta Control para retomarlo o ver su resultado."
     RunFailure.SHIFT_OUT_OF_HOURS -> "El turno de este control no está abierto ahora. Inicia la revisión dentro del horario del turno."
     RunFailure.TEMPLATE_OUTDATED -> "La plantilla tiene una versión nueva. Actualiza el catálogo o la programación y vuelve a iniciar."

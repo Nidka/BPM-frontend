@@ -31,7 +31,7 @@ internal fun WorkspaceScreen(
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
     onTraining: () -> Unit = {},
-    onAccounts: () -> Unit = {}, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
+    onAccounts: () -> Unit = {}, onInvite: () -> Unit = onAccounts, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
     homeContent: (@Composable () -> Unit)? = null,
     onOpenCourse: ((String) -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
@@ -161,7 +161,7 @@ internal fun WorkspaceScreen(
                             BpmChunkyButton("Nueva organización", { open(WorkspaceFormKind.Organization) })
                         }) else if (adminShell && secondaryContent == null && workspace?.canManage == true) when (section) {
                             WorkspaceDestination.Team -> ({
-                                BpmChunkyButton("Invitar persona", onAccounts)
+                                BpmChunkyButton("Invitar persona", onInvite)
                                 BpmChunkyButton("Agregar persona", { open(WorkspaceFormKind.Member) }, tone = BpmChunkyTone.White)
                             })
                             WorkspaceDestination.Learn -> ({ BpmChunkyButton("Gestionar cursos", onTraining) })

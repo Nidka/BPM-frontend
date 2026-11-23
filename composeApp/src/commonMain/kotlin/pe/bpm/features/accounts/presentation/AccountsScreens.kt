@@ -18,9 +18,13 @@ private enum class AccountsTab(val label: String) { Team("Equipo"), Invitations(
 
 /** Gestión de cuentas para ADMIN/SUPER_ADMIN; el backend vuelve a autorizar cada operación. */
 @Composable
-fun AccountsManagementScreen(team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, currentUserId: String, modifier: Modifier = Modifier) {
+fun AccountsManagementScreen(
+    team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, currentUserId: String, modifier: Modifier = Modifier,
+    /** «Invitar persona» abre directamente la pestaña de invitaciones (un toque menos); lo demás abre el equipo. */
+    startOnInvitations: Boolean = false,
+) {
     val teamState by team.state.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableStateOf(AccountsTab.Team.name) }
+    var tab by rememberSaveable(startOnInvitations) { mutableStateOf(if (startOnInvitations) AccountsTab.Invitations.name else AccountsTab.Team.name) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
         BpmFilterChips(AccountsTab.entries.map { it.name to it.label }, tab) { tab = it }

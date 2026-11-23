@@ -80,12 +80,14 @@ internal fun TrainingPlusAdminContent(
     achievements: TrainingAchievementAdminViewModel,
     tabsLocked: Boolean,
     modifier: Modifier = Modifier,
+    /** «Asignar curso» abre directamente la pestaña de asignaciones (un toque menos). */
+    startOnAssignments: Boolean = false,
     courses: @Composable () -> Unit,
 ) {
     LaunchedEffect(organizationId, canManage) {
         assignments.open(organizationId, canManage); paths.open(organizationId, canManage); achievements.open(organizationId, canManage)
     }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable(startOnAssignments) { mutableIntStateOf(if (startOnAssignments) 1 else 0) }
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (canManage && !tabsLocked) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Cursos", "Asignaciones", "Rutas", "Logros").forEachIndexed { index, label ->

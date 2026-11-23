@@ -3,6 +3,7 @@ package pe.bpm.features.checklists.presentation
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import pe.bpm.core.designsystem.*
 
 /**
@@ -27,6 +28,11 @@ internal fun ChecklistLocationSelector(
     onRetry: () -> Unit,
     onSelect: (ChecklistRunLocation) -> Unit,
 ) {
+    // Con una sola sede disponible no hay nada que elegir: queda elegida (menos un toque y ningún botón «deshabilitado» sin explicación).
+    LaunchedEffect(locations.singleOrNull()?.id, selected, query, loading, failed) {
+        val only = locations.singleOrNull()
+        if (only != null && selected.isNullOrBlank() && query.isBlank() && !loading && !failed && !previous && !next && enabled) onSelect(only)
+    }
     BpmPagedChoiceSelector(
         options = locations.map { BpmChoiceOption(it.id, it.name) },
         selectedId = selected,
