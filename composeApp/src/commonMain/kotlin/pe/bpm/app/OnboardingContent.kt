@@ -98,7 +98,9 @@ internal fun FirstStepsCard(modifier: Modifier = Modifier) {
         }
         BpmChunkyProgress(done.toFloat() / total, Modifier.fillMaxWidth(), BpmPlayTone.Correct, contentDescription = "Primeros pasos: $done de $total")
         if (done == total) Text("¡Listo! Ya hiciste tus primeros pasos.", style = BpmPlayType.sub, color = BpmPlayColors.correct.shadow)
-        state.steps.forEach { step -> StepRow(step) { state.onGo(step) } }
+        // En teléfono la lista ocupaba media pantalla: solo se muestran los pasos pendientes (los hechos cuentan en «2 de 4»).
+        val compact = currentWindowClass == BpmWindowClass.Compact
+        state.steps.filter { !compact || !it.done || done == total }.forEach { step -> StepRow(step) { state.onGo(step) } }
         BpmChunkyButton(if (done == total) "Listo, ocultar" else "Ocultar por ahora", state.onHide, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
     }
 }

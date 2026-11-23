@@ -57,3 +57,12 @@ test('screens do not reset shared tab ViewModels when they leave the composition
   }
   assert.deepEqual(offenders, []);
 });
+
+// Regresión «Editar sede cerraba la app» (2026-11-23): la pantalla de cuentas desplaza en vertical; alojada en el espacio de Equipo (que ya
+// desplaza el shell) anidaba dos desplazamientos y Compose lanza «measured with an infinity maximum height». Ahí va con scrollable = false.
+test('accounts screen hosted inside the Team slot does not nest a second vertical scroll', async () => {
+  const text = await readFile(new URL('commonMain/kotlin/pe/bpm/app/App.kt', sourceRoot), 'utf8');
+  const hosted = text.match(/destination == WorkspaceDestination\.Team && adminPlay[\s\S]{0,500}?AccountsManagementContent\([\s\S]{0,400}?\)\s*\}\)/);
+  assert.ok(hosted, 'no se encontró AccountsManagementContent en la ranura de Equipo');
+  assert.match(hosted[0], /scrollable = false/);
+});

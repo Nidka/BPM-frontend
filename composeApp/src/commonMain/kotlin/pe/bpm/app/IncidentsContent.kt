@@ -39,10 +39,10 @@ internal fun IncidentsContent(
     }
     // Sin reset al salir (ver DailyOperationsContent): el mismo ViewModel lo usa la raíz (`refreshIfStale`) y el reporte rápido; `open` lo
     // reorienta por persona, empresa, rol y sede, y el cierre de sesión lo reinicia.
-    // El personal con una sola sede reporta sin elegirla; con varias elige una vez.
+    // Con una sola sede (cualquier rol) se usa sin preguntar; con varias se elige una vez.
     // Reportar es igual para quien puede hacerlo (Personal, Jefe de cocina, Administrador): modo enfoque con una sede automática.
     val worker = role in setOf("WORKER", "CHEF", "ADMIN") && onClose != null
-    val onlySite = if (worker) workspace.workspace?.locations?.singleOrNull() else null
+    val onlySite = workspace.workspace?.locations?.singleOrNull()
     LaunchedEffect(onlySite?.id) {
         if (onlySite != null && siteId == null) {
             siteId = onlySite.id

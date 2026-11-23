@@ -20,12 +20,14 @@ private enum class AccountsTab(val label: String) { Team("Equipo"), Invitations(
 @Composable
 fun AccountsManagementScreen(
     team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, currentUserId: String, modifier: Modifier = Modifier,
-    /** «Invitar persona» abre directamente la pestaña de invitaciones (un toque menos); lo demás abre el equipo. */
-    startOnInvitations: Boolean = false,
+    /** Pestaña con la que abre: «team», «invitations» u «organization» («Invitar persona» y «Editar sede» ahorran un toque). */
+    startTab: String = "team",
+    /** Falso cuando el shell ya desplaza la pantalla (Equipo del administrador): anidar dos desplazamientos verticales cierra la app. */
+    scrollable: Boolean = true,
 ) {
     val teamState by team.state.collectAsStateWithLifecycle()
-    var tab by rememberSaveable(startOnInvitations) { mutableStateOf(if (startOnInvitations) AccountsTab.Invitations.name else AccountsTab.Team.name) }
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
+    var tab by rememberSaveable(startTab) { mutableStateOf(when (startTab) { "invitations" -> AccountsTab.Invitations.name; "organization" -> AccountsTab.Organization.name; else -> AccountsTab.Team.name }) }
+    Column(modifier.then(if (scrollable) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
         BpmFilterChips(AccountsTab.entries.map { it.name to it.label }, tab) { tab = it }
         when (tab) {

@@ -31,7 +31,7 @@ internal fun WorkspaceScreen(
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
     onTraining: () -> Unit = {},
-    onAccounts: () -> Unit = {}, onInvite: () -> Unit = onAccounts, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
+    onAccounts: () -> Unit = {}, onInvite: () -> Unit = onAccounts, onEditOrganization: () -> Unit = onAccounts, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
     homeContent: (@Composable () -> Unit)? = null,
     onOpenCourse: ((String) -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
@@ -234,7 +234,7 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Company -> if (adminShell) AdminCompanyContent(current,
                             WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry),
-                            AdminCompanyActions(onManageTemplates, onDailyOperations, onAlertRules, onWebhooks, onAccounts)) else {
+                            AdminCompanyActions(onManageTemplates, onDailyOperations, onAlertRules, onWebhooks, onEditOrganization)) else {
                             if (superAdmin) BpmBackLink(label = "Todas las organizaciones") { navigate(WorkspaceDestination.Home) }
                             BpmCard(Modifier.fillMaxWidth()) {
                                 // La super administración ya ve el nombre como título de la pantalla.

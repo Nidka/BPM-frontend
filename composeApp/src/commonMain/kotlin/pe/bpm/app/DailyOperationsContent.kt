@@ -60,19 +60,19 @@ internal fun DailyOperationsContent(
     val stockState = stock?.state?.collectAsStateWithLifecycle()?.value
     // Un movimiento confirmado cambia el saldo: se vuelve a consultar el stock PEPS.
     LaunchedEffect(stockState?.saved?.input?.id) { if (stockState?.saved != null) operations.refresh() }
-    // El personal con una sola sede la usa sin preguntar; con varias elige como siempre.
+    // Con una sola sede (cualquier rol) se usa sin preguntar; con varias se elige como siempre.
     // Solo cuenta si la lista de sedes está completa (una página, sin búsqueda ni más páginas).
     val sitesPage = workspace.pages[pe.bpm.features.workspace.domain.WorkspaceResource.Locations]
     val sitesComplete = sitesPage == null || (sitesPage.nextToken.isEmpty() && sitesPage.previous.isEmpty() && sitesPage.request.query.isBlank())
-    val onlySite = if (role == "WORKER" && sitesComplete) workspace.workspace?.locations?.singleOrNull() else null
+    val onlySite = if (sitesComplete) workspace.workspace?.locations?.singleOrNull() else null
     LaunchedEffect(role, siteId, onlySite?.id) {
-        if (role == "WORKER" && siteId == null && onlySite != null) {
+        if (siteId == null && onlySite != null) {
             siteId = onlySite.id
             siteName = onlySite.name
         }
     }
     LaunchedEffect(state.resource, state.siteId, onlySite?.id) {
-        if (state.resource.needsSite && siteId == null && !(role == "WORKER" && onlySite != null)) choosingSite = true
+        if (state.resource.needsSite && siteId == null && onlySite == null) choosingSite = true
     }
     Column(
         modifier.fillMaxSize(),

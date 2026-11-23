@@ -42,12 +42,13 @@ internal fun InvitationsPane(viewModel: InvitationsViewModel) {
                 Text("El enlace dejará de funcionar. Puedes invitar de nuevo a esa persona cuando quieras.")
             }
         }
-        BpmListToolbar(
+        // Mientras se invita (formulario o enlace listo) la lista de invitaciones no compite por la atención: vuelve al cerrar.
+        if (state.form == null && state.share == null) BpmListToolbar(
             filters = { BpmFilterChips(listOf<Pair<InvitationStatus?, String>>(null to "Todas") + InvitationStatus.entries.map { it to it.label },
                 state.status, !state.busy, viewModel::selectStatus) },
             search = { m -> BpmSearchField(state.page.request.query, viewModel::search, "Buscar por correo", m, enabled = !state.busy, loading = state.page.loading) },
         )
-        PagedBlock(state.page, empty = { EmptyState("Sin invitaciones", "No hay invitaciones con este filtro. Usa «Invitar por correo» para sumar personas.") },
+        if (state.form == null && state.share == null) PagedBlock(state.page, empty = { EmptyState("Sin invitaciones", "No hay invitaciones con este filtro. Usa «Invitar por correo» para sumar personas.") },
             onRetry = viewModel::retry, onPrevious = viewModel::previous, onNext = viewModel::next) {
             BpmGridLayout(state.page.items) { invitation, cardModifier ->
                 val wait = state.resendWait(invitation)
@@ -112,6 +113,11 @@ private fun statusLine(invitation: Invitation) = when (invitation.status) {
     var step by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(form.fields) {
         BpmStepFormRules.firstStepWithError(listOf("email" in form.fields, "role" in form.fields, "locationIds" in form.fields))?.let { step = it }
+    }
+    // Con una sola sede no hay nada que elegir: queda marcada (un toque menos y sin botón bloqueado).
+    LaunchedEffect(state.locations.singleOrNull()?.id, form.role) {
+        val only = state.locations.singleOrNull()
+        if (only != null && form.role.needsLocations && form.locationIds.isEmpty()) viewModel.toggleLocation(only.id)
     }
     val steps = buildList {
         add(BpmFormStep("¿A quién invitas?",

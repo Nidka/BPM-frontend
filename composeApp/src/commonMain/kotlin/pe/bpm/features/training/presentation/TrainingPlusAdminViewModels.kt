@@ -201,7 +201,7 @@ class TrainingAssignmentAdminViewModel(
             val result = createAssignment(org, NewAssignment(id, requireNotNull(form.courseId), target, dueAt))
             if (expected != generation) return@launch
             mutable.value = when (result) {
-                is TrainingResult.Success -> mutable.value.copy(form = null, saving = false, notice = "Asignación creada. Quienes la reciban la verán en «Mis capacitaciones».")
+                is TrainingResult.Success -> mutable.value.copy(form = null, saving = false, notice = "Asignación creada. Quienes la reciban la verán en «Aprender».")
                 is TrainingResult.Failure -> mutable.value.copy(saving = false, formFailure = result.reason)
             }
             if (result is TrainingResult.Success) refresh()
