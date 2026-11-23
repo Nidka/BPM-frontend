@@ -57,8 +57,8 @@ internal fun ChefControlsContent(
             scoped == null || scoped.loading && scoped.items.isEmpty() -> BpmSkeletonList(rows = 4, card = false)
             scoped.items.none { it.active } -> BpmPlayEmpty(Res.drawable.mascot_done, "Sin controles programados", emptyMessage)
             else -> {
-                if (scoped.loading) BpmSkeletonList(rows = 3, card = false)
-                else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Con datos ya cargados se muestran mientras se refrescan (sin esqueleto); el esqueleto es solo de la primera carga.
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     controlOrder(scoped.items, userId).forEach { item ->
                         ChefControlRow(item, controlState(item, userId), controlDetail(item, userId) { clockOf(runCatching { displayDateTime(it) }.getOrDefault("")) },
                             onOpen = { onOpenControl(item) })

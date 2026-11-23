@@ -38,7 +38,7 @@ fun AlertsScreen(
       BpmTextButton(viewModel::refreshCount) { Text("Reintentar contador") }
     }
     s.failure?.let { AlertError(it, viewModel::refresh) }
-    if (s.loading || s.detailLoading) BpmSkeletonList(rows = 3, card = false)
+    if (s.loading && s.inbox.rows.isEmpty() || s.detailLoading) BpmSkeletonList(rows = 3, card = false)
     val a = s.detail
     if (a != null) {
       BpmCard(Modifier.fillMaxWidth()) {

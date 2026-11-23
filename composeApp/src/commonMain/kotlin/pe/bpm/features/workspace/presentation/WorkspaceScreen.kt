@@ -129,7 +129,7 @@ internal fun WorkspaceScreen(
                     onAlerts=onAlerts,unreadCount=unreadAlertCount, onSettings = onSettings,
                     focusTitle = if (focusMode) focusTitle ?: "" else null,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null || activeShortcut != null && form == null) null else onCloseForm)
-                if (state.loading && workspace == null) BpmSkeletonDashboard()
+                if (state.loading && workspace == null) BpmSkeletonScreen(Modifier.padding(horizontal = BpmSpacing.gutter(windowClass), vertical = 20.dp), alignStart = adminShell)
                 if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel, bare = focusMode && playFocus) { taskContent() }
                 // Una sola rama para la pantalla alojada con o sin modo enfoque del personal: si fueran ramas distintas, entrar

@@ -9,7 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,8 +44,8 @@ import androidx.compose.ui.unit.dp
  */
 
 /** Gris base del esqueleto y su brillo; sale del borde neutro del estilo de juego. */
-private val SkeletonBase = Color(0xFFDCE4E4)
-private val SkeletonShine = Color(0xFFEFF4F4)
+private val SkeletonBase = Color(0xFFD3DCDC)
+private val SkeletonShine = Color(0xFFE8EFEF)
 
 /**
  * Progreso 0..1 del destello que recorre todos los esqueletos de la pantalla. Con «reducir movimiento» queda quieto
@@ -133,15 +136,27 @@ fun BpmSkeletonCard(modifier: Modifier = Modifier, lines: Int = 2, action: Boole
     }
 }
 
-/** Fila de [count] indicadores (cifra grande y rótulo) como los de [BpmKpiTile]; en pantallas estrechas se reparten el ancho. */
+/**
+ * [count] indicadores (cifra grande y rótulo) como los de [BpmKpiTile], con la misma disposición que los reales: todos en una fila
+ * desde la clase expandida y de dos en dos en las demás (en teléfono, una tarjeta por indicador, no una tira de barras).
+ */
 @Composable
 fun BpmSkeletonKpis(modifier: Modifier = Modifier, count: Int = 4, label: String = "Cargando indicadores") {
+    val wide = currentWindowClass == BpmWindowClass.Expanded || currentWindowClass == BpmWindowClass.Large
+    val tile: @Composable (Modifier) -> Unit = { m ->
+        BpmPlayCard(m) {
+            BpmSkeletonLine(width = 48.dp, height = 24.dp)
+            BpmSkeletonLine(height = 12.dp)
+        }
+    }
     BpmSkeletonRegion(modifier.fillMaxWidth(), label) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            repeat(count) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BpmSkeletonLine(width = 48.dp, height = 24.dp)
-                    BpmSkeletonLine(height = 12.dp)
+        if (wide) Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat(count) { tile(Modifier.weight(1f).fillMaxHeight()) }
+        } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            (0 until count).chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pair.forEach { tile(Modifier.weight(1f).fillMaxHeight()) }
+                    if (pair.size == 1) Box(Modifier.weight(1f))
                 }
             }
         }
@@ -173,13 +188,49 @@ fun BpmSkeletonDetail(modifier: Modifier = Modifier, label: String = "Cargando e
     }
 }
 
-/** Pantalla de Hoy o Inicio: tira de indicadores y dos tarjetas de lista; sirve de esqueleto de panel completo. */
+/**
+ * Pantalla de juego completa (Hoy, Turno, Inicio, Aprender): usa el mismo [BpmPlayColumns] que las reales, así la columna mide lo
+ * mismo en cada clase de ancho (640 en media, 600 en expandida, grupo centrado de 1120 con el panel de 330 a la derecha) y el
+ * contenido no «salta» al llegar. [alignStart] la alinea a la izquierda como las pantallas de gestión del administrador.
+ */
 @Composable
-fun BpmSkeletonDashboard(modifier: Modifier = Modifier, label: String = "Cargando") {
+fun BpmSkeletonScreen(modifier: Modifier = Modifier, alignStart: Boolean = false, rows: Int = 3, label: String = "Cargando") {
     BpmSkeletonRegion(modifier.fillMaxWidth(), label) {
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            BpmSkeletonKpis(label = label)
-            BpmSkeletonList(rows = 3, label = label)
+        BpmPlayColumns(Modifier, alignStart = alignStart, rail = {
+            BpmSkeletonCard(lines = 2, label = label)
+            BpmSkeletonCard(lines = 1, label = label)
+        }) { railVisible ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                BpmSkeleton(Modifier.size(72.dp), RoundedCornerShape(24.dp))
+                BpmSkeleton(Modifier.weight(1f).height(48.dp), RoundedCornerShape(18.dp))
+            }
+            if (!railVisible) BpmSkeletonCard(lines = 1, label = label)
+            BpmSkeletonLine(width = 120.dp, height = 20.dp)
+            BpmSkeletonList(rows = rows, label = label)
+        }
+    }
+}
+
+/** Compatibilidad: el esqueleto de un panel completo es [BpmSkeletonScreen]. */
+@Composable
+fun BpmSkeletonDashboard(modifier: Modifier = Modifier, label: String = "Cargando") = BpmSkeletonScreen(modifier, label = label)
+
+/** Rejilla de [count] tarjetas con las mismas columnas que las reales ([BpmGridLayout]: 1 en teléfono, más al ensanchar). */
+@Composable
+fun BpmSkeletonGrid(modifier: Modifier = Modifier, count: Int = 6, label: String = "Cargando") {
+    BpmSkeletonRegion(modifier.fillMaxWidth(), label) {
+        BpmGridLayout(List(count) { it }) { _, m -> BpmSkeletonCard(m, lines = 2, label = label) }
+    }
+}
+
+/** Lista y detalle como [BpmListDetail]: en ancho (desde 840 dp) la lista a la izquierda y el detalle a la derecha; en teléfono, solo la lista. */
+@Composable
+fun BpmSkeletonListDetail(modifier: Modifier = Modifier, rows: Int = 5, label: String = "Cargando") {
+    BpmSkeletonRegion(modifier.fillMaxWidth(), label) {
+        // Como el real: el detalle solo se dibuja si cabe junto a la lista; en teléfono y tableta vertical se ve solo la lista.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val beside = BpmPatternRules.detailBesideList(maxWidth)
+            BpmListDetail(detail = if (beside) ({ BpmSkeletonDetail(label = label) }) else null) { BpmSkeletonList(rows = rows, card = false, label = label) }
         }
     }
 }

@@ -79,7 +79,7 @@ fun OperationsScreen(
             state.failure?.let { Text(failureText(it), color = MaterialTheme.colorScheme.error) }
             state.notice?.let { Text(it) }
             pe.bpm.core.offline.PendingOperationsNotice("supply-receipts", "cleaning-executions")
-            if (state.loading) BpmSkeletonList(rows = 3, card = false)
+            if (state.loading && state.rows.isEmpty()) BpmSkeletonList(rows = 3, card = false)
             // Lista–detalle: desde 840 dp el detalle de un registro va junto a la lista.
             val listBody: @Composable () -> Unit = {
                     if (state.resource.needsSite && state.siteId == null)

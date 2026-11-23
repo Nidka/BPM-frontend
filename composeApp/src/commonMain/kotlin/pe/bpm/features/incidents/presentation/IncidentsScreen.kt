@@ -34,7 +34,7 @@ fun IncidentsScreen(
         s.failure?.let { Text(incidentFailureText(it), color = MaterialTheme.colorScheme.error) }
         s.notice?.let { Text(it) }
         pe.bpm.core.offline.PendingOperationsNotice("incidents")
-        if (s.loading) BpmSkeletonList(rows = 3, card = false)
+        if (s.loading && (if (s.catalogMode) s.catalog.rows.isEmpty() else s.incidents.rows.isEmpty())) BpmSkeletonList(rows = 3, card = false)
         // Lista–detalle: desde 840 dp el detalle de una incidencia se muestra junto a la lista.
         val listBody: @Composable () -> Unit = {
                 if (IncidentsAccess.canAuthor(s.role))

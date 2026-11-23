@@ -86,7 +86,7 @@ class ChecklistAssignmentsViewModel(
         val org = page.organizationId ?: return
         job?.cancel()
         mutable.value =
-            page.copy(loading = true, items = emptyList(), nextToken = "", failure = null)
+            page.copy(loading = true, nextToken = "", failure = null)
         job =
             viewModelScope.launch {
                 if (debounce) delay(300)

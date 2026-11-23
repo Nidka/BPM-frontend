@@ -186,3 +186,26 @@ participante, exportación anonimizada. **No faltaba backend.** Lo que faltaba e
 - **Decisión pendiente de la investigadora**: la fecha de fin de piloto se infiere (90 días desde la inicial); si el estudio
   necesita una fecha fija por empresa, hay que agregar un campo en el backend (no existe hoy). También hay que publicar en
   producción el consentimiento y el cuestionario CAP: sin ellos la invitación no se muestra.
+
+## 10. Navegación, caché y esqueletos por resolución (reporte urgente)
+
+- **Causa raíz de «los datos no cargan al navegar»** (reproducida en vivo con Playwright: Turno del Jefe → «Insumos y limpieza» → Turno
+  dejaba «Tareas del turno: Sin datos»): `DailyOperationsContent` e `IncidentsContent` reiniciaban en `onDispose` los ViewModels
+  **compartidos** (`operations`, `shifts`, `stock`, `incidents`) que también usan Hoy, Tareas y Turno. La pantalla saliente se retira
+  cuando termina la transición, o sea **después** de que la de destino ya pidió y recibió sus datos; el reinicio le vaciaba el estado y
+  nada volvía a cargar. Corrección: esas pantallas ya no reinician al salir (lo hace el cierre de sesión); `open()` reorienta el
+  ViewModel si cambian persona, empresa, rol o sede. Regresión: `architecture.test.mjs` falla si una pantalla reinicia un ViewModel
+  compartido en `onDispose`.
+- **Caché al volver** (stale-while-revalidate): al conservarse el estado de los ViewModels, volver a una pantalla muestra lo cargado
+  al instante y se revalida en segundo plano (`refreshIfStale`, `refreshToday`…). El esqueleto queda solo para la **primera carga sin
+  datos**: se cambiaron las condiciones `loading` a `loading && sin datos` (operación, turnos, stock, avisos, incidencias, reportes,
+  Academia, historial) y el historial y los controles programados ya no vacían la lista mientras recargan.
+  Límite: es memoria del proceso (se pierde al cerrar la app o la pestaña) y la invalidación tras una mutación sigue siendo la de
+  cada ViewModel; no se agregó una caché genérica por ruta.
+- **Esqueletos por resolución**: `BpmSkeletonScreen` usa el mismo `BpmPlayColumns` (columna de 640/600 + panel de 330, grupo centrado
+  de 1120), `BpmSkeletonGrid` usa `BpmGridLayout` (1/2/3 columnas), `BpmSkeletonListDetail` usa `BpmListDetail` (detalle solo si
+  cabe junto a la lista) y `BpmSkeletonKpis` reparte 2×2 en compacta y una fila en expandida. Verificado en las capturas a 390, 768,
+  1280 y 1920 (`esqueleto-hoy`, `esqueleto-rejilla`, `esqueleto-lista-detalle`).
+- **Hallazgo aparte (no es de navegación)**: el Jefe de cocina ve «Aún no hay personas» en Equipo y Turno porque el servidor solo envía
+  la lista de miembros a quien puede administrar (`organizations/adapters/postgres/pages.go`, `CanManage`); hace falta un endpoint o
+  filtro por sede para el Jefe. Pendiente de backend.

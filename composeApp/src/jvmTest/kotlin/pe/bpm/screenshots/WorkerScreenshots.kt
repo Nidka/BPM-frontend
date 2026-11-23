@@ -278,6 +278,14 @@ internal val workerScreens: List<ScreenSpec> = listOf(
         content
     },
     ScreenSpec("esqueletos") { { SkeletonGallery() } },
+    // Los esqueletos replican la disposición real en cada clase de ancho: pantalla de juego (columna + panel), rejilla y lista–detalle.
+    ScreenSpec("esqueleto-hoy", full = false) { { Shell(WorkspaceDestination.Home, homeContent = { BpmSkeletonScreen() }) } },
+    ScreenSpec("esqueleto-rejilla", full = false) {
+        { Shell(WorkspaceDestination.Learn, secondaryContent = { BpmSkeletonGrid() }, secondaryEditor = true, secondaryTitle = "Cursos") }
+    },
+    ScreenSpec("esqueleto-lista-detalle", full = false) {
+        { Shell(WorkspaceDestination.Learn, secondaryContent = { BpmSkeletonListDetail() }, secondaryEditor = true, secondaryTitle = "Equipo") }
+    },
     ScreenSpec("camino") {
         val learner = learnerVm()
         val content: @Composable () -> Unit = {

@@ -40,7 +40,7 @@ private fun Failure(failure: ReportFailure, onRetry: () -> Unit, fields: Map<Str
 @Composable
 private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
     Text("Avance por curso", style = MaterialTheme.typography.titleLarge)
-    if (state.coursesLoading) BpmSkeletonList(rows = 3)
+    if (state.coursesLoading && state.courses == null) BpmSkeletonList(rows = 3)
     state.coursesFailure?.let { Failure(it, vm::loadCourseRows) }
     state.courses?.let { courses ->
         if (courses.isEmpty()) EmptyState("Sin cursos publicados", "Cuando publiques un curso verás aquí el avance de tu equipo.")
@@ -78,7 +78,7 @@ private fun TrainingSection(vm: ReportsAdminViewModel, state: AdminState) {
 
 @Composable
 private fun SettingsSection(vm: ReportsAdminViewModel, state: AdminState) {
-    if (state.settingsLoading) BpmSkeletonList(rows = 3)
+    if (state.settingsLoading && state.settings == null) BpmSkeletonList(rows = 3)
     state.settingsFailure?.let { Failure(it, vm::loadSettingsNow) }
     if (state.settings == null) return
     BpmCard(Modifier.fillMaxWidth()) {

@@ -43,7 +43,7 @@ fun ReportsScreen(
         }
         PeriodFilters(state, locations, viewModel)
         ExportCard(state, viewModel)
-        if (state.loading) BpmSkeletonList(rows = 3)
+        if (state.loading && state.compliance == null && state.summary == null) BpmSkeletonList(rows = 3)
         state.failure?.let { failure ->
             BpmCard(Modifier.fillMaxWidth()) {
                 Text(reportFailureMessage(failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

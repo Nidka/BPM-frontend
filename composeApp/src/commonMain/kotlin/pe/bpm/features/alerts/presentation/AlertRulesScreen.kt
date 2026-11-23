@@ -32,7 +32,7 @@ fun AlertRulesScreen(
       "Configura cuándo avisar y qué canales solicitar. Desactivar una regla detiene nuevas evaluaciones; los avisos anteriores conservan su información."
     )
     s.failure?.let { AlertError(it, viewModel::refresh) }
-    if (s.loading) BpmSkeletonList(rows = 3, card = false)
+    if (s.loading && s.rules.rows.isEmpty()) BpmSkeletonList(rows = 3, card = false)
     if (!AlertsAccess.canConfigure(s.role)) Text("Solo la administración puede configurar reglas.")
     else if (e.form != null) AlertRuleFormContent(viewModel, locations, locationSelector)
     else if (s.rulesAuthorized) {

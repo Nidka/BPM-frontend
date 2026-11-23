@@ -35,7 +35,7 @@ class ChecklistHistoryViewModel(private val load: LoadChecklistHistory, private 
     fun previous() { val s = mutable.value; if (!s.loading && s.previous.isNotEmpty()) fetch(s.copy(token = s.previous.last(), previous = s.previous.dropLast(1))) }
     private fun fetch(page: ChecklistHistoryState, debounce: Boolean = false) {
         val org = page.organizationId ?: return
-        job?.cancel(); mutable.value = page.copy(loading = true, items = emptyList(), failure = null, nextToken = "")
+        job?.cancel(); mutable.value = page.copy(loading = true, failure = null, nextToken = "")
         job = viewModelScope.launch {
             if (debounce) delay(300)
             val result = load(org, PageRequest(page.token, page.query), page.scope, page.status)
