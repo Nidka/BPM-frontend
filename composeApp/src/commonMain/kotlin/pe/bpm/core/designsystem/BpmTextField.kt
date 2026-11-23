@@ -6,7 +6,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
@@ -68,31 +75,53 @@ fun BpmTextField(
         if (target != null) target.requestFocus() else focus.moveFocus(FocusDirection.Next)
     }
     Column(modifier.fillMaxWidth()) {
-        OutlinedTextField(
+        val interactions = remember { MutableInteractionSource() }
+        val colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = BpmTokens.fieldBorder,
+            errorBorderColor = MaterialTheme.colorScheme.error, disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedContainerColor = Color.White, unfocusedContainerColor = Color.White, errorContainerColor = Color.White,
+            disabledContainerColor = BpmNeutralSurface,
+        )
+        val isError = shownError != null
+        val shape = RoundedCornerShape(14.dp)
+        val textColor = if (enabled) MaterialTheme.colorScheme.onSurface else BpmPlayColors.lockText
+        // BasicTextField + decoración de Material: igual que `OutlinedTextField`, pero con el borde de 2 dp también en reposo.
+        BasicTextField(
             value = displayed,
             onValueChange = { next ->
                 editing = next
                 if (next.text != value) { onActivity(); editedSinceError = true; onValueChange(next.text) }
             },
-            label = { Text(label) },
             modifier = Modifier.fillMaxWidth()
                 .then(navigation?.let { Modifier.focusRequester(it.requester) } ?: Modifier)
                 .onFocusChanged { state -> if (focused && !state.isFocused) visited = true; focused = state.isFocused }
-                .semantics { contentDescription = label; if (shownError != null) error(shownError) },
+                .semantics { contentDescription = label; if (shownError != null) error(shownError) }
+                .defaultMinSize(minWidth = OutlinedTextFieldDefaults.MinWidth, minHeight = OutlinedTextFieldDefaults.MinHeight),
             enabled = enabled,
-            singleLine = singleLine,
-            minLines = minLines,
-            shape = RoundedCornerShape(14.dp),
-            isError = shownError != null,
-            trailingIcon = trailingIcon,
-            placeholder = placeholder?.let { { Text(it) } },
+            textStyle = LocalTextStyle.current.merge(TextStyle(color = textColor)),
+            cursorBrush = SolidColor(if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary),
+            visualTransformation = visualTransformation,
             keyboardOptions = options,
             keyboardActions = keyboardActions ?: KeyboardActions(
                 onNext = { nextInput() },
                 onDone = { finishInput() },
                 onSearch = { finishInput() },
             ),
-            visualTransformation = visualTransformation,
+            interactionSource = interactions,
+            singleLine = singleLine,
+            minLines = if (singleLine) 1 else minLines,
+            maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+            decorationBox = { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = displayed.text, innerTextField = innerTextField, enabled = enabled, singleLine = singleLine,
+                    visualTransformation = visualTransformation, interactionSource = interactions, isError = isError,
+                    label = { Text(label) },
+                    placeholder = placeholder?.let { { Text(it) } },
+                    trailingIcon = trailingIcon, colors = colors,
+                    container = { OutlinedTextFieldDefaults.Container(enabled, isError, interactions, colors = colors, shape = shape,
+                        focusedBorderThickness = 2.dp, unfocusedBorderThickness = 2.dp) },
+                )
+            },
         )
         // Un nodo propio mantiene la ayuda disponible también en el árbol accesible de Compose web.
         (shownError ?: supportingText)?.let { message ->

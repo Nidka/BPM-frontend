@@ -44,12 +44,10 @@ enum class BpmWindowClass(val margin: Dp) {
 
 /** Forma de la navegación principal según la clase de ancho (y el alto disponible). */
 enum class BpmNavigationMode(val width: Dp) {
-    /** Barra inferior con un máximo de cinco destinos. */
+    /** Barra inferior con un máximo de cinco destinos (hasta 839 dp, para todos los roles). */
     BottomBar(0.dp),
-    /** Riel de 80 dp con icono y texto. */
-    Rail(80.dp),
-    /** Menú lateral de 240 dp. */
-    SideMenu(240.dp);
+    /** Menú lateral de 230 dp ([BpmPlaySideMenu]) desde 840 dp, para todos los roles. */
+    SideMenu(230.dp);
 
     companion object {
         /** Alto mínimo para una navegación lateral; por debajo (móvil horizontal) se usa la barra inferior. */
@@ -58,7 +56,7 @@ enum class BpmNavigationMode(val width: Dp) {
         fun of(windowClass: BpmWindowClass, height: Dp): BpmNavigationMode = when {
             height < MIN_SIDE_HEIGHT -> BottomBar
             windowClass == BpmWindowClass.Compact -> BottomBar
-            windowClass == BpmWindowClass.Medium -> Rail
+            windowClass == BpmWindowClass.Medium -> BottomBar
             else -> SideMenu
         }
     }

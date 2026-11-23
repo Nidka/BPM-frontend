@@ -17,12 +17,11 @@ class BpmWindowClassTest {
 
     @Test fun navigationChangesWithWidthAndFallsBackToBottomBarWhenShort() {
         assertEquals(BpmNavigationMode.BottomBar, BpmNavigationMode.of(BpmWindowClass.Compact, 800.dp))
-        assertEquals(BpmNavigationMode.Rail, BpmNavigationMode.of(BpmWindowClass.Medium, 800.dp))
+        assertEquals(BpmNavigationMode.BottomBar, BpmNavigationMode.of(BpmWindowClass.Medium, 800.dp))
         assertEquals(BpmNavigationMode.SideMenu, BpmNavigationMode.of(BpmWindowClass.Expanded, 800.dp))
         assertEquals(BpmNavigationMode.SideMenu, BpmNavigationMode.of(BpmWindowClass.Large, 800.dp))
         assertEquals(BpmNavigationMode.BottomBar, BpmNavigationMode.of(BpmWindowClass.Large, 400.dp))
-        assertEquals(80.dp, BpmNavigationMode.Rail.width)
-        assertEquals(240.dp, BpmNavigationMode.SideMenu.width)
+        assertEquals(230.dp, BpmNavigationMode.SideMenu.width)
     }
 
     @Test fun patternRulesMatchTheDesignTable() {
@@ -52,7 +51,7 @@ class BpmWindowClassTest {
         assertEquals(2, BpmPatternRules.gridColumns(931.dp))
         assertEquals(3, BpmPatternRules.gridColumns(932.dp))
         assertEquals(3, BpmPatternRules.gridColumns(1200.dp))
-        // 600 dp de ventana con riel: 472 dp útiles → una columna (antes: dos tarjetas de 228 dp).
+        // 600 dp de ventana con barra inferior: 552 dp útiles → una columna (antes: dos tarjetas de 228 dp).
         assertEquals(1, BpmPatternRules.gridColumns(usable(600)))
         // 900 dp de ventana con menú lateral: 596 dp útiles → una columna.
         assertEquals(1, BpmPatternRules.gridColumns(usable(900)))

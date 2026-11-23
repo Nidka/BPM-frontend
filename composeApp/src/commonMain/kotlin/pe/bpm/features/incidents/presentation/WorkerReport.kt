@@ -147,7 +147,7 @@ private fun ReportSteps(
             }
         },
     ) {
-        if (step != ReportStep.Category && e.pending == null) ReportBack { go(ReportStep.entries[step.ordinal - 1]) }
+        if (step != ReportStep.Category && e.pending == null) BpmBackLink { go(ReportStep.entries[step.ordinal - 1]) }
         when (step) {
             ReportStep.Category -> CategoryStep(s, selectedId, { viewModel.editor.selectCatalog(it) }, viewModel, onOpenList)
             ReportStep.Photo -> PhotoStep(selected)
@@ -222,18 +222,6 @@ private fun PlaceStep(e: IncidentEditorState, place: String, note: String, enabl
     if (e.pending != null) Text("El envío aún no está confirmado. Reintenta para consultar su resultado.", style = BpmPlayType.sub, color = BpmPlayColors.gold.shadow)
     e.failure?.let { Text(incidentFailureText(it), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) }
     e.errors["catalogId"]?.let { Text(it, style = BpmPlayType.sub, color = BpmPlayColors.error.shadow) }
-}
-
-/** «‹ Atrás» al inicio de los pasos 2 y 3. */
-@Composable
-private fun ReportBack(onClick: () -> Unit) {
-    Row(
-        Modifier.heightIn(min = BpmSpacing.touch).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onClick).padding(end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        BpmIcon(BpmSymbol.Back, tint = BpmPlayColors.action.face, modifier = Modifier.size(20.dp))
-        Text("Atrás", style = BpmPlayType.key, color = BpmPlayColors.action.face)
-    }
 }
 
 /** Confirmación del envío; abre las fotos de la incidencia si se pidieron y ofrece agregarlas después. */

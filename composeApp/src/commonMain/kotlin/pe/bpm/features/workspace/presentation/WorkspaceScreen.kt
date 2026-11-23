@@ -75,8 +75,9 @@ internal fun WorkspaceScreen(
     val role = state.workspace?.role
     val available = workspaceDestinations(role, viewer.canCreateOrganization)
     val navItems = workspaceNavigation(workspacePrimaryDestinations(available, role), shortcuts)
-    // El personal (WORKER) usa la navegación de juego: barra inferior hasta 839 dp y menú grande desde 840 dp (sin riel).
-    val playNav = role == "WORKER" && WorkspaceDestination.Tasks in available
+    // Todos los roles comparten la navegación del sistema: barra inferior hasta 839 dp y menú lateral de 230 dp desde 840 dp.
+    // Solo el personal (WORKER) tiene «Perfil» como destino propio, así que no necesita el avatar de la cabecera.
+    val profileInNav = role == "WORKER" && WorkspaceDestination.Tasks in available
     val navigate: (WorkspaceDestination) -> Unit = { if (it in available) onNavigate(it) }
     val contentScroll = rememberScrollState()
     val actionSlot = remember { BpmActionBarSlot() }
@@ -90,52 +91,20 @@ internal fun WorkspaceScreen(
         // BpmAppShell: la clase de ancho se calcula aquí una sola vez y baja por LocalBpmWindowClass.
         // Con altura baja (móvil horizontal) la navegación lateral no cabe: se usa la barra inferior.
         val windowClass = BpmWindowClass.fromWidth(maxWidth)
-        val navMode = BpmNavigationMode.of(windowClass, maxHeight).let { if (playNav && it == BpmNavigationMode.Rail) BpmNavigationMode.BottomBar else it }
-        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(role), item.playSymbol(), item.isSelected(section, activeShortcut)) { item.open(navigate, onShortcut) } }
+        val navMode = BpmNavigationMode.of(windowClass, maxHeight)
+        val playItems = navItems.map { item -> BpmPlayNavItem(item.label(role), item.playSymbol(role), item.isSelected(section, activeShortcut)) { item.open(navigate, onShortcut) } }
         val wide = navMode != BpmNavigationMode.BottomBar
         ProvideBpmWindowClass(windowClass, maxHeight) { CompositionLocalProvider(LocalBpmActionBarSlot provides actionSlot) {
         Row(Modifier.fillMaxSize()) {
-            if (navMode == BpmNavigationMode.Rail && !focusMode) NavigationRail(Modifier.width(navMode.width).fillMaxHeight(),
-                containerColor = MaterialTheme.colorScheme.surface, header = { Spacer(Modifier.height(BpmSpacing.sm)); Brand(compact = true) }) {
-                Spacer(Modifier.height(BpmSpacing.lg))
-                navItems.forEach { item ->
-                    BpmFeedback(MaterialTheme.colorScheme.primary) {
-                        NavigationRailItem(selected = item.isSelected(section, activeShortcut), onClick = { item.open(navigate, onShortcut) }, icon = { item.Icon() },
-                            colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer),
-                            label = { Text(item.label(role), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) })
-                    }
-                }
-            }
-            if (navMode == BpmNavigationMode.SideMenu && !focusMode && playNav) BpmPlaySideMenu(BpmBrand.name, playItems)
-            else if (navMode == BpmNavigationMode.SideMenu && !focusMode) Surface(Modifier.width(navMode.width).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Brand()
-                    Spacer(Modifier.height(32.dp))
-                    navItems.forEach { item ->
-                        BpmFeedback(MaterialTheme.colorScheme.primary) {
-                        NavigationDrawerItem(label = { Text(item.label(role), style = BpmType.bodyStrong) },
-                            selected = item.isSelected(section, activeShortcut), onClick = { item.open(navigate, onShortcut) },
-                            colors = NavigationDrawerItemDefaults.colors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary),
-                            icon = { item.Icon() })
-                        }
-                    }
-                    Spacer(Modifier.weight(1f))
-                }
-            }
+            if (navMode == BpmNavigationMode.SideMenu && !focusMode) BpmPlaySideMenu(BpmBrand.name, playItems)
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 if (!(focusMode && playFocus)) WorkspaceTopBar(workspace?.organization?.name, wide, windowClass,
-                    onAccount = if (section == WorkspaceDestination.Account || WorkspaceDestination.Account !in available || playNav) null else ({ navigate(WorkspaceDestination.Account) }),
+                    onAccount = if (section == WorkspaceDestination.Account || WorkspaceDestination.Account !in available || profileInNav) null else ({ navigate(WorkspaceDestination.Account) }),
                     canChangeOrganization = form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null && (state.canChooseOrganization || superAdmin),
                     enabled = !state.saving && !secondaryBusy,
                     onToggleOrganization = onChooseOrganization,
                     onAlerts=onAlerts,unreadCount=unreadAlertCount,
-                    focusTitle = if (focusMode) focusTitle ?: "" else null, play = playNav,
+                    focusTitle = if (focusMode) focusTitle ?: "" else null,
  onBack = if (form == null && secondaryContent == null && !choosingOrganization && secondaryTitle == null) null else onCloseForm)
                 if (state.loading || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (section == WorkspaceDestination.Tasks && workspace != null && secondaryContent == null) HostedContent(Modifier.weight(1f).fillMaxWidth(), BpmPattern.Panel, bare = focusMode && playFocus) { taskContent() }
@@ -157,7 +126,7 @@ internal fun WorkspaceScreen(
                         onPrevious = onOrganizationPrevious, onRetry = onOrganizationRetry)
                 } else key(section, secondaryTitle) { Box(Modifier.weight(1f).fillMaxWidth().bpmAppear().verticalScroll(contentScroll)) { BpmScreenFrame(if (secondaryContent != null) secondaryPattern else BpmPattern.Panel) {
                     // El título de la pantalla va primero; los avisos y accesos de apoyo se muestran debajo.
-                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(playNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, role))
+                    if (!(workerLearn != null && section == WorkspaceDestination.Learn && secondaryContent == null) && !(profileInNav && section == WorkspaceDestination.Home && homeContent != null && secondaryContent == null) && !(workerProfile != null && section == WorkspaceDestination.Account && secondaryContent == null)) BpmPageHeader(secondaryTitle ?: if (section == WorkspaceDestination.Home) "Hola, ${viewer.displayName.substringBefore(' ')}" else destinationLabel(section, role))
                     screenNotice()
                     if (workspace != null || section == WorkspaceDestination.Account) Errors(state.errors)
                     state.notice?.let { notice -> key(notice) { BpmReveal { Text(notice, color = MaterialTheme.colorScheme.primary) } } }
@@ -292,18 +261,7 @@ internal fun WorkspaceScreen(
                 BpmActionBarHost(actionSlot)
                 // Los atajos (incidencias, investigación, empresas, acceso) son destinos de la barra: al abrirlos, la barra sigue visible y los marca.
                 val keepNavigation = activeShortcut != null
-                if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization)) && playNav) BpmPlayBottomBar(playItems)
-                else if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) NavigationBar {
-                    navItems.forEach { item -> BpmFeedback(MaterialTheme.colorScheme.primary) {
-                        NavigationBarItem(selected = item.isSelected(section, activeShortcut),
-                        onClick = { item.open(navigate, onShortcut) }, icon = { item.Icon() },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer),
-                        label = { Text(item.label(role), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }) }
-                    }
-                }
+                if (navMode == BpmNavigationMode.BottomBar && !focusMode && form == null && !stepFlow && (keepNavigation || (!secondaryEditor && !choosingOrganization))) BpmPlayBottomBar(playItems)
             }
         }
         }
@@ -389,23 +347,21 @@ private fun WorkspaceNavItem.open(navigate: (WorkspaceDestination) -> Unit, onSh
     is WorkspaceNavItem.Shortcut -> onShortcut(shortcut)
 }
 
-/** Iconos de la navegación de juego: Aprender usa el camino y Tareas el tablero de control. */
-private fun WorkspaceNavItem.playSymbol(): BpmSymbol = when (this) {
+/** Iconos de la navegación (para todos los roles): Aprender usa el camino en Personal y el libro en el resto. */
+private fun WorkspaceNavItem.playSymbol(role: String?): BpmSymbol = when (this) {
     is WorkspaceNavItem.Section -> when (destination) {
         WorkspaceDestination.Home -> BpmSymbol.Home
-        WorkspaceDestination.Learn -> BpmSymbol.Route
+        WorkspaceDestination.Learn -> if (role == "WORKER") BpmSymbol.Route else BpmSymbol.Learn
         WorkspaceDestination.Account -> BpmSymbol.Account
-        else -> BpmSymbol.Control
+        WorkspaceDestination.Team -> BpmSymbol.Team
+        WorkspaceDestination.Company -> BpmSymbol.Company
+        WorkspaceDestination.Supervision -> BpmSymbol.Eye
+        WorkspaceDestination.Tasks, WorkspaceDestination.Operations -> BpmSymbol.Control
     }
-    is WorkspaceNavItem.Shortcut -> BpmSymbol.Alert
-}
-
-@Composable private fun WorkspaceNavItem.Icon() = when (this) {
-    is WorkspaceNavItem.Section -> WorkspaceIcon(destination)
-    is WorkspaceNavItem.Shortcut -> BpmIcon(when (shortcut) {
+    is WorkspaceNavItem.Shortcut -> when (shortcut) {
         WorkspaceShortcut.Incidents -> BpmSymbol.Alert
         WorkspaceShortcut.Research -> BpmSymbol.Sprout
         WorkspaceShortcut.Companies -> BpmSymbol.Company
         WorkspaceShortcut.Access -> BpmSymbol.Team
-    })
+    }
 }

@@ -139,7 +139,7 @@ private fun TaskSteps(
             }
         },
     ) {
-        if (index > 0 && state.pending == null) BackLink { go(steps[index - 1]) }
+        if (index > 0 && state.pending == null) BpmBackLink { go(steps[index - 1]) }
         // Aviso sin conexión desde el primer paso: la tarea se registra igual y se envía sola al volver la red.
         if (step != QuickStep.Photo && !LocalOnline.current) BpmPlayNotice("Sin conexión: puedes registrar la tarea; se guarda en el teléfono y se envía sola después.")
         when (step) {
@@ -196,18 +196,6 @@ private fun PhotoStep(state: OperationsState, onPhoto: () -> Unit, busy: Boolean
         Text(failureText(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
     }
     state.fields["shiftId"]?.let { Text(it, style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.fillMaxWidth()) }
-}
-
-/** «‹ Atrás» al inicio de los pasos 2 y 3 (la X cierra todo el registro). */
-@Composable
-private fun BackLink(onClick: () -> Unit) {
-    Row(
-        Modifier.heightIn(min = BpmSpacing.touch).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onClick).padding(end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        BpmIcon(BpmSymbol.Back, tint = BpmPlayColors.action.face, modifier = Modifier.size(20.dp))
-        Text("Atrás", style = BpmPlayType.key, color = BpmPlayColors.action.face)
-    }
 }
 
 /** Cabecera con la tarea que se registra: icono, nombre y «Cocina · detalle» (como la fila de misión, sin círculo). */

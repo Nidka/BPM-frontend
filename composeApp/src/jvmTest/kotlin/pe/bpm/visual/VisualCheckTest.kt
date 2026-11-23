@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
 
 /**
  * Banco visual: dibuja listados, formularios por pasos y detalles a los anchos de ventana de specs/LAYOUT.md §7,
- * con la navegación real (riel 80 / menú 240) y los márgenes por clase, y guarda PNG en build/visual para
+ * con la navegación real (barra inferior / menú 230) y los márgenes por clase, y guarda PNG en build/visual para
  * revisarlos. También prueba el cursor y el clic sobre la tarjeta completa.
  */
 class VisualCheckTest {

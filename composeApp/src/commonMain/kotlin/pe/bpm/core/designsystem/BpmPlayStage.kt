@@ -113,18 +113,18 @@ fun BpmPlayStage(
 }
 
 /**
- * Tarjeta de juego (`.card`): borde de 2 dp con 4 dp abajo, radio 18, relleno de 14 dp y 8 dp entre sus líneas. Con
+ * Tarjeta de juego (`.card`): es la misma [BpmCard] compacta del sistema (borde de 2 dp con 4 dp abajo, radio 18). Con
  * [dashed] el borde es discontinuo y plano (la constancia). Mide lo que mide su contenido.
  */
 @Composable
 fun BpmPlayCard(modifier: Modifier = Modifier, dashed: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val base = if (dashed) modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).drawBehind {
+    if (!dashed) { BpmCard(modifier.fillMaxWidth(), variant = BpmCardVariant.Compact, content = content); return }
+    Column(modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).drawBehind {
         val stroke = BpmPlayBorder.toPx()
         drawRoundRect(BpmPlayColors.navBorder, topLeft = androidx.compose.ui.geometry.Offset(stroke / 2f, stroke / 2f),
             size = Size(size.width - stroke, size.height - stroke), cornerRadius = CornerRadius(18.dp.toPx()),
             style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))))
-    } else modifier.fillMaxWidth().bpmPlayFrame(BpmPlayColors.line, Color.White, 18.dp)
-    Column(base.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+    }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
 }
 
 /**

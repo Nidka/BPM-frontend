@@ -99,18 +99,12 @@ fun IdentityScreen(
                 Text("Al volver a entrar con tu misma cuenta podrás recuperar los borradores conservados en este dispositivo.", style = MaterialTheme.typography.bodySmall)
             }
             if (profile == null && state.mode in listOf(AuthMode.Login, AuthMode.Register)) {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium).padding(4.dp)) {
-                    listOf(AuthMode.Login to "Entrar", AuthMode.Register to "Crear cuenta").forEach { (mode, label) ->
-                        Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.small,
-                            color = if (state.mode == mode) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.outlineVariant,
-                            shadowElevation = if (state.mode == mode) 2.dp else 0.dp) {
-                            BpmTextButton(onClick = { changeMode(mode) }, enabled = !state.busy) { Text(label, style = BpmType.bodyStrong) }
-                        }
-                    }
-                }
+                BpmSegmentedTabs(listOf(BpmTabOption("login", "Entrar"), BpmTabOption("register", "Crear cuenta")),
+                    if (state.mode == AuthMode.Login) "login" else "register",
+                    { id -> if (!state.busy) changeMode(if (id == "login") AuthMode.Login else AuthMode.Register) })
             }
-            Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            BpmCard(Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (profile != null) {
                         Text(profile.displayName, style = MaterialTheme.typography.titleLarge)
                         Text(profile.email, color = MaterialTheme.colorScheme.onSurfaceVariant)

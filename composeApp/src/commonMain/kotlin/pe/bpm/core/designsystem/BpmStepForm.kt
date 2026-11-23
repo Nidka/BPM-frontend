@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 
@@ -49,8 +50,8 @@ object BpmStepFormRules {
 }
 
 /**
- * Formulario por pasos en la columna de 720 dp: avance segmentado, tarjeta del paso con su pregunta y acciones
- * homologadas. En el primer paso la secundaria es «Cancelar» ([onCancel]); en los demás, «Atrás». En el último
+ * Formulario por pasos en la columna de 720 dp: barra gruesa de avance arriba, la pregunta del paso con sus campos en una
+ * tarjeta y botones gruesos abajo. En el primer paso la secundaria es «Cancelar» ([onCancel]); en los demás, «Atrás». En el último
  * paso la principal es [submitLabel] y llama a [onSubmit].
  */
 @Composable
@@ -86,12 +87,23 @@ fun BpmStepForm(
         }
     }) {
         header?.invoke(this)
+        // Barra gruesa de avance arriba (como Personal): «PASO N DE M» y la barra del color de acción.
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
             // El lector de pantalla anuncia el cambio de paso sin mover el foco.
-            Text(BpmStepFormRules.progressLabel(index, steps.size, step.title), style = BpmType.labelStrong,
+            Text(BpmStepFormRules.progressLabel(index, steps.size, step.title).uppercase(), style = BpmPlayType.label,
                 color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            BpmSegmentedProgress(steps.size, completed = index, contentDescription = "Paso ${index + 1} de ${steps.size}", current = index)
+            BpmChunkyProgress((index + 1).toFloat() / steps.size, Modifier.fillMaxWidth(), BpmPlayTone.Action,
+                contentDescription = "Paso ${index + 1} de ${steps.size}")
         }
-        key(index) { BpmSection(step.title, description = step.description, content = step.content) }
+        // Una pregunta por paso: el título grande y, debajo, los campos en una tarjeta.
+        key(index) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg)) {
+                Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
+                    Text(step.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
+                    step.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                BpmCard(Modifier.fillMaxWidth(), content = step.content)
+            }
+        }
     }
 }

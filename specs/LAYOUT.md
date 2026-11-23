@@ -8,7 +8,7 @@ pantalla; los valores viven en código (`BpmPatternRules`, `BpmSpacing`) y el ve
 ## 1. Principios
 
 1. **Se decide por el ancho útil, no por la ventana.** El ancho útil es lo que queda para el contenido:
-   ventana − navegación (riel 80 dp o menú 240 dp) − márgenes. La clase de ventana solo decide la
+   ventana − navegación (menú de 230 dp desde 840 dp; antes, barra inferior) − márgenes. La clase de ventana solo decide la
    navegación y el margen; columnas, detalle al lado y campos en pares los decide el componente midiendo
    su propio contenedor. Así una ventana de 900 dp con menú lateral (600 dp útiles) se comporta como una
    pantalla de 600 dp, no como una de escritorio.
@@ -28,7 +28,7 @@ pantalla; los valores viven en código (`BpmPatternRules`, `BpmSpacing`) y el ve
 |---|---|---|
 | Cortes de ventana (navegación y margen) | 600 · 840 · 1200 | `BpmWindowClass` |
 | Margen lateral por clase | 16 · 24 · 32 · 32 | `BpmWindowClass.margin` |
-| Navegación | barra inferior < 600 (o alto < 480) · riel 80 · menú 240 | `BpmNavigationMode` |
+| Navegación (igual en todos los roles) | barra inferior < 840 (o alto < 480) · menú lateral 230 | `BpmNavigationMode` |
 | Ancho máximo de contenido | 1200 | `BpmSpacing.contentMax` |
 | Columna de lectura (formulario, pasos, detalle solo) | 720 | `BpmPatternRules.readingWidth` |
 | Tarjeta de acceso | 440 | `BpmPatternRules.accessWidth` |

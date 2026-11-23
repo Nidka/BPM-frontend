@@ -22,12 +22,15 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** Fondo del contenedor de pestañas (`.seg`). */
+private val SegmentTrack = androidx.compose.ui.graphics.Color(0xFFE8EDED)
+
 /** Opción de [BpmSegmentedTabs]: identificador estable, etiqueta y contador opcional. */
 data class BpmTabOption(val id: String, val label: String, val count: Int? = null)
 
 /**
  * Pestañas segmentadas: un contenedor gris redondeado con las opciones en fila a partes iguales; la seleccionada
- * va sobre fondo blanco con borde. El contador, si existe, se muestra en una píldora de acento suave.
+ * va sobre fondo blanco con el texto primario (`.seg` de la maqueta). El contador, si existe, se muestra en una píldora de acento suave.
  * Cada opción mide al menos 48 dp de alto y expone `Role.Tab` con su estado de selección.
  */
 @Composable
@@ -37,10 +40,10 @@ fun BpmSegmentedTabs(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val container = RoundedCornerShape(16.dp)
-    val tab = RoundedCornerShape(12.dp)
+    val container = RoundedCornerShape(14.dp)
+    val tab = RoundedCornerShape(10.dp)
     Row(
-        modifier.fillMaxWidth().clip(container).background(BpmNeutralSurface).padding(BpmSpacing.xs),
+        modifier.fillMaxWidth().clip(container).background(SegmentTrack).padding(BpmSpacing.xs),
         horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xs),
     ) {
         options.forEach { option ->
@@ -48,8 +51,7 @@ fun BpmSegmentedTabs(
             BpmFeedback(MaterialTheme.colorScheme.primary) {
                 Box(
                     Modifier.weight(1f).heightIn(min = BpmSpacing.touch).clip(tab)
-                        .background(if (selected) MaterialTheme.colorScheme.surface else BpmNeutralSurface)
-                        .then(if (selected) Modifier.border(BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant), tab) else Modifier)
+                        .background(if (selected) MaterialTheme.colorScheme.surface else SegmentTrack)
                         .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(option.id) })
                         .padding(horizontal = BpmSpacing.sm),
                     contentAlignment = Alignment.Center,

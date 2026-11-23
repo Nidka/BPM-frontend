@@ -81,8 +81,8 @@ fun BpmPageHeader(
 }
 
 /**
- * KPI con una cifra, una etiqueta y un apoyo opcional. Dos tamaños: normal (tarjeta compacta) y
- * destacado (tarjeta destacada con cifra mayor; pensado para ocupar 2 columnas de una rejilla bento).
+ * KPI con una cifra, una etiqueta y un apoyo opcional: es el [BpmKpiTile] del sistema (cifra en Baloo 2 con el color
+ * primario; «Sin datos» o «—» se muestran en gris y con tamaño de texto). Con [featured] el fondo es teal suave (pensado para ocupar 2 columnas de una rejilla bento).
  */
 @Composable
 fun BpmStatTile(
@@ -91,15 +91,7 @@ fun BpmStatTile(
     modifier: Modifier = Modifier,
     support: String? = null,
     featured: Boolean = false,
-) {
-    BpmCard(modifier, variant = if (featured) BpmCardVariant.Featured else BpmCardVariant.Compact) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = if (featured) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary)
-        if (support != null)
-            Text(support, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
+) = BpmKpiTile(label, value.takeUnless { it.isBlank() || it == "Sin datos" || it == "—" }, modifier, support = support, featured = featured)
 
 /**
  * Acceso a un módulo: icono, título, una línea y flecha. Toda la fila es el botón; no lleva botón interior.
@@ -118,7 +110,7 @@ fun BpmActionTile(
                 .clickable(role = Role.Button, onClick = onClick),
             horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer),
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(BpmPlayColors.action.soft),
                 contentAlignment = Alignment.Center) {
                 BpmIcon(symbol, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
             }
@@ -133,8 +125,8 @@ fun BpmActionTile(
 }
 
 /**
- * Fila de una lista ancha: iniciales, nombre, detalle (correo), chip (rol) y acciones. Desde 840 dp es una
- * fila densa de una sola línea; en pantallas menores se muestra como tarjeta compacta.
+ * Fila de una lista de personas: es la [BpmPersonRow] del sistema con iniciales, nombre, detalle (correo), chip (rol) y
+ * acciones. Desde 840 dp todo va en una sola línea; en pantallas menores el chip y las acciones pasan debajo del nombre.
  */
 @Composable
 fun BpmListRow(
@@ -145,47 +137,17 @@ fun BpmListRow(
     actions: (@Composable RowScope.() -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val avatar = @Composable {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center) {
-                Text(initialsOf(title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        val names = @Composable { mod: Modifier ->
-            Column(mod, verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (detail != null) Text(detail, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-        val roleChip = @Composable {
-            if (chip != null) Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
-                Text(chip, Modifier.padding(horizontal = BpmSpacing.md, vertical = BpmSpacing.xs),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            }
-        }
+        val status = chip?.let { BpmRecordStatus(it, BpmTone.Info) }
         if (maxWidth >= listRowWide) {
-            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = BpmSpacing.lg, vertical = BpmSpacing.md),
-                    horizontalArrangement = Arrangement.spacedBy(BpmSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
-                    avatar()
-                    names(Modifier.weight(1f))
-                    roleChip()
-                    if (actions != null) Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm),
-                        verticalAlignment = Alignment.CenterVertically, content = actions)
-                }
-            }
+            BpmPersonRow(title, Modifier.fillMaxWidth(), detail = detail, status = status, trailing = actions?.let { a ->
+                { Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm), verticalAlignment = Alignment.CenterVertically, content = a) }
+            })
         } else {
-            BpmCard(Modifier.fillMaxWidth(), variant = BpmCardVariant.Compact) {
-                Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-                    avatar()
-                    names(Modifier.weight(1f))
-                }
-                roleChip()
+            BpmPersonRow(title, Modifier.fillMaxWidth(), detail = detail, footer = if (status == null && actions == null) null else ({
+                if (status != null) BpmStatusChip(status.text, status.tone)
                 if (actions != null) Row(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically, content = actions)
-            }
+            }))
         }
     }
 }

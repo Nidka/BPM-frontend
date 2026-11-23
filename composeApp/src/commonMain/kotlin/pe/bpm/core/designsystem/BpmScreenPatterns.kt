@@ -1,5 +1,9 @@
 package pe.bpm.core.designsystem
 
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -187,7 +191,8 @@ fun BpmPanelLayout(
 val LocalBpmDetailBeside = compositionLocalOf { false }
 
 /**
- * Lista–detalle. Con [detail] nulo se ve la lista. Si el ancho útil alcanza para lista (360), separación (24) y
+ * Lista–detalle con el estilo del sistema: una línea separa la lista del detalle y el registro abierto queda resaltado en la
+ * lista (`selected` de [BpmRecordCard], [BpmPersonRow] y [BpmDataRow]). Con [detail] nulo se ve la lista. Si el ancho útil alcanza para lista (360), separación (24) y
  * un detalle legible (480) —desde 864 dp—, el detalle va al lado ([emptyDetail] mientras no hay selección);
  * si no, un detalle abierto ocupa toda la pantalla con un tope de 720 dp y su «Volver».
  */
@@ -200,7 +205,11 @@ fun BpmListDetail(
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
         if (BpmPatternRules.detailBesideList(maxWidth)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
+            // Una línea de 2 dp separa la lista del detalle; se dibuja en el medio de la separación, sin medir alturas.
+            Row(Modifier.fillMaxWidth().drawBehind {
+                val x = (BpmPatternRules.listWidth + BpmSpacing.xl / 2).toPx()
+                drawRect(BpmPlayColors.line, Offset(x - BpmPlayBorder.toPx() / 2f, 0f), Size(BpmPlayBorder.toPx(), size.height))
+            }, horizontalArrangement = Arrangement.spacedBy(BpmSpacing.xl)) {
                 // La lista mide 360 dp: dentro de ella los componentes se comportan como en pantalla compacta (una columna).
                 Column(Modifier.width(BpmPatternRules.listWidth)) { ProvideBpmWindowClass(BpmWindowClass.Compact) { list() } }
                 Column(Modifier.weight(1f)) { CompositionLocalProvider(LocalBpmDetailBeside provides true) { (detail ?: emptyDetail)?.invoke() } }

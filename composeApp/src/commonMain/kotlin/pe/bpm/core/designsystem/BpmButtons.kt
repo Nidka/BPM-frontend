@@ -13,6 +13,9 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
@@ -31,45 +34,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import pe.bpm.core.offline.serverActionBlocked
 
-/** Acción secundaria: borde de 2 dp y relieve de 3 dp (`.secondary` en playful.css). */
+/** Texto de los botones del sistema cuyo texto escribe cada pantalla: Nunito 900 de 16 sp, sin espaciado ni mayúsculas. */
+@Composable
+internal fun bpmButtonTextStyle(): TextStyle = BpmPlayType.button.copy(letterSpacing = 0.sp)
+
+/**
+ * Acción secundaria: botón grueso blanco con borde de 2 dp y relieve de 4 dp (`.btn.w` de la maqueta). El texto llega
+ * como contenido (se ve como lo escribe la pantalla).
+ */
 @Composable
 fun BpmSecondaryButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
     size: BpmButtonSize = BpmButtonSize.Normal, content: @Composable RowScope.() -> Unit) =
-    BpmSecondaryButtonImpl(onClick, modifier, enabled && !serverActionBlocked(), size, content)
+    BpmChunkyShell(onClick, modifier, BpmChunkyTone.White, enabled && !serverActionBlocked(), bpmButtonTextStyle(),
+        compact = size == BpmButtonSize.Compact) { content() }
 
-@Composable
-private fun BpmSecondaryButtonImpl(onClick: () -> Unit, modifier: Modifier, enabled: Boolean,
-    size: BpmButtonSize, content: @Composable RowScope.() -> Unit) {
-    val interactions = remember { MutableInteractionSource() }
-    val pressed by interactions.collectIsPressedAsState()
-    val focused by interactions.collectIsFocusedAsState()
-    // Con «reducir movimiento» el hundimiento es instantáneo: el cambio de estado se ve, sin desplazamiento animado.
-    val reduceMotion = rememberReduceMotion()
-    val offset by animateDpAsState(if (pressed && enabled) 2.dp else 0.dp, if (reduceMotion) snap() else tween(100), label = "Presión del botón secundario")
-    val shape = RoundedCornerShape(16.dp)
-    val line = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-    // Foco por teclado visible (WCAG 2.4.7): la capa del ripple (12 %) no basta; el borde se oscurece y engrosa.
-    val border = if (focused && enabled) BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else BorderStroke(2.dp, line)
-    // propagateMinConstraints: el botón ocupa todo el ancho solo si quien lo usa se lo pide al contenedor.
-    Box(modifier.bpmRelief(if (enabled) BpmTokens.secondaryRelief else Color.Transparent, shape, BpmSpacing.reliefDepth),
-        propagateMinConstraints = true) {
-        BpmFeedback(MaterialTheme.colorScheme.primary) {
-            OutlinedButton(onClick, Modifier.heightIn(min = if (size == BpmButtonSize.Compact) BpmSpacing.buttonCompact else BpmSpacing.button).offset(y = offset), enabled,
-                shape = shape, interactionSource = interactions,
-                border = border,
-                // Mismo relleno y texto en negrita que RaisedButton: ambos botones miden y pesan igual.
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.primary),
-                // El peso (negrita) viene de `labelLarge` en el tema.
-                content = content)
-        }
-    }
-}
-
-/** Acción de texto compartida; no compite visualmente con el envío principal. */
+/** Acción de texto compartida (Nunito 900 en el color primario); no compite visualmente con el envío principal. */
 @Composable
 fun BpmTextButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -82,7 +65,22 @@ fun BpmTextButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: B
             // Foco por teclado visible (WCAG 2.4.7), igual que en RaisedButton y el selector de organización.
             border = if (focused && enabled) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
             interactionSource = interactions,
-            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary), content = content)
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)) {
+            ProvideTextStyle(BpmPlayType.button.copy(fontSize = 15.sp, letterSpacing = 0.sp)) { content() }
+        }
+    }
+}
+
+/**
+ * «‹ Atrás» al inicio de un paso (Nunito 900 en teal, 48 dp de alto): vuelve al paso anterior. Lo usan los flujos por
+ * pasos de Personal; la X de la barra superior es la que cierra todo el flujo.
+ */
+@Composable
+fun BpmBackLink(modifier: Modifier = Modifier, label: String = "Atrás", onClick: () -> Unit) {
+    BpmTextButton(onClick, modifier, contentPadding = PaddingValues(start = 4.dp, end = 12.dp)) {
+        BpmIcon(BpmSymbol.Back, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(label)
     }
 }
 

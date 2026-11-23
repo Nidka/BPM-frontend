@@ -67,7 +67,8 @@ fun BpmPlayBottomBar(items: List<BpmPlayNavItem>, modifier: Modifier = Modifier)
                     contentAlignment = Alignment.Center,
                 ) { BpmIcon(item.icon, tint = color, modifier = Modifier.size(26.dp)) }
                 Spacer(Modifier.height(2.dp))
-                Text(item.label.uppercase(), color = color, style = BpmPlayType.navLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                // Con cinco destinos (Jefe, Administrador) las etiquetas largas («Seguimiento») ya no caben a 11,5 sp en 360 dp.
+                Text(item.label.uppercase(), color = color, style = if (items.size > 4) BpmPlayType.navLabel.copy(fontSize = 10.sp, letterSpacing = 0.sp) else BpmPlayType.navLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
             }
         }
     }

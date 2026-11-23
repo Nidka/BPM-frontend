@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -25,7 +26,7 @@ object BpmTokens {
     val background = Color(0xFFF5F6F6)
     val soft = Color(0xFFEDF5F2)
     val accent = Color(0xFFED5700)
-    val border = Color(0xFFD9DFE0)
+    val border = Color(0xFFDCE3E3)
     /** Borde de campos: contraste suficiente para componentes de interfaz (WCAG 1.4.11). */
     val fieldBorder = Color(0xFF859297)
     /** Sombra inferior del botón principal (primario oscurecido 28 %). */
@@ -119,32 +120,45 @@ private val colors = lightColorScheme(
 )
 
 /**
- * Los títulos usan peso 800 (`h1,h2,h3` en playful.css); la familia sigue la del sistema de cada plataforma.
+ * Tipografía única de la app: **Baloo 2** (títulos, 800) y **Nunito** (todo lo demás), las mismas familias del estilo de
+ * juego de Personal ([BpmPlayType]); así el ingreso y todos los roles se ven igual. Los tamaños conservan la escala de
+ * Material (con el mínimo de 14 sp del RNF de usabilidad).
  *
  * Roles de texto (el peso viene del estilo; las pantallas no escriben `fontWeight`):
  * título de página `headlineMedium` (uno por pantalla) · sección `titleLarge` · título de tarjeta `titleMedium` ·
  * cuerpo `bodyMedium` · apoyo `bodySmall` (nunca como único texto de una tarjeta) · etiqueta `labelMedium` ·
  * texto de botón `labelLarge` (negrita).
  */
+@Composable
 private fun bpmTypography(): Typography {
     val base = Typography()
-    fun androidx.compose.ui.text.TextStyle.heavy() = copy(fontWeight = FontWeight.ExtraBold)
+    val display = BpmPlayType.display
+    val body = BpmPlayType.body
+    fun TextStyle.baloo() = copy(fontFamily = display, fontWeight = FontWeight.ExtraBold)
+    fun TextStyle.nunito(weight: FontWeight) = copy(fontFamily = body, fontWeight = weight)
     return base.copy(
-        headlineLarge = base.headlineLarge.heavy(), headlineMedium = base.headlineMedium.heavy(),
-        headlineSmall = base.headlineSmall.heavy(), titleLarge = base.titleLarge.heavy(),
-        titleMedium = base.titleMedium.copy(fontWeight = FontWeight.Bold),
+        displayLarge = base.displayLarge.baloo(), displayMedium = base.displayMedium.baloo(), displaySmall = base.displaySmall.baloo(),
+        headlineLarge = base.headlineLarge.baloo(),
+        // Título de página: Baloo 2 800, 26 sp (`.h1` de la maqueta) con interlineado holgado para títulos de dos líneas.
+        headlineMedium = base.headlineMedium.baloo().copy(fontSize = 26.sp, lineHeight = 32.sp),
+        headlineSmall = base.headlineSmall.baloo(),
+        titleLarge = base.titleLarge.baloo(),
+        titleMedium = base.titleMedium.nunito(FontWeight.ExtraBold).copy(lineHeight = 22.sp),
+        titleSmall = base.titleSmall.nunito(FontWeight.ExtraBold),
+        bodyLarge = base.bodyLarge.nunito(FontWeight.SemiBold),
+        bodyMedium = base.bodyMedium.nunito(FontWeight.SemiBold),
         // RNF de usabilidad: ningún texto por debajo de 14 sp (apoyo, etiquetas y chips incluidos).
-        bodySmall = base.bodySmall.copy(fontSize = 14.sp, lineHeight = 20.sp),
-        labelMedium = base.labelMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
-        labelSmall = base.labelSmall.copy(fontSize = 14.sp, lineHeight = 18.sp),
-        labelLarge = base.labelLarge.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
+        bodySmall = base.bodySmall.nunito(FontWeight.SemiBold).copy(fontSize = 14.sp, lineHeight = 20.sp),
+        labelMedium = base.labelMedium.nunito(FontWeight.ExtraBold).copy(fontSize = 14.sp, lineHeight = 18.sp),
+        labelSmall = base.labelSmall.nunito(FontWeight.ExtraBold).copy(fontSize = 14.sp, lineHeight = 18.sp),
+        labelLarge = base.labelLarge.nunito(FontWeight.Black).copy(fontSize = 15.sp, lineHeight = 20.sp),
     )
 }
 
 @Composable
 fun BpmTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colors, typography = bpmTypography(), shapes = Shapes(
-        small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp))) {
+        small = RoundedCornerShape(14.dp), medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp))) {
         CompositionLocalProvider(LocalContentColor provides colors.onBackground, content = content)
     }
 }
