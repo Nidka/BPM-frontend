@@ -283,7 +283,8 @@ fun App(
     }
     val firstStepsState = if (guideRole != null && onboarding.loaded && !onboarding.hidden) FirstStepsState(
         firstSteps(guideRole, StepSignals(manual = onboarding.done, locations = currentWorkspace?.locations?.size ?: 0, members = currentWorkspace?.members?.size ?: 0,
-            scheduledControls = assignmentState.items.any { it.active }, controlsDone = assignmentState.items.count { it.run?.status == "SUBMITTED" && it.run.performedBy == profile?.id }, tasksDone = dailyState.todayPlans.count { it.today?.done == true },
+            scheduledControls = assignmentState.items.any { it.active }, controlsDone = maxOf(assignmentState.items.count { it.run?.status == "SUBMITTED" && it.run.performedBy == profile?.id },
+                if (historyState.userId == profile?.id && historyState.status != "DRAFT" && historyState.items.any { it.status == "SUBMITTED" && it.performedBy == profile?.id }) 1 else 0), tasksDone = dailyState.todayPlans.count { it.today?.done == true },
             lessonsStarted = (learnerRoot.achievements?.totals?.experiencePoints ?: 0) > 0, organizations = workspaceState.organizations.size)),
         ::goToStep) { feedbackScope.launch { onboardingPreferences.hide(true) } }
     else null
@@ -771,6 +772,7 @@ fun App(
                                         onOpenCourse = { id -> nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onStudySurvey = if (profile.platformRole != "SUPER_ADMIN") ({ nav.navigate(STUDY_SURVEY) { launchSingleTop = true } }) else null,
                                         onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                        onFinalCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.FinalEvaluation; nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onTasks = { nav.navigate(WorkspaceDestination.Tasks.route) { launchSingleTop = true } },
                                         onReport = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } },
@@ -788,6 +790,7 @@ fun App(
                                         onIncidents = { nav.navigate(INCIDENT_EXECUTION) { launchSingleTop = true } },
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onContinueCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.Resume; nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                        onFinalCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.FinalEvaluation; nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
                                         onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
                                         onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } })
@@ -1054,7 +1057,7 @@ fun App(
                                 focusMode = learningCourse && courseFocus || workerQuick || (incidentRoute && workerPlay) || reportProblem || studySurvey || onboardingRoute || chefRunStage,
                                 playFocus = learnerPlay || reportProblem || studySurvey || onboardingRoute,
                                 focusTitle = courseTitle,
-                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingHelp) "Ayuda" else if (viewingSettings) "Ajustes" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
+                                secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Equipo" else if (viewingHelp) "Ayuda" else if (viewingSettings) "Ajustes" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
                                 secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else accountsEditKey,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->

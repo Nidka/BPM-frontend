@@ -250,11 +250,10 @@ internal fun WorkspaceScreen(
                                 { m -> BpmActionTile(BpmSymbol.Sprout, "Operación diaria", "Proveedores, productos, planes de limpieza y registros de tus sedes.", onDailyOperations, m) },
                                 { m -> BpmActionTile(BpmSymbol.Bell, "Reglas de avisos", "Elige cuándo avisar a las personas responsables.", onAlertRules, m) },
                                 { m -> BpmActionTile(BpmSymbol.Alert, "Incidencias y correcciones", "Atiende lo reportado y valida el cierre.", onIncidents, m) },
-                                { m -> BpmActionTile(BpmSymbol.Team, "Cuentas y equipo", "Roles, sedes, invitaciones y datos de la organización.", onAccounts, m) },
+                                { m -> BpmActionTile(BpmSymbol.Team, "Equipo", "Personas, roles, sedes, invitaciones y datos de la organización.", onAccounts, m) },
                                 { m -> BpmActionTile(BpmSymbol.Learn, "Academia BPM", "Cursos con lecciones, video y evaluaciones.", onTraining, m) },
                                 { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Envía los avisos a n8n u otra herramienta con webhooks firmados.", onWebhooks, m) },
-                                // La super administración también llega al equipo y a las revisiones de la organización abierta.
-                                if (superAdmin) { m -> BpmActionTile(BpmSymbol.Team, "Equipo de la organización", "Personas, roles y sedes asignadas.", { navigate(WorkspaceDestination.Team) }, m) } else null,
+                                // La super administración también llega a las revisiones de la organización abierta (un solo acceso «Equipo»).
                                 if (superAdmin) { m -> BpmActionTile(BpmSymbol.Eye, "Revisiones del equipo", "Qué revisó cada persona y cada sede.", { navigate(WorkspaceDestination.Supervision) }, m) } else null,
                             )) { card, m -> card(m) }
                             SectionHeading("Sedes", if (current.canManage) "Agregar sede" else null) { open(WorkspaceFormKind.Location) }

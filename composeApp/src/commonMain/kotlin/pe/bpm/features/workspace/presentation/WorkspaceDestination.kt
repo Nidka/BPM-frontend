@@ -54,7 +54,7 @@ fun workspaceDestinations(role: String?, platformAdmin: Boolean): List<Workspace
 
 /**
  * Navegación principal de máximo cinco entradas. «Mi cuenta» sale de ella y va en el avatar de la cabecera;
- * (salvo en el personal, donde «Perfil» es un destino propio); si aún sobran, Equipo se omite (el ADMIN lo alcanza desde Empresa, «Cuentas y equipo») y luego Aprender.
+ * (salvo en el personal, donde «Perfil» es un destino propio); si aún sobran, Equipo se omite (el ADMIN lo alcanza desde Empresa, «Equipo») y luego Aprender.
  * Todas las rutas disponibles siguen permitidas.
  */
 fun workspacePrimaryDestinations(available: List<WorkspaceDestination>, role: String? = null): List<WorkspaceDestination> {

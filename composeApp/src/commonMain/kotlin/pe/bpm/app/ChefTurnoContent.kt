@@ -72,6 +72,7 @@ internal fun ChefTurnoContent(
     onContinueCourse: (String) -> Unit,
     onStudySurvey: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    onFinalCourse: ((String) -> Unit)? = null,
     /** Abre el reporte de un problema (cualquier rol puede reportar, sin categorías creadas). */
     onReport: (() -> Unit)? = null,
     /** Abre el buscador de normativa; va en la columna principal, con el mismo ancho que las demás tarjetas. */
@@ -98,7 +99,7 @@ internal fun ChefTurnoContent(
     val title = shiftTitle(plans).let { if (it == "Tu turno") "Turno de hoy" else it }
 
     BpmPlayColumns(modifier, rail = {
-        LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje")
+        LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje", onFinal = onFinalCourse)
         IncidentsCard(kpis?.openIncidents, onIncidents)
     }) { railVisible ->
         FirstStepsCard()
@@ -179,7 +180,7 @@ internal fun ChefTurnoContent(
         onReport?.let { report -> BpmChunkyButton("Reportar un problema", report, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert) }
         onNormative?.let { open -> NormativeTile(open) }
         if (!railVisible) {
-            LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje")
+            LearnCard(next, learning.assignmentsLoaded, onLearn, onContinueCourse, title = "Mi aprendizaje", onFinal = onFinalCourse)
             IncidentsCard(kpis?.openIncidents, onIncidents)
         }
     }

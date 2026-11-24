@@ -79,6 +79,8 @@ internal fun WorkerTodayContent(
     onOpenCourse: (String) -> Unit,
     /** «Continuar» de «Sigue aprendiendo»: abre la siguiente lección del curso, sin pasar por el camino. */
     onContinueCourse: (String) -> Unit,
+    /** Con todas las lecciones vistas, «Sigue aprendiendo» lleva a la evaluación final en vez de repetir la primera lección. */
+    onFinalCourse: ((String) -> Unit)? = null,
     /** Abre la encuesta del estudio CAP; nulo si la cuenta no puede responderla. */
     onStudySurvey: (() -> Unit)?,
     onLearn: () -> Unit,
@@ -154,7 +156,7 @@ internal fun WorkerTodayContent(
                 if (plans.size > MISSION_LIMIT) BpmChunkyButton("Ver todas las tareas", onTasks, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
         }
-        LearnCard(next, state.assignmentsLoaded, onLearn, onContinueCourse)
+        LearnCard(next, state.assignmentsLoaded, onLearn, onContinueCourse, onFinal = onFinalCourse)
         BpmChunkyButton("Reportar un problema", onReport, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert)
         onNormative?.let { open -> NormativeTile(open) }
     }
@@ -215,7 +217,7 @@ private fun PlayNote(text: String) {
 
 /** «Sigue aprendiendo» ([title]): la capacitación que toca (con su avance) y un botón al camino; sin pendientes, un refuerzo. */
 @Composable
-internal fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit, onContinue: (String) -> Unit, title: String = "Sigue aprendiendo") {
+internal fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit, onContinue: (String) -> Unit, title: String = "Sigue aprendiendo", onFinal: ((String) -> Unit)? = null) {
     if (next == null && !loaded) return
     BpmPlayCard {
         Text(title, style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
@@ -232,7 +234,9 @@ internal fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit
             }
             assignmentProgress(next)?.let { BpmChunkyProgress(it, Modifier.fillMaxWidth(), contentDescription = "Avance del curso") }
             assignmentProgressNote(next)?.let { Text(it, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted) }
-            BpmChunkyButton(if (started) "Continuar" else "Empezar", { onContinue(next.course.id) }, Modifier.fillMaxWidth())
+            // Con todas las lecciones vistas «Continuar» repetía la primera lección: lo que falta es la evaluación final.
+            val toFinal = onFinal != null && started && next.percent >= 100
+            BpmChunkyButton(if (toFinal) "Hacer la evaluación final" else if (started) "Continuar" else "Empezar", { if (toFinal) onFinal!!(next.course.id) else onContinue(next.course.id) }, Modifier.fillMaxWidth())
         } else {
             Text("No tienes capacitaciones pendientes. Puedes seguir aprendiendo cuando quieras.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
             BpmChunkyButton("Ver el camino", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)

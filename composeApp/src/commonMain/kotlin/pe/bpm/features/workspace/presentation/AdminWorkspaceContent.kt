@@ -49,7 +49,7 @@ private fun siteText(member: Member, sites: List<Location>) = if (member.role ==
 /**
  * «Equipo» del administrador: personas de la organización en lista–detalle. La lista filtra por rol la página cargada
  * (Todos · Personal · Jefes · Admin); el detalle muestra rol, correo y sedes, y lleva a asignar un curso o a cambiar el rol
- * o las sedes en «Cuentas y equipo». El avance por persona no lo entrega la API y no se muestra.
+ * o las sedes en «Equipo». El avance por persona no lo entrega la API y no se muestra.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -181,7 +181,7 @@ internal class AdminCompanyActions(
 /**
  * «Empresa» del administrador: datos de la organización, accesos de gestión (plantillas, operación diaria, reglas de avisos,
  * automatizaciones y datos de la organización) y las sedes en lista–detalle. Editar la organización o una sede lleva a
- * «Cuentas y equipo → Empresa y sedes».
+ * «Equipo → Empresa y sedes».
  */
 @Composable
 internal fun AdminCompanyContent(
