@@ -67,7 +67,7 @@ fun BpmListToolbar(
 @Composable
 fun <T> BpmFilterChips(options: List<Pair<T, String>>, selected: T, enabled: Boolean = true, onSelect: (T) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(BpmSpacing.sm), verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
-        options.forEach { (value, label) -> BpmFilterChip(selected = value == selected, onClick = { onSelect(value) }, enabled = enabled, label = { Text(label) }) }
+        options.forEach { (value, label) -> BpmFilterChip(selected = value == selected, onClick = { onSelect(value) }, enabled = enabled, label = { Text(label) }, reserveCheck = true) }
     }
 }
 
@@ -130,7 +130,7 @@ fun BpmRecordCard(
 ) {
     BpmCard(modifier, variant = BpmCardVariant.Compact, onClick = onOpen, onClickLabel = actionLabel ?: "Ver detalle", enabled = enabled, selected = selected) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.Top) {
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = bpmTitleLines(), overflow = TextOverflow.Ellipsis)
             if (status != null) BpmStatusChip(status.text, status.tone)
         }
         if (subtitle != null || details.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {

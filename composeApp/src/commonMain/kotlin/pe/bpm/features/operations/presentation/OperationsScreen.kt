@@ -72,6 +72,7 @@ fun OperationsScreen(
                                 { viewModel.resource(resource) },
                                 label = { Text(resource.title) },
                                 enabled = !state.loading && !state.busy,
+                                reserveCheck = true,
                             )
                         }
                 }

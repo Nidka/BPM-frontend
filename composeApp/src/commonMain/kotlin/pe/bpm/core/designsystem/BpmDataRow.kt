@@ -70,8 +70,8 @@ fun BpmDataRow(
                 BpmIcon(BpmSymbol.Alert, tint = BpmPlayColors.error.shadow, modifier = Modifier.size(16.dp))
                 Text("REQUIERE ATENCIÓN", style = BpmPlayType.statLabel, color = BpmPlayColors.error.shadow)
             }
-            Text(title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) Text(subtitle, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = bpmTitleLines(), overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) Text(subtitle, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = bpmTitleLines(1), overflow = TextOverflow.Ellipsis)
         }
     }
     val number: @Composable () -> Unit = {

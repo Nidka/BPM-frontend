@@ -203,6 +203,9 @@ fun App(
         }
     }
     LaunchedEffect(profile?.id) { if (profile != null) { feedbackPreferences.load(); onboardingPreferences.load() } else onboardingPreferences.reset() }
+    // «Haz tu primer control» también se cumple con una revisión libre (no programada) finalizada por la propia persona.
+    val finishedOwnRun = runState.run?.let { it.status == "SUBMITTED" && it.performedBy == profile?.id } == true
+    LaunchedEffect(finishedOwnRun, onboarding.loaded) { if (finishedOwnRun && onboarding.loaded) onboardingPreferences.markStep("c-control") }
     LaunchedEffect(profile?.id, researchState.userId) { if (profile != null) research.loadAccess(profile.id) }
     LaunchedEffect(nav) { onNavHostReady(nav) }
     // Solo las vistas de consulta se revalidan al entrar o volver al primer plano.

@@ -54,7 +54,7 @@ fun BpmCourseCard(
                         Text(code, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Column(Modifier.fillMaxWidth().padding(BpmSpacing.lg), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
-                        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = bpmTitleLines(3), overflow = TextOverflow.Ellipsis)
                         Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (progress != null) BpmProgressBar(progress)
                         if (status != null) status()

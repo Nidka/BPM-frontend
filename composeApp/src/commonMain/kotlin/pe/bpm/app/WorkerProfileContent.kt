@@ -120,8 +120,8 @@ internal fun ProfileHeader(displayName: String, organizationName: String, roleLa
         }
         Column(Modifier.weight(1f)) {
             Text(displayName.ifBlank { "Mi perfil" }, style = BpmPlayType.h1.copy(fontSize = 24.sp), color = BpmPlayColors.ink,
-                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
-            Text(if (organizationName.isBlank()) roleLabel else "$roleLabel · $organizationName", style = BpmPlayType.sub, color = BpmPlayColors.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                maxLines = pe.bpm.core.designsystem.bpmTitleLines(), overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
+            Text(if (organizationName.isBlank()) roleLabel else "$roleLabel · $organizationName", style = BpmPlayType.sub, color = BpmPlayColors.muted, maxLines = pe.bpm.core.designsystem.bpmTitleLines(), overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -243,7 +243,7 @@ private fun CertificatesCard(courses: List<MyAssignment>, loaded: Boolean, onOpe
                         BpmIcon(BpmSymbol.Award, tint = BpmPlayColors.gold.ink, modifier = Modifier.size(24.dp))
                     }
                     Column(Modifier.weight(1f)) {
-                        Text(assignment.course.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(assignment.course.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = pe.bpm.core.designsystem.bpmTitleLines(), overflow = TextOverflow.Ellipsis)
                         if (date.isNotEmpty()) Text("Completado el $date", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
                     }
                     BpmIcon(BpmSymbol.ChevronRight, tint = BpmPlayColors.muted, modifier = Modifier.size(20.dp))

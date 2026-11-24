@@ -217,7 +217,7 @@ private fun TaskHeader(plan: CleaningPlan?, fallbackName: String) {
         }
         Column(Modifier.weight(1f)) {
             Text(plan?.task ?: fallbackName, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = bpmTitleLines())
-            if (detail.isNotBlank()) Text(detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = 2)
+            if (detail.isNotBlank()) Text(detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = bpmTitleLines())
         }
     }
 }

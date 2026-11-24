@@ -62,7 +62,7 @@ private fun ControlSummary(name: String, detail: String, state: ChefControlState
         }
         Column(Modifier.weight(1f)) {
             Text(name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = bpmTitleLines())
-            Text(detail, style = BpmPlayType.rowDetail, color = if (state == ChefControlState.Late) BpmPlayColors.error.shadow else BpmPlayColors.muted, maxLines = 2)
+            Text(detail, style = BpmPlayType.rowDetail, color = if (state == ChefControlState.Late) BpmPlayColors.error.shadow else BpmPlayColors.muted, maxLines = pe.bpm.core.designsystem.bpmTitleLines())
         }
     }
 }

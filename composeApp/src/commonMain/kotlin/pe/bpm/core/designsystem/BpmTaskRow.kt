@@ -70,7 +70,7 @@ fun BpmTaskRow(
                 Box(Modifier.layoutId(RowSlot.Icon).size(40.dp).clip(RoundedCornerShape(12.dp)).background(toneBackground), contentAlignment = Alignment.Center) {
                     BpmIcon(symbol, tint = toneContent, modifier = Modifier.size(22.dp))
                 }
-                Text(title, Modifier.layoutId(RowSlot.Title), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(title, Modifier.layoutId(RowSlot.Title), style = MaterialTheme.typography.titleMedium, maxLines = bpmTitleLines(), overflow = TextOverflow.Ellipsis)
                 if (detail != null) Text(detail, Modifier.layoutId(RowSlot.Detail), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = detailMaxLines, overflow = TextOverflow.Ellipsis)
                 if (trailing != null) Box(Modifier.layoutId(RowSlot.Status)) { trailing() }

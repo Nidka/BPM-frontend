@@ -64,8 +64,8 @@ fun BpmPersonRow(
                 Text(initialsOf(name), style = BpmPlayType.key, color = BpmPlayColors.action.face)
             }
             Column(Modifier.weight(1f)) {
-                Text(name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (detail != null) Text(detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(name, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = bpmTitleLines(1), overflow = TextOverflow.Ellipsis)
+                if (detail != null) Text(detail, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted, maxLines = bpmTitleLines(), overflow = TextOverflow.Ellipsis)
                 footer?.invoke(this)
             }
             if (progress != null) BpmProgressRing(progress, progressLabel ?: "${(progress.coerceIn(0f, 1f) * 100).toInt()} %",

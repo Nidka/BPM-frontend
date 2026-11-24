@@ -65,12 +65,14 @@ fun IncidentsScreen(
                             s.status == null,
                             { viewModel.filter(null) },
                             label = { Text("Todos los estados") },
+                            reserveCheck = true,
                         )
                         IncidentStatus.entries.filter { it != IncidentStatus.VERIFIED }.forEach { status ->
                             BpmFilterChip(
                                 s.status == status,
                                 { viewModel.filter(status) },
                                 label = { Text(incidentStatusLabel(status.name)) },
+                                reserveCheck = true,
                             )
                         }
                     }

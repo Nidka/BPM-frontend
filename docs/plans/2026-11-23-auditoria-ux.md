@@ -383,3 +383,18 @@ Recorridos completados a 390 dp con datos reales en «Prueba BPM» (capturas `d-
 - Incidencia de CI: el trabajo `verify` de 8f3c0cf falló por un 429 de Maven Central al construir la imagen de Docker (infraestructura); lo cubre 6ffd2b2, cuyo CI y despliegue terminaron en verde.
 
 - Retroceso detectado en vivo y revertido: dar más ancho a la acción principal de los formularios (0,7/1,3) partía «CANCELAR» en dos líneas a 390 dp; se vuelven los pesos 0,8/1,2 (la acción principal puede ocupar dos líneas por palabras, nunca se corta una palabra).
+
+### 16.4 Pasada de Personal (390 y 1280 dp), selector de hora en más formularios y barrido a 768/1920
+
+- 2d3548e desplegado: «CANCELAR» queda en una línea a 390 dp (Equipo → «Editar rol y sedes»).
+- Selector de hora verificado en vivo en: regla de aviso («Hora local de evaluación», con 08:00, 12:00 y 17:30), plan de limpieza («Hora de referencia en la sede») y turno (inicio y fin).
+- Personal a 390 dp: Hoy, Aprender (lección en vídeo, texto, evaluación con «Repasemos esta» y «¡Lección completa!»), Tareas («¡Terminaste las tareas del turno!»), Reportar (categorías), Perfil, Ayuda, Primeros pasos y Ajustes. Con texto «Muy grande» y «Más contraste» no hay recortes salvo el título del módulo en «Sigue aprendiendo» (cortaba «BPM»). La encuesta del estudio dice «Todavía no hay encuesta» porque el consentimiento aún no está publicado en producción. A 1280 dp: Hoy, Aprender, Tareas, Perfil, Ajustes y Ayuda sin problemas.
+- Barrido de Jefe y Administrador a 768 y 1920 dp (Inicio, Controles, Equipo, Empresa, Academia, Seguimiento, Incidencias, Reportes): sin desbordes; el contenido se centra en una columna de hasta 1120 dp en 1920.
+
+| # | Hallazgo | Arreglo | Estado |
+|---|---|---|---|
+| H21 | Con texto grande, títulos de fila (módulo en curso, controles del Jefe, tarjetas de perfil, filas de persona, de curso, de tarea, de dato y de registro) se cortaban a 2 líneas sin «…» | Todos usan `bpmTitleLines()` (el doble de líneas con texto ≥ 1,3×) | Hecho |
+| H22 | «Primeros pasos» del Jefe seguía en «0 de 4» tras finalizar un control libre: solo contaba controles programados | Terminar una revisión propia marca «Haz tu primer control» | Hecho |
+| H23 | Las fichas de filtro (Operación diaria, Incidencias, Activas/Inactivas…) cambiaban de ancho y de fila al elegirse (aparece el ✓) | `BpmFilterChips`, las pestañas de Operación diaria y los estados de Incidencias reservan el sitio del ✓ | Hecho |
+| H24 | Dos sesiones simultáneas del mismo usuario (barrido en paralelo) dejaron una de ellas en blanco | No se investigó: se evitó repitiendo el barrido en serie. A confirmar si ocurre con una sola sesión | Abierto |
+| H25 | En la vista de una organización (superadministración) «Cuentas y equipo» y «Equipo de la organización» parecen dos accesos al mismo sitio | Sin cambiar: pendiente de decisión de producto | Abierto |

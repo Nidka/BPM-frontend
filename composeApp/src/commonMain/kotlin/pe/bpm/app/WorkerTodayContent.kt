@@ -226,7 +226,7 @@ internal fun LearnCard(next: MyAssignment?, loaded: Boolean, onLearn: () -> Unit
                     BpmIcon(BpmSymbol.Book, tint = BpmPlayColors.action.face, modifier = Modifier.size(24.dp))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(next.course.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = 2)
+                    Text(next.course.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink, maxLines = pe.bpm.core.designsystem.bpmTitleLines())
                     Text(next.course.code, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
                 }
             }
