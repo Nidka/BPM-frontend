@@ -293,7 +293,7 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 | # | Dónde | Hallazgo | Corrección | Estado |
 |---|---|---|---|---|
 | H1 | Control · «Comenzar revisión» | Se avisaba del control ya programado solo DESPUÉS de pulsar y con un error | Al elegir la sede, si la plantilla ya está programada y vigente allí, aparece el aviso y «Abrir el control programado» (y «Comenzar revisión» queda secundario y desactivado). `ScheduledControls`/`scheduledFor` | Hecho (sin probar en vivo: no hay un control de ese tipo sin hacer en la organización) |
-| H2 | Admin · dos pantallas de equipo | «Equipo» y «Cuentas y equipo» duplicadas | Una sola: «Equipo» del administrador muestra pestañas Equipo · Invitaciones · Organización y sedes; «Invitar persona», «Gestionar» y «Editar datos/sede» abren la pestaña que toca | Hecho |
+| H2 | Admin · dos pantallas de equipo | «Equipo» y «Cuentas y equipo» duplicadas | Una sola: «Equipo» del administrador muestra pestañas Equipo · Invitaciones · Empresa y sedes; «Invitar persona», «Gestionar» y «Editar datos/sede» abren la pestaña que toca | Hecho |
 | H3 | Admin · «Editar sede/datos» | **Cerraba la app** (`Vertically scrollable component was measured with an infinity maximum height`): la unificación (H2, commit 3869722, ya desplegado) alojó la pantalla de cuentas, que desplaza en vertical, dentro de un espacio que ya desplaza | `scrollable = false` en esa ranura + prueba de arquitectura que lo exige. Hubo una ventana en producción con el fallo hasta el despliegue de 01ce36f | Hecho |
 | H4 | Admin · Invitar | Debajo del asistente seguía la lista de invitaciones; con una sola sede había que marcarla a mano antes de «Enviar invitación» | La lista se oculta mientras hay formulario o enlace; la sede única queda marcada | Hecho |
 | H5 | Admin · Incidencias y operación diaria | Con una sola sede preguntaban «¿En qué sede trabajarás?» (solo Personal la saltaba) | Cualquier rol con una sola sede la usa sin preguntar | Hecho |
@@ -317,7 +317,7 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 
 | # | Pendiente | Resultado | Estado |
 |---|---|---|---|
-| P1 | Barrido del Administrador a 768 dp y revisión a 1280 dp tras unificar el equipo | Inicio, Controles, Equipo (2 columnas de tarjetas), Empresa, Aprender, Seguimiento, Incidencias, Ajustes, Ayuda y Perfil se ven bien a 768; Equipo a 1280 con pestañas Equipo · Invitaciones · Organización y sedes | Hecho |
+| P1 | Barrido del Administrador a 768 dp y revisión a 1280 dp tras unificar el equipo | Inicio, Controles, Equipo (2 columnas de tarjetas), Empresa, Aprender, Seguimiento, Incidencias, Ajustes, Ayuda y Perfil se ven bien a 768; Equipo a 1280 con pestañas Equipo · Invitaciones · Empresa y sedes | Hecho |
 | P2 | «Asignar curso» desde la persona | Acción «Asignar curso» en la tarjeta de cada persona activa de Equipo: abre el asistente de Academia con esa persona ya elegida (`startCreateFor`) | Hecho |
 | P3 | Selector de fecha | `BpmDatePicker` + `BpmCalendar` en el sistema de diseño: campo que muestra la fecha en palabras, calendario en línea (sin ventana emergente, igual en Android, iOS y web), atajos Hoy/Mañana/En 1 semana, mínimo, «Quitar fecha», días ≥ 44 dp con fecha completa y estado («Elegido», «No disponible», «hoy») para lector de pantalla, flechas de mes de 48 dp. Pruebas de calendario (`BpmCalendarTest`: validez, bisiestos, día de la semana, sumar días). Usado en: fecha límite de asignación de curso, vencimiento de lote de insumos y fecha límite de incidencia (la hora sigue siendo un campo HH:mm) | Hecho |
 | P4 | Pestañas de Equipo estables | Equipo usa `BpmSegmentedTabs` (un tercio de ancho cada una); las pestañas de Academia reservan el sitio del ✓ (`reserveCheck`) | Hecho |
@@ -325,3 +325,13 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 | P5b | Aviso de control ya programado | Verificado en vivo (Jefe, plantilla ya programada en la sede): aparece «Este control ya está programado…» con «Abrir el control programado» y «Comenzar revisión» desactivado. Al probar el botón se vio que llevaba a la ejecución de una revisión ajena y la app volvía al acceso; ahora abre la revisión (solo lectura si es de otra persona, ejecución si es propia) | Hecho |
 | P6 | Despliegue de 23f51c8 | El despliegue terminó en `success` (23:07 UTC) | Hecho |
 | P7 | Selector de hora | La hora límite de una incidencia sigue escribiéndose HH:mm | Pendiente |
+
+### 15.1 Verificación en vivo del despliegue de e3228a5 (390 dp Administrador, 1280 dp Jefe)
+
+- Pestañas de Equipo de ancho fijo: al pasar de Equipo a Invitaciones no se mueve ninguna; la invitación enviada antes aparece como «Pendiente». La tercera
+  pestaña partía «Organizació/n y sedes» en 390 dp: se renombró «Empresa y sedes».
+- «Asignar curso» en la tarjeta de Pedro abre el asistente de Academia con Pedro ya elegido; el paso 3 muestra el selector de fecha con el calendario en
+  línea y los días pasados deshabilitados (no se creó una segunda asignación).
+- Jefe: el aviso de control ya programado y «Abrir el control programado» llevan al detalle «En curso por Ana Prueba Administradora» con «Hacer mi propio control».
+- Incidente de CI/despliegue: el trabajo de iOS falló una vez por «Timed out while launching application via Xcode» (infraestructura); su despliegue (ba0dd51) quedó
+  en `failure` y se relanza con el siguiente commit.

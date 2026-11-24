@@ -14,7 +14,7 @@ import pe.bpm.core.designsystem.*
 import pe.bpm.core.presentation.displayDateTime
 import pe.bpm.features.accounts.domain.*
 
-private enum class AccountsTab(val label: String) { Team("Equipo"), Invitations("Invitaciones"), Organization("Organización y sedes") }
+private enum class AccountsTab(val label: String) { Team("Equipo"), Invitations("Invitaciones"), Organization("Empresa y sedes") }
 
 /** Gestión de cuentas para ADMIN/SUPER_ADMIN; el backend vuelve a autorizar cada operación. */
 @Composable

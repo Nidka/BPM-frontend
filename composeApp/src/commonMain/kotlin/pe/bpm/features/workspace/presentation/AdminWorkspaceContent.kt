@@ -181,7 +181,7 @@ internal class AdminCompanyActions(
 /**
  * «Empresa» del administrador: datos de la organización, accesos de gestión (plantillas, operación diaria, reglas de avisos,
  * automatizaciones y datos de la organización) y las sedes en lista–detalle. Editar la organización o una sede lleva a
- * «Cuentas y equipo → Organización y sedes».
+ * «Cuentas y equipo → Empresa y sedes».
  */
 @Composable
 internal fun AdminCompanyContent(
