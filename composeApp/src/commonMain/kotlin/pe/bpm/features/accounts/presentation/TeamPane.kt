@@ -48,13 +48,11 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String, onAssignC
 }
 
 @Composable private fun MemberEditorCard(editor: MemberEditor, state: TeamState, viewModel: TeamViewModel) {
-    BpmFormLayout(actions = { BpmFormActions("Guardar cambios", viewModel::saveEditor, busy = state.busy, onCancel = viewModel::cancelEdit) }) {
-        BpmSection("Editar a ${editor.member.name}", description = editor.member.email) {
+    BpmFormScaffold("Editar a ${editor.member.name}", description = editor.member.email, actions = { BpmFormActions("Guardar cambios", viewModel::saveEditor, busy = state.busy, onCancel = viewModel::cancelEdit) }) {
             RolePicker(editor.role, !state.busy, viewModel::editRole, editor.fields["role"])
             if (editor.role.needsLocations) LocationPicker("Sedes asignadas", state.locations, state.locationsFailure, editor.locationIds, !state.busy,
                 viewModel::toggleLocation, editor.fields["locationIds"])
             else Text("Un administrador ve todas las sedes; no hace falta elegirlas.", style = MaterialTheme.typography.bodySmall)
-        }
     }
 }
 

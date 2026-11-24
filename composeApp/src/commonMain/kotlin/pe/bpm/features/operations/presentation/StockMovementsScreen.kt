@@ -72,8 +72,7 @@ fun StockMovementsScreen(viewModel: StockMovementsViewModel, modifier: Modifier 
 private fun StockFormContent(state: StockState, form: StockForm, vm: StockMovementsViewModel) {
     val enabled = !state.busy && !form.uncertain
     val lot = form.lot
-    BpmFormLayout(actions = { BpmFormActions(if (form.uncertain) "Comprobar el mismo movimiento" else "Registrar", vm::submit, busy = state.busy, busyLabel = "Registrando…", onCancel = vm::closeForm) }) {
-        Text("Registrar movimiento", style = MaterialTheme.typography.titleLarge)
+    BpmFormScaffold("Registrar movimiento", actions = { BpmFormActions(if (form.uncertain) "Comprobar el mismo movimiento" else "Registrar", vm::submit, busy = state.busy, busyLabel = "Registrando…", onCancel = vm::closeForm) }) {
         BpmSection(lot.productName) {
             Text("Lote ${lot.batchCode} · Recibido: ${lot.receivedQuantity.ifEmpty { "sin dato" }} ${lot.unit}")
             Text("Saldo disponible: ${lot.quantityAvailable} ${lot.unit}" + if (lot.expired) " · Vencido" else "")

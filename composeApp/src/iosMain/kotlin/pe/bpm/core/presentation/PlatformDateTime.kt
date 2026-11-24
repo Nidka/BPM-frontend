@@ -9,3 +9,11 @@ internal actual fun localDateTime(epochMilliseconds: Long): String = NSDateForma
     locale = NSLocale("es_PE")
     dateFormat = "dd/MM/yyyy · HH:mm z"
 }.stringFromDate(NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1000.0))
+
+internal actual fun localMinutesOfDay(epochMilliseconds: Long): Int {
+    val parts = platform.Foundation.NSCalendar.currentCalendar.components(
+        platform.Foundation.NSCalendarUnitHour or platform.Foundation.NSCalendarUnitMinute,
+        fromDate = NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1000.0),
+    )
+    return (parts.hour * 60 + parts.minute).toInt()
+}

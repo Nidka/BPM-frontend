@@ -124,159 +124,162 @@ private fun AlertRuleFormContent(
       }
   val nav = rememberBpmFormNavigation(keys)
   val enabled = !s.busy && s.pending == null
-  Text(
-    if (f.original == null) "Nueva regla" else "Editar ${f.original.name}",
-    style = MaterialTheme.typography.titleLarge,
-  )
-  if (s.recovered) Text("Recuperamos tu borrador guardado. No se envió automáticamente.")
-  DraftSaveNotice(s.saveStatus, vm.editor::retrySave)
-  s.failure?.let { Text(alertFailureText(it), color = MaterialTheme.colorScheme.error) }
-  if (s.pending != null)
-    Text(
-      "Hay un envío pendiente de confirmación. Reintenta la misma operación para conocer su resultado; sus datos permanecen protegidos."
-    )
-  if (s.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-  if (discard) {
-    DiscardDraftConfirmation(
-      { discard = false },
-      {
-        discard = false
-        vm.editor.discard()
-      },
-      enabled = !s.busy,
-    )
-  } else if (s.reviewing || s.pending != null) {
-    BpmCard(Modifier.fillMaxWidth()) {
-      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Revisar antes de guardar", style = MaterialTheme.typography.titleMedium)
-        Text(f.values["name"].orEmpty())
-        Text(alertTypeLabel(f.type))
+  BpmFormScaffold(if (f.original == null) "Nueva regla" else "Editar ${f.original.name}") {
+    if (s.recovered) Text("Recuperamos tu borrador guardado. No se envió automáticamente.")
+    DraftSaveNotice(s.saveStatus, vm.editor::retrySave)
+    s.failure?.let { Text(alertFailureText(it), color = MaterialTheme.colorScheme.error) }
+    if (s.pending != null)
+      Text(
+        "Hay un envío pendiente de confirmación. Reintenta la misma operación para conocer su resultado; sus datos permanecen protegidos."
+      )
+    if (s.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (discard) {
+      DiscardDraftConfirmation(
+        { discard = false },
+        {
+          discard = false
+          vm.editor.discard()
+        },
+        enabled = !s.busy,
+      )
+    } else if (s.reviewing || s.pending != null) {
+      BpmCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text("Revisar antes de guardar", style = MaterialTheme.typography.titleMedium)
+          Text(f.values["name"].orEmpty())
+          Text(alertTypeLabel(f.type))
+          Text(
+            if (f.locationId == null) "Toda la empresa"
+            else
+              "Sede: ${locations.firstOrNull{it.id==f.locationId}?.name?:f.locationName.ifBlank{"Sede seleccionada"}}"
+          )
+          Text(ruleConfigurationText(f.type, AlertRuleValidation.configuration(f)))
+          Text("Estado: ${if(f.active)"activa" else "inactiva"}")
+          Text(
+            "Correo: ${if(f.emailEnabled)"solicitado" else "desactivado"}; push: ${if(f.pushEnabled)"solicitado" else "desactivado"}."
+          )
+          Text(
+            "La entrega externa requiere proveedores y dispositivos disponibles. Guardar una regla no confirma la entrega de un mensaje.",
+            style = MaterialTheme.typography.bodySmall,
+          )
+        }
+      }
+      BpmChunkyButton(if (s.pending != null) "Reintentar envío pendiente" else "Confirmar y guardar regla", vm.editor::submit, Modifier.fillMaxWidth(), enabled = !s.busy && !s.staleVersion)
+      if (s.pending == null)
+        BpmChunkyButton("Volver a editar", vm.editor::resumeEditing, tone = BpmChunkyTone.White, enabled = !s.busy)
+    } else {
+      Text("Tipo de aviso", style = MaterialTheme.typography.titleSmall)
+      if (f.original == null)
+        FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+          AlertType.entries.forEach { t ->
+            BpmFilterChip(
+              f.type == t,
+              { vm.editor.type(t) },
+              enabled = enabled,
+              label = { Text(alertTypeLabel(t)) },
+            )
+          }
+        }
+      else Text("${alertTypeLabel(f.type)} · El tipo y el ámbito se mantienen en esta regla.")
+      BpmTextField(
+        f.values["name"].orEmpty(),
+        { vm.editor.edit("name", it) },
+        "Nombre de la regla",
+        error = s.errors["name"],
+        enabled = enabled,
+        navigation = nav["name"],
+        rule = InputRules.text(2, 160),
+      )
+      Text("Ámbito", style = MaterialTheme.typography.titleSmall)
+      if (f.original != null || f.type == AlertType.ORGANIZATION_INACTIVE)
         Text(
           if (f.locationId == null) "Toda la empresa"
-          else
-            "Sede: ${locations.firstOrNull{it.id==f.locationId}?.name?:f.locationName.ifBlank{"Sede seleccionada"}}"
+          else "Sede: ${f.original?.locationName.orEmpty()}"
         )
-        Text(ruleConfigurationText(f.type, AlertRuleValidation.configuration(f)))
-        Text("Estado: ${if(f.active)"activa" else "inactiva"}")
-        Text(
-          "Correo: ${if(f.emailEnabled)"solicitado" else "desactivado"}; push: ${if(f.pushEnabled)"solicitado" else "desactivado"}."
-        )
-        Text(
-          "La entrega externa requiere proveedores y dispositivos disponibles. Guardar una regla no confirma la entrega de un mensaje.",
-          style = MaterialTheme.typography.bodySmall,
-        )
-      }
-    }
-    BpmChunkyButton(if (s.pending != null) "Reintentar envío pendiente" else "Confirmar y guardar regla", vm.editor::submit, Modifier.fillMaxWidth(), enabled = !s.busy && !s.staleVersion)
-    if (s.pending == null)
-      BpmChunkyButton("Volver a editar", vm.editor::resumeEditing, tone = BpmChunkyTone.White, enabled = !s.busy)
-  } else {
-    Text("Tipo de aviso", style = MaterialTheme.typography.titleSmall)
-    if (f.original == null)
-      FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-      ) {
-        AlertType.entries.forEach { t ->
+      else if (locationSelector != null)
+        locationSelector(f.locationId, vm.editor::selectLocation, enabled)
+      else
+        FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
           BpmFilterChip(
-            f.type == t,
-            { vm.editor.type(t) },
+            f.locationId == null,
+            { vm.editor.location(null) },
             enabled = enabled,
-            label = { Text(alertTypeLabel(t)) },
+            label = { Text("Toda la empresa") },
           )
+          locations.forEach { l ->
+            BpmFilterChip(
+              f.locationId == l.id,
+              { vm.editor.location(l.id) },
+              enabled = enabled,
+              label = { Text(l.name) },
+            )
+          }
         }
-      }
-    else Text("${alertTypeLabel(f.type)} · El tipo y el ámbito se mantienen en esta regla.")
-    BpmTextField(
-      f.values["name"].orEmpty(),
-      { vm.editor.edit("name", it) },
-      "Nombre de la regla",
-      error = s.errors["name"],
-      enabled = enabled,
-      navigation = nav["name"],
-      rule = InputRules.text(2, 160),
-    )
-    Text("Ámbito", style = MaterialTheme.typography.titleSmall)
-    if (f.original != null || f.type == AlertType.ORGANIZATION_INACTIVE)
-      Text(
-        if (f.locationId == null) "Toda la empresa"
-        else "Sede: ${f.original?.locationName.orEmpty()}"
-      )
-    else if (locationSelector != null)
-      locationSelector(f.locationId, vm.editor::selectLocation, enabled)
-    else
-      FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-      ) {
-        BpmFilterChip(
-          f.locationId == null,
-          { vm.editor.location(null) },
+      s.errors["locationId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+      fun fieldLabel(key: String) =
+        when (key) {
+          "afterLocalTime" -> "Hora local de evaluación (HH:mm)"
+          "minimumTemperatureCelsius" -> "Temperatura mínima de peligro (°C)"
+          "maximumTemperatureCelsius" -> "Temperatura máxima de peligro (°C)"
+          else -> "Días sin actividad"
+        }
+      keys.drop(1).forEach { key ->
+        if (key == "afterLocalTime") {
+          BpmTimePicker(f.values[key].orEmpty(), { vm.editor.edit(key, it) }, "Hora local de evaluación", optional = false, presets = listOf("08:00", "12:00", "17:30"),
+            error = s.errors[key], enabled = enabled, supportingText = "Hora de 24 horas, en la zona de cada sede.")
+          return@forEach
+        }
+        BpmTextField(
+          f.values[key].orEmpty(),
+          { vm.editor.edit(key, it) },
+          fieldLabel(key),
+          error = s.errors[key],
           enabled = enabled,
-          label = { Text("Toda la empresa") },
+          navigation = nav[key],
+          inputKind =
+            if (key in setOf("minimumTemperatureCelsius", "maximumTemperatureCelsius"))
+              BpmInputKind.Decimal
+            else if (key == "inactivityDays") BpmInputKind.Integer else BpmInputKind.Text,
+          rule =
+            if (key in setOf("minimumTemperatureCelsius", "maximumTemperatureCelsius")) DecimalInput
+            else null,
         )
-        locations.forEach { l ->
-          BpmFilterChip(
-            f.locationId == l.id,
-            { vm.editor.location(l.id) },
-            enabled = enabled,
-            label = { Text(l.name) },
-          )
-        }
       }
-    s.errors["locationId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    fun fieldLabel(key: String) =
-      when (key) {
-        "afterLocalTime" -> "Hora local de evaluación (HH:mm)"
-        "minimumTemperatureCelsius" -> "Temperatura mínima de peligro (°C)"
-        "maximumTemperatureCelsius" -> "Temperatura máxima de peligro (°C)"
-        else -> "Días sin actividad"
-      }
-    keys.drop(1).forEach { key ->
-      BpmTextField(
-        f.values[key].orEmpty(),
-        { vm.editor.edit(key, it) },
-        fieldLabel(key),
-        error = s.errors[key],
-        enabled = enabled,
-        navigation = nav[key],
-        inputKind =
-          if (key in setOf("minimumTemperatureCelsius", "maximumTemperatureCelsius"))
-            BpmInputKind.Decimal
-          else if (key == "inactivityDays") BpmInputKind.Integer else BpmInputKind.Text,
-        rule =
-          if (key in setOf("minimumTemperatureCelsius", "maximumTemperatureCelsius")) DecimalInput
-          else null,
+      Text(
+        when (f.type) {
+          AlertType.CHECKLIST_MISSING ->
+            "Se aplica a controles diarios publicados y asignados. La hora usa la zona de cada sede."
+          AlertType.TEMPERATURE_DANGER ->
+            "El intervalo incluye ambos límites. Define los valores según la norma aplicable; no hay un rango predefinido."
+          AlertType.ORGANIZATION_INACTIVE ->
+            "Entre 1 y 365 días. Se usa la última actividad empresarial confirmada por el servidor."
+          AlertType.TRAINING_ASSIGNED ->
+            "Avisa sobre asignaciones activas de cursos publicados creadas después de la regla."
+        },
+        style = MaterialTheme.typography.bodySmall,
       )
+      RowSwitch("Regla activa", f.active, enabled, vm.editor::active)
+      RowSwitch("Correo electrónico", f.emailEnabled, enabled, vm.editor::email)
+      RowSwitch("Notificación al dispositivo", f.pushEnabled, enabled, vm.editor::push)
+      Text(
+        "Cada persona debe activar los avisos en su dispositivo. Los avisos siempre aparecen también en su bandeja.",
+        style = MaterialTheme.typography.bodySmall,
+      )
+      BpmChunkyButton("Revisar regla", {
+          vm.editor.review()
+          nav.focusFirstError(vm.editor.state.value.errors.keys)
+        }, Modifier.fillMaxWidth(), enabled = enabled && !s.staleVersion)
     }
-    Text(
-      when (f.type) {
-        AlertType.CHECKLIST_MISSING ->
-          "Se aplica a controles diarios publicados y asignados. La hora usa la zona de cada sede."
-        AlertType.TEMPERATURE_DANGER ->
-          "El intervalo incluye ambos límites. Define los valores según la norma aplicable; no hay un rango predefinido."
-        AlertType.ORGANIZATION_INACTIVE ->
-          "Entre 1 y 365 días. Se usa la última actividad empresarial confirmada por el servidor."
-        AlertType.TRAINING_ASSIGNED ->
-          "Avisa sobre asignaciones activas de cursos publicados creadas después de la regla."
-      },
-      style = MaterialTheme.typography.bodySmall,
-    )
-    RowSwitch("Regla activa", f.active, enabled, vm.editor::active)
-    RowSwitch("Correo electrónico", f.emailEnabled, enabled, vm.editor::email)
-    RowSwitch("Notificación al dispositivo", f.pushEnabled, enabled, vm.editor::push)
-    Text(
-      "Cada persona debe activar los avisos en su dispositivo. Los avisos siempre aparecen también en su bandeja.",
-      style = MaterialTheme.typography.bodySmall,
-    )
-    BpmChunkyButton("Revisar regla", {
-        vm.editor.review()
-        nav.focusFirstError(vm.editor.state.value.errors.keys)
-      }, Modifier.fillMaxWidth(), enabled = enabled && !s.staleVersion)
+    BpmChunkyButton("Guardar borrador y volver a reglas", vm.editor::close, tone = BpmChunkyTone.White, enabled = !s.busy)
+    if (s.pending == null)
+      BpmTextButton({ discard = true }, enabled = !s.busy) { Text("Descartar borrador") }
   }
-  BpmChunkyButton("Guardar borrador y volver a reglas", vm.editor::close, tone = BpmChunkyTone.White, enabled = !s.busy)
-  if (s.pending == null)
-    BpmTextButton({ discard = true }, enabled = !s.busy) { Text("Descartar borrador") }
 }
 
 @Composable

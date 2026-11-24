@@ -88,7 +88,6 @@ private fun fields(state: OperationsState): List<OperationField> =
                     "dueTime",
                     "Hora de referencia en la sede (opcional)",
                     5,
-                    placeholder = "HH:mm",
                 ),
             )
         OperationsResource.EXECUTIONS ->
@@ -114,189 +113,194 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
     LaunchedEffect(state.fields) {
         if (state.fields.isNotEmpty()) navigation.focusFirstError(state.fields.keys)
     }
-    Text(
+    BpmFormScaffold(
         if (form.policyProductId != null) "Criterio térmico del producto" else state.resource.title,
-        style = MaterialTheme.typography.titleLarge,
-    )
-    if (state.pending != null)
+    ) {
+        if (state.pending != null)
+            Text(
+                "Hay un envío sin confirmar. El contenido está protegido: vuelve a comprobar el mismo registro antes de comenzar otro."
+            )
         Text(
-            "Hay un envío sin confirmar. El contenido está protegido: vuelve a comprobar el mismo registro antes de comenzar otro."
-        )
-    Text(
-        when (state.localStatus) {
-            DraftSaveStatus.SAVING -> "Guardando borrador en este dispositivo…"
-            DraftSaveStatus.SAVED -> "Borrador protegido en este dispositivo."
-            DraftSaveStatus.FAILED -> "No se pudo proteger el borrador. Reintenta antes de enviar."
-            DraftSaveStatus.IDLE -> "Los cambios se protegen en este dispositivo."
-        },
-        style = MaterialTheme.typography.bodySmall,
-    )
-    if (state.resource in setOf(OperationsResource.RECEIPTS, OperationsResource.EXECUTIONS))
-        Text(
-            "Fecha y hora: ${displayDateTime(form.values["dateTime"]?:form.createdAt)}",
+            when (state.localStatus) {
+                DraftSaveStatus.SAVING -> "Guardando borrador en este dispositivo…"
+                DraftSaveStatus.SAVED -> "Borrador protegido en este dispositivo."
+                DraftSaveStatus.FAILED -> "No se pudo proteger el borrador. Reintenta antes de enviar."
+                DraftSaveStatus.IDLE -> "Los cambios se protegen en este dispositivo."
+            },
             style = MaterialTheme.typography.bodySmall,
         )
-    if (
-        state.fields.keys.any {
-            it in setOf("dateTime", "receivedAt", "executedAt", "clientCreatedAt")
-        }
-    )
-        Text(
-            "No se pudo validar la fecha del registro. Comprueba la fecha y hora del dispositivo.",
-            color = MaterialTheme.colorScheme.error,
-        )
-    if (state.review) {
-        Text("Revisar antes de confirmar", style = MaterialTheme.typography.titleMedium)
-        if (state.resource == OperationsResource.RECEIPTS) {
-            Text("Proveedor: ${form.values["supplierName"].orEmpty()}")
-            form.items.forEachIndexed { i, item ->
-                ReceiptItemSummary(
-                    item,
-                    state.products.find { it.id == item.productId }?.name ?: "Producto ${i+1}",
-                )
-            }
-        } else if (state.resource == OperationsResource.EXECUTIONS)
-            Text("Plan: ${form.values["planName"].orEmpty()}")
-        form.values
-            .filterKeys { it !in setOf("supplierId", "cleaningPlanId", "shiftId") }
-            .forEach { (key, value) ->
-                if (value.isNotBlank()) Text("${fieldLabel(key)}: ${displayField(key,value)}")
-            }
-        BpmChunkyButton(if (state.busy) "Confirmando…"
-            else if (state.pending != null) "Comprobar el mismo registro" else "Confirmar registro", vm::save, Modifier.fillMaxWidth(), enabled = !state.busy &&
-                    state.failure !in setOf(OperationsFailure.SESSION, OperationsFailure.DENIED))
-        if (state.pending == null)
-            BpmChunkyButton("Volver a editar", vm::editReview, tone = BpmChunkyTone.White, enabled = !state.busy)
-    } else {
-        if (state.resource == OperationsResource.PRODUCTS) {
-            Text("¿El producto requiere control de temperatura?")
-            Choices(
-                listOf("false" to "No requiere", "true" to "Sí requiere"),
-                form.values["requiresTemperature"] ?: "false",
-                state.editable,
-            ) {
-                vm.field("requiresTemperature", it)
-                if (it == "false") {
-                    vm.field("minimumTemperature", "")
-                    vm.field("maximumTemperature", "")
-                }
-            }
-            if (form.policyProductId != null)
-                Text(
-                    "Si otro administrador cambia el criterio mientras editas, tendrás que consultar el producto de nuevo.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-        }
-        if (state.resource == OperationsResource.RECEIPTS) {
-            Text("Proveedor: ${form.values["supplierName"]?:"Sin seleccionar"}")
-            BpmChunkyButton("Buscar proveedor", { vm.pick(OperationsResource.SUPPLIERS) }, tone = BpmChunkyTone.White, enabled = state.editable)
-            state.fields["supplierId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
-        if (state.resource == OperationsResource.EXECUTIONS) {
-            Text("Plan: ${form.values["planName"]?:"Sin seleccionar"}")
-            state.selectedPlan?.let {
-                Text(
-                    "${it.instructions}\nFrecuencia: ${frequencyLabel(it.frequency)} · Hora: ${it.dueTime.ifEmpty{"Sin hora"}}"
-                )
-            }
-            BpmChunkyButton("Buscar plan de limpieza", { vm.pick(OperationsResource.PLANS) }, tone = BpmChunkyTone.White, enabled = state.editable)
-            state.fields["cleaningPlanId"]?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
-            val perShift = state.selectedPlan?.frequency == CleaningFrequency.PER_SHIFT
-            Text(if (perShift) "Turno (obligatorio para este plan)" else "Turno (opcional)")
-            if (state.shiftsFailed)
-                Text(
-                    "No pudimos cargar los turnos de la sede. Vuelve a abrir el formulario para reintentar.",
-                    color = MaterialTheme.colorScheme.error,
-                )
-            else if (state.shifts.isEmpty())
-                Text(
-                    if (perShift) "La sede no tiene turnos activos. Pide a un administrador que los cree."
-                    else "La sede no tiene turnos activos."
-                )
-            Choices(
-                (if (perShift) emptyList() else listOf("" to "Sin turno")) +
-                    state.shifts.map {
-                        it.id to
-                            "${it.name} (${it.startTime}-${it.endTime})${if (it.openNow) " · abierto" else ""}"
-                    },
-                form.values["shiftId"].orEmpty(),
-                state.editable,
-            ) { id ->
-                vm.field("shiftId", id)
-                vm.field("shiftName", state.shifts.firstOrNull { it.id == id }?.name.orEmpty())
-            }
-            state.fields["shiftId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Text("Resultado")
-            Choices(
-                CleaningResult.entries.map { it.name to resultLabel(it) },
-                form.values["result"] ?: "COMPLETED",
-                state.editable,
-            ) {
-                vm.field("result", it)
-            }
-        }
-        if (state.resource == OperationsResource.PLANS) {
-            Text("Frecuencia")
-            if (form.values["frequency"] == "PER_SHIFT")
-                Text(
-                    "El plan se cumple una vez en cada turno de la sede; quien lo ejecute deberá elegir el turno.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            Choices(
-                CleaningFrequency.entries.map { it.name to frequencyLabel(it) },
-                form.values["frequency"] ?: "DAILY",
-                state.editable,
-            ) {
-                vm.field("frequency", it)
-            }
-        }
-        specs.forEach { spec ->
-            val value = form.values[spec.key].orEmpty()
-            val rule =
-                when (spec.key) {
-                    "contactName" -> InputRules.personName(160, false)
-                    "contactPhone" -> InputRules.phone()
-                    "contactEmail" -> InputRules.email(false)
-                    "minimumTemperature",
-                    "maximumTemperature" -> OperationsRules.temperature
-                    "dueTime" -> OperationsRules.time
-                    else -> InputRules.text(spec.min, spec.max)
-                }
-            BpmTextField(
-                value,
-                { vm.field(spec.key, it) },
-                spec.label,
-                error = state.fields[spec.key],
-                enabled = state.editable,
-                inputKind = spec.kind,
-                placeholder = spec.placeholder,
-                navigation = navigation[spec.key],
-                rule = rule,
-            )
-        }
-        if (state.resource == OperationsResource.RECEIPTS) {
+        if (state.resource in setOf(OperationsResource.RECEIPTS, OperationsResource.EXECUTIONS))
             Text(
-                "Productos de la recepción (${form.items.size}/50)",
-                style = MaterialTheme.typography.titleMedium,
+                "Fecha y hora: ${displayDateTime(form.values["dateTime"]?:form.createdAt)}",
+                style = MaterialTheme.typography.bodySmall,
             )
-            form.items.forEachIndexed { i, item -> ReceiptItemEditor(i, item, state, vm) }
-            state.fields["items"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            BpmChunkyButton("Buscar y agregar producto", { vm.pick(OperationsResource.PRODUCTS) }, tone = BpmChunkyTone.White, enabled = state.editable && form.items.size < 50)
-        }
-        BpmChunkyButton("Revisar registro", vm::review, Modifier.fillMaxWidth(), enabled = state.editable)
-    }
-    BpmChunkyButton("Guardar y salir", vm::closeForm, tone = BpmChunkyTone.White, enabled = !state.busy)
-    if (state.pending == null) {
-        if (discarding) {
-            Text("¿Descartar los datos de este borrador?")
-            BpmChunkyButton("Confirmar descarte", vm::discard, tone = BpmChunkyTone.White, enabled = !state.busy)
-            BpmTextButton({ discarding = false }) { Text("Seguir editando") }
-        } else
-            BpmTextButton({ discarding = true }, enabled = !state.busy) {
-                Text("Descartar borrador")
+        if (
+            state.fields.keys.any {
+                it in setOf("dateTime", "receivedAt", "executedAt", "clientCreatedAt")
             }
+        )
+            Text(
+                "No se pudo validar la fecha del registro. Comprueba la fecha y hora del dispositivo.",
+                color = MaterialTheme.colorScheme.error,
+            )
+        if (state.review) {
+            Text("Revisar antes de confirmar", style = MaterialTheme.typography.titleMedium)
+            if (state.resource == OperationsResource.RECEIPTS) {
+                Text("Proveedor: ${form.values["supplierName"].orEmpty()}")
+                form.items.forEachIndexed { i, item ->
+                    ReceiptItemSummary(
+                        item,
+                        state.products.find { it.id == item.productId }?.name ?: "Producto ${i+1}",
+                    )
+                }
+            } else if (state.resource == OperationsResource.EXECUTIONS)
+                Text("Plan: ${form.values["planName"].orEmpty()}")
+            form.values
+                .filterKeys { it !in setOf("supplierId", "cleaningPlanId", "shiftId") }
+                .forEach { (key, value) ->
+                    if (value.isNotBlank()) Text("${fieldLabel(key)}: ${displayField(key,value)}")
+                }
+            BpmChunkyButton(if (state.busy) "Confirmando…"
+                else if (state.pending != null) "Comprobar el mismo registro" else "Confirmar registro", vm::save, Modifier.fillMaxWidth(), enabled = !state.busy &&
+                        state.failure !in setOf(OperationsFailure.SESSION, OperationsFailure.DENIED))
+            if (state.pending == null)
+                BpmChunkyButton("Volver a editar", vm::editReview, tone = BpmChunkyTone.White, enabled = !state.busy)
+        } else {
+            if (state.resource == OperationsResource.PRODUCTS) {
+                Text("¿El producto requiere control de temperatura?")
+                Choices(
+                    listOf("false" to "No requiere", "true" to "Sí requiere"),
+                    form.values["requiresTemperature"] ?: "false",
+                    state.editable,
+                ) {
+                    vm.field("requiresTemperature", it)
+                    if (it == "false") {
+                        vm.field("minimumTemperature", "")
+                        vm.field("maximumTemperature", "")
+                    }
+                }
+                if (form.policyProductId != null)
+                    Text(
+                        "Si otro administrador cambia el criterio mientras editas, tendrás que consultar el producto de nuevo.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+            }
+            if (state.resource == OperationsResource.RECEIPTS) {
+                Text("Proveedor: ${form.values["supplierName"]?:"Sin seleccionar"}")
+                BpmChunkyButton("Buscar proveedor", { vm.pick(OperationsResource.SUPPLIERS) }, tone = BpmChunkyTone.White, enabled = state.editable)
+                state.fields["supplierId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+            if (state.resource == OperationsResource.EXECUTIONS) {
+                Text("Plan: ${form.values["planName"]?:"Sin seleccionar"}")
+                state.selectedPlan?.let {
+                    Text(
+                        "${it.instructions}\nFrecuencia: ${frequencyLabel(it.frequency)} · Hora: ${it.dueTime.ifEmpty{"Sin hora"}}"
+                    )
+                }
+                BpmChunkyButton("Buscar plan de limpieza", { vm.pick(OperationsResource.PLANS) }, tone = BpmChunkyTone.White, enabled = state.editable)
+                state.fields["cleaningPlanId"]?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+                val perShift = state.selectedPlan?.frequency == CleaningFrequency.PER_SHIFT
+                Text(if (perShift) "Turno (obligatorio para este plan)" else "Turno (opcional)")
+                if (state.shiftsFailed)
+                    Text(
+                        "No pudimos cargar los turnos de la sede. Vuelve a abrir el formulario para reintentar.",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                else if (state.shifts.isEmpty())
+                    Text(
+                        if (perShift) "La sede no tiene turnos activos. Pide a un administrador que los cree."
+                        else "La sede no tiene turnos activos."
+                    )
+                Choices(
+                    (if (perShift) emptyList() else listOf("" to "Sin turno")) +
+                        state.shifts.map {
+                            it.id to
+                                "${it.name} (${it.startTime}-${it.endTime})${if (it.openNow) " · abierto" else ""}"
+                        },
+                    form.values["shiftId"].orEmpty(),
+                    state.editable,
+                ) { id ->
+                    vm.field("shiftId", id)
+                    vm.field("shiftName", state.shifts.firstOrNull { it.id == id }?.name.orEmpty())
+                }
+                state.fields["shiftId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Text("Resultado")
+                Choices(
+                    CleaningResult.entries.map { it.name to resultLabel(it) },
+                    form.values["result"] ?: "COMPLETED",
+                    state.editable,
+                ) {
+                    vm.field("result", it)
+                }
+            }
+            if (state.resource == OperationsResource.PLANS) {
+                Text("Frecuencia")
+                if (form.values["frequency"] == "PER_SHIFT")
+                    Text(
+                        "El plan se cumple una vez en cada turno de la sede; quien lo ejecute deberá elegir el turno.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                Choices(
+                    CleaningFrequency.entries.map { it.name to frequencyLabel(it) },
+                    form.values["frequency"] ?: "DAILY",
+                    state.editable,
+                ) {
+                    vm.field("frequency", it)
+                }
+            }
+            specs.forEach { spec ->
+                val value = form.values[spec.key].orEmpty()
+                if (spec.key == "dueTime") {
+                    // La hora se elige con botones grandes (no se escribe «HH:mm»).
+                    BpmTimePicker(value, { vm.field(spec.key, it) }, spec.label, error = state.fields[spec.key], enabled = state.editable,
+                        supportingText = "Hora de 24 horas, en la zona horaria de la sede.")
+                    return@forEach
+                }
+                val rule =
+                    when (spec.key) {
+                        "contactName" -> InputRules.personName(160, false)
+                        "contactPhone" -> InputRules.phone()
+                        "contactEmail" -> InputRules.email(false)
+                        "minimumTemperature",
+                        "maximumTemperature" -> OperationsRules.temperature
+                        else -> InputRules.text(spec.min, spec.max)
+                    }
+                BpmTextField(
+                    value,
+                    { vm.field(spec.key, it) },
+                    spec.label,
+                    error = state.fields[spec.key],
+                    enabled = state.editable,
+                    inputKind = spec.kind,
+                    placeholder = spec.placeholder,
+                    navigation = navigation[spec.key],
+                    rule = rule,
+                )
+            }
+            if (state.resource == OperationsResource.RECEIPTS) {
+                Text(
+                    "Productos de la recepción (${form.items.size}/50)",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                form.items.forEachIndexed { i, item -> ReceiptItemEditor(i, item, state, vm) }
+                state.fields["items"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                BpmChunkyButton("Buscar y agregar producto", { vm.pick(OperationsResource.PRODUCTS) }, tone = BpmChunkyTone.White, enabled = state.editable && form.items.size < 50)
+            }
+            BpmChunkyButton("Revisar registro", vm::review, Modifier.fillMaxWidth(), enabled = state.editable)
+        }
+        BpmChunkyButton("Guardar y salir", vm::closeForm, tone = BpmChunkyTone.White, enabled = !state.busy)
+        if (state.pending == null) {
+            if (discarding) {
+                Text("¿Descartar los datos de este borrador?")
+                BpmChunkyButton("Confirmar descarte", vm::discard, tone = BpmChunkyTone.White, enabled = !state.busy)
+                BpmTextButton({ discarding = false }) { Text("Seguir editando") }
+            } else
+                BpmTextButton({ discarding = true }, enabled = !state.busy) {
+                    Text("Descartar borrador")
+                }
+        }
     }
 }
 

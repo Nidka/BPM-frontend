@@ -71,11 +71,9 @@ fun WebhooksScreen(viewModel: WebhooksViewModel, organizationId: String, modifie
 
 @Composable
 private fun WebhookForm(editor: WebhookEditor, eventTypes: List<String>, busy: Boolean, viewModel: WebhooksViewModel) {
-    BpmFormLayout(actions = { BpmFormActions(if (editor.id == null) "Agregar webhook" else "Guardar cambios", viewModel::save, busy = busy, onCancel = viewModel::cancelEditor) }) {
-        BpmSection(if (editor.id == null) "Nuevo webhook" else "Editar webhook", description = "Usa la dirección de producción del nodo Webhook de n8n (empieza con https://).") {
+    BpmFormScaffold(if (editor.id == null) "Nuevo webhook" else "Editar webhook", description = "Usa la dirección de producción del nodo Webhook de n8n (empieza con https://).", actions = { BpmFormActions(if (editor.id == null) "Agregar webhook" else "Guardar cambios", viewModel::save, busy = busy, onCancel = viewModel::cancelEditor) }) {
             BpmTextField(editor.input.url, viewModel::editUrl, "Dirección del webhook *", Modifier.fillMaxWidth(), enabled = !busy,
                 error = editor.fields["url"], inputKind = BpmInputKind.Url, placeholder = "https://n8n.tuempresa.pe/webhook/bpm")
-        }
         BpmSection("¿Qué avisos envía?") {
             eventTypes.forEach { type -> BpmCheckboxRow(WebhookRules.eventLabel(type), type in editor.input.eventTypes, !busy) { viewModel.toggleEvent(type) } }
             editor.fields["eventTypes"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }

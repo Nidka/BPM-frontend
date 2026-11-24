@@ -78,8 +78,7 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
 private fun CreateCourseForm(state: AuthoringState, viewModel: TrainingAuthoringViewModel) {
     val form = state.creating ?: return
     fun issue(kind: DraftIssueKind) = if (form.showIssues) form.issues.firstOrNull { it.kind == kind }?.message else null
-    BpmFormLayout(actions = { BpmFormActions("Crear y preparar", viewModel::create, busy = state.creatingBusy, busyLabel = "Creando…", onCancel = viewModel::cancelCreate) }) {
-        BpmSection("Nuevo curso") {
+    BpmFormScaffold("Nuevo curso", actions = { BpmFormActions("Crear y preparar", viewModel::create, busy = state.creatingBusy, busyLabel = "Creando…", onCancel = viewModel::cancelCreate) }) {
             BpmTextField(form.code, { v -> viewModel.editCreate { it.copy(code = v) } }, "Código del curso (por ejemplo M-01)", error = issue(DraftIssueKind.COURSE_CODE), enabled = !state.creatingBusy)
             BpmTextField(form.title, { v -> viewModel.editCreate { it.copy(title = v) } }, "Título", error = issue(DraftIssueKind.COURSE_TITLE), enabled = !state.creatingBusy)
             BpmTextField(form.description, { v -> viewModel.editCreate { it.copy(description = v) } }, "Descripción", error = issue(DraftIssueKind.COURSE_DESCRIPTION),
@@ -87,7 +86,6 @@ private fun CreateCourseForm(state: AuthoringState, viewModel: TrainingAuthoring
             BpmTextField(form.minutes, { v -> viewModel.editCreate { it.copy(minutes = v.filter(Char::isDigit).take(5)) } }, "Duración estimada (minutos)",
                 error = issue(DraftIssueKind.COURSE_DURATION), inputKind = BpmInputKind.Integer, enabled = !state.creatingBusy)
             state.createFailure?.let { Text(trainingFailureMessage(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-        }
     }
 }
 

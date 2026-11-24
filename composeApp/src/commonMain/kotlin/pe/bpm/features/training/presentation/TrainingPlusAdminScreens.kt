@@ -164,8 +164,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
         if (editor != null) {
             val shown = if (editor.showIssues) editor.issues else emptyList()
             val enabled = !state.saving
-            BpmFormLayout(actions = { BpmFormActions("Guardar insignia", viewModel::save, busy = state.saving, onCancel = viewModel::cancelEdit) }) {
-                BpmSection("Editar insignia", description = "${criterionLabel(editor.achievement)}. El tipo de criterio no se puede cambiar.") {
+            BpmFormScaffold("Editar insignia", description = "${criterionLabel(editor.achievement)}. El tipo de criterio no se puede cambiar.", actions = { BpmFormActions("Guardar insignia", viewModel::save, busy = state.saving, onCancel = viewModel::cancelEdit) }) {
                     BpmTextField(editor.name, { v -> viewModel.edit { it.copy(name = v) } }, "Nombre", enabled = enabled)
                     BpmTextField(editor.description, { v -> viewModel.edit { it.copy(description = v) } }, "Descripción", singleLine = false, minLines = 2, enabled = enabled)
                     BpmTextField(editor.points, { v -> viewModel.edit { it.copy(points = v.filter(Char::isDigit).take(4)) } }, "Puntos (0 a ${AchievementRules.POINTS_MAX})", inputKind = BpmInputKind.Integer, enabled = enabled)
@@ -176,7 +175,6 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
                     }
                     shown.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
                     Failure(state.saveFailure)
-                }
             }
         } else {
             Text("Catálogo de logros", style = MaterialTheme.typography.headlineMedium)

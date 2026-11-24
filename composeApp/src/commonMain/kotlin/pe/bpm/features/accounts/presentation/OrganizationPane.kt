@@ -56,8 +56,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 
 @Composable private fun OrganizationFormCard(form: OrganizationForm, busy: Boolean, viewModel: OrganizationViewModel) {
     val value = form.value
-    BpmFormLayout(actions = { BpmFormActions("Guardar organización", viewModel::saveOrganization, busy = busy, onCancel = viewModel::cancelOrganization) }) {
-    BpmSection("Editar organización") {
+    BpmFormScaffold("Editar organización", actions = { BpmFormActions("Guardar organización", viewModel::saveOrganization, busy = busy, onCancel = viewModel::cancelOrganization) }) {
         BpmTextField(value.legalName, { v -> viewModel.changeOrganization { it.copy(legalName = v) } }, "Razón social *", Modifier.fillMaxWidth(), error = form.fields["legalName"], enabled = !busy, rule = AccountsRules.legalName)
         BpmTextField(value.tradeName, { v -> viewModel.changeOrganization { it.copy(tradeName = v) } }, "Nombre comercial", Modifier.fillMaxWidth(), error = form.fields["tradeName"], enabled = !busy, rule = AccountsRules.tradeName)
         BpmTextField(value.taxId, { v -> viewModel.changeOrganization { it.copy(taxId = v) } }, "RUC / identificación fiscal", Modifier.fillMaxWidth(), error = form.fields["taxId"], enabled = !busy, rule = AccountsRules.taxId)
@@ -71,7 +70,6 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
         BpmTextField(value.contactPhone, { v -> viewModel.changeOrganization { it.copy(contactPhone = v) } }, "Teléfono de contacto", Modifier.fillMaxWidth(), error = form.fields["contactPhone"], enabled = !busy,
             inputKind = BpmInputKind.Phone, rule = AccountsRules.contactPhone)
     }
-    }
 }
 
 @Composable private fun BusinessTypeChips(selected: BusinessType, enabled: Boolean, onSelect: (BusinessType) -> Unit) {
@@ -82,8 +80,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
 
 @Composable private fun LocationFormCard(form: LocationForm, busy: Boolean, viewModel: OrganizationViewModel) {
     val value = form.value
-    BpmFormLayout(actions = { BpmFormActions("Guardar sede", viewModel::saveLocation, busy = busy, onCancel = viewModel::cancelLocation) }) {
-    BpmSection("Editar sede") {
+    BpmFormScaffold("Editar sede", actions = { BpmFormActions("Guardar sede", viewModel::saveLocation, busy = busy, onCancel = viewModel::cancelLocation) }) {
         BpmTextField(value.name, { v -> viewModel.changeLocation { it.copy(name = v) } }, "Nombre de la sede *", Modifier.fillMaxWidth(), error = form.fields["name"], enabled = !busy, rule = AccountsRules.locationName)
         BpmShortFields(
             { m -> BpmTextField(value.address, { v -> viewModel.changeLocation { it.copy(address = v) } }, "Dirección *", m, error = form.fields["address"], enabled = !busy, rule = AccountsRules.address) },
@@ -95,6 +92,5 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
         Text("Estado", style = MaterialTheme.typography.labelLarge)
         BpmChoiceRow("Activa", value.status == RecordStatus.ACTIVE, !busy, "Aparece para asignar a las personas del equipo.") { viewModel.changeLocation { it.copy(status = RecordStatus.ACTIVE) } }
         BpmChoiceRow("Inactiva", value.status == RecordStatus.INACTIVE, !busy, "No se borra ni se reasigna a nadie, pero ya no puede asignarse.") { viewModel.changeLocation { it.copy(status = RecordStatus.INACTIVE) } }
-    }
     }
 }

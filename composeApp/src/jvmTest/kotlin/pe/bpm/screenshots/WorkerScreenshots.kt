@@ -287,6 +287,15 @@ internal val workerScreens: List<ScreenSpec> = listOf(
             }
         }
     },
+    // Selector de hora: cerrado y sin hora, y abierto con una hora (atajos, horas y minutos).
+    ScreenSpec("selector-hora", full = false) {
+        {
+            androidx.compose.foundation.layout.Column(Modifier.padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
+                pe.bpm.core.designsystem.BpmTimePicker("", {}, "Hora de referencia (opcional)", supportingText = "Hora de 24 horas, en la zona horaria de la sede.")
+                androidx.compose.runtime.key("abierto") { pe.bpm.core.designsystem.BpmTimePicker("08:30", {}, "Hora de referencia (opcional)", supportingText = "Hora de 24 horas, en la zona horaria de la sede.", initiallyOpen = true) }
+            }
+        }
+    },
     // Ayuda contextual, introducción de la primera vez y lista «Primeros pasos» (Personal y Administrador).
     ScreenSpec("ayuda") {
         { Shell(WorkspaceDestination.Account, secondaryContent = { pe.bpm.app.HelpContent(pe.bpm.app.HelpTopic.Home, pe.bpm.app.GuideRole.Worker, onReplay = {}, onSettings = {}) }, secondaryEditor = true, secondaryTitle = "Ayuda") }

@@ -116,15 +116,13 @@ private fun DocumentsPane(state: NormativeState, viewModel: NormativeViewModel) 
 @Composable
 private fun DocumentForm(editor: DocumentEditor, saving: Boolean, viewModel: NormativeViewModel) {
     if (editor.loading) { BpmSkeletonDetail(); return }
-    BpmFormLayout(actions = { BpmFormActions(if (editor.id == null) "Cargar normativa" else "Guardar cambios", viewModel::saveEditor, busy = saving, onCancel = viewModel::cancelEditor) }) {
-        BpmSection(if (editor.id == null) "Nueva normativa" else "Editar normativa", description = "Pega el texto oficial completo. Se divide en párrafos para buscar en ellos.") {
+    BpmFormScaffold(if (editor.id == null) "Nueva normativa" else "Editar normativa", description = "Pega el texto oficial completo. Se divide en párrafos para buscar en ellos.", actions = { BpmFormActions(if (editor.id == null) "Cargar normativa" else "Guardar cambios", viewModel::saveEditor, busy = saving, onCancel = viewModel::cancelEditor) }) {
             BpmShortFields(
                 { m -> BpmTextField(editor.input.title, { v -> viewModel.editInput { it.copy(title = v) } }, "Título *", m, enabled = !saving, error = editor.fields["title"], placeholder = "NTS 142-MINSA/2018/DIGESA") },
                 { m -> BpmTextField(editor.input.source, { v -> viewModel.editInput { it.copy(source = v) } }, "Referencia (opcional)", m, enabled = !saving, error = editor.fields["source"], placeholder = "RM 822-2018/MINSA") })
             BpmTextField(editor.input.content, { v -> viewModel.editInput { it.copy(content = v) } }, "Texto de la norma *", Modifier.fillMaxWidth(),
                 singleLine = false, minLines = 10, enabled = !saving, error = editor.fields["content"],
                 supportingText = "${editor.input.content.length} de ${NormativeRules.CONTENT_MAX} caracteres")
-        }
     }
 }
 

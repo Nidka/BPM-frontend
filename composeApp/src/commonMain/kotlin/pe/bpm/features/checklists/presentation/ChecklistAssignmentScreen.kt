@@ -204,7 +204,6 @@ fun ChecklistAssignmentFormScreen(
     var discarding by remember(state.input?.id) { mutableStateOf(false) }
     var step by rememberSaveable(state.input?.id) { mutableIntStateOf(0) }
     val input = state.input
-    val navigation = rememberBpmFormNavigation(listOf("dueTime"))
     Column(
         Modifier.widthIn(max = BpmPatternRules.readingWidth).fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(BpmSpacing.lg),
@@ -307,16 +306,13 @@ fun ChecklistAssignmentFormScreen(
                         BpmDetailField("Sede", state.locationName),
                         BpmDetailField("Frecuencia", input.frequency?.let(::frequencyLabel)),
                     ))
-                if (input.shiftId == null) BpmTextField(
+                if (input.shiftId == null) BpmTimePicker(
                     input.dueTime,
                     onTime,
                     "Hora de referencia (opcional)",
                     enabled = state.editable,
                     error = state.fields["dueTime"],
-                    rule = AssignmentInputRules.time,
-                    placeholder = "08:30",
-                    supportingText = "Formato de 24 horas, en la zona horaria de la sede.",
-                    navigation = navigation["dueTime"],
+                    supportingText = "Hora de 24 horas, en la zona horaria de la sede.",
                 )
                 },
             ),

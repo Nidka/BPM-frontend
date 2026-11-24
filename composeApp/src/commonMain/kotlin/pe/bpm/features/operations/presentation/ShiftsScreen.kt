@@ -79,15 +79,12 @@ private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
 private fun ShiftForm(state: ShiftsState, vm: ShiftsViewModel) {
     val editor = state.editor!!
     val enabled = !state.busy && !editor.uncertain
-    BpmFormLayout(actions = { BpmFormActions(if (editor.uncertain) "Comprobar el mismo turno" else "Guardar turno", vm::save, busy = state.busy, onCancel = vm::cancelEdit) }) {
-        BpmSection(if (editor.editing == null) "Nuevo turno" else "Editar turno",
-            description = if (editor.uncertain) "No pudimos confirmar el guardado. Reintenta para comprobar el mismo turno." else null) {
+    BpmFormScaffold(if (editor.editing == null) "Nuevo turno" else "Editar turno",
+            description = if (editor.uncertain) "No pudimos confirmar el guardado. Reintenta para comprobar el mismo turno." else null, actions = { BpmFormActions(if (editor.uncertain) "Comprobar el mismo turno" else "Guardar turno", vm::save, busy = state.busy, onCancel = vm::cancelEdit) }) {
             BpmTextField(editor.name, { vm.change(name = it) }, "Nombre del turno", error = state.fields["name"], enabled = enabled, placeholder = "Ej.: Mañana")
-            BpmShortFields(
-                { m -> BpmTextField(editor.startTime, { vm.change(start = it) }, "Hora de inicio (HH:mm)", m, error = state.fields["startTime"], enabled = enabled, placeholder = "06:00") },
-                { m -> BpmTextField(editor.endTime, { vm.change(end = it) }, "Hora de fin (HH:mm)", m, error = state.fields["endTime"], enabled = enabled, placeholder = "14:00") })
+            BpmTimePicker(editor.startTime, { vm.change(start = it) }, "Hora de inicio", optional = false, presets = listOf("06:00", "14:00", "22:00"), error = state.fields["startTime"], enabled = enabled)
+            BpmTimePicker(editor.endTime, { vm.change(end = it) }, "Hora de fin", optional = false, presets = listOf("14:00", "22:00", "06:00"), error = state.fields["endTime"], enabled = enabled)
             if (ShiftRules.crossesMidnight(editor.startTime, editor.endTime))
                 Text("Este turno cruza la medianoche.", style = MaterialTheme.typography.bodySmall)
-        }
     }
 }
