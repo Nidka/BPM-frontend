@@ -70,10 +70,11 @@ private fun ErrorLine(failure: ResearchFailure?) {
 
 @Composable
 private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
-    Text("Consentimiento informado", style = MaterialTheme.typography.headlineMedium)
     val form = state.documentForm
+    if (form == null) Text("Consentimiento informado", style = MaterialTheme.typography.headlineMedium)
     if (form != null) {
-        Text("Al publicar una versión nueva, la vigente se archiva y todas las personas participantes deberán aceptarla de nuevo.")
+        BpmFormScaffold("Consentimiento informado", description = "Al publicar una versión nueva, la vigente se archiva y todas las personas participantes deberán aceptarla de nuevo.",
+            actions = { BpmFormActions("Publicar versión", viewModel::publishDocument, busy = state.documentBusy, onCancel = viewModel::cancelDocument) }) {
         BpmTextField(form.version, { v -> viewModel.editDocument { it.copy(version = v.take(ResearchLimits.VERSION_MAX)) } }, "Versión (por ejemplo v2)", Modifier.fillMaxWidth(),
             error = if (form.showIssues && !ResearchLimits.versionPattern.matches(form.version.trim())) "Usa letras, números, punto, guion o guion bajo." else null, enabled = !state.documentBusy)
         BpmTextField(form.title, { v -> viewModel.editDocument { it.copy(title = v.take(ResearchLimits.TITLE_MAX)) } }, "Título", Modifier.fillMaxWidth(),
@@ -84,7 +85,7 @@ private fun ConsentTab(state: ResearchState, viewModel: ResearchViewModel) {
             singleLine = false, minLines = 8, error = if (form.showIssues && form.text.isBlank()) "Escribe el texto del consentimiento." else null, enabled = !state.documentBusy,
             supportingText = "${form.text.length} de ${ResearchLimits.CONSENT_TEXT_MAX} caracteres")
         ErrorLine(state.documentFailure)
-        BpmFormActions("Publicar versión", viewModel::publishDocument, busy = state.documentBusy, onCancel = viewModel::cancelDocument)
+        }
         return
     }
     BpmChunkyButton("Publicar nueva versión", viewModel::startDocument, Modifier.bpmPrimaryButtonWidth())
@@ -117,15 +118,16 @@ private fun InstrumentsTab(controller: InstrumentsController) {
     val state by controller.state.collectAsStateWithLifecycle()
     val editor = state.editor
     if (editor != null) { DraftEditor(editor, controller); return }
-    Text("Cuestionarios", style = MaterialTheme.typography.headlineMedium)
-    state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     val form = state.import
+    if (form == null) Text("Cuestionarios", style = MaterialTheme.typography.headlineMedium)
+    state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
     if (form != null) {
-        Text("Pega el contenido completo del archivo JSON del cuestionario. Se creará un borrador: después elegirás las respuestas correctas de las preguntas de opción múltiple y lo publicarás.")
+        BpmFormScaffold("Importar cuestionario", description = "Pega el contenido completo del archivo JSON del cuestionario. Se creará un borrador: después elegirás las respuestas correctas de las preguntas de opción múltiple y lo publicarás.",
+            actions = { BpmFormActions("Importar como borrador", controller::confirmImport, enabled = form.text.isNotBlank(), busy = form.busy, onCancel = controller::cancelImport) }) {
         BpmTextField(form.text, controller::editImport, "Contenido del archivo JSON", Modifier.fillMaxWidth(), singleLine = false, minLines = 8,
             error = form.error, enabled = !form.busy)
         ErrorLine(form.failure)
-        BpmFormActions("Importar como borrador", controller::confirmImport, enabled = form.text.isNotBlank(), busy = form.busy, onCancel = controller::cancelImport)
+        }
         return
     }
     BpmChunkyButton("Importar cuestionario (JSON)", controller::startImport, Modifier.bpmPrimaryButtonWidth())
@@ -308,10 +310,11 @@ private fun categoryLabel(category: NeedCategory) = when (category) {
 private fun NeedsTab(controller: AnalysisController) {
     val state by controller.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { controller.loadOrganizations() }
-    Text("Necesidades detectadas", style = MaterialTheme.typography.headlineMedium)
     val form = state.needForm
+    if (form == null) Text("Necesidades detectadas", style = MaterialTheme.typography.headlineMedium)
     if (form != null) {
-        Text("Registra una necesidad observada en una empresa durante el estudio.")
+        BpmFormScaffold("Necesidades detectadas", description = "Registra una necesidad observada en una empresa durante el estudio.",
+            actions = { BpmFormActions("Registrar necesidad", controller::saveNeed, busy = form.busy, onCancel = controller::cancelNeed) }) {
         Text("Empresa", style = MaterialTheme.typography.labelLarge)
         var open by remember { mutableStateOf(false) }
         Box {
@@ -329,7 +332,7 @@ private fun NeedsTab(controller: AnalysisController) {
             singleLine = false, minLines = 4, enabled = !form.busy, error = if (form.showIssues && form.description.isBlank()) "Describe la necesidad." else null,
             supportingText = "${form.description.length} de ${ResearchLimits.NEED_DESCRIPTION_MAX} caracteres")
         ErrorLine(form.failure)
-        BpmFormActions("Registrar necesidad", controller::saveNeed, busy = form.busy, onCancel = controller::cancelNeed)
+        }
         return
     }
     OrganizationFilter(state, controller, label = "Filtrar por empresa")
