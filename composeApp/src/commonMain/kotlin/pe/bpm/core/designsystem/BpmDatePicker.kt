@@ -74,7 +74,7 @@ fun BpmDatePicker(
                 Text(selected?.spoken ?: if (optional) "Sin fecha" else "Elige una fecha", style = BpmPlayType.rowTitle,
                     color = if (selected != null) BpmPlayColors.ink else BpmPlayColors.muted)
             }
-            BpmIcon(BpmSymbol.Clock, tint = BpmPlayColors.action.face, modifier = Modifier.size(22.dp))
+            BpmIcon(BpmSymbol.Calendar, tint = BpmPlayColors.action.face, modifier = Modifier.size(22.dp))
         }
         if (open) Column(
             Modifier.fillMaxWidth().clip(shape).background(androidx.compose.ui.graphics.Color.White).border(2.dp, BpmPlayColors.line, shape).padding(12.dp),

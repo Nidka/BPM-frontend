@@ -6,5 +6,5 @@ import kotlin.time.Instant
 fun displayDateTime(value: String): String = localDateTime(Instant.parse(value).toEpochMilliseconds())
 internal expect fun localDateTime(epochMilliseconds: Long): String
 
-/** Minutos transcurridos desde la medianoche en la zona del dispositivo (0–1439); alimenta «Ahora» del selector de hora. */
-internal expect fun localMinutesOfDay(epochMilliseconds: Long): Int
+/** Desfase de la zona del dispositivo respecto de UTC, en minutos (Lima = -300); alimenta «Hoy» y «Ahora» de los selectores. */
+internal expect fun localUtcOffsetMinutes(epochMilliseconds: Long): Int

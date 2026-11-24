@@ -31,6 +31,7 @@ enum class BpmSymbol(internal val resource: DrawableResource) {
     Box(Res.drawable.ic_box), Hand(Res.drawable.ic_hand), Bug(Res.drawable.ic_bug),
     Wrench(Res.drawable.ic_wrench), Drop(Res.drawable.ic_drop), Eye(Res.drawable.ic_eye),
     Dots(Res.drawable.ic_dots), WifiOff(Res.drawable.ic_wifi_off), Settings(Res.drawable.ic_settings), Help(Res.drawable.ic_help),
+    Calendar(Res.drawable.ic_calendar),
 }
 
 /** La etiqueta pertenece al control; los íconos decorativos reciben una descripción nula. */

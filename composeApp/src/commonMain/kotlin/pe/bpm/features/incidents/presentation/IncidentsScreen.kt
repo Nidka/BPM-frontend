@@ -108,7 +108,8 @@ fun IncidentsScreen(
                     )
                 } else {
                     if (s.incidents.rows.isEmpty() && !s.loading && s.failure == null)
-                        EmptyState("Sin incidencias", "No hay incidencias para esta consulta. Cambia la búsqueda o el estado para ver otras.")
+                        EmptyState("Sin incidencias", if (s.status == null && s.incidents.query.isBlank()) "Todavía no hay incidencias en esta sede. Cuando alguien reporte un problema, aparecerá aquí."
+                        else "No hay incidencias para esta consulta. Cambia la búsqueda o el estado para ver otras.")
                     if (s.role == "WORKER")
                         Text(
                             "Aquí ves las incidencias que reportaste o te asignaron.",

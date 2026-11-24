@@ -6,7 +6,7 @@ internal actual fun localDateTime(epochMilliseconds: Long): String = browserDate
 @JsFun("(value) => new Intl.DateTimeFormat('es-PE', {dateStyle:'short', timeStyle:'short'}).format(new Date(value))")
 private external fun browserDateTime(value: Double): String
 
-internal actual fun localMinutesOfDay(epochMilliseconds: Long): Int = browserMinutesOfDay(epochMilliseconds.toDouble())
+internal actual fun localUtcOffsetMinutes(epochMilliseconds: Long): Int = browserUtcOffsetMinutes(epochMilliseconds.toDouble())
 
-@JsFun("(value) => { const d = new Date(value); return d.getHours() * 60 + d.getMinutes(); }")
-private external fun browserMinutesOfDay(value: Double): Int
+@JsFun("(value) => -new Date(value).getTimezoneOffset()")
+private external fun browserUtcOffsetMinutes(value: Double): Int

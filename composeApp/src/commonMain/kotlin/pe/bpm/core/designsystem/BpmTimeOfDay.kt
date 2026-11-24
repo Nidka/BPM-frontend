@@ -40,7 +40,7 @@ object BpmTime {
     fun fromMinutes(minutes: Int): TimeOfDay = ((minutes % 1440) + 1440).rem(1440).let { TimeOfDay(it / 60, it % 60) }
 
     /** La hora actual del dispositivo (zona local), con minutos exactos. */
-    fun now(): TimeOfDay = fromMinutes(pe.bpm.core.presentation.localMinutesOfDay(kotlin.time.Clock.System.now().toEpochMilliseconds()))
+    fun now(): TimeOfDay = fromMinutes((BpmCalendar.localMillis(kotlin.time.Clock.System.now().toEpochMilliseconds()).mod(86_400_000L) / 60_000L).toInt())
 
     /** Minutos de la cuadrícula (cada 5). */
     val minuteSteps: List<Int> = (0..55 step 5).toList()

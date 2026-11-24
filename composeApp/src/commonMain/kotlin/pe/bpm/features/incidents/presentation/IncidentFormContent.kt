@@ -209,7 +209,7 @@ private fun IncidentReview(f: IncidentForm) {
             "dueZone" to "Zona horaria de la sede",
         )
     labels.forEach { (key, label) ->
-        f.values[key]?.takeIf { it.isNotBlank() }?.let { Text("$label: $it") }
+        f.values[key]?.takeIf { it.isNotBlank() }?.let { Text("$label: " + if (key == "dueDate") BpmCalendar.parse(it)?.spoken ?: it else it) }
     }
     f.values["riskLevel"]?.let { Text("Riesgo: ${incidentRiskLabel(IncidentRisk.valueOf(it))}") }
     f.values["evidenceRequired"]?.let {

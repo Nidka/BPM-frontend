@@ -340,3 +340,32 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 
 - CI de 7473c21 (verify + ios) en verde y despliegue en `success`. En 390 dp la pestaña «Empresa y sedes» parte entre palabras («Empresa y / sedes»).
 - El CI relanzado de ba0dd51 terminó en verde; su despliegue quedó en `failure` y está sustituido por e3228a5 y 7473c21.
+
+## 16. Selector de hora, formularios con una sola anatomía y pasada completa a 390 dp (Jefe y Administrador)
+
+| # | Tema | Resultado | Estado |
+|---|---|---|---|
+| Q1 | Selector de hora | `BpmTimePicker` + `BpmTime`/`TimeOfDay` en el sistema de diseño: campo que muestra «HH:mm», panel en línea (sin ventana emergente) con atajos «Ahora» y horas frecuentes, horas 00–23 y minutos de 5 en 5 en cuadrículas de 6 columnas (botones de 48 dp), «Listo» y «Quitar hora»; cada botón dice su hora en palabras («8 y 30 de la mañana») y «Elegido». «Ahora» usa la hora del dispositivo (expect/actual por plataforma). Pruebas `BpmTimeOfDayTest`. Sustituye todo «HH:mm» escrito a mano: hora límite de incidencia, hora de referencia al programar un control, hora del plan de limpieza, inicio y fin de turno y hora de la regla de aviso | Hecho |
+| Q2 | «Hoy» y «Ahora» en la zona del dispositivo | El calendario marcaba como «hoy» el día en hora universal: a las 8 p. m. en Lima ya decía 24 cuando era 23. Ahora el desfase de la zona del dispositivo (`localUtcOffsetMinutes`) se usa en `BpmCalendar.today()` y en «Ahora» | Hecho |
+| Q3 | Formularios con `BpmFormScaffold` | Normativa, curso nuevo, insignia, movimiento de stock, turno, persona (rol y sedes), organización, sede, webhook, formulario de operación diaria, formulario de incidencia y regla de aviso pasan a la plantilla (título, descripción y acciones al pie). Los asistentes por pasos (`BpmStepForm`: invitar, programar control, crear en Empresa) y los tres formularios de Investigación siguen con su propio patrón | Parcial |
+| Q4 | Fechas de Reportes escritas a mano | «Desde/Hasta (AAAA-MM-DD)» de Reportes y de constancias pasan a `BpmDatePicker`. Prueba de arquitectura que impide volver a escribir fechas u horas en formato fijo | Hecho |
+| Q5 | Icono de fecha | El selector de fecha usaba el reloj; ahora tiene su calendario (`BpmSymbol.Calendar`) | Hecho |
+
+### 16.1 Hallazgos de la pasada completa a 390 dp (producción, organización «Prueba BPM»)
+
+| # | Hallazgo | Causa | Arreglo | Estado |
+|---|---|---|---|---|
+| H13 | **Ajustes, Ayuda y Reportes no desplazaban**: lo que no cabía en 844 dp quedaba cortado y «Cerrar sesión» (al final de Ajustes) era inalcanzable | El anfitrión de pantallas secundarias recorta; Ajustes, Ayuda y Reportes no desplazan por sí mismas | `bpmScrollable()` en esas tres; prueba de arquitectura | Hecho |
+| H14 | **Reportar desde Incidencias (Jefe y Administrador) quedaba atrapado** en «Seleccionar criterio / No hay coincidencias», sin formulario y sin salida; al cerrar el reporte rápido se volvía a esa pantalla | El selector de criterios tapaba el formulario mientras las categorías se cargaban, y con un catálogo vacío no había nada que elegir; el estado quedaba pendiente | Solo «Elegir responsable» ocupa la pantalla; las categorías se piden en segundo plano y salen como fichas | Hecho |
+| H15 | Control programado en curso por otra persona: «Ábrelo desde aquí para hacerlo» no era posible y «Hacer mi propio control» devolvía a la misma pantalla | Texto pensado solo para el caso de control sin iniciar | Si lo hace otra persona, se dice quién («Ana … ya está haciendo este control») y el botón pasa a «Ver el control en curso» | Hecho |
+| H16 | La primera pregunta de un control subía 35 dp bajo el dedo al responder | Se quitaba el aviso «Revisión iniciada…» con la primera respuesta | El aviso se queda mientras se responde | Hecho |
+| H17 | «Hacer un control ahora» y «Empezar otro control» duplicados en Controles del Jefe | Dos accesos al mismo catálogo | Se quita «Empezar otro control» al Jefe | Hecho |
+| H18 | Incidencias sin datos decía «Cambia la búsqueda o el estado» sin haber filtrado | Texto único | Sin filtros: «Todavía no hay incidencias en esta sede…» | Hecho |
+| H19 | Al abrir «Editar sede» (o persona) el formulario aparecía a media pantalla y bajo él seguía la lista con otro «Editar sede» | El desplazamiento no se reiniciaba y la lista no se ocultaba | El desplazamiento vuelve arriba al abrir un editor y la lista se oculta mientras dura | Hecho |
+| H20 | La revisión de «Asignar acción correctiva» mostraba «Fecha límite: 2026-11-25» | Valor interno sin formatear | «25 de noviembre de 2026» | Hecho |
+
+Recorridos completados a 390 dp con datos reales en «Prueba BPM» (capturas `d-chef-390-*` y `d-admin-390-*` en la carpeta de capturas):
+
+- **Jefe**: Turno → Controles → plantilla → revisión de la sede → control paso a paso (2 preguntas) → revisar → finalizar (100 %); Reportar (Limpieza) con texto y lugar → «¡Reporte enviado!»; Aprender (lección en vídeo, texto, pregunta con respuesta correcta); Ayuda y Ajustes.
+- **Administrador**: ve la incidencia reportada por el Jefe; la asigna (responsable, plan, fecha con calendario, hora con selector) → el Jefe inicia la atención y registra la corrección → el Administrador valida y cierra («Validada»); programar un control (frecuencia «Una sola vez», hora 18:00 con el selector) y dejarlo de programar; editar el teléfono de la sede y revertirlo.
+

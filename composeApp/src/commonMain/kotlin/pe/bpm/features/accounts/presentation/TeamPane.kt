@@ -18,6 +18,7 @@ internal fun TeamPane(viewModel: TeamViewModel, currentUserId: String, onAssignC
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         AccountMessages(state.failure, state.notice)
         state.editor?.let { MemberEditorCard(it, state, viewModel) }
+        if (state.editor != null) return@Column // el formulario ocupa la pantalla; la lista de personas vuelve al cerrarlo
         state.action?.let { ActionCard(it, state, viewModel) }
         BpmListToolbar(
             filters = { BpmFilterChips(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.status, !state.busy, viewModel::selectStatus) },

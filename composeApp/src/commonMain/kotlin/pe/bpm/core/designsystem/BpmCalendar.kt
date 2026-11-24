@@ -66,8 +66,11 @@ object BpmCalendar {
         return CivilDate(year, month, day)
     }
 
-    /** Hoy en hora universal (la fecha límite de una asignación vence en hora universal). */
-    fun today(): CivilDate = fromEpochDay(Clock.System.now().toEpochMilliseconds().floorDiv(86_400_000L))
+    /** Hoy en la zona del dispositivo (a las 19:00 en Lima sigue siendo el mismo día, aunque en UTC ya sea mañana). */
+    fun today(): CivilDate = Clock.System.now().toEpochMilliseconds().let { fromEpochDay(localMillis(it).floorDiv(86_400_000L)) }
+
+    /** Milisegundos «de reloj de pared» del dispositivo: UTC más el desfase de su zona. */
+    internal fun localMillis(epochMilliseconds: Long): Long = epochMilliseconds + pe.bpm.core.presentation.localUtcOffsetMinutes(epochMilliseconds) * 60_000L
 
     /** Primer día de la cuadrícula de un mes: los huecos antes del día 1 (lunes = 0). */
     fun leadingBlanks(year: Int, month: Int): Int = CivilDate(year, month, 1).weekday

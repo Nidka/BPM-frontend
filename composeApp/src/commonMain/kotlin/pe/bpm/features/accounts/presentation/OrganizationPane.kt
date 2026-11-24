@@ -36,6 +36,8 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
                 }
             }
         }
+        // Con un formulario abierto la lista de sedes sobra (y mostraba un segundo «Editar sede» bajo el formulario).
+        if (state.organizationForm != null || state.locationForm != null) return@Column
         Text("Sedes", style = MaterialTheme.typography.titleLarge)
         BpmListToolbar(
             filters = { BpmFilterChips(listOf(RecordStatus.ACTIVE to "Activas", RecordStatus.INACTIVE to "Inactivas"), state.locationStatus, !state.busy, viewModel::selectLocationStatus) },

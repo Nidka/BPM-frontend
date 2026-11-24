@@ -10,10 +10,5 @@ internal actual fun localDateTime(epochMilliseconds: Long): String = NSDateForma
     dateFormat = "dd/MM/yyyy · HH:mm z"
 }.stringFromDate(NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1000.0))
 
-internal actual fun localMinutesOfDay(epochMilliseconds: Long): Int {
-    val parts = platform.Foundation.NSCalendar.currentCalendar.components(
-        platform.Foundation.NSCalendarUnitHour or platform.Foundation.NSCalendarUnitMinute,
-        fromDate = NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1000.0),
-    )
-    return (parts.hour * 60 + parts.minute).toInt()
-}
+internal actual fun localUtcOffsetMinutes(epochMilliseconds: Long): Int =
+    (platform.Foundation.NSCalendar.currentCalendar.timeZone.secondsFromGMTForDate(NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1000.0)) / 60).toInt()

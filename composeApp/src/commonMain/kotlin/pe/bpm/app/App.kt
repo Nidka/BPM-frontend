@@ -122,6 +122,10 @@ fun App(
     val team = viewModel<pe.bpm.features.accounts.presentation.TeamViewModel> { owner.graph.teamViewModel() }
     val accountInvitations = viewModel<pe.bpm.features.accounts.presentation.InvitationsViewModel> { owner.graph.invitationsViewModel() }
     val accountOrganization = viewModel<pe.bpm.features.accounts.presentation.OrganizationViewModel> { owner.graph.organizationAccountViewModel() }
+    // Abrir un editor de Equipo o de Empresa (persona, organización, sede) vuelve el desplazamiento arriba: el formulario aparecía a medio camino.
+    val teamNow by team.state.collectAsStateWithLifecycle()
+    val organizationNow by accountOrganization.state.collectAsStateWithLifecycle()
+    val accountsEditKey = "${teamNow.editor?.member?.id}:${teamNow.action != null}:${organizationNow.organizationForm != null}:${organizationNow.locationForm != null}"
     val invitationAccept = viewModel<pe.bpm.features.accounts.presentation.InvitationAcceptViewModel> { owner.graph.invitationAcceptViewModel() }
     val myDevices = viewModel<pe.bpm.features.accounts.presentation.DevicesViewModel> { owner.graph.devicesViewModel() }
     val survey = viewModel<pe.bpm.features.research.presentation.SurveyViewModel> { owner.graph.surveyViewModel() }
@@ -1049,7 +1053,7 @@ fun App(
                                 focusTitle = courseTitle,
                                 secondaryTitle = if (studySurvey) "Encuesta del estudio" else if (researching) "Investigación" else if (managingAccounts) "Cuentas y equipo" else if (viewingHelp) "Ayuda" else if (viewingSettings) "Ajustes" else if (viewingDevices) "Mis dispositivos" else if (acceptingInvitation) "Aceptar invitación" else if(alertRoute) (if(managingAlerts) "Reglas de avisos" else "Mis avisos") else if (reportsRoute) "Reportes" else if (normativeRoute) "Normativa" else if (managingWebhooks) "Automatizaciones" else if (incidentRoute) "Incidencias y correcciones" else if (daily && destination != WorkspaceDestination.Tasks) "Insumos y limpieza" else if (offline) "Controles en este dispositivo" else if (editingAssignment) "Programar control" else if (managingAssignments) "Controles programados" else if (viewingAssignment) "Control programado" else if (viewingHistory) "Detalle de revisión" else if (route == CHECKLIST_HISTORY) "Mis revisiones" else if (running) "Revisión de tu sede" else if (route == TEMPLATE_VERSIONS) "Versiones de la plantilla" else if (managingTemplates) "Plantillas de control" else if (route == CHECKLIST_DETAIL) "Detalle del control" else null,
                                 secondaryBusy = daily && dailyState.saving || offline && offlineState.busy || assignmentFormState.busy || templateEditorState.publishing || running && (runState.busy || runState.pending),
-                                secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else null,
+                                secondaryScrollKey = if (offline) "${offlineState.reviewing}:${offlineState.selected?.status}" else if (running) "${runState.reviewing}:${runState.failure}:${runState.run?.status}:${runState.busy}:${runExit != null}" else accountsEditKey,
                                 formDraft = formDraftState, onSubmitForm = { formDrafts.submit { draft ->
                                     when (formKind) {
                                         WorkspaceFormKind.Organization -> workspace.organization(Organization(draft.id, draft.name, draft.trade, draft.business, draft.tax, draft.contactName, draft.phone, draft.email))
@@ -1129,7 +1133,6 @@ fun App(
                                             ChefControlLink(BpmSymbol.Control, if (offlineState.pendingCount > 0) "En este dispositivo · ${offlineState.pendingCount} pendientes" else "Controles en este dispositivo",
                                                 "Revisiones guardadas para trabajar sin conexión.") { nav.navigate(CHECKLIST_OFFLINE) { launchSingleTop = true } },
                                             ChefControlLink(BpmSymbol.Clock, "Mis revisiones", "Historial de tus controles.") { nav.navigate(CHECKLIST_HISTORY) { launchSingleTop = true } },
-                                            ChefControlLink(BpmSymbol.Learn, "Empezar otro control", "Elige una plantilla publicada y complétala en tu sede.") { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } },
                                         ), assignments::refresh, assignments::previous, assignments::next, openControl,
                                             // Hacer un control ahora: un solo botón arriba en lugar de buscarlo en «Otras plantillas» (antes eran 5 toques).
                                             top = { BpmChunkyButton("Hacer un control ahora", { nav.navigate(CHECKLIST_CATALOG) { launchSingleTop = true } }, Modifier.fillMaxWidth()) })
