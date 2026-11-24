@@ -335,3 +335,8 @@ La edición y reversión de un campo de sede **no pudo hacerse porque «Editar s
 - Jefe: el aviso de control ya programado y «Abrir el control programado» llevan al detalle «En curso por Ana Prueba Administradora» con «Hacer mi propio control».
 - Incidente de CI/despliegue: el trabajo de iOS falló una vez por «Timed out while launching application via Xcode» (infraestructura); su despliegue (ba0dd51) quedó
   en `failure` y se relanza con el siguiente commit.
+
+### 15.2 Verificación final (7473c21)
+
+- CI de 7473c21 (verify + ios) en verde y despliegue en `success`. En 390 dp la pestaña «Empresa y sedes» parte entre palabras («Empresa y / sedes»).
+- El CI relanzado de ba0dd51 terminó en verde; su despliegue quedó en `failure` y está sustituido por e3228a5 y 7473c21.
