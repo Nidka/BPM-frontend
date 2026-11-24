@@ -382,3 +382,4 @@ Recorridos completados a 390 dp con datos reales en «Prueba BPM» (capturas `d-
 - Administrador, Equipo → «Editar rol y sedes»: el formulario abre arriba, con título, descripción y acciones al pie, y la lista de personas se oculta mientras dura.
 - Incidencia de CI: el trabajo `verify` de 8f3c0cf falló por un 429 de Maven Central al construir la imagen de Docker (infraestructura); lo cubre 6ffd2b2, cuyo CI y despliegue terminaron en verde.
 
+- Retroceso detectado en vivo y revertido: dar más ancho a la acción principal de los formularios (0,7/1,3) partía «CANCELAR» en dos líneas a 390 dp; se vuelven los pesos 0,8/1,2 (la acción principal puede ocupar dos líneas por palabras, nunca se corta una palabra).
