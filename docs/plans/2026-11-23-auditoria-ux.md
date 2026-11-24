@@ -398,3 +398,5 @@ Recorridos completados a 390 dp con datos reales en «Prueba BPM» (capturas `d-
 | H23 | Las fichas de filtro (Operación diaria, Incidencias, Activas/Inactivas…) cambiaban de ancho y de fila al elegirse (aparece el ✓) | `BpmFilterChips`, las pestañas de Operación diaria y los estados de Incidencias reservan el sitio del ✓ | Hecho |
 | H24 | Dos sesiones simultáneas del mismo usuario (barrido en paralelo) dejaron una de ellas en blanco | No se investigó: se evitó repitiendo el barrido en serie. A confirmar si ocurre con una sola sesión | Abierto |
 | H25 | En la vista de una organización (superadministración) «Cuentas y equipo» y «Equipo de la organización» parecen dos accesos al mismo sitio | Sin cambiar: pendiente de decisión de producto | Abierto |
+
+Verificado en vivo tras el despliegue de 7f51944: las fichas de Operación diaria ya no cambian de fila al elegirse; el título del módulo en curso (Personal, texto «Muy grande») se lee completo («… control de BPM»). H22 (Primeros pasos del Jefe) no se verificó en vivo: la marca se hace al finalizar una revisión en la misma sesión.
