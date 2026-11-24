@@ -507,7 +507,7 @@ class IncidentsViewModel(
     fun prepareBack(onLeave: () -> Unit) {
         val s = mutable.value
         when {
-            s.picker != null -> picker(null)
+            s.picker == IncidentPicker.ASSIGNEE -> picker(null)
             editor.state.value.form != null -> {
                 if (editor.state.value.pending != null) prepareLeave(onLeave) else editor.close()
             }

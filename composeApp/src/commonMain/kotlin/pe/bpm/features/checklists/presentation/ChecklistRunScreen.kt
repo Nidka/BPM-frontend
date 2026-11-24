@@ -70,8 +70,11 @@ fun scheduledFor(items: List<ChecklistAssignment>, templateId: String, locationI
                 val scheduledControls = LocalScheduledControls.current
                 val scheduled = location?.let { scheduledControls?.let { s -> scheduledFor(s.items, template.id, it) } }
                 if (scheduled != null) {
-                    Text("Este control ya está programado para esa sede. Ábrelo desde aquí para hacerlo: así queda ligado a lo que tu administrador pidió.", color = MaterialTheme.colorScheme.primary)
-                    BpmChunkyButton("Abrir el control programado", { scheduledControls?.onOpen?.invoke(scheduled) }, Modifier.bpmPrimaryButtonWidth())
+                    // Si otra persona ya lo está haciendo, «hacerlo» no es posible: se dice quién y se ofrece solo consultarlo.
+                    val doing = scheduled.run?.performedByName?.takeIf { it.isNotBlank() }
+                    Text(if (doing != null) "$doing ya está haciendo este control en esa sede. Puedes consultarlo; para hacer tu propio control elige otra plantilla."
+                        else "Este control ya está programado para esa sede. Ábrelo desde aquí para hacerlo: así queda ligado a lo que tu administrador pidió.", color = MaterialTheme.colorScheme.primary)
+                    BpmChunkyButton(if (doing != null) "Ver el control en curso" else "Abrir el control programado", { scheduledControls?.onOpen?.invoke(scheduled) }, Modifier.bpmPrimaryButtonWidth())
                 }
                 BpmChunkyButton("Comenzar revisión", { location?.let { onBegin(it, template.versionId) } }, Modifier.bpmPrimaryButtonWidth(), tone = if (scheduled != null) BpmChunkyTone.White else BpmChunkyTone.Action, enabled = scheduled == null && location != null && !state.busy && !state.pending && !locationsLoading && !locationsFailed && state.localStatus != pe.bpm.core.presentation.DraftSaveStatus.FAILED)
             }

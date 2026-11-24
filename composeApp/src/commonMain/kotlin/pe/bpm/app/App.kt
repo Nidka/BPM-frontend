@@ -6,6 +6,7 @@ import pe.bpm.core.designsystem.BpmChunkyTone
 import androidx.compose.animation.ExitTransition
 
 import pe.bpm.core.designsystem.bpmPrimaryButtonWidth
+import pe.bpm.core.designsystem.bpmScrollable
 import pe.bpm.core.designsystem.BpmPattern
 import pe.bpm.core.designsystem.BpmSecondaryButton
 import pe.bpm.core.designsystem.BpmTextButton
@@ -906,13 +907,15 @@ fun App(
                                 }) else if (viewingHelp) ({
                                     HelpContent(helpTopicForRoute(helpRoute), guideRole ?: GuideRole.Worker,
                                         onReplay = { feedbackScope.launch { onboardingPreferences.replay() }; introPrompted = true; nav.navigate(ONBOARDING) { launchSingleTop = true } },
-                                        onSettings = { nav.navigate(SETTINGS) { launchSingleTop = true } })
+                                        onSettings = { nav.navigate(SETTINGS) { launchSingleTop = true } },
+                                        // El anfitrión de pantallas secundarias no desplaza: sin esto la ayuda larga queda cortada en teléfonos.
+                                        modifier = androidx.compose.ui.Modifier.bpmScrollable())
                                 }) else if (viewingSettings) ({
                                     SettingsContent(feedbackSettings, { next -> feedbackScope.launch { feedbackPreferences.save(next) } },
                                         onAlerts = if (currentWorkspace != null) ({ nav.navigate(ALERT_INBOX) { launchSingleTop = true } }) else null,
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                         onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
-                                        onLogout = ::requestLogout)
+                                        onLogout = ::requestLogout, modifier = androidx.compose.ui.Modifier.bpmScrollable())
                                 }) else if (viewingDevices) ({
                                     DevicesContent(profile.id, myDevices)
                                 }) else if (acceptingInvitation) ({
@@ -949,7 +952,8 @@ fun App(
                                 }) else if (reportsRoute) ({
                                     pe.bpm.core.offline.ServerOnly {
                                     ReportsContent(profile.id, workspaceState.selected.orEmpty(), reportRole,
-                                        workspaceState.workspace?.locations.orEmpty().map { pe.bpm.features.reports.presentation.ReportLocationOption(it.id, it.name) }, reportsView, reportsAdmin)
+                                        workspaceState.workspace?.locations.orEmpty().map { pe.bpm.features.reports.presentation.ReportLocationOption(it.id, it.name) }, reportsView, reportsAdmin,
+                                        modifier = androidx.compose.ui.Modifier.bpmScrollable())
                                     }
                                 }) else if (incidentRoute) ({
                                     IncidentsContent(profile.id, if (profile.platformRole == "SUPER_ADMIN") "SUPER_ADMIN" else workspaceState.workspace?.role.orEmpty(), workspaceState, workspace, incidents,

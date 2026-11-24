@@ -66,10 +66,9 @@ private fun PeriodFilters(state: ReportsState, locations: List<ReportLocationOpt
             }
             BpmFilterChip(selected = false, onClick = vm::selectCurrentMonth, label = { Text("Este mes") }, modifier = Modifier.heightIn(min = 48.dp))
         }
-        BpmFieldPair(
-            { m -> BpmTextField(state.from, vm::editFrom, "Desde (AAAA-MM-DD)", m, error = state.periodError?.let { ReportPeriodRules.message(it, state.maxDays) }) },
-            { m -> BpmTextField(state.to, vm::editTo, "Hasta (AAAA-MM-DD)", m) },
-        )
+        // Las fechas se eligen en un calendario (no se escribe «AAAA-MM-DD»).
+        BpmDatePicker(state.from, vm::editFrom, "Desde", optional = false, error = state.periodError?.let { ReportPeriodRules.message(it, state.maxDays) })
+        BpmDatePicker(state.to, vm::editTo, "Hasta", optional = false)
         Text("Máximo ${state.maxDays} días en esta vista.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (locations.size > 1) {
             Text("Sede", style = MaterialTheme.typography.labelMedium)

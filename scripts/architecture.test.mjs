@@ -67,3 +67,26 @@ test('accounts screen hosted inside the Team slot does not nest a second vertica
   assert.ok(hosted, 'no se encontró AccountsManagementContent en la ranura de Equipo');
   assert.match(hosted[0], /scrollable = false/);
 });
+
+// Regresión «Ajustes y Ayuda cortados» (2026-11-23): el anfitrión de pantallas secundarias recorta, no desplaza. Ajustes, Ayuda y Reportes
+// no desplazan por sí mismas, así que se alojan con bpmScrollable(); sin ello «Cerrar sesión» no se alcanzaba en 844 dp de alto.
+test('secondary screens that do not scroll themselves are hosted with bpmScrollable', async () => {
+  const text = await readFile(new URL('commonMain/kotlin/pe/bpm/app/App.kt', sourceRoot), 'utf8');
+  for (const marker of ['HelpContent(helpTopicForRoute', 'SettingsContent(feedbackSettings', 'ReportsContent(profile.id']) {
+    const start = text.indexOf(marker);
+    assert.ok(start >= 0, `no se encontró ${marker}`);
+    assert.match(text.slice(start, start + 1400).split('}) else if')[0], /bpmScrollable\(\)/, `${marker} debe alojarse con bpmScrollable()`);
+  }
+});
+
+// Las horas y fechas se eligen con BpmTimePicker/BpmDatePicker; nadie debe volver a escribirlas a mano en formato «HH:mm» o «AAAA-MM-DD».
+test('dates and times are picked, not typed in a fixed format', async () => {
+  const offenders = [];
+  for (const file of await kotlinFiles(new URL('commonMain/kotlin/pe/bpm/features/', sourceRoot))) {
+    if (!file.pathname.includes('/presentation/')) continue;
+    const text = await readFile(file, 'utf8');
+    for (const [i, line] of text.split('\n').entries())
+      if (/BpmTextField\(.*\((HH:mm|AAAA-MM-DD|yyyy-MM-dd)\)/.test(line) || /placeholder = "(HH:mm|yyyy-MM-dd)"/.test(line)) offenders.push(`${file.pathname.split('/').pop()}:${i + 1}`);
+  }
+  assert.deepEqual(offenders, []);
+});

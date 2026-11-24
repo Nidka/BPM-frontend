@@ -100,7 +100,8 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
     fun edit(id: String, value: RunAnswerInput) {
         if (!mutable.value.editable || mutable.value.run?.items?.none { it.id == id } != false) return
         mutable.value = mutable.value.copy(inputs = mutable.value.inputs + (id to value.copy(value = value.value.take(2000), observation = value.observation.take(2000))),
-            dirty = true, reviewing = false, notice = null, failure = null)
+            // «Revisión iniciada» sigue siendo verdad mientras se responde; quitarla al primer toque subía la pregunta 35 dp bajo el dedo.
+            dirty = true, reviewing = false, notice = mutable.value.notice?.takeIf { it == STARTED_NOTICE }, failure = null)
         protectDraft()
     }
     /** Actualiza solo la proyección de fotos; nunca recarga ni sustituye respuestas editadas. */
@@ -220,7 +221,7 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
                 mutable.value = mutable.value.copy(run = run, inputs = run.answers.associate { it.itemId to RunAnswerInput(
                     it.complianceResult.ifEmpty { it.numericValue?.let(pe.bpm.core.domain.DecimalInput::format) ?: it.textValue }, it.observation) },
                     busy = false, pending = false, failure = null, dirty = false, reviewing = false, resumeId = null, conflicted = false,
-                    notice = when { reading -> null; completedAction is RunOperation.Start -> "Revisión iniciada. Responde las preguntas de la sede."; run.status == "SUBMITTED" -> "Revisión finalizada."; else -> "Respuestas guardadas." })
+                    notice = when { reading -> null; completedAction is RunOperation.Start -> STARTED_NOTICE; run.status == "SUBMITTED" -> "Revisión finalizada."; else -> "Respuestas guardadas." })
                 autosave?.flush(null)
             }
             is RunResult.Failure -> {
@@ -234,3 +235,5 @@ class ChecklistRunViewModel(private val load: LoadChecklistRun, private val star
         }
     }
 }
+
+private const val STARTED_NOTICE = "Revisión iniciada. Responde las preguntas de la sede."

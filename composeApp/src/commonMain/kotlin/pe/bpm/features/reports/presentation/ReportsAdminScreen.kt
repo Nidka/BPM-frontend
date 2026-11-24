@@ -97,11 +97,8 @@ private fun CertificatesSection(vm: ReportsAdminViewModel, state: AdminState) {
     BpmCard(Modifier.fillMaxWidth()) {
         Text("Solicitar constancia de cumplimiento", style = MaterialTheme.typography.titleMedium)
         Text("Se calcula con todas las sedes del período. El período debe haber terminado antes de hoy.")
-        BpmFieldPair(
-            { m -> BpmTextField(state.certFrom, vm::editCertFrom, "Desde (AAAA-MM-DD)", m,
-                error = state.certPeriodError?.let { ReportPeriodRules.message(it, ReportPeriodRules.SUMMARY_MAX_DAYS) }) },
-            { m -> BpmTextField(state.certTo, vm::editCertTo, "Hasta (AAAA-MM-DD)", m) },
-        )
+        BpmDatePicker(state.certFrom, vm::editCertFrom, "Desde", optional = false, error = state.certPeriodError?.let { ReportPeriodRules.message(it, ReportPeriodRules.SUMMARY_MAX_DAYS) })
+        BpmDatePicker(state.certTo, vm::editCertTo, "Hasta", optional = false)
         BpmChunkyButton(if (state.issuing) "Solicitando…" else "Solicitar constancia", vm::issue, Modifier.bpmPrimaryButtonWidth(), enabled = !state.issuing)
         state.issueFailure?.let { Text(reportFailureMessage(it, state.issueFields), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.issued?.let {

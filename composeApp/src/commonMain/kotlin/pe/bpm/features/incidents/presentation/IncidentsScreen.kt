@@ -145,7 +145,9 @@ fun IncidentsScreen(
             s.siteId == null -> Text("Selecciona una sede para consultar y reportar incidencias.")
             !s.authorized ->
                 if (!s.loading) BpmChunkyButton("Reintentar acceso", viewModel::refresh, tone = BpmChunkyTone.White)
-            s.picker != null -> IncidentChoices(s, viewModel)
+            // Solo «Elegir responsable» ocupa la pantalla: las categorías de «Reportar» se piden en segundo plano y se muestran como fichas en
+            // el formulario (si el selector de criterios las tapara, con un catálogo vacío no habría forma de salir de la pantalla).
+            s.picker == IncidentPicker.ASSIGNEE -> IncidentChoices(s, viewModel)
             e.form != null -> IncidentFormContent(s, e, viewModel)
             s.showHistory -> {
                 Text("Historial de la incidencia", style = MaterialTheme.typography.titleLarge)
