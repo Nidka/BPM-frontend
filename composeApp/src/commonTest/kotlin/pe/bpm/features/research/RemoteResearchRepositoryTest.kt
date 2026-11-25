@@ -105,4 +105,30 @@ class RemoteResearchRepositoryTest {
         val unsafe = repo(MockEngine { respond("a", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType to listOf("text/csv"), HttpHeaders.ContentDisposition to listOf("attachment; filename=\"../x.csv\""))) })
         assertEquals("respuestas-cap.csv", (unsafe.export(null, null) as ResearchResult.Success).value.fileName)
     }
+
+    // El servidor identifica a los usuarios con el UID de Firebase (no es un UUID).
+    private val grantJson = """{"userId":"Xq3kT9fLmZ0aBcD12EfGhIjKlMn4","email":"inv@bpm.pe","displayName":"Inv","grantedAt":"2026-11-10T12:00:00.123456789Z","revokedAt":null,"active":true}"""
+
+    @Test fun grantsAcceptFirebaseUidsAndNanosecondStamps() = runTest {
+        val repository = repo(MockEngine { request ->
+            assertEquals("/api/v1/research/access-grants", request.url.encodedPath)
+            respond("""{"data":[$grantJson],"pagination":{"nextPageToken":""}}""", HttpStatusCode.OK, json)
+        })
+        val list = (repository.grants() as ResearchResult.Success).value
+        assertEquals("Xq3kT9fLmZ0aBcD12EfGhIjKlMn4", list.single().userId)
+        assertTrue(list.single().active)
+    }
+
+    @Test fun grantingAccessReturnsTheGrantAndRevokeUsesTheUid() = runTest {
+        val paths = mutableListOf<String>()
+        val repository = repo(MockEngine { request ->
+            paths += "${request.method.value} ${request.url.encodedPath}"
+            if (request.method == HttpMethod.Delete) respond("", HttpStatusCode.NoContent) else respond("""{"data":$grantJson}""", HttpStatusCode.OK, json)
+        })
+        val granted = (repository.grant("inv@bpm.pe") as ResearchResult.Success).value
+        assertEquals("inv@bpm.pe", granted.email)
+        assertTrue(repository.revoke(granted.userId) is ResearchResult.Success)
+        assertEquals(listOf("POST /api/v1/research/access-grants", "DELETE /api/v1/research/access-grants/Xq3kT9fLmZ0aBcD12EfGhIjKlMn4"), paths)
+        assertEquals(ResearchResult.Failure(ResearchFailure.INVALID_RESPONSE), repo(MockEngine { respond("""{"data":${grantJson.replace("Xq3kT9fLmZ0aBcD12EfGhIjKlMn4", "a/../b")}}""", HttpStatusCode.OK, json) }).grant("inv@bpm.pe"))
+    }
 }

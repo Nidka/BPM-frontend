@@ -72,7 +72,7 @@ class RemoteResearchRepository(
     }
 
     override suspend fun revoke(userId: String): ResearchResult<Unit> = guarded {
-        api(researchPath("access-grants/${researchId(userId)}"), HttpMethod.Delete)
+        api(researchPath("access-grants/${researchUserId(userId)}"), HttpMethod.Delete)
         Unit
     }
 

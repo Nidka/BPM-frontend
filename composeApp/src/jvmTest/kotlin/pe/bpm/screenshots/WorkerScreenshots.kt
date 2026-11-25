@@ -491,6 +491,10 @@ private fun J1PartTwo() {
     BpmCelebration(Res.drawable.mascot_welcome, "¡Lección completa!", "Sigue así, vas muy bien", listOf(
         BpmStatTileSpec("XP", "15", BpmPlayTone.Gold, BpmSymbol.Bolt), BpmStatTileSpec("Racha", "7", BpmPlayTone.Streak, BpmSymbol.Flame),
         BpmStatTileSpec("Aciertos", "90%", BpmPlayTone.Correct, BpmSymbol.Target)))
+    J1Label("Celebración con cuatro fichas (fin de lección)")
+    BpmCelebration(Res.drawable.mascot_welcome, "¡Lección completa!", "Higiene personal", listOf(
+        BpmStatTileSpec("Lecciones", "3/8", BpmPlayTone.Gold, BpmSymbol.Star), BpmStatTileSpec("Racha", "12", BpmPlayTone.Streak, BpmSymbol.Flame),
+        BpmStatTileSpec("Aciertos", "100%", BpmPlayTone.Correct, BpmSymbol.Target), BpmStatTileSpec("XP", "+15", BpmPlayTone.Gold, BpmSymbol.Bolt)))
     J1Label("Tomate que habla")
     BpmMascotRow(Res.drawable.mascot_learning, buildAnnotatedString {
         append("¡Hola, Lucía! Te faltan "); withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append("2 tareas") }

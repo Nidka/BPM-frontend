@@ -17,6 +17,10 @@ import pe.bpm.features.research.domain.*
 private val idPattern = Regex("[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
 internal fun researchId(value: String): String { require(idPattern.matches(value)); return value }
 
+// El identificador de usuario del servidor es el UID de Firebase (texto de hasta 128 caracteres), no un UUID.
+private val userIdPattern = Regex("[A-Za-z0-9_.-]{1,128}")
+internal fun researchUserId(value: String): String { require(userIdPattern.matches(value)); return value }
+
 internal fun JsonObject.str(key: String): String =
     (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: throw IllegalArgumentException("Falta $key")
 internal fun JsonObject.strOrNull(key: String): String? = when (val value = this[key]) {
@@ -92,7 +96,7 @@ internal fun receiptOf(data: JsonObject, sent: SurveySubmission): SubmissionRece
 internal fun accessOf(data: JsonObject) = ResearchAccess(data.bool("canResearch"), data.bool("canManageGrants"))
 
 internal fun grantOf(json: JsonObject): AccessGrant {
-    val grant = AccessGrant(researchId(json.str("userId")), json.str("email"), json.strOrNull("displayName").orEmpty(), json.stamp("grantedAt"), json.stampOrNull("revokedAt"), json.bool("active"))
+    val grant = AccessGrant(researchUserId(json.str("userId")), json.str("email"), json.strOrNull("displayName").orEmpty(), json.stamp("grantedAt"), json.stampOrNull("revokedAt"), json.bool("active"))
     require(grant.email.isNotBlank() && grant.email.length <= 254)
     return grant
 }

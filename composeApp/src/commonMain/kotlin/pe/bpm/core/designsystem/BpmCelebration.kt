@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +28,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -67,8 +72,9 @@ fun BpmCelebration(
         Text(title, style = BpmPlayType.celebration, color = titleColor, textAlign = TextAlign.Center)
         if (subtitle != null) Text(subtitle, style = BpmPlayType.text, color = BpmPlayColors.muted, textAlign = TextAlign.Center)
         if (middle != null) middle()
-        if (stats.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            stats.forEach { BpmStatTile(it, Modifier.weight(1f)) }
+        // Con cuatro fichas el ancho de 390 dp es justo: se acerca el espacio entre ellas para que la etiqueta quepa entera.
+        if (stats.isNotEmpty()) Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(if (stats.size > 3) 8.dp else 12.dp)) {
+            stats.forEach { BpmStatTile(it, Modifier.weight(1f).fillMaxHeight()) }
         }
     }
     if (celebrate) BpmConfettiBurst(Modifier.matchParentSize())
@@ -83,11 +89,15 @@ private fun BpmStatTile(spec: BpmStatTileSpec, modifier: Modifier = Modifier) {
         .semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
         // Franja de contraste ≥ 4,5:1: texto oscuro sobre el dorado y franja del tono oscuro en los demás.
         val gold = spec.tone == BpmPlayTone.Gold
-        Text(spec.label.uppercase(), Modifier.fillMaxWidth().background(if (gold) shade.face else shade.shadow).padding(4.dp), color = if (gold) BpmPlayColors.goldBandText else Color.White,
-            style = BpmPlayType.statLabel, textAlign = TextAlign.Center)
-        Row(Modifier.padding(horizontal = 4.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Una sola línea: nunca se parte una palabra; si no cabe, la letra se reduce (hasta 8 sp) en vez de saltar de línea.
+        Text(spec.label.uppercase(), Modifier.fillMaxWidth().background(if (gold) shade.face else shade.shadow).padding(vertical = 4.dp, horizontal = 2.dp), color = if (gold) BpmPlayColors.goldBandText else Color.White,
+            style = BpmPlayType.statLabel.copy(letterSpacing = 0.3.sp), textAlign = TextAlign.Center, maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = BpmPlayType.statLabel.fontSize, stepSize = 0.5.sp))
+        Row(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 4.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
             if (spec.icon != null) BpmIcon(spec.icon, tint = shade.ink, modifier = Modifier.size(20.dp))
-            Text(spec.value, color = BpmPlayColors.textOn(spec.tone), style = BpmPlayType.statValue)
+            // El valor también va en una sola línea («100 %» no se parte): se reduce hasta 13 sp si el ancho es justo.
+            Text(spec.value, Modifier.weight(1f, fill = false), color = BpmPlayColors.textOn(spec.tone), style = BpmPlayType.statValue, maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 13.sp, maxFontSize = BpmPlayType.statValue.fontSize, stepSize = 0.5.sp))
         }
     }
 }
