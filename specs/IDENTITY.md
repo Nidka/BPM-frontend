@@ -17,7 +17,7 @@ Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.jso
   El refresh token se guarda protegido solo en móvil; web conserva todo en memoria.
 - Crear cuenta: nombres y apellidos separados y validados → Firebase signUp → guardar nombre →
   enviar VERIFY_EMAIL → pantalla de instrucciones. Todavía no hay sesión BPM.
-- Después de verificar email: volver a la app y pulsar «Ya confirmé mi correo» →
+- Después de verificar email: volver a la app y pulsar «Ya lo verifiqué» →
   renovar el token temporal con Secure Token → confirmar /me → si falta perfil,
   POST /api/v1/auth/register con Bearer y displayName → perfil USER/ACTIVE.
   Si la app se cerró o la credencial temporal venció, iniciar sesión de nuevo.
@@ -249,7 +249,7 @@ la acción principal y no se indica que ya deba haber un correo en la bandeja.
 La comprobación de un enlace anterior sigue disponible como acción secundaria.
 Reenviar tiene una espera de 60 segundos tras éxito o límite
 de intentos; esto mejora la experiencia y no reemplaza los límites de Firebase.
-«Ya confirmé mi correo» renueva el token y deja la autorización al backend;
+«Ya lo verifiqué» renueva el token y deja la autorización al backend;
 un correo no verificado no crea una sesión BPM. Las credenciales temporales
 permanecen en memoria, se actualizan cuando rotan y se descartan al terminar,
 salir o volver al login. No se conserva la contraseña para este paso.
@@ -355,7 +355,7 @@ logout durante OAuth, Origin malformado y correo sin verificar en perfil existen
 Las pruebas con dobles no sustituyen una prueba manual con una cuenta nueva real.
 
 Prueba manual: crear cuenta propia con nombres y apellidos → abrir enlace del correo
-→ volver a la app → pulsar «Ya confirmé mi correo»
+→ volver a la app → pulsar «Ya lo verifiqué»
 → comprobar perfil sin organizaciones → verificar sesión → cerrar sesión.
 Probar además correo aún sin confirmar, reenvío fallido sin repetir el alta,
 espera de reenvío, volver al login y entrar con una cuenta pendiente,
@@ -476,3 +476,36 @@ plazo del servidor. No se solicitan notificaciones ni se reproduce audio.
 Referencias: [sesiones de Blackboard](https://help.anthology.com/blackboard/administrator/en/authentication/session-management.html),
 [Page Visibility](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API) y
 [OWASP sobre vencimiento](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-expiration).
+
+## Enlaces de correo de Firebase en `/auth/accion`
+
+Los correos de verificación, recuperación de contraseña y reversión de correo abren
+una página de BPM (español, mascota, tipografía y botones del sistema) en lugar de la
+página genérica en inglés de Firebase. Requiere la «URL de acción personalizada»
+`https://appbpm.com/auth/accion` en cada plantilla (Firebase Console → Authentication → Templates).
+
+- Ruta: `web/server.mjs` sirve la app en `/auth/accion` (con o sin `/`), sin caché, con
+  `X-Robots-Tag: noindex` y `Referrer-Policy: no-referrer` porque la URL lleva un código de un
+  solo uso. `main.kt` (wasm) detecta la ruta —o `#/auth/accion?…`— antes de arrancar la app
+  y compone `PublicEmailAction`; no usa sesión, grafo ni navegación.
+- Parámetros (`EmailActionLink.parse`): `mode` (`verifyEmail`, `resetPassword`, `recoverEmail`),
+  `oobCode` (1–512 caracteres `A-Za-z0-9_=.-`), `continueUrl` (solo hosts de BPM por HTTPS; loopback
+  por HTTP; cualquier otro se descarta) y `lang`. `apiKey` se ignora: se usa la clave pública de
+  `/config.json`, nunca la del enlace. Un modo no compatible o un código ausente da «Este enlace está incompleto».
+- REST (`FirebaseEmailActionDataSource`, sin sesión): verificar y recuperar = `accounts:update {oobCode}`;
+  restablecer = `accounts:resetPassword {oobCode}` (devuelve el correo) y luego `{oobCode,newPassword}`.
+  Solo la comprobación del código se reintenta ante fallos de red; aplicar un código nunca se repite solo.
+- Estados (`EmailActionState`): `Working` (esqueleto) → `EmailVerified` | `NewPasswordForm` →
+  `PasswordChanged` | `EmailRecovered` | `Failed(modo, motivo)` | `InvalidLink`. Un enlace vencido o usado
+  no ofrece «Reintentar»; red, límite y servicio sí. La contraseña débil devuelta por Firebase conserva el formulario.
+- Contraseña nueva: entre 8 y 128 caracteres y confirmación igual (`NewPasswordRules`), con lista visible
+  de reglas, «Mostrar contraseña» y mensajes en región activa.
+- «Iniciar sesión» navega a `/` (o a `/?correo=…` tras crear la contraseña); `main.kt` lee `correo`, lo valida
+  y lo retira de la dirección antes de arrancar. El token web vive solo en memoria, así que el enlace
+  —que se abre en otra pestaña— no tiene sesión que refrescar: desde el login, una cuenta sin verificar
+  ve la pantalla «Revisa tu correo» con «Reenviar correo».
+- Pantalla «Revisa tu correo» (después de registrarse): muestra el correo usado, tres pasos, «Ya lo verifiqué»,
+  «Reenviar correo» con espera de 60 s y consejos (spam, promociones, remitente `noreply@app-bpm-af59c.firebaseapp.com`).
+
+Pruebas: `EmailActionTest.kt` (análisis del enlace, máquina de estados, REST con MockEngine) y
+`web/email-action-route.test.mjs` (ruta y cabeceras).

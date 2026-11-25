@@ -28,9 +28,11 @@ fun IdentityScreen(
     onVerify: () -> Unit, googleSupported: Boolean, onGoogle: () -> Unit,
     onMode: (AuthMode) -> Unit, onRegister: (String, String, String, String, String) -> Unit,
     onRecover: (String) -> Unit, onResend: () -> Unit, onConfirmEmail: () -> Unit,
+    /** Correo ya escrito en el acceso (solo en «Entrar»), p. ej. después de crear una contraseña nueva desde el enlace del correo. */
+    initialEmail: String = "",
 ) = key(state.mode) {
     // Cada recorrido posee sus campos, foco y validación visual; no se transfieren al cambiar de modo.
-    var email by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf(if (state.mode == AuthMode.Login) initialEmail else "") }
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     val scroll = rememberScrollState()
@@ -67,7 +69,7 @@ fun IdentityScreen(
         profile != null -> if (state.errors.isEmpty()) "Tu cuenta BPM" else "Revisa tu conexión"
         state.mode == AuthMode.Register -> "Crea tu cuenta"
         state.mode == AuthMode.Recovery -> "Recupera el acceso"
-        state.mode == AuthMode.Verification -> "Confirma tu correo"
+        state.mode == AuthMode.Verification -> "Revisa tu correo"
         else -> "Bienvenido de nuevo"
     }
     BpmWindowBox(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().imePadding()) { windowClass, height ->
@@ -88,7 +90,7 @@ fun IdentityScreen(
                     profile != null -> "Consulta tu cuenta y tus permisos de acceso."
                     state.mode == AuthMode.Register -> "Completa tus datos. Después te pediremos confirmar tu correo."
                     state.mode == AuthMode.Recovery -> "Te ayudaremos a volver a tu cuenta."
-                    state.mode == AuthMode.Verification -> "Solo falta confirmar tu correo para continuar."
+                    state.mode == AuthMode.Verification -> "Te enviamos un enlace para confirmar que este correo es tuyo."
                     else -> "Accede de forma segura a tu espacio de trabajo."
                 }, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -120,16 +122,7 @@ fun IdentityScreen(
                         if (profile.organizations.isEmpty()) Text("Cuenta activa. Todavía no tienes una organización asignada.")
                         profile.organizations.forEach { Text(it.name + " · " + it.role) }
                     } else if (state.mode == AuthMode.Verification) {
-                        Text("Correo de tu cuenta", style = MaterialTheme.typography.labelLarge)
-                        state.verificationEmail?.let { Text(it, style = BpmType.bodyStrong) }
-                        if (needsVerificationEmail) {
-                            Text("Solicita el enlace con «Reintentar envío». Cuando lo recibas, ábrelo y vuelve a esta pantalla.")
-                        } else {
-                            Text("1. Abre el correo de BPM y pulsa el enlace de verificación.")
-                            Text("2. Vuelve a esta pantalla y pulsa «Ya confirmé mi correo».")
-                            Text("Si no lo encuentras, revisa la carpeta de spam.", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        VerificationInstructions(state.verificationEmail, needsVerificationEmail, state.verificationEmailSent)
                     } else {
                         if (state.mode == AuthMode.Register) {
                             AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, inputKind = BpmInputKind.PersonName, rule = IdentityInputRules.personName, navigation = navigation["firstName"])
@@ -178,7 +171,7 @@ fun IdentityScreen(
                             }
                         }
                         if (state.mode == AuthMode.Verification && !needsVerificationEmail)
-                            AuthButton(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo", !state.busy, onConfirmEmail)
+                            AuthButton(if (state.confirmingEmail) "Comprobando…" else "Ya lo verifiqué", !state.busy, onConfirmEmail)
                         if (state.canResendVerification) {
                             val resendLabel = when {
                                 state.busy && !state.confirmingEmail -> "Enviando correo…"
@@ -192,7 +185,7 @@ fun IdentityScreen(
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.mode == AuthMode.Verification && needsVerificationEmail)
-                            BpmTextButton(onClick = onConfirmEmail, enabled = !state.busy) { Text(if (state.confirmingEmail) "Comprobando…" else "Ya confirmé mi correo") }
+                            BpmTextButton(onClick = onConfirmEmail, enabled = !state.busy) { Text(if (state.confirmingEmail) "Comprobando…" else "Ya lo verifiqué") }
                         if (state.mode == AuthMode.Register && state.errors.any { it.code == "REGISTRATION_REJECTED" }) {
                             BpmChunkyButton("Ir a iniciar sesión", { changeMode(AuthMode.Login) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                             BpmTextButton(onClick = { changeMode(AuthMode.Recovery) }) { Text("Recuperar contraseña") }
@@ -212,6 +205,35 @@ fun IdentityScreen(
         }
     }
 }
+
+/** Pasos para confirmar el correo: dirección usada, qué hacer y qué revisar si el mensaje no llega. */
+@Composable
+private fun VerificationInstructions(email: String?, needsEmail: Boolean, sent: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(if (sent && !needsEmail) "Enviamos el enlace a" else "Correo de tu cuenta", style = MaterialTheme.typography.labelLarge)
+            email?.let { Text(it, style = BpmType.bodyStrong) }
+        }
+        if (needsEmail) {
+            Text("Todavía no pudimos enviar el enlace. Pulsa «Reintentar envío»; cuando llegue, ábrelo y vuelve a esta pantalla.")
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Qué hacer", style = MaterialTheme.typography.labelLarge)
+                Text("1. Abre tu correo y busca el mensaje de BPM.")
+                Text("2. Pulsa el enlace de verificación del mensaje.")
+                Text("3. Vuelve aquí y pulsa «Ya lo verifiqué».")
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.semantics(mergeDescendants = true) {}) {
+                Text("¿No lo ves?", style = MaterialTheme.typography.labelLarge)
+                Text("Revisa spam, promociones o correo no deseado. El mensaje llega de $VERIFICATION_SENDER y puede tardar unos minutos.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Remitente con el que Firebase envía los correos de verificación; se muestra para que la persona pueda reconocerlo. */
+internal const val VERIFICATION_SENDER = "noreply@app-bpm-af59c.firebaseapp.com"
 
 @Composable
 private fun AuthField(value: String, onValue: (String) -> Unit, label: String, error: String?, enabled: Boolean,

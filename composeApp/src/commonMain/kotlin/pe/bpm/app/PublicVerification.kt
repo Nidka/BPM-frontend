@@ -25,3 +25,24 @@ fun PublicCertificateVerification(code: String) {
         }
     }
 }
+
+/**
+ * Página pública `/auth/accion` (enlaces de correo de Firebase): verificar correo, crear contraseña nueva o recuperar correo.
+ * [onNavigate] recibe el destino al pulsar «Iniciar sesión»: el acceso con el correo precargado o el `continueUrl` del enlace si es de BPM.
+ */
+@Composable
+fun PublicEmailAction(request: pe.bpm.features.identity.domain.EmailActionRequest?, onNavigate: (destination: String) -> Unit) {
+    val model = viewModel { pe.bpm.core.di.createEmailActionViewModel(request) }
+    val state by model.state.collectAsStateWithLifecycle()
+    // El enlace se aplica una sola vez; el ViewModel ignora arranques repetidos.
+    androidx.compose.runtime.LaunchedEffect(model) { model.start() }
+    BpmTheme {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            pe.bpm.features.identity.presentation.EmailActionScreen(state, model::submitPassword, model::retry,
+                onGoToLogin = { email ->
+                    val resume = model.continueUrl.takeIf { request?.mode != pe.bpm.features.identity.domain.EmailActionMode.ResetPassword }
+                    onNavigate(resume ?: pe.bpm.features.identity.domain.EmailActionLink.loginDestination(email))
+                })
+        }
+    }
+}

@@ -40,7 +40,7 @@ internal fun identityFailure(code: String, diagnostic: IdentityDiagnostic? = nul
         "INVALID_CREDENTIALS" -> "El correo o la contraseña no son correctos."
         "AUTH_NOT_CONFIGURED" -> "El inicio de sesión aún no está configurado. Contacta al administrador."
         "AUTH_DOMAIN_NOT_AUTHORIZED" -> "Este dominio no está autorizado en Firebase. Contacta al administrador."
-        "EMAIL_NOT_VERIFIED" -> "Tu correo aún no está confirmado. Abre el enlace que recibiste y después pulsa «Ya confirmé mi correo»."
+        "EMAIL_NOT_VERIFIED" -> "Tu correo aún no está confirmado. Abre el enlace que recibiste y después pulsa «Ya lo verifiqué»."
         "REGISTRATION_REJECTED" -> "No se pudo completar el registro con este correo. Si ya tienes una cuenta, inicia sesión; si no recuerdas la contraseña, puedes recuperarla."
         "REGISTRATION_UNAVAILABLE" -> "No pudimos completar el registro en este momento. Inténtalo más tarde."
         "EMAIL_DELIVERY_UNAVAILABLE" -> "No podemos enviar más correos por ahora. Inténtalo más tarde."

@@ -160,6 +160,12 @@ export function createAppServer({
       if (Object.hasOwn(authScripts, url.pathname) && !url.search) {
         return send(200, await readFile(new URL(authScripts[url.pathname], import.meta.url)), types['.mjs']);
       }
+      if (url.pathname === '/auth/accion' || url.pathname === '/auth/accion/') {
+        // Enlaces de correo de Firebase (verificar correo, restablecer contraseña, recuperar correo): los resuelve la propia app,
+        // en español y con la marca BPM. La URL lleva un código de un solo uso: sin caché, sin indexar y sin Referer (cabeceras globales).
+        response.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        return send(200, await readFile(resolve(root, 'index.html')), types['.html']);
+      }
       if (url.pathname === '/healthz') {
         await stat(resolve(root, 'index.html'));
         return send(200, JSON.stringify({ status: 'ok' }));
@@ -268,7 +274,9 @@ export function createAppServer({
           return send(503, errorBody('BACKEND_UNAVAILABLE', 'No se pudo conectar con el backend.'));
         }
       }
-      const decoded = decodeURIComponent(url.pathname);
+      // Compose pide sus recursos con rutas relativas (./composeResources/…): bajo /auth/accion o /verificar-cumplimiento/{código} el
+      // navegador los resuelve contra esa ruta, así que se reconducen a la raíz (la CSP `base-uri 'none'` impide usar <base>).
+      const decoded = decodeURIComponent(url.pathname).replace(/^\/(?:auth(?:\/accion)?|verificar-cumplimiento\/[A-Za-z2-7]{24})\/(composeResources\/)/, '/$1');
       let file = resolve(root, '.' + decoded);
       if (file !== root && !file.startsWith(root + sep)) {
         return send(404, errorBody('NOT_FOUND', 'Recurso no disponible.'));

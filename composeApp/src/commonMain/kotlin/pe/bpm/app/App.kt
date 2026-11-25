@@ -86,6 +86,8 @@ fun App(
     draftStorage: DraftStorage = remember { UnavailableDraftStorage() },
     pushProvider:pe.bpm.features.notifications.domain.PushProvider=remember { pe.bpm.features.notifications.domain.UnavailablePushProvider() },
     offline: OfflinePlatform = remember { OfflinePlatform() },
+    /** Correo que se muestra ya escrito en el acceso (p. ej. tras crear una contraseña nueva desde el enlace del correo). */
+    initialEmail: String = "",
 ) {
     val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage,pushProvider, offline) }
     val offlineVm = viewModel<OfflineViewModel> { owner.graph.offlineViewModel() }
@@ -455,7 +457,7 @@ fun App(
                         googleSupported = identity.googleSupported, onGoogle = identity::loginWithGoogle,
                         onMode = identity::changeMode, onRegister = identity::register,
                         onRecover = identity::recover, onResend = identity::resend,
-                        onConfirmEmail = identity::confirmEmail) }
+                        onConfirmEmail = identity::confirmEmail, initialEmail = initialEmail) }
                     }
                 } else LaunchedEffect(profile.id) { resetTo(pendingRoute) }
             }

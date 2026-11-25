@@ -22,7 +22,7 @@ internal interface FirebaseIdentityGateway {
 }
 
 internal class FirebaseIdentityDataSource(private val client: HttpClient, private val config: AppConfig) : FirebaseIdentityGateway {
-    private var apiKey: String? = null
+    private val publicKey = FirebasePublicKey(client, config)
     override suspend fun signInWithGoogle(idToken: String, nonce: String): FirebaseCredential = identityDataRequest(IdentityStage.SIGN_IN) {
         if (idToken.length !in 20..16384 || !idToken.matches(Regex("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")) ||
             !nonce.matches(Regex("[A-Za-z0-9_-]{32,128}")))
@@ -102,18 +102,7 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
         }
     }
 
-    private suspend fun key(): String {
-        apiKey?.let { return it }
-        val value = if (config.publicConfigUrl != null) {
-            val response = retryingNetwork { client.get(config.publicConfigUrl) { identityTimeout() } }
-            if (!response.status.isSuccess()) throw IdentityDataException(identityFailure("AUTH_NOT_CONFIGURED", IdentityDiagnostic(IdentityStage.PUBLIC_CONFIGURATION, response.status.value, "CONFIGURATION")))
-            response.body<PublicConfigDto>().firebaseApiKey
-        } else config.firebaseApiKey
-        if (value.isBlank() || !value.matches(Regex("[A-Za-z0-9_-]{20,100}")))
-            throw IdentityDataException(identityFailure("AUTH_NOT_CONFIGURED", IdentityDiagnostic(IdentityStage.PUBLIC_CONFIGURATION, reason = "CONFIGURATION")))
-        apiKey = value
-        return value
-    }
+    private suspend fun key(): String = publicKey.get()
 
     private suspend fun providerCode(response: HttpResponse) = response.body<FirebaseErrorEnvelope>().error.message.substringBefore(" : ")
 
@@ -156,7 +145,6 @@ internal class FirebaseIdentityDataSource(private val client: HttpClient, privat
 @Serializable private class ResetRequest(val requestType: String, val email: String)
 @Serializable private data class FirebaseErrorEnvelope(val error: FirebaseError)
 @Serializable private data class FirebaseError(val message: String)
-@Serializable private data class PublicConfigDto(val firebaseApiKey: String = "")
 
 @Serializable internal class RefreshCredential(
     @kotlinx.serialization.SerialName("id_token") val idToken: String,
