@@ -337,4 +337,11 @@ class QuestionBankTest {
         assertEquals("M02-07", checkedItemCode(dto.itemCode))
         assertNull(json.decodeFromString<DraftQuestionDto>("""{"id":"$QUESTION_1","questionText":"P","options":["a","b"],"correctOption":1,"displayOrder":1}""").itemCode)
     }
+
+    @Test
+    fun `la justificacion repetida de la respuesta correcta no se vuelve a mostrar`() {
+        assertFalse(showExplanation("Cuando no causa daño.", "Cuando no causa daño"))
+        assertFalse(showExplanation("", "Algo"))
+        assertTrue(showExplanation("Porque la norma lo exige.", "Cuando no causa daño"))
+    }
 }

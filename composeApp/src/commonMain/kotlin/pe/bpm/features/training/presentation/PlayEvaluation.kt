@@ -264,7 +264,7 @@ private fun PlayResult(course: TrainingCourse, outcome: AttemptOutcome, viewMode
                     Text("${number + 1}. ${review.text}", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
                     Text("Tu respuesta: ${review.chosen}", style = BpmPlayType.rowDetail, color = BpmPlayColors.ink)
                     if (!result.correct) Text("Correcta: ${review.correct}", style = BpmPlayType.rowDetail, color = BpmPlayColors.correct.shadow)
-                    if (result.explanation.isNotBlank()) Text(result.explanation, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+                    if (showExplanation(result.explanation, review.correct)) Text(result.explanation, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
                     if (source.isNotEmpty()) Text(source, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
                     if (result.itemCode != null) BpmListenButton(listOf(review.text, "Respuesta correcta: ${review.correct}", result.explanation, source).filter { it.isNotBlank() }.joinToString(". "), label = "Escuchar la explicación")
                 }

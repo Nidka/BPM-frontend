@@ -159,3 +159,12 @@ internal fun unitKicker(assignment: MyAssignment): String =
 /** Desplazamiento horizontal (dp) del nodo [index] de [count] en el camino: zigzag desde tres nodos; con uno o dos, todo centrado. */
 internal fun pathNodeOffset(index: Int, count: Int): Int =
     if (count <= 2) 0 else intArrayOf(0, -60, 0, 60)[index % 4]
+
+/**
+ * La justificación del banco suele repetir la alternativa correcta. Se muestra solo si aporta algo distinto de la
+ * respuesta correcta que ya aparece en la tarjeta (se comparan sin espacios sobrantes ni punto final).
+ */
+internal fun showExplanation(explanation: String, correctText: String): Boolean {
+    fun norm(text: String) = text.trim().trimEnd('.').trim()
+    return explanation.isNotBlank() && norm(explanation) != norm(correctText)
+}

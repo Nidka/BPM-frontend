@@ -263,7 +263,7 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
                     Text("${number + 1}. ${review.text}", style = BpmType.bodyStrong)
                     Text("Tu respuesta: ${review.chosen}")
                     if (!result.correct) Text("Respuesta correcta: ${review.correct}")
-                    if (result.explanation.isNotBlank()) Text(result.explanation, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (showExplanation(result.explanation, review.correct)) Text(result.explanation, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     sourceLine(result.sources).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
