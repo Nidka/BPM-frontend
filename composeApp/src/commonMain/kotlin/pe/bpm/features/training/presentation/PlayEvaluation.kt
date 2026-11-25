@@ -247,7 +247,9 @@ private fun PlayResult(course: TrainingCourse, outcome: AttemptOutcome, viewMode
         }
         outcome.certificate?.let { certificate ->
             BpmPlayCard(dashed = true) {
-                Text("CONSTANCIA", Modifier.background(BpmPlayColors.correct.soft, CircleShape).padding(horizontal = 12.dp, vertical = 4.dp), style = BpmPlayType.statLabel, color = BpmPlayColors.correct.shadow)
+                // Una constancia solo es «nueva» si este intento es un FINAL aprobado; si no, es la de un intento anterior.
+                val current = passed && attempt.attemptType == AttemptType.FINAL
+                Text(if (current) "CONSTANCIA" else "CONSTANCIA ANTERIOR", Modifier.background(BpmPlayColors.correct.soft, CircleShape).padding(horizontal = 12.dp, vertical = 4.dp), style = BpmPlayType.statLabel, color = BpmPlayColors.correct.shadow)
                 Text(course.course.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
                 Text(groupVerificationCode(certificate.verificationCode), style = BpmPlayType.sub.copy(fontFamily = FontFamily.Monospace, letterSpacing = 1.sp), color = BpmPlayColors.muted,
                     modifier = Modifier.semantics { contentDescription = "Código de verificación: ${certificate.verificationCode.toList().joinToString(" ")}" })

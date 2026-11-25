@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +33,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -99,9 +101,12 @@ fun BpmPlayStage(
             val scroll = rememberScrollState()
             LaunchedEffect(scrollKey) { scroll.scrollTo(0) }
             Box(Modifier.fillMaxWidth().heightIn(min = viewport).verticalScroll(scroll), contentAlignment = if (centered) Alignment.Center else Alignment.TopCenter) {
-                Column(Modifier.widthIn(max = StageWidth).fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
+                Column(Modifier.widthIn(max = StageWidth).fillMaxWidth().padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start, content = content)
             }
+            // Aviso de que hay más contenido debajo (p. ej. la última alternativa tras un pie alto): un velo blanco que no capta toques.
+            if (scroll.canScrollForward) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(32.dp) // medida: velo de 32 dp
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.White))))
         }
         if (footer != null) Box(Modifier.fillMaxWidth().background(footerColor).drawBehind {
             if (footerColor == Color.White) drawRect(BpmPlayColors.line, size = Size(size.width, BpmPlayBorder.toPx()))

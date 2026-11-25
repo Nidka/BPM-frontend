@@ -97,7 +97,7 @@ class QuestionBankTest {
         assertEquals(4, passingCorrect(5, 80)); assertEquals(5, passingCorrect(5, 81)); assertEquals(1, passingCorrect(1, 80))
         assertEquals("Empezar", startBubbleLabel(bankCourse()))
         assertEquals("Continuar", startBubbleLabel(bankCourse(done = listOf(UNIT_1))))
-        assertEquals("Evaluación del módulo · aprueba con 4/5", evaluationChipLabel(AttemptType.FINAL, 80, "4/5"))
+        assertEquals("Evaluación del módulo · 4/5", evaluationChipLabel(AttemptType.FINAL, 80, "4/5"))
         assertEquals("Evaluación final · aprueba con 80", evaluationChipLabel(AttemptType.FINAL, 80))
     }
 
