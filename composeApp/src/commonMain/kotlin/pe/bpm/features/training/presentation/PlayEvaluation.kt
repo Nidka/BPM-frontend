@@ -63,6 +63,19 @@ internal fun PlayEvaluation(state: TrainingState, course: TrainingCourse, evalua
                     style = BpmPlayType.text, color = BpmPlayColors.muted, textAlign = TextAlign.Center)
             }
         }
+        // Curso con banco oficial: el servidor sortea las preguntas; sin sorteo no hay evaluación (necesita conexión).
+        evaluation.starting -> BpmPlayStage(Modifier.bpmPlayKeys(0, {}, {}, focusKey = "sorteo"), onClose = worker.onClose, closeDescription = "Salir de la evaluación", centered = true) {
+            Image(painterResource(Res.drawable.mascot_learning), contentDescription = null, modifier = Modifier.width(140.dp))
+            Text("Preparando tu evaluación…", style = BpmPlayType.h1, color = BpmPlayColors.ink, textAlign = TextAlign.Center, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+        evaluation.bank && evaluation.drawn == null -> BpmPlayStage(Modifier.bpmPlayKeys(0, {}, viewModel::retryDraw, focusKey = "sorteo-fallo"), onClose = worker.onClose, centered = true,
+            footer = {
+                BpmChunkyButton("Reintentar", viewModel::retryDraw, Modifier.fillMaxWidth())
+                BpmChunkyButton("Salir", worker.onClose, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+            }) {
+            Text(drawFailureMessage(evaluation.failure), style = BpmPlayType.text, color = BpmPlayColors.error.shadow, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
+        }
         questions.isEmpty() -> BpmPlayStage(Modifier.bpmPlayKeys(0, {}, worker.onClose, focusKey = "vacia"), onClose = worker.onClose, centered = true,
             footer = { BpmChunkyButton("Salir", worker.onClose, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White) }) {
             Text("Esta evaluación todavía no tiene preguntas.", style = BpmPlayType.text, color = BpmPlayColors.muted, textAlign = TextAlign.Center)
@@ -99,7 +112,7 @@ private fun PlayEvaluationQuestion(course: TrainingCourse, evaluation: Evaluatio
             if (index > 0) BpmChunkyButton("Anterior", viewModel::previousQuestion, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !locked)
         },
     ) {
-        Box(Modifier.fillMaxWidth()) { EvaluationChip(evaluationChipLabel(evaluation.type, course.version.passingScore)) }
+        Box(Modifier.fillMaxWidth()) { EvaluationChip(evaluationChipLabel(evaluation.type, course.version.passingScore, if (evaluation.bank) passingFraction(course) else null)) }
         Text(question.questionText, style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink, modifier = Modifier.fillMaxWidth())
         BpmListenButton(question.questionText + ". " + question.options.mapIndexed { i, o -> "Opción ${i + 1}: $o." }.joinToString(" "), label = "Escuchar la pregunta")
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -134,7 +147,7 @@ private fun PlayReview(course: TrainingCourse, evaluation: EvaluationState, ques
         },
     ) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            EvaluationChip(evaluationChipLabel(evaluation.type, course.version.passingScore))
+            EvaluationChip(evaluationChipLabel(evaluation.type, course.version.passingScore, if (evaluation.bank) passingFraction(course) else null))
             Text("Revisa tus respuestas", style = BpmPlayType.h1, color = BpmPlayColors.ink, modifier = Modifier.padding(top = 8.dp))
             Text(if (missing == 0) "Todas tienen respuesta. Envíala cuando estés listo." else if (missing == 1) "Te falta 1 pregunta por responder." else "Te faltan $missing preguntas por responder.",
                 style = BpmPlayType.sub, color = if (missing == 0) BpmPlayColors.muted else BpmPlayColors.gold.shadow)
@@ -214,7 +227,8 @@ private fun PlayResult(course: TrainingCourse, outcome: AttemptOutcome, viewMode
                     withStyle(SpanStyle(fontSize = 24.sp, color = BpmPlayColors.muted)) { append(" /100") }
                 }, style = BpmPlayType.h1.copy(fontSize = 54.sp, lineHeight = 54.sp), color = BpmPlayColors.ink,
                     modifier = Modifier.semantics { contentDescription = "Puntaje: ${attempt.score} de 100" })
-                if (!passed) Text("Para aprobar necesitas ${course.version.passingScore}. Repasa las lecciones e inténtalo otra vez.", style = BpmPlayType.sub, color = BpmPlayColors.muted, textAlign = TextAlign.Center)
+                if (!passed) Text(if (course.bank != null) "Para aprobar necesitas ${passingFraction(course)} respuestas correctas. Repasa las unidades e inténtalo otra vez: te daremos otras preguntas."
+                    else "Para aprobar necesitas ${course.version.passingScore}. Repasa las lecciones e inténtalo otra vez.", style = BpmPlayType.sub, color = BpmPlayColors.muted, textAlign = TextAlign.Center)
             })
         xpRepeatedNotice(attempt)?.let { Text(it, style = BpmPlayType.sub, color = BpmPlayColors.muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
         if (attempt.attemptType == AttemptType.MODULE) Text("La evaluación de lección no completa el curso ni emite constancia.", style = BpmPlayType.sub, color = BpmPlayColors.muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -242,16 +256,26 @@ private fun PlayResult(course: TrainingCourse, outcome: AttemptOutcome, viewMode
         next?.let { Text("Sigue con: ${it.courseTitle}", style = BpmPlayType.text, color = BpmPlayColors.ink, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
         if (showAnswers) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             outcome.results.forEachIndexed { number, result ->
-                val question = course.questions.firstOrNull { it.id == result.questionId }
+                val review = resultReview(course, result)
                 val shade = if (result.correct) BpmPlayColors.correct else BpmPlayColors.error
+                val source = sourceLine(result.sources)
                 Column(Modifier.fillMaxWidth().bpmPlayFrame(shade.face, shade.soft, 16.dp).padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text((if (result.correct) "Correcta" else "Casi").uppercase(), style = BpmPlayType.label, color = shade.shadow)
-                    Text("${number + 1}. ${question?.questionText.orEmpty()}", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
-                    Text("Tu respuesta: ${question?.options?.getOrNull(result.selectedOption).orEmpty()}", style = BpmPlayType.rowDetail, color = BpmPlayColors.ink)
-                    if (!result.correct) Text("Correcta: ${question?.options?.getOrNull(result.correctOption).orEmpty()}", style = BpmPlayType.rowDetail, color = BpmPlayColors.correct.shadow)
+                    Text("${number + 1}. ${review.text}", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
+                    Text("Tu respuesta: ${review.chosen}", style = BpmPlayType.rowDetail, color = BpmPlayColors.ink)
+                    if (!result.correct) Text("Correcta: ${review.correct}", style = BpmPlayType.rowDetail, color = BpmPlayColors.correct.shadow)
                     if (result.explanation.isNotBlank()) Text(result.explanation, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+                    if (source.isNotEmpty()) Text(source, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+                    if (result.itemCode != null) BpmListenButton(listOf(review.text, "Respuesta correcta: ${review.correct}", result.explanation, source).filter { it.isNotBlank() }.joinToString(". "), label = "Escuchar la explicación")
                 }
             }
         }
     }
+}
+
+/** Mensaje cuando el servidor no pudo sortear la evaluación (sin conexión o fallo del servicio). */
+internal fun drawFailureMessage(failure: TrainingFailure?): String = when (failure) {
+    TrainingFailure.CONNECTION -> "Necesitas conexión para iniciar la evaluación."
+    null -> "No pudimos preparar la evaluación. Inténtalo de nuevo."
+    else -> trainingFailureMessage(failure)
 }

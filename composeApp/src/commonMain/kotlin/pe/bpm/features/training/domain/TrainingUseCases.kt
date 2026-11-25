@@ -39,7 +39,15 @@ class SubmitTrainingAttempt(private val repository: TrainingRepository) {
         startedAt: String,
         now: String,
         lessonId: String? = null,
+        /** Evaluación sorteada del banco: el intento usa su id y su versión, y se responden sus preguntas. */
+        drawn: DrawnEvaluation? = null,
     ): AttemptSubmission? {
+        if (drawn != null) {
+            if (type != drawn.type || lessonId != null) return null
+            val ids = drawn.questions.map { it.id }
+            if (ids.isEmpty() || answers.keys != ids.toSet() || drawn.questions.any { answers[it.id] !in it.options.indices }) return null
+            return AttemptSubmission(drawn.id, newId(), drawn.versionId, type, startedAt, now, drawn.questions.map { AttemptAnswer(it.id, answers.getValue(it.id)) })
+        }
         // MODULE evalúa solo las preguntas de su lección; los demás tipos no admiten lección.
         if ((type == AttemptType.MODULE) != (lessonId != null)) return null
         if (lessonId != null && course.lessons.none { it.id == lessonId }) return null
@@ -57,6 +65,19 @@ class SubmitTrainingAttempt(private val repository: TrainingRepository) {
 
     suspend operator fun invoke(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome> =
         repository.submitAttempt(org, courseId, attempt)
+}
+
+/** Sortea en el servidor la evaluación de un curso con banco oficial (necesita conexión). */
+class StartTrainingEvaluation(private val repository: TrainingRepository) {
+    suspend operator fun invoke(org: String, courseId: String, id: String, type: AttemptType): TrainingResult<DrawnEvaluation> {
+        if (type == AttemptType.MODULE) return TrainingResult.Failure(TrainingFailure.INVALID)
+        return repository.startEvaluation(org, courseId, id, type)
+    }
+}
+
+/** Banco oficial de un módulo para administración (solo lectura). */
+class LoadQuestionBank(private val repository: TrainingAuthoringRepository) {
+    suspend operator fun invoke(org: String, courseId: String): TrainingResult<QuestionBank> = repository.questionBank(org, courseId)
 }
 
 class ListAdminCourses(private val repository: TrainingAuthoringRepository) {

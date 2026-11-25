@@ -41,8 +41,20 @@ class TrainingOfflineStore(private val store: LocalStore, private val clock: () 
         val course = runCatching { OfflineJson.decodeFromString(OfflineCourseDto.serializer(), record.json).domain() }.getOrNull() ?: return null
         val progress = progress(courseId) ?: course.progress
         val syncedAt = catalogMeta(org)?.syncedAt ?: record.updatedAt
-        return course.copy(progress = progress, cachedAt = syncedAt)
+        return course.copy(progress = progress, cachedAt = syncedAt, bank = bank(courseId))
     }
+
+    // ---- Banco oficial -----------------------------------------------------------------------
+
+    /** Recuerda que el curso usa el banco oficial: sin conexión no se rinde una evaluación clásica con sus 20 preguntas. */
+    suspend fun saveBank(courseId: String, bank: QuestionBankInfo?) {
+        if (bank == null) { store.remove(BANK, courseId); return }
+        store.put(BANK, courseId, OfflineJson.encodeToString(CachedBankInfo.serializer(), CachedBankInfo(bank.version, bank.itemsPerAttempt, bank.poolSize)))
+    }
+
+    suspend fun bank(courseId: String): QuestionBankInfo? =
+        store.get(BANK, courseId)?.let { runCatching { OfflineJson.decodeFromString(CachedBankInfo.serializer(), it.json) }.getOrNull() }
+            ?.let { QuestionBankInfo(it.version, it.itemsPerAttempt, it.poolSize) }
 
     /** Videos de los cursos del catálogo guardado de [org]; vacío si aún no se cargó el catálogo. */
     suspend fun catalogVideos(org: String): List<LessonVideo> =
@@ -100,6 +112,7 @@ class TrainingOfflineStore(private val store: LocalStore, private val clock: () 
         const val PROGRESS = "training-progress"
         const val STUDY = "training-study"
         const val ATTEMPTS = "training-attempts"
+        const val BANK = "training-bank"
         const val DOWNLOAD_LIMIT = "training-download-limit"
     }
 

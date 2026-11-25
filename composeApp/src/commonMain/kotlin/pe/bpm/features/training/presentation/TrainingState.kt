@@ -29,9 +29,28 @@ data class StudyState(
     val firstTryCorrect: Int = 0,
     /** Preguntas ya añadidas al final para repasar (cada una se repite una sola vez). */
     val repeated: Set<String> = emptySet(),
+    /**
+     * Cursos con banco oficial: orden en que se muestran las alternativas de cada pregunta (posición mostrada → índice
+     * original). Se baraja en el cliente para no memorizar posiciones; al servidor siempre viaja el índice original.
+     */
+    val shuffles: Map<String, List<Int>> = emptyMap(),
+    /** Repaso espaciado: la sesión recorre las preguntas pendientes de repasar, no una lección. */
+    val review: Boolean = false,
+    /** XP de práctica ganado en esta sesión (primer acierto de cada ítem). */
+    val xpEarned: Int = 0,
 ) {
     val finished: Boolean get() = index >= questions.size
     val current: TrainingQuestion? get() = questions.getOrNull(index)
+
+    /** Alternativas de [question] en el orden en que se muestran. */
+    fun shownOptions(question: TrainingQuestion): List<String> =
+        shuffles[question.id]?.takeIf { it.size == question.options.size }?.map { question.options[it] } ?: question.options
+
+    /** Índice original de la alternativa mostrada en la posición [shown]. */
+    fun originalOption(question: TrainingQuestion, shown: Int): Int = shuffles[question.id]?.getOrNull(shown) ?: shown
+
+    /** Posición mostrada de la alternativa con índice original [original]. */
+    fun shownPosition(question: TrainingQuestion, original: Int): Int = shuffles[question.id]?.indexOf(original)?.takeIf { it >= 0 } ?: original
 
     /** Porcentaje de aciertos al primer intento (0..100); nulo si la práctica no tiene preguntas. */
     val accuracyPercent: Int? get() = if (originalCount <= 0) null else (firstTryCorrect * 100) / originalCount
@@ -57,6 +76,12 @@ data class EvaluationState(
     val index: Int = 0,
     /** Pantalla de revisión previa al envío (todas las preguntas con su respuesta). */
     val reviewing: Boolean = false,
+    /** Curso con banco oficial: evaluación sorteada por el servidor (alternativas ya barajadas); nula mientras se pide. */
+    val drawn: DrawnEvaluation? = null,
+    /** Se está pidiendo el sorteo al servidor. */
+    val starting: Boolean = false,
+    /** Evaluación del banco oficial: la evaluación no puede empezar sin el sorteo. */
+    val bank: Boolean = false,
 )
 
 data class TrainingState(
@@ -86,6 +111,8 @@ data class TrainingState(
     val evaluationQuestions: List<TrainingQuestion>
         get() {
             val c = course ?: return emptyList()
+            evaluation?.drawn?.let { return it.questions }
+            if (evaluation?.bank == true) return emptyList()
             val lesson = evaluation?.lessonId
             return if (lesson == null) c.questions else c.questions.filter { it.lessonId == lesson }
         }
@@ -110,6 +137,8 @@ fun trainingFailureMessage(failure: TrainingFailure): String = when (failure) {
     TrainingFailure.PATH_CONFLICT -> "La ruta cambió en otro dispositivo. Recárgala para no perder cambios ajenos."
     TrainingFailure.PATH_ARCHIVED -> "La ruta está archivada y ya no admite cambios."
     TrainingFailure.COURSE_NOT_PUBLISHED -> "El curso debe estar publicado para esta operación."
+    TrainingFailure.EVALUATION_NOT_STARTED -> "Esta evaluación ya no está activa. Sal e inicia una nueva."
+    TrainingFailure.NO_QUESTION_BANK -> "Este curso no usa el banco oficial de preguntas."
     TrainingFailure.QUEUED -> "Guardado en este dispositivo. Se enviará al recuperar la conexión."
     TrainingFailure.UNAVAILABLE, TrainingFailure.INVALID_RESPONSE -> "No pudimos confirmar la operación. Inténtalo de nuevo."
 }

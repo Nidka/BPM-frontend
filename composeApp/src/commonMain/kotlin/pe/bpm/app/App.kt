@@ -868,6 +868,7 @@ fun App(
                                         onOpenLesson = { course, lesson -> courseIntent = course to pe.bpm.features.training.presentation.CourseIntent.Lesson(lesson); nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         onOpenFinal = { course -> courseIntent = course to pe.bpm.features.training.presentation.CourseIntent.FinalEvaluation; nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         onOpenCourse = { course -> courseIntent = null; nav.navigate("aprender/$course") { launchSingleTop = true } },
+                                        onOpenReview = { course -> courseIntent = course to pe.bpm.features.training.presentation.CourseIntent.Review; nav.navigate("aprender/$course") { launchSingleTop = true } },
                                         catalog = catalog)
                                 }) else null,
                                 onIncidents = { nav.navigate(if (adminPlay || destination == WorkspaceDestination.Company) INCIDENT_MANAGEMENT else INCIDENT_EXECUTION) { launchSingleTop = true } },

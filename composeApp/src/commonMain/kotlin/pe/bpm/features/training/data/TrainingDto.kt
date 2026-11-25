@@ -109,6 +109,31 @@ internal data class CertificateDto(val id: String, val verificationCode: String,
     }
 }
 
+/** Fuente oficial del banco (P01…): solo texto; el enlace se valida como HTTPS y se descarta si no lo es. */
+@Serializable
+internal data class SourceDto(val code: String, val label: String = "", val title: String = "", val url: String = "") {
+    fun domain(): SourceRef {
+        require(Regex("[A-Z][0-9]{2}").matches(code) && label.length <= 120 && title.length <= 600)
+        return SourceRef(code, label.ifBlank { code }, title, url.takeIf { it.startsWith("https://") && it.length <= 500 }.orEmpty())
+    }
+}
+
+internal fun List<SourceDto>.domain(): List<SourceRef> { require(size <= 8); return map { it.domain() } }
+
+@Serializable internal data class QuestionBankDto(val version: Int, val itemsPerAttempt: Int = 5, val poolSize: Int = 0) {
+    fun domain(): QuestionBankInfo {
+        require(version >= 1 && itemsPerAttempt in 1..20 && poolSize in 0..TrainingLimits.MAX_QUESTIONS)
+        return QuestionBankInfo(version, itemsPerAttempt, poolSize)
+    }
+}
+
+@Serializable internal data class ReviewDto(val dueCount: Int = 0, val questionIds: List<String> = emptyList()) {
+    fun domain(): ReviewInfo {
+        require(dueCount >= 0 && questionIds.size <= 20 && questionIds.all { idPattern.matches(it) })
+        return ReviewInfo(dueCount, questionIds)
+    }
+}
+
 @Serializable
 internal data class CourseDetailDto(
     val course: CourseInfoDto,
@@ -117,6 +142,9 @@ internal data class CourseDetailDto(
     val questions: List<QuestionDto>,
     val progress: ProgressDto,
     val certificate: CertificateDto? = null,
+    /** Banco oficial y repaso: un servidor anterior no los envía (nulos). */
+    val questionBank: QuestionBankDto? = null,
+    val review: ReviewDto? = null,
 ) {
     fun domain(expectedCourseId: String): TrainingCourse {
         val info = course.domain()
@@ -139,7 +167,8 @@ internal data class CourseDetailDto(
         }
         require(mappedQuestions.map { it.id }.distinct().size == mappedQuestions.size)
         return TrainingCourse(info, TrainingVersionInfo(version.id, version.versionNumber, version.passingScore),
-            mappedLessons.sortedBy { it.displayOrder }, mappedQuestions.sortedBy { it.displayOrder }, progress.domain(), certificate?.domain())
+            mappedLessons.sortedBy { it.displayOrder }, mappedQuestions.sortedBy { it.displayOrder }, progress.domain(), certificate?.domain(),
+            bank = questionBank?.domain(), review = review?.domain() ?: ReviewInfo())
     }
 }
 
@@ -154,7 +183,18 @@ internal data class CourseDetailDto(
 
 @Serializable internal data class ProgressEnvelope(val progress: ProgressDto)
 
-@Serializable internal data class StudyDto(val correct: Boolean, val correctOption: Int, val explanation: String = "")
+@Serializable
+internal data class StudyDto(
+    val correct: Boolean,
+    val correctOption: Int,
+    val explanation: String = "",
+    val itemCode: String? = null,
+    val sources: List<SourceDto> = emptyList(),
+    val xpEarned: Int = 0,
+)
+
+private val itemCodePattern = Regex("M0[1-5]-[0-9]{2}")
+internal fun checkedItemCode(code: String?): String? { require(code == null || itemCodePattern.matches(code)); return code }
 
 @Serializable
 internal data class AttemptDto(
@@ -177,7 +217,80 @@ internal data class NextCourseDto(val pathId: String? = null, val pathTitle: Str
 }
 
 @Serializable
-internal data class ResultDto(val questionId: String, val selectedOption: Int, val correct: Boolean, val correctOption: Int, val explanation: String = "")
+internal data class ResultDto(
+    val questionId: String,
+    val selectedOption: Int,
+    val correct: Boolean,
+    val correctOption: Int,
+    val explanation: String = "",
+    val itemCode: String? = null,
+    val bloom: String? = null,
+    val questionText: String? = null,
+    val options: List<String> = emptyList(),
+    val sources: List<SourceDto> = emptyList(),
+)
+
+/** Evaluación sorteada: las preguntas llegan con las alternativas ya barajadas y sin respuesta. */
+@Serializable
+internal data class DrawnEvaluationDto(
+    val id: String,
+    val versionId: String,
+    val attemptType: String,
+    val passingScore: Int,
+    val bankVersion: Int = 1,
+    val attemptNumber: Int = 1,
+    val questions: List<QuestionDto>,
+) {
+    fun domain(expectedId: String, expectedType: AttemptType): DrawnEvaluation {
+        trainingId(id); trainingId(versionId)
+        require(id.equals(expectedId, ignoreCase = true) && AttemptType.valueOf(attemptType) == expectedType)
+        require(passingScore in 0..100 && bankVersion >= 1 && attemptNumber >= 1 && questions.size in 1..TrainingLimits.MAX_QUESTIONS)
+        val mapped = questions.map {
+            trainingId(it.id)
+            require(it.options.size in TrainingLimits.MIN_OPTIONS..TrainingLimits.MAX_OPTIONS && it.questionText.isNotBlank())
+            TrainingQuestion(it.id, it.lessonId, it.questionText, it.options, it.displayOrder)
+        }
+        require(mapped.map { it.id }.distinct().size == mapped.size)
+        return DrawnEvaluation(id, versionId, expectedType, passingScore, bankVersion, attemptNumber, mapped.sortedBy { it.displayOrder })
+    }
+}
+
+@Serializable internal data class DrawnEvaluationEnvelope(val evaluation: DrawnEvaluationDto)
+
+@Serializable
+internal data class BankItemDto(
+    val code: String,
+    val bloom: String,
+    val questionText: String,
+    val options: List<String>,
+    val correctOption: Int,
+    val key: String,
+    val justification: String = "",
+    val sources: List<SourceDto> = emptyList(),
+    val recommended: Boolean = false,
+    val lessonTitle: String = "",
+) {
+    fun domain(): BankItem {
+        checkedItemCode(code)
+        require(bloom in setOf("Recordar", "Comprender", "Aplicar", "Analizar", "Evaluar"))
+        require(options.size in TrainingLimits.MIN_OPTIONS..TrainingLimits.MAX_OPTIONS && correctOption in options.indices && key.length == 1)
+        return BankItem(code, bloom, questionText, options, correctOption, key, justification, sources.domain(), recommended, lessonTitle)
+    }
+}
+
+@Serializable
+internal data class BankDto(val course: CourseInfoDto, val module: String, val bankVersion: Int, val passingScore: Int = 80, val items: List<BankItemDto>) {
+    fun domain(expectedCourseId: String): QuestionBank {
+        val info = course.domain()
+        require(info.id.equals(expectedCourseId, ignoreCase = true) && items.size <= TrainingLimits.MAX_QUESTIONS && passingScore in 0..100)
+        require(Regex("M0[1-5]").matches(module) && bankVersion >= 1)
+        val mapped = items.map { it.domain() }
+        require(mapped.map { it.code }.distinct().size == mapped.size)
+        return QuestionBank(info.title, module, bankVersion, passingScore, mapped)
+    }
+}
+
+@Serializable internal data class BankEnvelope(val bank: BankDto)
 
 @Serializable
 internal data class AttemptOutcomeDto(
@@ -198,7 +311,11 @@ internal data class AttemptOutcomeDto(
             val answer = sent.answers.firstOrNull { it.questionId.equals(result.questionId, ignoreCase = true) }
             require(answer != null && answer.selectedOption == result.selectedOption)
             require(result.correct == (result.selectedOption == result.correctOption))
-            QuestionResult(result.questionId, result.selectedOption, result.correct, result.correctOption, result.explanation)
+            checkedItemCode(result.itemCode)
+            require(result.options.isEmpty() || (result.options.size in TrainingLimits.MIN_OPTIONS..TrainingLimits.MAX_OPTIONS &&
+                result.selectedOption in result.options.indices && result.correctOption in result.options.indices))
+            QuestionResult(result.questionId, result.selectedOption, result.correct, result.correctOption, result.explanation,
+                result.itemCode, result.bloom, result.questionText, result.options, result.sources.domain())
         }
         require(mapped.map { it.questionId.lowercase() }.distinct().size == mapped.size)
         require(attempt.score == ((mapped.count { it.correct } * 100.0) / mapped.size + 0.5).toInt())
@@ -240,6 +357,8 @@ internal data class DraftQuestionDto(
     val correctOption: Int,
     val explanation: String = "",
     val displayOrder: Int,
+    /** Ítem del banco oficial (solo lectura); un servidor anterior no lo envía. */
+    val itemCode: String? = null,
 )
 
 @Serializable
@@ -265,7 +384,7 @@ internal data class DraftDto(
             questions.map {
                 trainingId(it.id)
                 require(it.options.size in TrainingLimits.MIN_OPTIONS..TrainingLimits.MAX_OPTIONS && it.correctOption in it.options.indices)
-                DraftQuestion(it.id, it.lessonId?.let(::trainingId), it.questionText, it.options, it.correctOption, it.explanation, it.displayOrder)
+                DraftQuestion(it.id, it.lessonId?.let(::trainingId), it.questionText, it.options, it.correctOption, it.explanation, it.displayOrder, checkedItemCode(it.itemCode))
             }.sortedBy { it.displayOrder },
             captionsSupported = lessons.any { it.captionsVtt != null })
     }

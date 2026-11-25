@@ -34,6 +34,7 @@ class OfflineTrainingRepository(
     override suspend fun course(org: String, courseId: String): TrainingResult<TrainingCourse> {
         val result = remote.course(org, courseId)
         if (result is TrainingResult.Success) {
+            store.saveBank(courseId, result.value.bank)
             // El avance pendiente de enviar se conserva encima de lo que el servidor aún no recibió.
             val course = result.value
             val local = store.progress(courseId)
@@ -77,6 +78,10 @@ class OfflineTrainingRepository(
         val cached = store.studyFeedback(questionId) ?: return result
         return TrainingResult.Success(StudyFeedback(selected == cached.correctOption, cached.correctOption, cached.explanation))
     }
+
+    /** El sorteo es del servidor: sin conexión no hay evaluación del banco, y nunca se simula una. */
+    override suspend fun startEvaluation(org: String, courseId: String, id: String, type: AttemptType): TrainingResult<DrawnEvaluation> =
+        remote.startEvaluation(org, courseId, id, type)
 
     override suspend fun submitAttempt(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome> {
         val result = remote.submitAttempt(org, courseId, attempt)

@@ -35,7 +35,7 @@ import pe.bpm.features.training.domain.*
  */
 @Composable
 internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evaluation: EvaluationState, viewModel: TrainingViewModel, onOpenCourse: ((String) -> Unit)? = null) {
-    val label = when (evaluation.type) { AttemptType.FINAL -> "EVALUACIÓN FINAL"; AttemptType.MODULE -> "EVALUACIÓN DE LECCIÓN"; else -> "EVALUACIÓN DIAGNÓSTICA" }
+    val label = when (evaluation.type) { AttemptType.FINAL -> if (evaluation.bank) "EVALUACIÓN DEL MÓDULO" else "EVALUACIÓN FINAL"; AttemptType.MODULE -> "EVALUACIÓN DE LECCIÓN"; else -> "EVALUACIÓN DIAGNÓSTICA" }
     val questions = state.evaluationQuestions
     val outcome = evaluation.outcome
     if (outcome != null) { Eyebrow("$label · SE CALIFICA"); EvaluationResult(course, outcome, viewModel, onOpenCourse); return }
@@ -48,6 +48,19 @@ internal fun EvaluationPanel(state: TrainingState, course: TrainingCourse, evalu
             }
             BpmChunkyButton("Volver al curso", viewModel::closeEvaluation, Modifier.bpmPrimaryButtonWidth())
         }
+        return
+    }
+    if (evaluation.starting) {
+        Eyebrow("$label · SE CALIFICA")
+        LinearProgressIndicator(Modifier.fillMaxWidth())
+        Text("Preparando tu evaluación…", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        return
+    }
+    if (evaluation.bank && evaluation.drawn == null) {
+        Eyebrow("$label · SE CALIFICA")
+        Text(drawFailureMessage(evaluation.failure), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        BpmChunkyButton("Reintentar", viewModel::retryDraw, Modifier.bpmPrimaryButtonWidth())
+        BpmTextButton(onClick = { viewModel.back() }) { Text("Salir") }
         return
     }
     if (questions.isEmpty()) {
@@ -207,7 +220,7 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
                 withStyle(scoreStyle) { append(attempt.score.toString()) }
                 withStyle(denominatorStyle) { append(" / 100") }
             }, modifier = Modifier.semantics { contentDescription = "Puntaje: ${attempt.score} de 100" })
-            Text("Mínimo ${course.version.passingScore}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (course.bank != null) "Aprueba con ${passingFraction(course)}" else "Mínimo ${course.version.passingScore}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             xpEarnedChip(attempt)?.let { BpmStatusChip(it, BpmTone.Info, symbol = BpmSymbol.Award) }
             xpRepeatedNotice(attempt)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (attempt.attemptType == AttemptType.FINAL && outcome.progress.experiencePoints > 0) {
@@ -243,14 +256,15 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
         }
         if (open) BpmCard(Modifier.fillMaxWidth(), variant = BpmCardVariant.Compact) {
             outcome.results.forEachIndexed { number, result ->
-                val question = course.questions.firstOrNull { it.id == result.questionId }
+                val review = resultReview(course, result)
                 if (number > 0) BpmRowDivider()
                 Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
                     Eyebrow(if (result.correct) "CORRECTA" else "INCORRECTA")
-                    Text("${number + 1}. ${question?.questionText.orEmpty()}", style = BpmType.bodyStrong)
-                    Text("Tu respuesta: ${question?.options?.getOrNull(result.selectedOption).orEmpty()}")
-                    if (!result.correct) Text("Respuesta correcta: ${question?.options?.getOrNull(result.correctOption).orEmpty()}")
+                    Text("${number + 1}. ${review.text}", style = BpmType.bodyStrong)
+                    Text("Tu respuesta: ${review.chosen}")
+                    if (!result.correct) Text("Respuesta correcta: ${review.correct}")
                     if (result.explanation.isNotBlank()) Text(result.explanation, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    sourceLine(result.sources).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }

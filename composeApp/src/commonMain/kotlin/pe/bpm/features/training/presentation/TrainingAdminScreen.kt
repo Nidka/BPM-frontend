@@ -38,6 +38,7 @@ fun TrainingAdminScreen(viewModel: TrainingAuthoringViewModel, modifier: Modifie
         }
         when {
             !state.allowed -> EmptyState("Academia restringida", "Solo el administrador de la organización puede preparar cursos.")
+            state.bank != null -> QuestionBankView(state.bank!!, viewModel)
             state.editor != null -> DraftEditor(state.editor!!, viewModel)
             state.creating != null -> CreateCourseForm(state, viewModel)
             else -> CourseList(state, viewModel)
@@ -70,6 +71,9 @@ private fun CourseList(state: AuthoringState, viewModel: TrainingAuthoringViewMo
             Text(statusLabel(course.status) + (course.publishedVersionNumber?.let { " · versión $it publicada" } ?: ""))
             if (course.hasDraft) Text("Tiene un borrador en preparación", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BpmChunkyButton(if (course.hasDraft) "Editar borrador" else "Preparar nueva versión", { viewModel.openDraft(course.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+            // Los cursos publicados pueden tener el banco oficial: se abre en solo lectura (si no lo usan, se avisa).
+            if (course.status == CourseStatus.PUBLISHED && course.code.startsWith("BPM-"))
+                BpmTextButton(onClick = { viewModel.openBank(course.id, course.title) }, modifier = Modifier.fillMaxWidth().heightIn(min = BpmSpacing.touch)) { Text("Banco de preguntas") }
         }
     }
 }
@@ -233,6 +237,16 @@ private fun QuestionEditor(
 ) {
     BpmCard(Modifier.fillMaxWidth()) {
         Eyebrow("PREGUNTA ${number + 1}" + (draft.lessons.indexOfFirst { it.id == question.lessonId }.takeIf { it >= 0 }?.let { " · LECCIÓN ${it + 1}" } ?: ""))
+        if (question.official) {
+            // Ítem del banco oficial: el servidor conserva su contenido; aquí solo se lee.
+            BpmStatusChip("Ítem oficial · ${question.itemCode} · solo lectura", BpmTone.Info, symbol = BpmSymbol.Lock)
+            Text(question.questionText, style = MaterialTheme.typography.titleMedium)
+            question.options.forEachIndexed { index, option ->
+                Text("${"ABCDEF".getOrElse(index) { '·' }}. $option" + if (index == question.correctOption) " (correcta)" else "",
+                    style = if (index == question.correctOption) BpmType.bodyStrong else MaterialTheme.typography.bodyMedium)
+            }
+            return@BpmCard
+        }
         BpmTextField(question.questionText, { v -> viewModel.edit { TrainingDraftEdits.updateQuestion(it, question.id, text = v) } }, "Enunciado",
             error = issue(DraftIssueKind.QUESTION_TEXT, question.id), enabled = enabled)
         Text("Opciones: marca la correcta", style = MaterialTheme.typography.labelLarge)

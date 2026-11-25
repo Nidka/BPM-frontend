@@ -41,6 +41,8 @@ sealed interface CourseIntent {
     data class Lesson(val lessonId: String) : CourseIntent
     /** Abre la evaluación final. */
     data object FinalEvaluation : CourseIntent
+    /** Abre el repaso espaciado del curso (las preguntas falladas o vencidas). */
+    data object Review : CourseIntent
     /** Retoma el curso: abre la siguiente lección (la última vista o la primera), sin pasar por la guía. */
     data object Resume : CourseIntent
 }
@@ -148,6 +150,7 @@ internal fun ColumnScope.PlayCourseGuide(course: TrainingCourse, state: Training
             }
         }
     }
+    if (course.review.dueCount > 0 && state.canPersist) BpmChunkyButton(reviewCaption(course.review.dueCount), viewModel::startReview, Modifier.fillMaxWidth())
     if (hasQuestions) BpmChunkyButton("Practicar sin calificación", { viewModel.startStudy(repeatMissed = true) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
     if (hasQuestions && state.canPersist) BpmChunkyButton("Evaluación diagnóstica", { viewModel.startEvaluation(AttemptType.DIAGNOSTIC) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
     if (!state.canPersist) Text("Tu cuenta no tiene una membresía en esta organización: puedes leer y practicar, pero la evaluación y el avance solo están disponibles para sus miembros.",

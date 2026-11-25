@@ -78,6 +78,19 @@ data class TrainingProgress(
 
 data class TrainingCertificate(val id: String, val verificationCode: String, val issuedAt: String)
 
+/** Fuente oficial de un ítem del banco: código (P01), etiqueta corta («NTS 142 (P01)»), título completo y enlace. */
+data class SourceRef(val code: String, val label: String, val title: String = "", val url: String = "")
+
+/** Texto de la línea «Fuente: …» de la retroalimentación; vacío si el ítem no trae fuentes. */
+fun sourceLine(sources: List<SourceRef>): String =
+    if (sources.isEmpty()) "" else "Fuente: " + sources.joinToString(" · ") { it.label.ifBlank { it.code } }
+
+/** Banco oficial de preguntas del curso: versión, ítems por evaluación y tamaño del banco del módulo. */
+data class QuestionBankInfo(val version: Int, val itemsPerAttempt: Int, val poolSize: Int)
+
+/** Repaso espaciado: [dueCount] preguntas por repasar y un lote de [questionIds] (ids de `questions`). */
+data class ReviewInfo(val dueCount: Int = 0, val questionIds: List<String> = emptyList())
+
 data class TrainingCourse(
     val course: TrainingCourseInfo,
     val version: TrainingVersionInfo,
@@ -87,6 +100,10 @@ data class TrainingCourse(
     val certificate: TrainingCertificate?,
     /** Instante (ms) en que se guardó esta copia local cuando no se pudo consultar al servidor; null si es reciente. */
     val cachedAt: Long? = null,
+    /** Banco oficial de preguntas; nulo en un curso común o en un servidor anterior. */
+    val bank: QuestionBankInfo? = null,
+    /** Preguntas por repasar de quien consulta; vacío sin banco o sin membresía. */
+    val review: ReviewInfo = ReviewInfo(),
 ) {
     /** Lección desde la cual se retoma: la última vista si sigue publicada o la primera (RF-11). */
     fun resumeLesson(): TrainingLesson? =
@@ -97,7 +114,16 @@ data class TrainingCourse(
 data class VideoTicket(val url: String, val mimeType: String, val expiresAt: String, val local: Boolean = false)
 
 /** Resultado de practicar en modo estudio: informativo, sin puntaje ni persistencia. */
-data class StudyFeedback(val correct: Boolean, val correctOption: Int, val explanation: String)
+data class StudyFeedback(
+    val correct: Boolean,
+    val correctOption: Int,
+    val explanation: String,
+    /** Ítem del banco oficial (M01-03); nulo en una pregunta común. */
+    val itemCode: String? = null,
+    val sources: List<SourceRef> = emptyList(),
+    /** XP de práctica ganado con esta respuesta (primer acierto del ítem); 0 si no hubo. */
+    val xpEarned: Int = 0,
+)
 
 /** [MODULE] evalúa solo las preguntas de una lección: no completa el curso ni emite constancia. */
 enum class AttemptType { DIAGNOSTIC, FINAL, MODULE }
@@ -126,7 +152,45 @@ data class QuestionResult(
     val correct: Boolean,
     val correctOption: Int,
     val explanation: String,
+    /** Datos del ítem del banco: con ellos el resultado se muestra sin buscar la pregunta en el curso. */
+    val itemCode: String? = null,
+    val bloom: String? = null,
+    val questionText: String? = null,
+    /** Alternativas en el orden en que se mostraron; [selectedOption] y [correctOption] son posiciones de esta lista. */
+    val options: List<String> = emptyList(),
+    val sources: List<SourceRef> = emptyList(),
 )
+
+/**
+ * Evaluación sorteada por el servidor para un curso con banco oficial: 5 preguntas con las alternativas ya barajadas
+ * y sin respuesta. Su [id] será el del intento; las respuestas se envían como posición mostrada.
+ */
+data class DrawnEvaluation(
+    val id: String,
+    val versionId: String,
+    val type: AttemptType,
+    val passingScore: Int,
+    val bankVersion: Int,
+    val attemptNumber: Int,
+    val questions: List<TrainingQuestion>,
+)
+
+/** Ítem del banco oficial tal como lo ve la administración (con clave y justificación). */
+data class BankItem(
+    val code: String,
+    val bloom: String,
+    val questionText: String,
+    val options: List<String>,
+    val correctOption: Int,
+    val key: String,
+    val justification: String,
+    val sources: List<SourceRef>,
+    val recommended: Boolean,
+    val lessonTitle: String,
+)
+
+/** Banco de un módulo para administración, solo lectura. */
+data class QuestionBank(val courseTitle: String, val module: String, val bankVersion: Int, val passingScore: Int, val items: List<BankItem>)
 
 data class AttemptSummary(
     val id: String,
@@ -157,6 +221,10 @@ enum class TrainingFailure {
     CONNECTION, SESSION, DENIED, NOT_FOUND, VERSION_OUTDATED, CONFLICT, DRAFT_CONFLICT, CODE_TAKEN,
     ANSWERS_INVALID, DRAFT_INCOMPLETE, INVALID, CONTENT_INVALID, TOO_LARGE, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE,
     ASSIGNMENT_EXISTS, PATH_CONFLICT, PATH_ARCHIVED, COURSE_NOT_PUBLISHED,
+    /** Se envió un intento de un curso con banco sin haber iniciado (sorteado) la evaluación. */
+    EVALUATION_NOT_STARTED,
+    /** El curso no usa el banco oficial de preguntas. */
+    NO_QUESTION_BANK,
     /** La operación quedó guardada en este dispositivo y se enviará al recuperar la conexión (éxito local pendiente). */
     QUEUED;
 
@@ -178,4 +246,11 @@ interface TrainingRepository {
     suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String? = null): TrainingResult<TrainingProgress>
     suspend fun checkStudyAnswer(org: String, courseId: String, questionId: String, selected: Int): TrainingResult<StudyFeedback>
     suspend fun submitAttempt(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome>
+
+    /**
+     * Pide al servidor el sorteo de una evaluación del banco oficial; [id] será el id del intento. Repetir la misma
+     * solicitud devuelve el mismo sorteo. Sin conexión no hay sorteo: nunca se inventa uno.
+     */
+    suspend fun startEvaluation(org: String, courseId: String, id: String, type: AttemptType): TrainingResult<DrawnEvaluation> =
+        TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
 }

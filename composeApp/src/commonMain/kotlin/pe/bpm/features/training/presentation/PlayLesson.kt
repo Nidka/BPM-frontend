@@ -98,7 +98,7 @@ internal val LocalInitialPick = androidx.compose.runtime.compositionLocalOf<Int?
 internal fun PlayPractice(state: TrainingState, course: TrainingCourse, study: StudyState, viewModel: TrainingViewModel, worker: WorkerCourseContext) {
     val lesson = study.lessonId?.let { id -> course.lessons.firstOrNull { it.id == id } }
     if (study.finished) {
-        PlayLessonDone(course, lesson, study, viewModel, worker, onContinue = if (lesson != null) worker.onClose else ({ viewModel.back(); Unit }))
+        PlayLessonDone(course, lesson, study, viewModel, worker, onContinue = if (lesson != null || study.review) worker.onClose else ({ viewModel.back(); Unit }))
         return
     }
     val question = study.current ?: return
@@ -106,12 +106,13 @@ internal fun PlayPractice(state: TrainingState, course: TrainingCourse, study: S
     var picked by remember(study.index, question.id) { mutableStateOf(initialPick) }
     val feedback = study.feedback
     val lead = lesson?.let { lessonSteps(it).size } ?: 0
+    val shown = study.shownOptions(question)
     val check: () -> Unit = { picked?.let { if (!study.checking && feedback == null) viewModel.answerStudy(it) } }
     val advance: () -> Unit = { viewModel.nextStudyQuestion() }
     val confirm: () -> Unit = { if (feedback == null) check() else advance() }
     val repeating = study.index >= study.originalCount
     BpmPlayStage(
-        Modifier.bpmPlayKeys(question.options.size, { if (feedback == null && !study.checking) picked = it }, confirm, focusKey = study.index to (feedback != null)),
+        Modifier.bpmPlayKeys(shown.size, { if (feedback == null && !study.checking) picked = it }, confirm, focusKey = study.index to (feedback != null)),
         progress = sequenceProgress(lead + study.index + 1, lead + study.questions.size), onClose = worker.onClose, closeDescription = "Salir de la práctica",
         progressDescription = "Pregunta ${study.index + 1} de ${study.questions.size}", scrollKey = study.index,
         footerColor = when { feedback == null -> androidx.compose.ui.graphics.Color.White; feedback.correct -> BpmPlayColors.correct.soft; else -> BpmPlayColors.error.soft },
@@ -126,19 +127,25 @@ internal fun PlayPractice(state: TrainingState, course: TrainingCourse, study: S
                         viewModel::skipStudyQuestion, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                 }
                 BpmChunkyButton(if (study.checking) "Comprobando…" else "Comprobar", check, Modifier.fillMaxWidth(), enabled = picked != null && !study.checking)
-            } else BpmFeedbackSheet(
-                correct = feedback.correct, title = if (feedback.correct) "¡Muy bien!" else "Casi",
-                explanation = feedback.explanation.ifBlank { if (feedback.correct) "Respuesta correcta." else "La respuesta correcta es: ${question.options.getOrNull(feedback.correctOption).orEmpty()}." },
-                actionLabel = if (feedback.correct) "Continuar" else "Entendido", onAction = advance)
+            } else {
+                val bank = feedback.itemCode != null
+                val justification = feedback.explanation.ifBlank { if (feedback.correct) "Respuesta correcta." else "La respuesta correcta es: ${shown.getOrNull(feedback.correctOption).orEmpty()}." }
+                val source = sourceLine(feedback.sources)
+                BpmFeedbackSheet(
+                    correct = feedback.correct, title = if (feedback.correct) "¡Muy bien!" else "Casi",
+                    explanation = if (bank && !feedback.correct) "Lo correcto: $justification" else justification,
+                    actionLabel = if (feedback.correct) "Continuar" else "Entendido", onAction = advance,
+                    source = source, xp = feedback.xpEarned, listenText = if (bank) listOf(justification, source).filter { it.isNotBlank() }.joinToString(". ") else null)
+            }
         },
     ) {
         // Sin conexión la respuesta no se puede comprobar (la corrige el servidor): se avisa antes de que la persona lo intente.
         if (!pe.bpm.core.offline.LocalOnline.current && feedback == null) BpmPlayNotice("Sin conexión: no podemos comprobar tu respuesta ahora. Puedes seguir sin comprobar o volver más tarde.")
-        Text(if (repeating) "Repasemos esta" else "Elige la respuesta", style = BpmPlayType.label, color = BpmPlayColors.action.face)
+        Text(if (repeating) "Repasemos esta" else if (study.review) "Repaso" else "Elige la respuesta", style = BpmPlayType.label, color = BpmPlayColors.action.face)
         Text(question.questionText, style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
-        BpmListenButton(question.questionText + ". " + question.options.mapIndexed { i, o -> "Opción ${i + 1}: $o." }.joinToString(" "), label = "Escuchar la pregunta")
+        BpmListenButton(question.questionText + ". " + shown.mapIndexed { i, o -> "Opción ${i + 1}: $o." }.joinToString(" "), label = "Escuchar la pregunta")
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            question.options.forEachIndexed { option, text ->
+            shown.forEachIndexed { option, text ->
                 val tile = when {
                     feedback != null && option == feedback.correctOption -> BpmOptionState.Correct
                     feedback != null && option == study.selected -> BpmOptionState.Wrong
@@ -166,12 +173,14 @@ private fun PlayLessonDone(course: TrainingCourse, lesson: TrainingLesson?, stud
         if (done != null) add(BpmStatTileSpec("Lecciones", "$done/${course.lessons.size}", BpmPlayTone.Gold, BpmSymbol.Star))
         worker.streakDays?.let { add(BpmStatTileSpec("Racha", it.toString(), BpmPlayTone.Streak, BpmSymbol.Flame)) }
         study?.accuracyPercent?.let { add(BpmStatTileSpec("Aciertos", "$it%", BpmPlayTone.Correct, BpmSymbol.Target)) }
+        study?.xpEarned?.takeIf { it > 0 }?.let { add(BpmStatTileSpec("XP", "+$it", BpmPlayTone.Gold, BpmSymbol.Bolt)) }
     }
+    val review = study?.review == true
     BpmPlayStage(
         Modifier.bpmPlayKeys(0, {}, onContinue, focusKey = lesson?.id), centered = true,
         footer = { BpmChunkyButton("Continuar", onContinue, Modifier.fillMaxWidth()) },
     ) {
-        BpmCelebration(Res.drawable.mascot_achievement, if (lesson != null) "¡Lección completa!" else "¡Práctica terminada!",
-            lesson?.title ?: "Practicar no califica ni suma puntos", stats, Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        BpmCelebration(Res.drawable.mascot_achievement, if (lesson != null) "¡Lección completa!" else if (review) "¡Repaso terminado!" else "¡Práctica terminada!",
+            lesson?.title ?: if (review) "Repasar refuerza lo que más cuesta; no es una evaluación" else "Practicar no califica ni da constancia", stats, Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
 }

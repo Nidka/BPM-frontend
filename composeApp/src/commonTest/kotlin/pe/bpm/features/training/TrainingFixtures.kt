@@ -48,6 +48,17 @@ internal class FakeTrainingRepository : TrainingRepository, TrainingAuthoringRep
     val attempts = mutableListOf<AttemptSubmission>()
     val attemptResults = ArrayDeque<(AttemptSubmission) -> TrainingResult<AttemptOutcome>>()
 
+    // Banco oficial: el sorteo y el banco de administración son programables y se registran.
+    var draw: (String, AttemptType) -> TrainingResult<DrawnEvaluation> = { id, type -> TrainingResult.Success(sampleDraw(id, type)) }
+    val drawCalls = mutableListOf<Pair<String, AttemptType>>()
+    var bank: TrainingResult<QuestionBank> = TrainingResult.Success(sampleBank())
+    val bankCalls = mutableListOf<String>()
+
+    override suspend fun startEvaluation(org: String, courseId: String, id: String, type: AttemptType): TrainingResult<DrawnEvaluation> {
+        drawCalls += id to type; return draw(id, type)
+    }
+    override suspend fun questionBank(org: String, courseId: String): TrainingResult<QuestionBank> { bankCalls += courseId; return bank }
+
     override suspend fun course(org: String, courseId: String): TrainingResult<TrainingCourse> { courseCalls += courseId; return course }
     override suspend fun videoTicket(org: String, courseId: String, lessonId: String): TrainingResult<VideoTicket> { ticketCalls += lessonId; return ticket }
     override suspend fun saveProgress(org: String, courseId: String, lessonId: String, completedLessonId: String?): TrainingResult<TrainingProgress> { progressCalls += lessonId; completedCalls += completedLessonId; return progressResult(lessonId) }
@@ -91,3 +102,39 @@ internal fun outcomeFor(attempt: AttemptSubmission, passed: Boolean): TrainingRe
         TrainingProgress(if (passed && attempt.attemptType == AttemptType.FINAL) ProgressStatus.COMPLETED else ProgressStatus.IN_PROGRESS, null, score, 20, null),
         if (passed && attempt.attemptType == AttemptType.FINAL) TrainingCertificate("80000000-0000-4000-8000-000000000001", "ABCDEFGHIJKLMNOP", STAMP) else null))
 }
+
+
+// ---- Banco oficial ---------------------------------------------------------------------------
+
+internal const val UNIT_1 = "31000000-0000-4000-8000-000000000001"
+internal const val UNIT_2 = "31000000-0000-4000-8000-000000000002"
+internal const val BQ_1 = "41000000-0000-4000-8000-000000000001"
+internal const val BQ_2 = "41000000-0000-4000-8000-000000000002"
+internal const val BQ_3 = "41000000-0000-4000-8000-000000000003"
+internal const val DRAW_VERSION = "21000000-0000-4000-8000-000000000001"
+
+internal val p01 = SourceRef("P01", "NTS 142 (P01)", "MINSA (2018). NTS N.º 142", "https://www.digesa.minsa.gob.pe/x.pdf")
+internal val c01 = SourceRef("C01", "Codex CXC 1-1969 (C01)", "Codex", "https://www.fao.org/x")
+
+/** Curso con banco oficial: dos unidades (2 y 1 preguntas), repaso configurable y 5 ítems por evaluación. */
+internal fun bankCourse(done: List<String> = emptyList(), due: List<String> = emptyList(), status: ProgressStatus = ProgressStatus.IN_PROGRESS) = TrainingCourse(
+    TrainingCourseInfo(COURSE_ID, "BPM-M01", "Módulo 1. Inocuidad", "Banco oficial", 25),
+    TrainingVersionInfo(DRAW_VERSION, 3, 80),
+    listOf(TrainingLesson(UNIT_1, "Inocuidad, peligros y riesgos", "Texto", 1, null, keyPoints = listOf("Idea")), TrainingLesson(UNIT_2, "Lavado de manos", "Texto", 2, null)),
+    listOf(
+        TrainingQuestion(BQ_1, UNIT_1, "¿Qué es inocuo?", listOf("A uno", "B dos", "C tres", "D cuatro", "E cinco"), 1),
+        TrainingQuestion(BQ_2, UNIT_1, "¿Qué es un peligro?", listOf("A uno", "B dos", "C tres", "D cuatro", "E cinco"), 2),
+        TrainingQuestion(BQ_3, UNIT_2, "¿Cuándo lavar?", listOf("A uno", "B dos", "C tres", "D cuatro", "E cinco"), 3),
+    ),
+    TrainingProgress(status, null, null, 0, null, completedLessonIds = done, completedLessons = done.size, totalLessons = 2, percent = 0), null,
+    bank = QuestionBankInfo(1, 5, 20), review = ReviewInfo(due.size, due))
+
+/** Sorteo con las alternativas ya barajadas (el servidor decide el orden; el cliente solo responde por posición). */
+internal fun sampleDraw(id: String, type: AttemptType) = DrawnEvaluation(id, DRAW_VERSION, type, 80, 1, 1, listOf(
+    TrainingQuestion(BQ_2, UNIT_1, "¿Qué es un peligro?", listOf("E cinco", "D cuatro", "C tres", "B dos", "A uno"), 1),
+    TrainingQuestion(BQ_1, UNIT_1, "¿Qué es inocuo?", listOf("B dos", "A uno", "C tres", "D cuatro", "E cinco"), 2)))
+
+internal fun sampleBank() = QuestionBank("Módulo 1. Inocuidad", "M01", 1, 80, listOf(
+    BankItem("M01-01", "Comprender", "¿Qué es inocuo?", listOf("a", "b", "c", "d", "e"), 1, "B", "Cuando no causa daño.", listOf(p01, c01), false, "Inocuidad, peligros y riesgos"),
+    BankItem("M01-03", "Comprender", "¿Qué diferencia un peligro de un riesgo?", listOf("a", "b", "c", "d", "e"), 1, "B", "El peligro es el agente.", listOf(p01), true, "Inocuidad, peligros y riesgos"),
+    BankItem("M01-05", "Aplicar", "¿Cómo lavar?", listOf("a", "b", "c", "d", "e"), 4, "E", "Con agua y jabón.", listOf(p01), true, "Lavado de manos")))

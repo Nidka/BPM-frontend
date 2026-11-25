@@ -34,6 +34,9 @@ data class NewCourseForm(val code: String = "", val title: String = "", val desc
     val issues: List<DraftIssue> get() = TrainingDraftRules.validateNewCourse(toNewCourse())
 }
 
+/** Banco oficial de un módulo abierto en solo lectura. */
+data class BankViewState(val courseId: String, val title: String, val loading: Boolean = true, val bank: QuestionBank? = null, val failure: TrainingFailure? = null)
+
 data class AuthoringState(
     val userId: String? = null,
     val organizationId: String? = null,
@@ -46,6 +49,8 @@ data class AuthoringState(
     val creatingBusy: Boolean = false,
     val createFailure: TrainingFailure? = null,
     val editor: DraftEditorState? = null,
+    /** Banco oficial de un módulo (solo lectura); excluyente con el editor. */
+    val bank: BankViewState? = null,
     val loadingDraft: Boolean = false,
     val notice: String? = null,
 )
@@ -58,6 +63,8 @@ class TrainingAuthoringViewModel(
     private val saveDraft: SaveTrainingDraft,
     private val publishCourse: PublishTrainingCourse,
     private val uploadVideo: UploadLessonVideo,
+    /** Banco oficial de un módulo (solo lectura); sin él la acción no está disponible. */
+    private val loadBank: LoadQuestionBank? = null,
     private val newId: () -> String,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(AuthoringState())
@@ -65,6 +72,7 @@ class TrainingAuthoringViewModel(
     private var generation = 0L
     private var job: Job? = null
     private var uploadJob: Job? = null
+    private var bankJob: Job? = null
     /** Archivo y reserva del último intento; se conservan para reintentar sin crear otro objeto. */
     private var pendingUpload: PendingUpload? = null
 
@@ -77,7 +85,7 @@ class TrainingAuthoringViewModel(
 
     fun reset() {
         generation++
-        job?.cancel(); uploadJob?.cancel()
+        job?.cancel(); uploadJob?.cancel(); bankJob?.cancel()
         wipeUpload()
         mutable.value = AuthoringState()
     }
@@ -144,6 +152,31 @@ class TrainingAuthoringViewModel(
             }
         }
     }
+
+    // ---- Banco oficial (solo lectura) --------------------------------------------------------
+
+    /** Abre el banco de preguntas del módulo; un curso sin banco responde con un aviso, no con un error. */
+    fun openBank(courseId: String, title: String) {
+        val (s, org) = scoped() ?: return
+        val loader = loadBank ?: return
+        bankJob?.cancel()
+        val expected = generation
+        mutable.value = s.copy(bank = BankViewState(courseId, title), notice = null, failure = null)
+        bankJob = viewModelScope.launch {
+            val result = loader(org, courseId)
+            if (expected != generation) return@launch
+            val current = mutable.value
+            val shown = current.bank?.takeIf { it.courseId == courseId } ?: return@launch
+            mutable.value = when (result) {
+                is TrainingResult.Success -> current.copy(bank = shown.copy(loading = false, bank = result.value))
+                is TrainingResult.Failure ->
+                    if (result.reason == TrainingFailure.NO_QUESTION_BANK) current.copy(bank = null, notice = "Este curso no usa el banco oficial de preguntas.")
+                    else current.copy(bank = shown.copy(loading = false, failure = result.reason))
+            }
+        }
+    }
+
+    fun closeBank() { bankJob?.cancel(); mutable.value = mutable.value.copy(bank = null) }
 
     // ---- Borrador ----------------------------------------------------------------------------
 

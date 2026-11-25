@@ -58,7 +58,8 @@ object TrainingDraftEdits {
         return draft.copy(questions = draft.questions + DraftQuestion(id, lessonId, "", listOf("", ""), 0, "", draft.questions.size + 1)).renumbered()
     }
 
-    fun removeQuestion(draft: TrainingDraft, id: String): TrainingDraft = draft.copy(questions = draft.questions.filterNot { it.id == id }).renumbered()
+    /** Los ítems del banco oficial son de solo lectura: no se quitan desde el borrador. */
+    fun removeQuestion(draft: TrainingDraft, id: String): TrainingDraft = draft.copy(questions = draft.questions.filterNot { it.id == id && !it.official }).renumbered()
 
     fun updateQuestion(draft: TrainingDraft, id: String, text: String? = null, explanation: String? = null, lessonId: String? = null, clearLesson: Boolean = false): TrainingDraft =
         draft.mapQuestion(id) {
@@ -87,7 +88,7 @@ object TrainingDraftEdits {
         draft.mapQuestion(id) { q -> if (index in q.options.indices) q.copy(correctOption = index) else q }
 
     private fun TrainingDraft.mapQuestion(id: String, transform: (DraftQuestion) -> DraftQuestion) =
-        copy(questions = questions.map { if (it.id == id) transform(it) else it })
+        copy(questions = questions.map { if (it.id == id && !it.official) transform(it) else it })
 
     private fun TrainingDraft.renumbered() = copy(
         lessons = lessons.mapIndexed { i, lesson -> lesson.copy(displayOrder = i + 1) },

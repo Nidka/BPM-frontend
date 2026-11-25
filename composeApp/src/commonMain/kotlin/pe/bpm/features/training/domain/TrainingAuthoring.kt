@@ -35,7 +35,11 @@ data class DraftQuestion(
     val correctOption: Int,
     val explanation: String,
     val displayOrder: Int,
-)
+    /** Código del ítem del banco oficial (M01-03): un ítem oficial es de solo lectura; nulo en una pregunta común. */
+    val itemCode: String? = null,
+) {
+    val official: Boolean get() = itemCode != null
+}
 
 /** Borrador editable: sí incluye respuesta correcta y explicación; solo lo ve la administración. */
 data class TrainingDraft(
@@ -75,6 +79,9 @@ interface TrainingAuthoringRepository {
     suspend fun draft(org: String, courseId: String): TrainingResult<TrainingDraft>
     suspend fun saveDraft(org: String, courseId: String, draft: TrainingDraft): TrainingResult<TrainingDraft>
     suspend fun publish(org: String, courseId: String): TrainingResult<Unit>
+
+    /** Banco oficial del módulo (solo lectura); `NO_QUESTION_BANK` si el curso no lo usa. */
+    suspend fun questionBank(org: String, courseId: String): TrainingResult<QuestionBank> = TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
 
     /**
      * Reserva, sube directo a R2 y confirma. [mediaId] es estable entre reintentos: repetir la

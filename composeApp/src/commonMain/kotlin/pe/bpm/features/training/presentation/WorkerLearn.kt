@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -68,6 +70,7 @@ internal fun WorkerLearnContent(
     onOpenFinal: (courseId: String) -> Unit,
     onOpenCourse: (courseId: String) -> Unit,
     catalog: @Composable () -> Unit,
+    onOpenReview: (courseId: String) -> Unit = {},
 ) {
     val state by learner.state.collectAsStateWithLifecycle()
     val ids = state.assignments.map { it.course.id }
@@ -92,7 +95,7 @@ internal fun WorkerLearnContent(
         ordered.forEachIndexed { index, assignment ->
             val course = state.pathCourses[assignment.course.id]
             CoursePath(index, assignment, course, assignment.course.id in state.pathCoursesFailed, member, active == assignment.course.id,
-                onOpenLesson, onOpenFinal, onOpenCourse)
+                onOpenLesson, onOpenFinal, onOpenCourse, onOpenReview)
         }
         if (state.assignmentsLoaded && ordered.isEmpty()) BpmPlayEmpty(Res.drawable.mascot_learning, "Sin cursos asignados",
             "Cuando tu administrador te asigne un curso, aparecerá aquí. Mientras tanto, mira los cursos de tu organización más abajo y empieza por el que quieras.")
@@ -126,7 +129,7 @@ internal fun activeCourseId(courses: List<TrainingCourse?>): String? {
 @Composable
 private fun CoursePath(
     index: Int, assignment: MyAssignment, course: TrainingCourse?, failed: Boolean, member: Boolean, active: Boolean,
-    onOpenLesson: (String, String) -> Unit, onOpenFinal: (String) -> Unit, onOpenCourse: (String) -> Unit,
+    onOpenLesson: (String, String) -> Unit, onOpenFinal: (String) -> Unit, onOpenCourse: (String) -> Unit, onOpenReview: (String) -> Unit = {},
 ) {
     val id = assignment.course.id
     val colors = BpmPlayColors.unitColors
@@ -138,10 +141,17 @@ private fun CoursePath(
             completed -> CompletedCourse { onOpenCourse(id) }
             course != null -> Box(Modifier.fillMaxWidth()) {
                 val nodes = remember(course, member) { pathNodes(course, member) }
-                LessonPath(nodes, active) { node ->
-                    if (node.lessonId != null) onOpenLesson(id, node.lessonId) else onOpenFinal(id)
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (course.bank != null) UnitsSummary(course, member)
+                    LessonPath(nodes, active, startBubbleLabel(course)) { node ->
+                        when {
+                            node.lessonId != null -> onOpenLesson(id, node.lessonId)
+                            node.kind == PathNodeKind.REVIEW -> onOpenReview(id)
+                            else -> onOpenFinal(id)
+                        }
+                    }
                 }
-                if (index == 0) Image(painterResource(Res.drawable.mascot_class), contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).padding(top = 96.dp).width(96.dp))
+                if (index == 0 && course.bank == null) Image(painterResource(Res.drawable.mascot_class), contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).padding(top = 96.dp).width(96.dp))
             }
             failed -> BpmChunkyButton("Abrir el curso", { onOpenCourse(id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             else -> BpmSkeletonList(rows = 3, label = "Cargando lecciones")
@@ -178,27 +188,65 @@ private fun CompletedCourse(onOpen: () -> Unit) {
 
 /**
  * Camino de lecciones de un curso sin terminar: los [nodes] en columna con zigzag (0, −60, 0, +60 dp) y 16 dp entre
- * nodos, como [BpmLearningPath]. Solo con [active] el nodo actual lleva la burbuja «Empezar» y el aro; en otro curso
- * su siguiente lección es un nodo desbloqueado normal, sin burbuja ni aro.
+ * nodos, como [BpmLearningPath]. Solo con [active] el nodo actual lleva la burbuja [startLabel] («Empezar» o «Continuar»)
+ * y el aro; en otro curso su siguiente lección es un nodo desbloqueado normal, sin burbuja ni aro. En cursos con banco
+ * oficial cada nodo lleva su rótulo visible centrado debajo (unidad, preguntas y, en el trofeo, el mínimo para aprobar).
  */
 @Composable
-private fun LessonPath(nodes: List<PathNodeModel>, active: Boolean, onClick: (PathNodeModel) -> Unit) {
+private fun LessonPath(nodes: List<PathNodeModel>, active: Boolean, startLabel: String, onClick: (PathNodeModel) -> Unit) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         nodes.forEachIndexed { index, node ->
             val dx = pathNodeOffset(index, nodes.size)
             Column(Modifier.offset { IntOffset(dx.dp.roundToPx(), 0) }, horizontalAlignment = Alignment.CenterHorizontally) {
                 val current = node.state == BpmPathNodeState.Current
                 when {
+                    node.kind == PathNodeKind.REVIEW -> ReviewNode(node.label) { onClick(node) }
                     current && active -> {
-                        StartBubble("Empezar")
+                        StartBubble(startLabel)
                         Box(Modifier.size(1.dp, 12.dp))
                         BpmPathNode(node.state, { onClick(node) }, contentDescription = node.label)
                     }
                     current -> OpenNode(node.label) { onClick(node) }
                     else -> BpmPathNode(node.state, { onClick(node) }, enabled = node.enabled, contentDescription = node.label)
                 }
+                if (node.caption.isNotEmpty()) NodeCaption(node)
             }
         }
+    }
+}
+
+/** Rótulo visible bajo un nodo: centrado y de ancho acotado para no salirse de la pantalla con el desplazamiento del zigzag. */
+@Composable
+private fun NodeCaption(node: PathNodeModel) {
+    val locked = node.state == BpmPathNodeState.Locked || node.kind == PathNodeKind.FINAL && !node.enabled
+    Text(node.caption, Modifier.padding(top = 4.dp).widthIn(max = 200.dp).clearAndSetSemantics { }, // medida: rótulo bajo un nodo, acotado para que el zigzag no lo saque de la pantalla
+        style = BpmPlayType.rowDetail, color = if (locked) BpmPlayColors.muted else BpmPlayColors.ink, textAlign = TextAlign.Center)
+}
+
+/** Resumen de avance del módulo con banco oficial: unidades hechas y cómo se evalúa. */
+@Composable
+private fun UnitsSummary(course: TrainingCourse, member: Boolean) {
+    val states = lessonStepStates(course)
+    val done = states.count { it == BpmStepState.Done }
+    val total = course.lessons.size
+    val text = "$done de $total unidades" + if (member) " · luego, una evaluación de ${course.bank?.itemsPerAttempt ?: 5} preguntas (aprueba con ${passingFraction(course)})" else ""
+    Text(text, style = BpmPlayType.sub, color = BpmPlayColors.muted, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Avance del módulo: $text" })
+}
+
+/** Nodo del repaso espaciado: óvalo cálido con la flecha circular; se hunde al pulsar, igual que [OpenNode]. */
+@Composable
+private fun ReviewNode(label: String, onClick: () -> Unit) {
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    Box(Modifier.size(72.dp, 73.dp).drawBehind {
+        drawOval(BpmPlayColors.streak.shadow, Offset(0f, 7.dp.toPx()), Size(72.dp.toPx(), 66.dp.toPx()))
+    }) {
+        Box(
+            Modifier.offset { IntOffset(0, if (pressed) 4.dp.roundToPx() else 0) }.size(72.dp, 66.dp).clip(CircleShape).background(BpmPlayColors.streak.face)
+                .semantics { contentDescription = label }
+                .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) { BpmIcon(BpmSymbol.Refresh, tint = Color.White, modifier = Modifier.size(32.dp)) }
     }
 }
 

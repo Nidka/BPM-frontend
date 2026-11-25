@@ -16,7 +16,7 @@ async function readPayload(body, maximum = 4 * 1024 * 1024) {
 }
 
 const idPattern = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
-const route = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/training/(?:(courses)(?:/(${idPattern})(?:/(draft|publish|progress|study/answers|attempts|lessons/(${idPattern})/video))?)?|videos/(?:(uploads)|(${idPattern})/(confirm)))$`);
+const route = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/training/(?:(courses)(?:/(${idPattern})(?:/(draft|publish|progress|study/answers|attempts|evaluations|bank|lessons/(${idPattern})/video))?)?|videos/(?:(uploads)|(${idPattern})/(confirm)))$`);
 // Rutas ampliadas: asignaciones, insignias, rutas de aprendizaje y el catálogo descargable (con ETag).
 const plusRoute = new RegExp(`^/backend/api/v1/organizations/([A-Za-z0-9_-]{1,64})/training/(me/assignments|me/achievements|me/offline-catalog|assignments|achievements|paths)(?:/(${idPattern})(?:/(cancel|publish|archive))?)?$`);
 // Verificación pública: sin sesión; el código es base32 de 24 caracteres.
@@ -100,6 +100,63 @@ function externalVideo(value) {
 }
 const unique = (items, key = 'id') => need(new Set(items.map(item => item[key].toLowerCase())).size === items.length);
 
+const blooms = ['Recordar', 'Comprender', 'Aplicar', 'Analizar', 'Evaluar'];
+const itemCodePattern = /^M0[1-5]-[0-9]{2}$/;
+const itemCode = value => { need(typeof value === 'string' && itemCodePattern.test(value)); return value; };
+/** Fuentes oficiales de un ítem del banco (P01, C01…): código, etiqueta, título y enlace HTTPS; ausentes equivalen a vacío. */
+function sources(value) {
+  const list = value ?? [];
+  need(Array.isArray(list) && list.length <= 8);
+  return list.map(source => {
+    need(object(source) && typeof source.code === 'string' && /^[A-Z][0-9]{2}$/.test(source.code) && string(source.label ?? '', 120) && string(source.title ?? '', 600) && string(source.url ?? '', 500) && (!source.url || source.url.startsWith('https://')));
+    return { code: source.code, label: source.label ?? '', title: source.title ?? '', url: source.url ?? '' };
+  });
+}
+/** Banco oficial y repaso de la vista de aprendizaje: un backend anterior no los envía (nulos). */
+function questionBank(value) {
+  if (value == null) return null;
+  need(object(value) && integer(value.version, 1, 1e6) && integer(value.itemsPerAttempt, 1, 20) && integer(value.poolSize, 0, 100));
+  return { version: value.version, itemsPerAttempt: value.itemsPerAttempt, poolSize: value.poolSize };
+}
+function review(value) {
+  if (value == null) return null;
+  need(object(value) && integer(value.dueCount, 0, 1000) && Array.isArray(value.questionIds) && value.questionIds.length <= 20 && value.questionIds.every(uuid));
+  return { dueCount: value.dueCount, questionIds: [...value.questionIds] };
+}
+/** Pregunta pública (sin respuesta) de la vista de aprendizaje o de una evaluación sorteada. */
+function publicQuestion(question, lessons) {
+  need(object(question) && uuid(question.id) && (question.lessonId == null || uuid(question.lessonId)) && string(question.questionText, 1000, 1) &&
+    Array.isArray(question.options) && question.options.length >= 2 && question.options.length <= 6 && question.options.every(option => string(option, 300, 1)) && integer(question.displayOrder, 0, 1e6));
+  need(!lessons || question.lessonId == null || lessons.some(lesson => same(lesson.id, question.lessonId)));
+  return { id: question.id, lessonId: question.lessonId ?? null, questionText: question.questionText, options: [...question.options], displayOrder: question.displayOrder };
+}
+/** Evaluación sorteada del banco oficial: preguntas con las alternativas ya barajadas y sin clave ni explicación. */
+function drawnEvaluation(value, input) {
+  need(object(value) && object(value.evaluation));
+  const e = value.evaluation;
+  need(uuid(e.id) && same(e.id, input.id) && uuid(e.versionId) && e.attemptType === input.attemptType && integer(e.passingScore, 0, 100) && integer(e.bankVersion, 1, 1e6) &&
+    integer(e.attemptNumber, 1, 1e6) && Array.isArray(e.questions) && e.questions.length >= 1 && e.questions.length <= 20);
+  const questions = e.questions.map(question => publicQuestion(question));
+  unique(questions);
+  return { evaluation: { id: e.id, versionId: e.versionId, attemptType: e.attemptType, passingScore: e.passingScore, bankVersion: e.bankVersion, attemptNumber: e.attemptNumber, questions } };
+}
+/** Banco de un módulo para administración (solo lectura): clave y justificación incluidas. */
+function bankView(value, courseId) {
+  need(object(value) && object(value.bank));
+  const b = value.bank;
+  need(/^M0[1-5]$/.test(b.module) && integer(b.bankVersion, 1, 1e6) && integer(b.passingScore, 0, 100) && Array.isArray(b.items) && b.items.length <= 100);
+  const course = courseInfo(b.course);
+  need(same(course.id, courseId));
+  const items = b.items.map(item => {
+    need(object(item) && blooms.includes(item.bloom) && string(item.questionText, 1000, 1) && Array.isArray(item.options) && item.options.length >= 2 && item.options.length <= 6 && item.options.every(option => string(option, 300, 1)) &&
+      integer(item.correctOption, 0, item.options.length - 1) && typeof item.key === 'string' && /^[A-F]$/.test(item.key) && string(item.justification ?? '', 2000) && typeof item.recommended === 'boolean' && string(item.lessonTitle ?? '', 200));
+    return { code: itemCode(item.code), bloom: item.bloom, questionText: item.questionText, options: [...item.options], correctOption: item.correctOption, key: item.key,
+      justification: item.justification ?? '', sources: sources(item.sources), recommended: item.recommended, lessonTitle: item.lessonTitle ?? '' };
+  });
+  unique(items, 'code');
+  return { bank: { course, module: b.module, bankVersion: b.bankVersion, passingScore: b.passingScore, items } };
+}
+
 /** Vista de aprendizaje: nunca contiene correctOption ni explanation aunque el servidor los enviara. */
 function learningCourse(value, courseId) {
   need(object(value) && Array.isArray(value.lessons) && value.lessons.length <= 50 && Array.isArray(value.questions) && value.questions.length <= 100 && object(value.version));
@@ -120,7 +177,8 @@ function learningCourse(value, courseId) {
     return { id: question.id, lessonId: question.lessonId ?? null, questionText: question.questionText, options: [...question.options], displayOrder: question.displayOrder };
   });
   unique(questions);
-  return { course, version: { id: value.version.id, versionNumber: value.version.versionNumber, passingScore: value.version.passingScore }, lessons, questions, progress: progress(value.progress), certificate: certificate(value.certificate) };
+  return { course, version: { id: value.version.id, versionNumber: value.version.versionNumber, passingScore: value.version.passingScore }, lessons, questions, progress: progress(value.progress), certificate: certificate(value.certificate),
+    ...(value.questionBank != null ? { questionBank: questionBank(value.questionBank) } : {}), ...(value.review != null ? { review: review(value.review) } : {}) };
 }
 
 /** Un curso del catálogo offline: nunca incluye respuesta correcta, explicación, progreso ni URL. */
@@ -172,7 +230,9 @@ function draftBody(value, courseId, withCourse, asInput = false) {
       string(question.explanation ?? '', 1000) && integer(question.displayOrder, 0, 1e6));
     need(question.lessonId == null || lessons.some(lesson => same(lesson.id, question.lessonId)));
     need(new Set(question.options.map(option => option.trim())).size === question.options.length);
-    return { id: question.id, lessonId: question.lessonId ?? null, questionText: question.questionText, options: [...question.options], correctOption: question.correctOption, explanation: question.explanation ?? '', displayOrder: question.displayOrder };
+    // Ítem oficial del banco (solo lectura): el código viaja en la lectura y se descarta al guardar (el servidor conserva el ítem).
+    return { id: question.id, lessonId: question.lessonId ?? null, questionText: question.questionText, options: [...question.options], correctOption: question.correctOption, explanation: question.explanation ?? '', displayOrder: question.displayOrder,
+      ...(question.itemCode != null && !asInput ? { itemCode: itemCode(question.itemCode) } : {}) };
   });
   unique(questions);
   const output = { version: { id: version.id, versionNumber: version.versionNumber, passingScore: version.passingScore, rowVersion: version.rowVersion }, lessons, questions };
@@ -228,6 +288,9 @@ function inputFor(kind, value) {
     case 'study':
       exact(value, ['questionId', 'selectedOption']); need(uuid(value.questionId) && integer(value.selectedOption, 0, 5));
       return { questionId: value.questionId, selectedOption: value.selectedOption };
+    case 'evaluation':
+      exact(value, ['id', 'attemptType']); need(uuid(value.id) && ['DIAGNOSTIC', 'FINAL'].includes(value.attemptType));
+      return { id: value.id, attemptType: value.attemptType };
     case 'attempt': {
       shape(value, ['id', 'clientOperationId', 'versionId', 'attemptType', 'startedAt', 'clientCreatedAt', 'answers'], ['lessonId']);
       // lessonId es obligatorio y exclusivo de MODULE.
@@ -245,7 +308,7 @@ function inputFor(kind, value) {
       exact(value.version, ['id', 'versionNumber', 'passingScore', 'rowVersion']);
       need(Array.isArray(value.lessons) && Array.isArray(value.questions));
       value.lessons.forEach(lesson => shape(lesson, ['id', 'title', 'content', 'displayOrder', 'videoMediaId'], ['externalVideo', 'keyPoints']));
-      value.questions.forEach(question => exact(question, ['id', 'lessonId', 'questionText', 'options', 'correctOption', 'explanation', 'displayOrder']));
+      value.questions.forEach(question => shape(question, ['id', 'lessonId', 'questionText', 'options', 'correctOption', 'explanation', 'displayOrder'], ['itemCode']));
       return draftBody(value, undefined, false, true);
     case 'upload':
       exact(value, ['id', 'originalName', 'mimeType', 'sizeBytes', 'sha256']);
@@ -391,6 +454,8 @@ function operation(match, method) {
   if (child === 'progress') return method === 'PUT' ? { kind: 'progress' } : null;
   if (child === 'study/answers') return method === 'POST' ? { kind: 'study' } : null;
   if (child === 'attempts') return method === 'POST' ? { kind: 'attempt' } : null;
+  if (child === 'evaluations') return method === 'POST' ? { kind: 'evaluation' } : null;
+  if (child === 'bank') return method === 'GET' ? { kind: 'bank' } : null;
   return null;
 }
 
@@ -501,10 +566,10 @@ export async function proxyTraining(request, url, upstream, send, response) {
         404: { TRAINING_COURSE_NOT_FOUND: 'El curso no tiene una versión publicada.', TRAINING_LESSON_NOT_FOUND: 'La lección no está disponible.', TRAINING_QUESTION_NOT_FOUND: 'La pregunta no está disponible.', TRAINING_VIDEO_NOT_FOUND: 'El video no está disponible.', TRAINING_DRAFT_NOT_FOUND: 'El borrador no está disponible.',
           TRAINING_ASSIGNEE_NOT_FOUND: 'La persona no pertenece a la organización.', TRAINING_LOCATION_NOT_FOUND: 'La sede no está disponible.', TRAINING_ASSIGNMENT_NOT_FOUND: 'La asignación no está disponible.',
           TRAINING_ACHIEVEMENT_NOT_FOUND: 'La insignia no está disponible.', TRAINING_PATH_NOT_FOUND: 'La ruta no está disponible.' },
-        409: { TRAINING_VERSION_OUTDATED: 'El curso se actualizó. Cargamos la versión vigente.', TRAINING_COURSE_CODE_TAKEN: 'Ese código de curso ya existe.',
+        409: { TRAINING_VERSION_OUTDATED: 'El curso se actualizó. Cargamos la versión vigente.', TRAINING_EVALUATION_NOT_STARTED: 'Primero inicia la evaluación.', TRAINING_COURSE_CODE_TAKEN: 'Ese código de curso ya existe.',
           TRAINING_DRAFT_CONFLICT: 'El borrador cambió. Recarga antes de guardar.', IDEMPOTENCY_CONFLICT: 'Esta operación ya se registró con otros datos.', UPLOAD_NOT_READY: 'El video todavía no está confirmado.', TRAINING_VIDEO_NOT_READY: 'El video todavía no está confirmado.', TRAINING_VIDEO_CONFLICT: 'El video ya existe con otros datos.',
           TRAINING_ASSIGNMENT_EXISTS: 'Ya hay una asignación activa igual.', TRAINING_PATH_CONFLICT: 'La ruta cambió. Recárgala antes de guardar.', TRAINING_PATH_ARCHIVED: 'La ruta está archivada.' },
-        422: { TRAINING_ANSWERS_INVALID: 'Responde todas las preguntas una sola vez.', TRAINING_DRAFT_INCOMPLETE: 'El borrador está incompleto.', MEDIA_CONTENT_INVALID: 'El video no se pudo validar.', TRAINING_VIDEO_INVALID: 'El video no se pudo validar.', TRAINING_COURSE_NOT_PUBLISHED: 'El curso no está publicado.' },
+        422: { TRAINING_ANSWERS_INVALID: 'Responde todas las preguntas una sola vez.', TRAINING_DRAFT_INCOMPLETE: 'El borrador está incompleto.', MEDIA_CONTENT_INVALID: 'El video no se pudo validar.', TRAINING_VIDEO_INVALID: 'El video no se pudo validar.', TRAINING_COURSE_NOT_PUBLISHED: 'El curso no está publicado.', TRAINING_NO_QUESTION_BANK: 'Este curso no usa el banco oficial de preguntas.' },
       }[result.status];
       if (domain?.[code]) return send(result.status, error(code, domain[code]));
       return send(result.status, error(...failures[result.status]));
@@ -519,7 +584,9 @@ export async function proxyTraining(request, url, upstream, send, response) {
       case 'progress': projected = { progress: progress(data.progress) }; break;
       case 'study': {
         need(typeof data.correct === 'boolean' && integer(data.correctOption, 0, 5) && string(data.explanation ?? '', 2000) && data.correct === (input.selectedOption === data.correctOption));
-        projected = { correct: data.correct, correctOption: data.correctOption, explanation: data.explanation ?? '' };
+        need(data.xpEarned == null || integer(data.xpEarned, 0, 1000) && (data.itemCode == null || typeof data.itemCode === 'string'));
+        projected = { correct: data.correct, correctOption: data.correctOption, explanation: data.explanation ?? '',
+          ...(data.itemCode != null ? { itemCode: itemCode(data.itemCode), sources: sources(data.sources), xpEarned: data.xpEarned ?? 0 } : {}) };
         break;
       }
       case 'attempt': {
@@ -531,7 +598,12 @@ export async function proxyTraining(request, url, upstream, send, response) {
           const answer = input.answers.find(candidate => same(candidate.questionId, item?.questionId));
           need(object(item) && answer && item.selectedOption === answer.selectedOption && typeof item.correct === 'boolean' && integer(item.correctOption, 0, 5) &&
             item.correct === (item.selectedOption === item.correctOption) && string(item.explanation ?? '', 2000));
-          return { questionId: item.questionId, selectedOption: item.selectedOption, correct: item.correct, correctOption: item.correctOption, explanation: item.explanation ?? '' };
+          const base = { questionId: item.questionId, selectedOption: item.selectedOption, correct: item.correct, correctOption: item.correctOption, explanation: item.explanation ?? '' };
+          if (item.itemCode == null) return base;
+          // Ítem del banco oficial: texto y alternativas tal como se mostraron, nivel de Bloom y fuentes (la evaluación ya terminó).
+          need(string(item.questionText ?? '', 1000, 1) && Array.isArray(item.options) && item.options.length >= 2 && item.options.length <= 6 && item.options.every(option => string(option, 300, 1)) &&
+            item.selectedOption < item.options.length && item.correctOption < item.options.length && (item.bloom == null || blooms.includes(item.bloom)));
+          return { ...base, itemCode: itemCode(item.itemCode), ...(item.bloom != null ? { bloom: item.bloom } : {}), questionText: item.questionText, options: [...item.options], sources: sources(item.sources) };
         });
         unique(results, 'questionId');
         need(attempt.score === Math.round(results.filter(item => item.correct).length * 100 / results.length));
@@ -543,6 +615,8 @@ export async function proxyTraining(request, url, upstream, send, response) {
           achievements: (data.achievements ?? []).map(achievement), nextCourse: nextCourse(data.nextCourse) };
         break;
       }
+      case 'evaluation': status = result.status === 201 ? 201 : 200; projected = drawnEvaluation(data, input); break;
+      case 'bank': projected = bankView(data, courseId); break;
       case 'adminList':
         need(Array.isArray(data.items) && data.items.length <= 100);
         projected = { items: data.items.map(item => adminItem(item, url.searchParams.get('status'))) };

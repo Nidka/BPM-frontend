@@ -32,6 +32,10 @@ class TrainingViewModel(
     private val attempts: TrainingAttemptLedger = NoTrainingAttemptLedger,
     /** Sincroniza el catálogo offline en segundo plano al abrir un curso (ETag/304). */
     private val syncCatalog: (suspend (String) -> Unit)? = null,
+    /** Sorteo de la evaluación del banco oficial en el servidor; sin él, esas evaluaciones no pueden empezar. */
+    private val startDraw: StartTrainingEvaluation? = null,
+    /** Azar del orden de alternativas en la práctica del banco (inyectable en pruebas). */
+    private val random: kotlin.random.Random = kotlin.random.Random.Default,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(TrainingState())
     val state: StateFlow<TrainingState> = mutable.asStateFlow()
@@ -43,10 +47,11 @@ class TrainingViewModel(
     private var submitJob: Job? = null
     private var attemptsJob: Job? = null
     private var downloadsJob: Job? = null
+    private var drawJob: Job? = null
 
     private fun cancelAll() {
         generation++
-        listOf(loadJob, videoJob, progressJob, studyJob, submitJob, attemptsJob).forEach { it?.cancel() }
+        listOf(loadJob, videoJob, progressJob, studyJob, submitJob, attemptsJob, drawJob).forEach { it?.cancel() }
     }
 
     fun reset() {
@@ -90,13 +95,14 @@ class TrainingViewModel(
         loadJob = viewModelScope.launch {
             val result = loadCourse(org, courseId)
             if (expected != generation) return@launch
+            var redraw: AttemptType? = null
             mutable.value = when (result) {
                 is TrainingResult.Success -> {
                     val current = mutable.value
                     val course = result.value
                     val lesson = current.lessonId?.takeIf { id -> course.lessons.any { it.id == id } }
                     val evaluation = current.evaluation?.takeIf { keepEvaluation }
-                        ?.let { EvaluationState(it.type, now(), it.lessonId) }
+                        ?.let { EvaluationState(it.type, now(), it.lessonId, bank = course.bank != null, starting = course.bank != null) }
                     // Las preguntas pudieron cambiar: la práctica se reinicia y la evaluación solo continúa si se pidió.
                     val screen = when {
                         lesson == null && current.screen == TrainingPane.LESSON -> TrainingPane.OVERVIEW
@@ -104,11 +110,14 @@ class TrainingViewModel(
                         current.screen == TrainingPane.EVALUATION && evaluation == null -> TrainingPane.OVERVIEW
                         else -> current.screen
                     }
+                    // Con banco oficial, una versión nueva exige un sorteo nuevo con las preguntas vigentes.
+                    redraw = evaluation?.takeIf { it.starting }?.type
                     current.copy(loading = false, failure = null, course = course, lessonId = lesson, screen = screen,
                         study = null, evaluation = evaluation, notice = notice ?: current.notice)
                 }
                 is TrainingResult.Failure -> mutable.value.copy(loading = false, failure = result.reason)
             }
+            redraw?.let { beginDraw(it) }
         }
     }
 
@@ -268,8 +277,26 @@ class TrainingViewModel(
             return
         }
         studyJob?.cancel()
-        mutable.value = mutable.value.copy(screen = TrainingPane.STUDY, study = StudyState(questions, lessonId.takeIf { scoped.isNotEmpty() }, repeatMissed = repeatMissed), video = VideoState.Idle)
+        mutable.value = mutable.value.copy(screen = TrainingPane.STUDY, video = VideoState.Idle,
+            study = StudyState(questions, lessonId.takeIf { scoped.isNotEmpty() }, repeatMissed = repeatMissed, shuffles = shufflesFor(course, questions)))
     }
+
+    /** Repaso espaciado: practica las preguntas que el servidor marcó por repasar; las falladas se repiten al final. */
+    fun startReview() {
+        val course = mutable.value.course ?: return
+        val questions = course.review.questionIds.mapNotNull { id -> course.questions.firstOrNull { it.id == id } }
+        if (questions.isEmpty()) {
+            mutable.value = mutable.value.copy(notice = "No tienes preguntas por repasar ahora.")
+            return
+        }
+        studyJob?.cancel()
+        mutable.value = mutable.value.copy(screen = TrainingPane.STUDY, video = VideoState.Idle,
+            study = StudyState(questions, null, repeatMissed = true, review = true, shuffles = shufflesFor(course, questions)))
+    }
+
+    /** En un curso con banco oficial cada pregunta se muestra con las alternativas en otro orden (no se memorizan posiciones). */
+    private fun shufflesFor(course: TrainingCourse, questions: List<TrainingQuestion>): Map<String, List<Int>> =
+        if (course.bank == null) emptyMap() else questions.associate { it.id to it.options.indices.toList().shuffled(random) }
 
     /** Responde y muestra de inmediato si fue correcta y por qué; no suma puntos ni crea intentos. */
     fun answerStudy(option: Int) {
@@ -280,18 +307,20 @@ class TrainingViewModel(
         val question = study.current ?: return
         if (study.checking || study.feedback != null || option !in question.options.indices) return
         mutable.value = s.copy(study = study.copy(selected = option, checking = true, failure = null))
+        // Al servidor siempre viaja el índice original; la retroalimentación vuelve a la posición mostrada.
+        val original = study.originalOption(question, option)
         val expected = generation
         studyJob?.cancel()
         studyJob = viewModelScope.launch {
-            val result = checkAnswer(org, course, question.id, option)
+            val result = checkAnswer(org, course, question.id, original)
             if (expected != generation) return@launch
             val current = mutable.value
             val active = current.study?.takeIf { it.current?.id == question.id } ?: return@launch
             mutable.value = current.copy(study = when (result) {
                 is TrainingResult.Success -> {
-                    val feedback = result.value
+                    val feedback = result.value.copy(correctOption = active.shownPosition(question, result.value.correctOption))
                     val repeat = !feedback.correct && active.repeatMissed && question.id !in active.repeated
-                    active.copy(checking = false, feedback = feedback,
+                    active.copy(checking = false, feedback = feedback, xpEarned = active.xpEarned + feedback.xpEarned,
                         firstTryCorrect = active.firstTryCorrect + if (feedback.correct && active.index < active.originalCount) 1 else 0,
                         questions = if (repeat) active.questions + question else active.questions,
                         repeated = if (repeat) active.repeated + question.id else active.repeated)
@@ -328,6 +357,8 @@ class TrainingViewModel(
     /** Evalúa solo las preguntas de una lección; no completa el curso ni emite constancia. */
     fun startModuleEvaluation(lessonId: String) {
         val course = mutable.value.course ?: return
+        // En un curso con banco la práctica de cada unidad reemplaza a la evaluación por lección.
+        if (course.bank != null) return
         if (!mutable.value.canPersist || course.lessons.none { it.id == lessonId }) return
         if (course.questions.none { it.lessonId == lessonId }) {
             mutable.value = mutable.value.copy(notice = "Esta lección todavía no tiene preguntas para evaluar.")
@@ -339,11 +370,46 @@ class TrainingViewModel(
     fun startEvaluation(type: AttemptType) {
         val course = mutable.value.course ?: return
         if (!mutable.value.canPersist || type == AttemptType.MODULE) return
+        if (course.bank != null) {
+            // Curso con banco oficial: el servidor sortea las 5 preguntas y baraja sus alternativas.
+            mutable.value = mutable.value.copy(screen = TrainingPane.EVALUATION, video = VideoState.Idle,
+                evaluation = EvaluationState(type, now(), bank = true, starting = true))
+            beginDraw(type)
+            return
+        }
         if (course.questions.isEmpty()) {
             mutable.value = mutable.value.copy(notice = "Este curso todavía no tiene preguntas para evaluar.")
             return
         }
         mutable.value = mutable.value.copy(screen = TrainingPane.EVALUATION, evaluation = EvaluationState(type, now()), video = VideoState.Idle)
+    }
+
+    /** Reintenta el sorteo tras un fallo (sin conexión, por ejemplo). */
+    fun retryDraw() {
+        val evaluation = mutable.value.evaluation ?: return
+        if (!evaluation.bank || evaluation.drawn != null || evaluation.starting) return
+        mutable.value = mutable.value.copy(evaluation = evaluation.copy(starting = true, failure = null))
+        beginDraw(evaluation.type)
+    }
+
+    /** Pide el sorteo con un id nuevo: ese id será el del intento. */
+    private fun beginDraw(type: AttemptType) {
+        val s = mutable.value
+        val org = s.organizationId ?: return
+        val course = s.course ?: return
+        val drawer = startDraw
+        val expected = generation
+        drawJob?.cancel()
+        drawJob = viewModelScope.launch {
+            val result = drawer?.invoke(org, course.course.id, newId(), type) ?: TrainingResult.Failure(TrainingFailure.UNAVAILABLE)
+            if (expected != generation) return@launch
+            val current = mutable.value
+            val active = current.evaluation?.takeIf { it.bank && it.type == type && it.drawn == null } ?: return@launch
+            mutable.value = current.copy(evaluation = when (result) {
+                is TrainingResult.Success -> active.copy(starting = false, drawn = result.value, failure = null, startedAt = now(), index = 0)
+                is TrainingResult.Failure -> active.copy(starting = false, failure = result.reason)
+            })
+        }
     }
 
     /** Las respuestas se bloquean mientras exista un envío pendiente o ya hay resultado. */
@@ -396,7 +462,7 @@ class TrainingViewModel(
         val course = s.course ?: return
         val evaluation = s.evaluation ?: return
         if (evaluation.submitting || evaluation.outcome != null || evaluation.queued) return
-        val attempt = evaluation.pending ?: submitAttempt.prepare(course, evaluation.type, evaluation.answers, newId, evaluation.startedAt, now(), evaluation.lessonId)
+        val attempt = evaluation.pending ?: submitAttempt.prepare(course, evaluation.type, evaluation.answers, newId, evaluation.startedAt, now(), evaluation.lessonId, evaluation.drawn)
         if (attempt == null) {
             mutable.value = s.copy(evaluation = evaluation.copy(failure = TrainingFailure.ANSWERS_INVALID))
             return

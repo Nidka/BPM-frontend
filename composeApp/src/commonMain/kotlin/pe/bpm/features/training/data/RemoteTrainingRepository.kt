@@ -57,7 +57,18 @@ class RemoteTrainingRepository(
         val dto = api<Envelope<StudyDto>>(org, "courses/${trainingId(courseId)}/study/answers", HttpMethod.Post,
             buildJsonObject { put("questionId", trainingId(questionId)); put("selectedOption", selected) }).data
         require(dto.correctOption in 0..5 && dto.correct == (selected == dto.correctOption))
-        StudyFeedback(dto.correct, dto.correctOption, dto.explanation)
+        require(dto.xpEarned in 0..1000)
+        StudyFeedback(dto.correct, dto.correctOption, dto.explanation, checkedItemCode(dto.itemCode), dto.sources.domain(), dto.xpEarned)
+    }
+
+    override suspend fun startEvaluation(org: String, courseId: String, id: String, type: AttemptType): TrainingResult<DrawnEvaluation> = guarded {
+        require(type != AttemptType.MODULE)
+        api<Envelope<DrawnEvaluationEnvelope>>(org, "courses/${trainingId(courseId)}/evaluations", HttpMethod.Post,
+            buildJsonObject { put("id", trainingId(id)); put("attemptType", type.name) }).data.evaluation.domain(id, type)
+    }
+
+    override suspend fun questionBank(org: String, courseId: String): TrainingResult<QuestionBank> = guarded {
+        api<Envelope<BankEnvelope>>(org, "courses/${trainingId(courseId)}/bank").data.bank.domain(courseId)
     }
 
     override suspend fun submitAttempt(org: String, courseId: String, attempt: AttemptSubmission): TrainingResult<AttemptOutcome> = guarded {
@@ -287,6 +298,7 @@ internal fun failureFor(status: Int, code: String): TrainingFailure = when (stat
     404 -> TrainingFailure.NOT_FOUND
     409 -> when (code) {
         "TRAINING_VERSION_OUTDATED" -> TrainingFailure.VERSION_OUTDATED
+        "TRAINING_EVALUATION_NOT_STARTED" -> TrainingFailure.EVALUATION_NOT_STARTED
         "TRAINING_COURSE_CODE_TAKEN" -> TrainingFailure.CODE_TAKEN
         "TRAINING_DRAFT_CONFLICT" -> TrainingFailure.DRAFT_CONFLICT
         "TRAINING_ASSIGNMENT_EXISTS" -> TrainingFailure.ASSIGNMENT_EXISTS
@@ -301,6 +313,7 @@ internal fun failureFor(status: Int, code: String): TrainingFailure = when (stat
         "TRAINING_ANSWERS_INVALID" -> TrainingFailure.ANSWERS_INVALID
         "TRAINING_DRAFT_INCOMPLETE" -> TrainingFailure.DRAFT_INCOMPLETE
         "TRAINING_COURSE_NOT_PUBLISHED" -> TrainingFailure.COURSE_NOT_PUBLISHED
+        "TRAINING_NO_QUESTION_BANK" -> TrainingFailure.NO_QUESTION_BANK
         "MEDIA_CONTENT_INVALID", "TRAINING_VIDEO_INVALID" -> TrainingFailure.CONTENT_INVALID
         else -> TrainingFailure.INVALID
     }

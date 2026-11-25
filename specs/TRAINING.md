@@ -246,3 +246,35 @@ reconoce. Quien aprende los ve activos por defecto: pista nativa en Android (Exo
 Debajo del video, «Ver transcripción del video» muestra el texto completo. Viajan en el catálogo offline. Los
 videos de YouTube usan los subtítulos de YouTube. Android e iOS compilan; la reproducción con subtítulos se
 verifica en dispositivo.
+
+## Banco oficial de preguntas BPM (aprendizaje por unidades)
+
+Integra el banco de 100 preguntas del backend (V19; ver su `specs/TRAINING.md`, «Banco oficial de preguntas BPM»). Un curso
+con banco trae `questionBank` y `review` en la vista de aprender (`TrainingCourse.bank` y `.review`; un servidor anterior
+los omite y el curso se comporta como siempre).
+
+- **Camino (Aprender).** Cada módulo muestra un nodo por unidad (lección) con su rótulo visible debajo («1. Inocuidad, peligros y
+  riesgos · 5 preguntas»), el nodo de **Repaso** («Repaso · N por repasar», solo con ítems pendientes y membresía), y el trofeo
+  «Evaluación del módulo · 5 preguntas · aprueba con 4/5» (cerrado hasta terminar todas las unidades). La burbuja del nodo actual
+  dice «Empezar» o «Continuar». `pathNodes` es regla pura (`PlayRulesTest`, `QuestionBankTest`); los cursos comunes no llevan rótulos.
+- **Unidad.** Pasos de la lección (video, ideas de «Lo esencial») y luego la práctica de sus preguntas con respuesta inmediata
+  (`BpmFeedbackSheet`): justificación, «Fuente: NTS 142 (P01) · …», «+2 XP» la primera vez que se acierta el ítem y «Escuchar». Lo
+  fallado se repite una vez al final. Las alternativas se barajan en el cliente en cada presentación (`StudyState.shuffles`:
+  posición mostrada → índice original); al servidor viaja siempre el índice original y la posición correcta vuelve mapeada. El
+  nivel de Bloom **no** se muestra al personal.
+- **Repaso.** `startReview()` practica `course.review.questionIds` (falladas o vencidas según el servidor); al volver al camino el
+  curso se recarga y el nodo desaparece cuando ya no queda nada.
+- **Evaluación del módulo.** `startEvaluation` en un curso con banco pide `POST evaluations` (`StartTrainingEvaluation`): mientras tanto
+  «Preparando tu evaluación…»; sin conexión «Necesitas conexión para iniciar la evaluación» con «Reintentar»/«Salir» (nunca se
+  simula). El intento usa el `id` y la `versionId` del sorteo y responde por posición mostrada. El resultado usa los datos del
+  ítem que devuelve el servidor (texto, alternativas mostradas, justificación y fuentes); «Intentar otra vez» pide un sorteo nuevo (rotación).
+  La evaluación por lección (MODULE) no se ofrece en cursos con banco. Si la versión cambia (409) se vuelve a sortear.
+- **Administración.** En Academia, los cursos `BPM-*` publicados tienen «Banco de preguntas» (solo lectura, `TrainingBankScreen`):
+  unidades con código, nivel de Bloom, clave, justificación, fuentes y la marca «Recomendada 1.er intento». En el borrador, los ítems
+  oficiales (`itemCode`) se muestran «solo lectura» y las ediciones puras los ignoran (el servidor también conserva su contenido).
+- **Fallos.** 409 `TRAINING_EVALUATION_NOT_STARTED` → `EVALUATION_NOT_STARTED`; 422 `TRAINING_NO_QUESTION_BANK` → `NO_QUESTION_BANK`.
+- **Sin conexión.** El catálogo offline no trae el banco: `OfflineTrainingStore` recuerda `questionBank` de la última lectura con red para
+  que un curso con banco no se evalúe de forma clásica sin sorteo. La práctica sigue disponible; la evaluación del módulo necesita red.
+- **Proxy web.** `web/training-proxy.mjs` acepta `POST courses/{id}/evaluations` y `GET courses/{id}/bank`, proyecta `questionBank`,
+  `review`, fuentes e ítem (solo códigos `M01-01…M05-20`, enlaces HTTPS) y nunca deja pasar clave ni explicación de una evaluación sin terminar.
+  Pruebas: `web/training-bank-proxy.test.mjs`.

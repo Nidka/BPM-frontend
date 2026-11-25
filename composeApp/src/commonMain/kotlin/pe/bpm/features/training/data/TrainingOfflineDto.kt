@@ -70,6 +70,10 @@ internal sealed interface CatalogFetch {
     data class Fresh(val etag: String, val generatedAt: String, val courses: List<Pair<String, String>>) : CatalogFetch
 }
 
+/** Banco oficial del curso recordado de la última lectura con red: el catálogo offline no lo trae. */
+@Serializable
+internal data class CachedBankInfo(val version: Int, val itemsPerAttempt: Int = 5, val poolSize: Int = 0)
+
 /** Retroalimentación del modo estudio guardada tras consultarla con red. */
 @Serializable
 internal data class CachedStudyFeedback(val correctOption: Int, val explanation: String = "")

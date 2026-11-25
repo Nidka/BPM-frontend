@@ -106,8 +106,10 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         val practice: @Composable () -> Unit = { BpmChunkyButton("Practicar · no califica", { viewModel.startStudy(lesson.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White) }
         val evaluate: @Composable () -> Unit = { BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Evaluar lección · suma XP") } }
-        if (compact) { practice(); if (state.canPersist) evaluate() }
-        else BpmInlineActions(secondary = if (state.canPersist) evaluate else null, primary = practice)
+        // Con banco oficial la práctica de la unidad reemplaza a la evaluación por lección.
+        val canEvaluate = state.canPersist && course.bank == null
+        if (compact) { practice(); if (canEvaluate) evaluate() }
+        else BpmInlineActions(secondary = if (canEvaluate) evaluate else null, primary = practice)
     }
     BpmActionBar {
         val last = index >= course.lessons.lastIndex
@@ -218,8 +220,9 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
     val question = study.current ?: return
     Text(question.questionText, style = MaterialTheme.typography.titleLarge)
     val answered = study.feedback != null
+    val shown = study.shownOptions(question)
     Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.grid)) {
-        question.options.forEachIndexed { option, text ->
+        shown.forEachIndexed { option, text ->
             val feedback = study.feedback
             BpmChoiceRow(text, study.selected == option, enabled = !answered && !study.checking,
                 supportingText = when {
@@ -242,8 +245,11 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
         BpmCard(Modifier.fillMaxWidth(), tint = if (feedback.correct) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (feedback.correct) "¡Correcto!" else "Todavía no", style = MaterialTheme.typography.titleMedium)
-                if (!feedback.correct) Text("La respuesta correcta es: ${question.options.getOrNull(feedback.correctOption).orEmpty()}")
+                if (!feedback.correct) Text("La respuesta correcta es: ${shown.getOrNull(feedback.correctOption).orEmpty()}")
                 if (feedback.explanation.isNotBlank()) Text(feedback.explanation)
+                sourceLine(feedback.sources).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (feedback.xpEarned > 0) BpmStatusChip("+${feedback.xpEarned} XP", BpmTone.Info, symbol = BpmSymbol.Award)
+                if (feedback.itemCode != null) BpmListenButton(listOf(feedback.explanation, sourceLine(feedback.sources)).filter { it.isNotBlank() }.joinToString(". "), label = "Escuchar la explicación")
             }
         }
         BpmActionBar {

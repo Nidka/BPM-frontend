@@ -38,6 +38,7 @@ internal fun TrainingCourseContent(userId: String, organizationId: String, cours
         when (intent) {
             is CourseIntent.Lesson -> training.selectLesson(intent.lessonId)
             CourseIntent.FinalEvaluation -> training.startEvaluation(pe.bpm.features.training.domain.AttemptType.FINAL)
+            CourseIntent.Review -> training.startReview()
             CourseIntent.Resume -> training.resume()
         }
         worker.onIntentHandled()

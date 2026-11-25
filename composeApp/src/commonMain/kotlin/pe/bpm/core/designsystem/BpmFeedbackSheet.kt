@@ -44,6 +44,12 @@ fun BpmFeedbackSheet(
     actionLabel: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Fuente normativa del ítem («Fuente: NTS 142 (P01)»); vacía si no hay. */
+    source: String = "",
+    /** XP de práctica ganado con esta respuesta; la ficha «+2 XP» solo aparece si es mayor que cero. */
+    xp: Int = 0,
+    /** Si no es nula, ofrece «Escuchar» con ese texto (explicación y fuente). */
+    listenText: String? = null,
 ) {
     val reduce = rememberReduceMotion()
     val effects = rememberBpmFeedbackEffects()
@@ -66,7 +72,17 @@ fun BpmFeedbackSheet(
                 }
                 Text(title, style = BpmPlayType.feedbackTitle, color = shade.shadow)
             }
-            Text(explanation, style = BpmPlayType.bubble, color = if (correct) BpmPlayColors.feedbackCorrectText else BpmPlayColors.feedbackWrongText)
+            val ink = if (correct) BpmPlayColors.feedbackCorrectText else BpmPlayColors.feedbackWrongText
+            Text(explanation, style = BpmPlayType.bubble, color = ink)
+            if (source.isNotBlank()) Text(source, style = BpmPlayType.sub, color = ink)
+            if (xp > 0 || listenText != null) Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (xp > 0) Row(Modifier.background(Color.White, CircleShape).padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    BpmIcon(BpmSymbol.Bolt, tint = BpmPlayColors.gold.shadow, modifier = Modifier.size(16.dp))
+                    Text("+$xp XP", style = BpmPlayType.statLabel, color = BpmPlayColors.gold.shadow)
+                }
+                listenText?.let { BpmListenButton(it, label = "Escuchar la explicación") }
+            }
             BpmChunkyButton(actionLabel, onAction, Modifier.fillMaxWidth(), tone = if (correct) BpmChunkyTone.Correct else BpmChunkyTone.Error)
         }
     }

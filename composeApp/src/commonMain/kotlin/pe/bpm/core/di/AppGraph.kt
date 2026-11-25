@@ -258,12 +258,14 @@ class AppGraph(
         pe.bpm.features.training.domain.LoadTrainingCourse(offlineTrainingRepository), pe.bpm.features.training.domain.RequestLessonVideo(offlineTrainingRepository),
         pe.bpm.features.training.domain.SaveLessonProgress(offlineTrainingRepository), pe.bpm.features.training.domain.CheckStudyAnswer(offlineTrainingRepository),
         pe.bpm.features.training.domain.SubmitTrainingAttempt(offlineTrainingRepository), { Uuid.random().toString() }, { Clock.System.now().toString() },
-        downloads = trainingDownloads, attempts = trainingAttempts, syncCatalog = { org -> syncTrainingCatalog(org) })
+        downloads = trainingDownloads, attempts = trainingAttempts, syncCatalog = { org -> syncTrainingCatalog(org) },
+        startDraw = pe.bpm.features.training.domain.StartTrainingEvaluation(offlineTrainingRepository))
     @OptIn(ExperimentalUuidApi::class)
     fun trainingAuthoringViewModel() = pe.bpm.features.training.presentation.TrainingAuthoringViewModel(
         pe.bpm.features.training.domain.ListAdminCourses(trainingRepository), pe.bpm.features.training.domain.CreateTrainingCourse(trainingRepository),
         pe.bpm.features.training.domain.LoadTrainingDraft(trainingRepository), pe.bpm.features.training.domain.SaveTrainingDraft(trainingRepository),
-        pe.bpm.features.training.domain.PublishTrainingCourse(trainingRepository), pe.bpm.features.training.domain.UploadLessonVideo(trainingRepository)) { Uuid.random().toString() }
+        pe.bpm.features.training.domain.PublishTrainingCourse(trainingRepository), pe.bpm.features.training.domain.UploadLessonVideo(trainingRepository),
+        loadBank = pe.bpm.features.training.domain.LoadQuestionBank(trainingRepository)) { Uuid.random().toString() }
 
     // Cuentas: miembros, invitaciones, organización/sedes y dispositivos propios.
     private val accountsRepository = pe.bpm.features.accounts.data.RemoteAccountsRepository(httpClient, config,
