@@ -349,7 +349,8 @@ class RemoteIdentityRepository internal constructor(
         val completed = completePendingName()
         if (completed is IdentityResult.Failure) return@identityOperation completed
         val token = verificationToken ?: return@identityOperation identityFailure("UNAUTHENTICATED")
-        firebase.sendVerification(token)
+        // Primero el correo propio de BPM; si no está disponible, el de Firebase como respaldo.
+        if (profiles.sendVerificationEmail(token) == MailAttempt.UseFallback) firebase.sendVerification(token)
         currentCoroutineContext().ensureActive()
         if (attempt != generation) return@identityOperation identityFailure("UNAUTHENTICATED")
         IdentityResult.Success(Unit)
@@ -394,7 +395,8 @@ class RemoteIdentityRepository internal constructor(
     }
 
     override suspend fun resetPassword(email: String): IdentityResult<Unit> = identityOperation(IdentityStage.PASSWORD_RECOVERY) {
-        firebase.resetPassword(email)
+        // Primero el correo propio de BPM (siempre 202, sin revelar si la cuenta existe); si no está disponible, Firebase.
+        if (profiles.sendPasswordResetEmail(email) == MailAttempt.UseFallback) firebase.resetPassword(email)
         IdentityResult.Success(Unit)
     }
 

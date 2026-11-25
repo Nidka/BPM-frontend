@@ -160,6 +160,7 @@ class RegistrationTest {
                 "/v1/accounts:signUp" -> respond(credential.dropLast(1) + ",\"refreshToken\":\"temporary-refresh\"}", HttpStatusCode.OK, headers)
                 "/v1/accounts:update" -> respond(credential, HttpStatusCode.OK, headers)
                 "/v1/accounts:sendOobCode" -> respond("{}", HttpStatusCode.OK, headers)
+                "/api/v1/auth/email/verification" -> respond("{}", HttpStatusCode.ServiceUnavailable, headers)
                 "/v1/token" -> respond("""{"id_token":"another-token","refresh_token":"rotated-refresh","user_id":"another-uid","expires_in":"3600"}""", HttpStatusCode.OK, headers)
                 else -> { businessRequests++; error("No debe acceder al backend con otro UID") }
             }
@@ -231,6 +232,8 @@ class RegistrationTest {
             var creations = 0
             val client = createHttpClient(MockEngine { request ->
                 if (request.url.encodedPath == "/v1/accounts:signUp") creations++
+                // El correo propio de BPM no está disponible: el envío cae a Firebase, que es el paso que aquí se hace fallar.
+                if (request.url.encodedPath == "/api/v1/auth/email/verification") return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable, headers)
                 if (request.url.encodedPath == failedStep && !failed) {
                     failed = true
                     respond("{}", HttpStatusCode.ServiceUnavailable, headers)

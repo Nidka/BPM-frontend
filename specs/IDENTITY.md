@@ -23,8 +23,13 @@ Proyecto Firebase: app-bpm-af59c. El cliente usa solo config/firebase.public.jso
   Si la app se cerró o la credencial temporal venció, iniciar sesión de nuevo.
 - Google web: popup oficial → ID token Firebase → mismo recorrido de perfil.
   Una identidad nueva con email verificado puede completar el registro.
-- Recuperar acceso: PASSWORD_RESET enviado directamente a Firebase; el mensaje
-  siempre es neutral respecto a si el correo existe.
+- Recuperar acceso: el mensaje siempre es neutral respecto a si el correo existe.
+- Correo propio de BPM (en español, con la marca; backend `specs/MAIL.md`): el correo de verificación
+  (`POST /api/v1/auth/email/verification`, con el ID token) y el de nueva contraseña
+  (`POST /api/v1/auth/email/password-reset`, público, `{"email"}`) se piden **primero a la API de BPM**, que los envía por Resend con
+  enlaces a `/auth/accion`. Solo si la API no puede (503 `MAIL_UNAVAILABLE`, ruta inexistente 404/405, otro 5xx, sin red o más de 15 s) se usa
+  como respaldo `accounts:sendOobCode` de Firebase (`VERIFY_EMAIL` / `PASSWORD_RESET`, `X-Firebase-Locale: es`). 429 y 422 se informan y **no** se
+  respaldan. La web llama por el proxy cerrado `web/auth-email-proxy.mjs` (`/backend/api/v1/auth/email/*`).
 - Verificar sesión: consultar /me nuevamente. Logout cancela trabajo y borra
   tokens locales, incluyendo el token temporal para reenviar verificación.
 

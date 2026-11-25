@@ -2,9 +2,11 @@ package pe.bpm.features.identity.data
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import pe.bpm.core.config.AppConfig
 import pe.bpm.features.identity.domain.*
@@ -15,7 +17,22 @@ internal interface BpmIdentityGateway {
     suspend fun enroll(token: String, displayName: String, onSessionResponse: (HttpResponse) -> Unit): IdentityResult<Profile>
     suspend fun activity(token: String): HttpResponse
     suspend fun logout(token: String): IdentityResult<Unit>
+    /** Pide al backend de BPM enviar el correo de verificación (en español, con la marca BPM). [MailAttempt.UseFallback]: usar Firebase. */
+    suspend fun sendVerificationEmail(token: String): MailAttempt
+    /** Pide al backend de BPM enviar el correo de nueva contraseña. Responde igual exista o no la cuenta. */
+    suspend fun sendPasswordResetEmail(email: String): MailAttempt
 }
+
+/**
+ * Resultado de pedir un correo propio al backend. El respaldo existe porque el envío de BPM puede no estar disponible
+ * (sin proveedor configurado, proveedor caído, backend anterior sin la ruta o sin red hacia la API): en ese caso se usa
+ * el correo de Firebase, que siempre estuvo disponible. Un límite de frecuencia (429) o un correo inválido (422) **no** se
+ * respaldan: se informan, porque Firebase tiene su propio límite y reintentar por otra vía lo esquivaría.
+ */
+internal enum class MailAttempt { Sent, UseFallback }
+
+/** Tiempo máximo del intento de correo propio; si se agota se usa el respaldo sin dejar a la persona esperando. */
+private const val MAIL_ATTEMPT_TIMEOUT_MS = 15_000L
 
 internal class BpmIdentityDataSource(private val client: HttpClient, private val config: AppConfig) : BpmIdentityGateway {
     override suspend fun profile(token: String, onSessionResponse: (HttpResponse) -> Unit): IdentityResult<Profile> = identityOperation(IdentityStage.PROFILE_READ) {
@@ -42,6 +59,33 @@ internal class BpmIdentityDataSource(private val client: HttpClient, private val
         }
     }
 
+    override suspend fun sendVerificationEmail(token: String): MailAttempt = mailAttempt(IdentityStage.VERIFICATION_EMAIL) {
+        client.post("${config.apiBaseUrl}/api/v1/auth/email/verification") {
+            bearerAuth(token)
+            timeout { requestTimeoutMillis = MAIL_ATTEMPT_TIMEOUT_MS; socketTimeoutMillis = MAIL_ATTEMPT_TIMEOUT_MS }
+        }
+    }
+
+    override suspend fun sendPasswordResetEmail(email: String): MailAttempt = mailAttempt(IdentityStage.PASSWORD_RECOVERY) {
+        client.post("${config.apiBaseUrl}/api/v1/auth/email/password-reset") {
+            contentType(ContentType.Application.Json)
+            setBody(PasswordResetMailRequest(email))
+            timeout { requestTimeoutMillis = MAIL_ATTEMPT_TIMEOUT_MS; socketTimeoutMillis = MAIL_ATTEMPT_TIMEOUT_MS }
+        }
+    }
+
+    /** Ejecuta la llamada y decide entre éxito, error público (429/422) o respaldo; nunca registra cuerpos ni enlaces. */
+    private suspend fun mailAttempt(stage: IdentityStage, call: suspend () -> HttpResponse): MailAttempt {
+        val response = try { call() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Throwable) { return MailAttempt.UseFallback }
+        return when {
+            response.status.isSuccess() -> MailAttempt.Sent
+            response.status.value == 429 -> throw IdentityDataException(identityFailure("RATE_LIMITED", IdentityDiagnostic(stage, 429, "RATE_LIMITED")))
+            response.status.value == 422 && stage == IdentityStage.PASSWORD_RECOVERY ->
+                throw IdentityDataException(identityFailure("INVALID_EMAIL", IdentityDiagnostic(stage, 422, "INVALID_EMAIL")))
+            else -> MailAttempt.UseFallback
+        }
+    }
+
     private suspend fun readProfile(response: HttpResponse, onSessionResponse: (HttpResponse) -> Unit, stage: IdentityStage): IdentityResult<Profile> {
         if (!response.status.isSuccess()) {
             val code = response.body<ApiErrorEnvelope>().errors.firstOrNull()?.code
@@ -64,6 +108,7 @@ internal class BpmIdentityDataSource(private val client: HttpClient, private val
 
 }
 
+@Serializable private class PasswordResetMailRequest(val email: String)
 @Serializable private class RegisterProfileRequest(val displayName: String)
 @Serializable private data class ApiErrorEnvelope(val errors: List<ApiErrorDto> = emptyList())
 @Serializable private data class ApiErrorDto(val code: String)
