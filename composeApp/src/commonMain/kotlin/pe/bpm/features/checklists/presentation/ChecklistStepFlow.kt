@@ -188,8 +188,8 @@ private fun ComplianceTiles(selected: String, enabled: Boolean, onPick: (String)
 /** Observación de una respuesta que no cumple (o que ya la tiene); la foto se pide con el botón de evidencia que sigue. */
 @Composable
 private fun ObservationField(item: ChecklistItem, input: RunAnswerInput, failing: Boolean, enabled: Boolean, onEdit: (String, RunAnswerInput) -> Unit) {
-    if (failing) Text("Cuéntanos qué pasó para corregirlo.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, if (failing) "¿Qué observaste?" else "Observación (opcional)",
+    if (failing) Text("Cuéntanos qué pasó para corregirlo. Puedes escribirlo y agregar una foto, pero no es obligatorio.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    BpmTextField(input.observation, { onEdit(item.id, input.copy(observation = it)) }, if (failing) "¿Qué observaste? (opcional)" else "Observación (opcional)",
         Modifier.fillMaxWidth(), enabled = enabled, singleLine = false, minLines = 2, rule = ChecklistInputRules.answer)
 }
 

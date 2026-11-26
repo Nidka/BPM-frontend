@@ -124,7 +124,7 @@ internal fun IncidentsContent(
                     state.role == role
             )
                 IncidentsScreen(incidents, Modifier.weight(1f), onEvidence)
-            else BpmSkeletonList(rows = 4, card = false)
+            else BpmSkeletonRecordCards(3)
         }
     }
 }

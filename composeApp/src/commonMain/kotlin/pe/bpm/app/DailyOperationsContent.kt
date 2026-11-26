@@ -138,7 +138,7 @@ internal fun DailyOperationsContent(
                         )
                     } else null,
                 )
-            else BpmSkeletonList(rows = 4, card = false)
+            else BpmSkeletonRecordCards(3)
         }
     }
 }

@@ -50,7 +50,7 @@ fun ChecklistCatalogScreen(
             placeholder = "Nombre, área o descripción", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search))
         when {
             state.loading -> {
-                BpmSkeletonList(rows = 4, card = false)
+                BpmSkeletonRecordCards(3)
             }
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text("No pudimos cargar los controles", style = MaterialTheme.typography.titleMedium)
@@ -66,7 +66,7 @@ fun ChecklistCatalogScreen(
                     BpmTextButton(onClick = { onSearch("") }) { Text("Limpiar búsqueda") }
                 } else BpmGridLayout(state.visibleTemplates) { template, cardModifier ->
                     // Misma altura por fila y un solo criterio de columnas, como el resto de listas de registros.
-                    TemplateCard(template, cardModifier, selected = template.id == templateId) { onSelect(template.id) }
+                    TemplateCard(template, cardModifier, selected = template.id == templateId, onAssign = if (management) onAssign else null) { onSelect(template.id) }
                 }
             }
         }
@@ -88,12 +88,14 @@ fun ChecklistCatalogScreen(
 }
 
 @Composable
-private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, selected: Boolean = false, onSelect: () -> Unit) {
+private fun TemplateCard(template: ChecklistTemplate, modifier: Modifier, selected: Boolean = false, onAssign: ((String) -> Unit)? = null, onSelect: () -> Unit) {
     BpmRecordCard(template.name, modifier, status = BpmRecordStatus("Versión ${template.versionNumber}", BpmTone.Success),
         subtitle = template.area,
         details = listOfNotNull(template.description.takeIf { it.isNotBlank() },
             "Preguntas: ${template.items.size} · Obligatorias: ${template.items.count { it.required }}"),
-        onOpen = onSelect, actionLabel = "Abrir plantilla", selected = selected)
+        onOpen = onSelect, actionLabel = "Abrir plantilla", selected = selected,
+        // «Programar» a un toque desde la lista: antes había que abrir la plantilla para encontrarlo.
+        textActions = listOfNotNull(onAssign?.let { assign -> "Programar en una sede" to { assign(template.id) } }))
 }
 
 /** Consulta de una versión publicada; la raíz coordina su ruta y el regreso al catálogo. */

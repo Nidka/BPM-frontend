@@ -42,7 +42,7 @@ fun ChecklistVersionsScreen(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         val current = state.current
         Text(current?.name ?: "Versiones de la plantilla", style = MaterialTheme.typography.headlineSmall)
-        if (state.loading) BpmSkeletonList(rows = 3, card = false)
+        if (state.loading) BpmSkeletonRecordCards(3)
         state.failure?.let {
             Text(versionFailureMessage(it), color = MaterialTheme.colorScheme.error)
             if (state.conflict || state.mode == VersionMode.History) BpmChunkyButton("Recargar plantilla", onReload, tone = BpmChunkyTone.White)

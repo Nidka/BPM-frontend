@@ -273,6 +273,24 @@ fun App(
     var helpRoute by remember { mutableStateOf(WorkspaceDestination.Home.route) }
     var introPrompted by remember { mutableStateOf(false) }
     val learnerRoot by trainingLearner.state.collectAsStateWithLifecycle()
+    // Quien ya tiene actividad en el servidor (puntos de aprendizaje o un control hecho) no necesita la introducción en un navegador o teléfono nuevo.
+    val hasHistory = (learnerRoot.achievements?.totals?.experiencePoints ?: 0) > 0 ||
+        assignmentState.items.any { it.run?.status == "SUBMITTED" && it.run.performedBy == profile?.id }
+    LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, hasHistory) {
+        if (guideRole != null && onboarding.loaded && !onboarding.introSeen && hasHistory) onboardingPreferences.markIntroSeen()
+    }
+    // Los pasos que solo piden «conocer» una pantalla se marcan al visitarla, entren por el botón de la lista o por la navegación.
+    LaunchedEffect(guideRole, onboarding.loaded, entry?.destination?.route) {
+        if (guideRole == null || !onboarding.loaded) return@LaunchedEffect
+        val visited = entry?.destination?.route
+        when {
+            visited == REPORT_PROBLEM && guideRole == GuideRole.Worker -> onboardingPreferences.markStep("w-report")
+            guideRole == GuideRole.Chef && visited == WorkspaceDestination.Team.route -> onboardingPreferences.markStep("c-team")
+            guideRole == GuideRole.Chef && visited == WorkspaceDestination.Learn.route -> onboardingPreferences.markStep("c-learn")
+            guideRole == GuideRole.Chef && visited == WorkspaceDestination.Home.route -> onboardingPreferences.markStep("c-turn")
+            guideRole == GuideRole.Super && visited == WorkspaceDestination.Indicators.route -> onboardingPreferences.markStep("s-kpi")
+        }
+    }
     LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route) {
         // La introducción sale una sola vez, al llegar a la pantalla de inicio; se salta con «Saltar» y se repite desde «Ayuda».
         if (guideRole != null && onboarding.loaded && !onboarding.introSeen && !introPrompted && entry?.destination?.route == WorkspaceDestination.Home.route) {

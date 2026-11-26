@@ -186,6 +186,6 @@ internal fun ChecklistAssignmentDetailContent(
             )
                 BpmChunkyButton("Consultar revisión del período", { actions.select(assignmentId) }, tone = BpmChunkyTone.White)
         }
-        else -> Text("Consultando programación…")
+        else -> BpmSkeletonRecordCards(2, label = "Consultando la programación")
     }
 }

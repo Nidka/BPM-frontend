@@ -105,11 +105,10 @@ internal fun PlatformIndicatorsContent(
         val kpis = dashboard.kpis?.takeIf { dashboard.organizationId == organization.id }
         val compliance = report.compliance?.takeIf { report.organizationId == organization.id }
         val rows = locations.map { site -> adminSiteRow(site.id, site.name, site.address, compliance?.locations?.firstOrNull { it.locationId == site.id }) }
-        BpmPlayCard(Modifier.fillMaxWidth()) {
-            Text("ORGANIZACIÓN ABIERTA", style = BpmPlayType.label, color = BpmPlayColors.muted)
+        BpmSectionCard("Organización abierta", BpmSymbol.Company, tone = BpmPlayTone.Streak) {
             Text(organization.name, style = BpmPlayType.h1, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
             Text(organizationSubtitle(organization), style = BpmPlayType.sub, color = BpmPlayColors.muted)
-            BpmChunkyButton("Cambiar de organización", actions.onOrganizations, tone = BpmChunkyTone.White)
+            BpmChunkyButton("Cambiar de organización", actions.onOrganizations, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Company)
         }
         if (dashboard.loading && kpis == null) BpmSkeletonKpis() else KpiRow(adminKpis(kpis))
         dashboard.failure?.takeIf { kpis == null }?.let {

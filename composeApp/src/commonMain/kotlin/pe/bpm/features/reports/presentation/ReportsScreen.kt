@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -99,9 +100,17 @@ private fun ExportCard(state: ReportsState, vm: ReportsViewModel) {
 private fun ComplianceContent(report: ComplianceReport) {
     var line by remember { mutableStateOf(false) }
     BpmCard(Modifier.fillMaxWidth()) {
-        Text("Cumplimiento del período", style = MaterialTheme.typography.titleMedium)
-        Text(formatPercent(report.average), style = MaterialTheme.typography.headlineMedium)
-        Text("${report.runs} controles finalizados entre ${longDate(report.from)} y ${longDate(report.to)}", style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            BpmIconTile(BpmSymbol.Target, (report.average ?: 0.0).let { if (it >= 90.0) BpmPlayTone.Correct else if (it >= 70.0) BpmPlayTone.Gold else BpmPlayTone.Error })
+            Column(Modifier.weight(1f)) {
+                Text("Cumplimiento del período", style = MaterialTheme.typography.titleMedium)
+                Text(formatPercent(report.average), style = MaterialTheme.typography.headlineMedium)
+            }
+        }
+        BpmChipRow {
+            BpmStatusChip("${report.runs} controles", BpmTone.Info, symbol = BpmSymbol.Control)
+            BpmStatusChip("${longDate(report.from)} → ${longDate(report.to)}", BpmTone.Neutral, symbol = BpmSymbol.Calendar)
+        }
         // Estado vacío dentro de la tarjeta: dato secundario en gris y con el siguiente paso (sin anidar otra tarjeta).
         if (report.days.isEmpty()) Text("No hay controles finalizados en este período. Prueba con un rango de fechas más amplio.",
             color = MaterialTheme.colorScheme.onSurfaceVariant)

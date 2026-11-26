@@ -116,7 +116,7 @@ private fun TaskSteps(
     fun go(target: QuickStep) { stepName = target.name }
     val busy = state.busy || state.loading
     val note = values["observation"].orEmpty()
-    val saveLabel = if (state.busy) "Guardando…" else if (state.pending != null) "Comprobar el mismo registro" else "Tomar foto"
+    val saveLabel = if (state.busy) "Guardando…" else if (state.pending != null) "Comprobar el mismo registro" else "Guardar y agregar foto"
 
     BpmPlayStage(
         modifier.bpmPlayKeys(0, {}, {
@@ -168,14 +168,14 @@ private fun ResultStep(plan: CleaningPlan?, planName: String, result: CleaningRe
 private fun NoteStep(result: CleaningResult, note: String, error: String?, enabled: Boolean, onChange: (String) -> Unit) {
     Text(if (result == CleaningResult.NOT_COMPLETED) "¿Por qué no se pudo?" else "¿Qué observaste?",
         style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
-    Text("Cuéntalo en una frase corta. Tu supervisor la verá.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
-    BpmTextField(note, onChange, "Nota", Modifier.fillMaxWidth(), error = error, enabled = enabled, rule = InputRules.text(1, 2000))
+    Text("Cuéntalo en una frase corta; es obligatorio para poder continuar. Tu supervisor la verá.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+    BpmTextField(note, onChange, "Nota (obligatoria)", Modifier.fillMaxWidth(), error = error, enabled = enabled, rule = InputRules.text(1, 2000))
 }
 
 /** Último paso: foto de cómo quedó, con el aviso de guardado sin conexión cuando corresponde. */
 @Composable
 private fun PhotoStep(state: OperationsState, onPhoto: () -> Unit, busy: Boolean) {
-    Text("Toma una foto de cómo quedó", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
+    Text("Agrega una foto de cómo quedó", style = BpmPlayType.h1.copy(fontSize = 24.sp, lineHeight = 27.sp), color = BpmPlayColors.ink)
     Text("Sirve como evidencia para la inspección.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
     val line = BpmPlayColors.navBorder
     Column(
@@ -186,11 +186,11 @@ private fun PhotoStep(state: OperationsState, onPhoto: () -> Unit, busy: Boolean
                     style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))))
             }
             .clickable(enabled = !busy, role = Role.Button, onClick = onPhoto)
-            .semantics { contentDescription = "Tomar foto y guardar la tarea" }.padding(16.dp),
+            .semantics { contentDescription = "Guardar la tarea y agregar una foto" }.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
         BpmIcon(BpmSymbol.Camera, tint = BpmPlayColors.action.face, modifier = Modifier.size(40.dp))
-        Text("Tomar foto", style = BpmPlayType.h2, color = BpmPlayColors.action.face)
+        Text("Guardar y agregar foto", style = BpmPlayType.h2, color = BpmPlayColors.action.face)
     }
     if (!LocalOnline.current) BpmPlayNotice("Sin conexión: se guarda en el teléfono y se envía solo después.")
     state.failure?.let { failure ->

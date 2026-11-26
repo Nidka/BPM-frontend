@@ -54,7 +54,7 @@ internal fun ChefControlsContent(
                 Text(assignmentFailureMessage(scoped.failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
                 BpmChunkyButton("Reintentar", onRefresh, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             }
-            scoped == null || scoped.loading && scoped.items.isEmpty() -> BpmSkeletonList(rows = 4, card = false)
+            scoped == null || scoped.loading && scoped.items.isEmpty() -> BpmSkeletonRecordCards(3)
             scoped.items.none { it.active } -> BpmPlayEmpty(Res.drawable.mascot_done, "Sin controles programados", emptyMessage)
             else -> {
                 // Con datos ya cargados se muestran mientras se refrescan (sin esqueleto); el esqueleto es solo de la primera carga.

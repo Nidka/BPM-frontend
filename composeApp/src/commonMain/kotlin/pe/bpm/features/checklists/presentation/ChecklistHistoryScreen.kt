@@ -25,7 +25,7 @@ import pe.bpm.features.checklists.domain.*
             }
         }
         when {
-            state.loading && state.items.isEmpty() -> BpmSkeletonList(rows = 4, card = false)
+            state.loading && state.items.isEmpty() -> BpmSkeletonRecordCards(3)
             state.failure != null -> BpmCard(Modifier.fillMaxWidth()) {
                 Text(failureMessage(state.failure), color = MaterialTheme.colorScheme.error)
                 BpmChunkyButton("Reintentar", onRetry, tone = BpmChunkyTone.White)

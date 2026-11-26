@@ -57,7 +57,7 @@ private fun roleName(role: String) = when (role) { "ADMIN" -> "Administración";
 fun AssignmentAdminScreen(viewModel: TrainingAssignmentAdminViewModel, memberSelector: TargetSelector, locationSelector: TargetSelector, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (state.loading) BpmSkeletonList(rows = 3)
+        if (state.loading) BpmSkeletonRecordCards(3)
         Failure(state.failure)
         Notice(state.notice)
         val form = state.form
@@ -177,7 +177,7 @@ private fun targetSummary(form: AssignmentForm): String = when (form.kind) {
 fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (state.loading) BpmSkeletonList(rows = 3)
+        if (state.loading) BpmSkeletonRecordCards(3)
         Failure(state.failure)
         Notice(state.notice)
         val editor = state.editor
@@ -219,7 +219,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
 fun LearningPathAdminScreen(viewModel: LearningPathAdminViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        if (state.loading) BpmSkeletonList(rows = 3)
+        if (state.loading) BpmSkeletonRecordCards(3)
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         Failure(state.failure)
         Notice(state.notice)

@@ -138,7 +138,7 @@ fun IncidentsScreen(
             e.form != null -> IncidentFormContent(s, e, viewModel)
             s.showHistory -> {
                 Text("Qué pasó con este reporte", style = MaterialTheme.typography.titleLarge)
-                if (s.history.loading) BpmSkeletonList(rows = 3, card = false)
+                if (s.history.loading) BpmSkeletonRecordCards(3)
                 s.history.failure?.let {
                     Text(incidentFailureText(it))
                     BpmTextButton(viewModel::history) { Text("Reintentar historial") }
@@ -182,7 +182,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
         "Buscar por nombre",
         loading = loading,
     )
-    if (loading) BpmSkeletonList(rows = 3, card = false)
+    if (loading) BpmSkeletonRecordCards(3)
     failure?.let {
         Text(incidentFailureText(it))
         BpmTextButton({ vm.picker(s.picker) }) { Text("Reintentar consulta") }

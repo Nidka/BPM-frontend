@@ -2,6 +2,7 @@ package pe.bpm.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import pe.bpm.core.designsystem.*
 import pe.bpm.core.designsystem.BpmChunkyButton
 import pe.bpm.core.designsystem.BpmChunkyTone
 import pe.bpm.core.designsystem.BpmFeedbackSettings
@@ -30,9 +31,13 @@ internal fun ManagerProfileContent(
 ) {
     BpmPlayColumns(modifier, alignStart = true, rail = { SettingsEntryCard(onSettings) }) { railVisible ->
         ProfileHeader(displayName, detail, roleLabel)
-        if (onLearn != null) BpmPlayCard(Modifier.fillMaxWidth()) {
-            Text("Mi aprendizaje", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
-            BpmChunkyButton("Ir a Academia", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+        BpmSectionCard("Mi cuenta", BpmSymbol.Account) {
+            BpmInfoRow(BpmSymbol.Team, "Rol", roleLabel, tone = BpmPlayTone.Streak)
+            if (detail.isNotBlank()) BpmInfoRow(BpmSymbol.Company, if ('@' in detail) "Correo" else "Organización", detail, tone = BpmPlayTone.Correct)
+        }
+        if (onLearn != null) BpmSectionCard("Mi aprendizaje", BpmSymbol.Learn, tone = BpmPlayTone.Correct) {
+            Text("Cursos y lecciones que tu organización publicó para ti.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
+            BpmChunkyButton("Ir a Academia", onLearn, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Learn)
         }
         if (!railVisible) SettingsEntryCard(onSettings)
     }

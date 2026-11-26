@@ -43,7 +43,7 @@ fun ChecklistAssignmentsScreen(
         )
         BpmSearchField(state.query, onSearch, "Buscar por control o sede")
         when {
-            state.loading -> BpmSkeletonList(rows = 4, card = false)
+            state.loading -> BpmSkeletonRecordCards(3)
             state.failure != null -> {
                 Text(
                     assignmentFailureMessage(state.failure),

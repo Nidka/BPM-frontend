@@ -24,7 +24,7 @@ fun StockMovementsScreen(viewModel: StockMovementsViewModel, modifier: Modifier 
         state.failure?.let { Text(stockFailureText(it), color = MaterialTheme.colorScheme.error) }
         state.notice?.let { Text(it) }
         pe.bpm.core.offline.PendingOperationsNotice("stock-movements")
-        if (state.loading && state.movements.isEmpty()) BpmSkeletonList(rows = 3, card = false)
+        if (state.loading && state.movements.isEmpty()) BpmSkeletonRecordCards(3)
         val form = state.form
         if (state.siteId == null) {
             Text("Selecciona una sede para consultar los movimientos.")

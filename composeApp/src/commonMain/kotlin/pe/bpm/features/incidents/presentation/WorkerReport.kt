@@ -211,7 +211,7 @@ private fun DescribeStep(
     BpmListenButton("Cuéntanos qué pasó. $help")
     BpmTextField(note, onNote, "Qué pasó", Modifier.fillMaxWidth(), enabled = enabled, error = e.errors["description"], rule = InputRules.text(0, 1000), singleLine = false)
     BpmTextField(place, onPlace, "Dónde (cocina, almacén, salón…) · opcional", Modifier.fillMaxWidth(), enabled = enabled, rule = InputRules.text(0, 120))
-    BpmChoiceTile("Tomar una foto después de enviar", BpmSymbol.Camera, BpmPlayTone.Streak, wantPhoto, { onPhoto(!wantPhoto) }, Modifier.fillMaxWidth(), horizontal = true)
+    BpmChoiceTile("Agregar una foto después de enviar", BpmSymbol.Camera, BpmPlayTone.Streak, wantPhoto, { onPhoto(!wantPhoto) }, Modifier.fillMaxWidth(), horizontal = true)
     if (selected?.evidenceRequired == true) Text("Esta categoría pide fotos para poder cerrarla.", style = BpmPlayType.sub, color = BpmPlayColors.gold.shadow)
     if (e.pending != null) Text("El envío aún no está confirmado. Reintenta para consultar su resultado.", style = BpmPlayType.sub, color = BpmPlayColors.gold.shadow)
     e.failure?.let {

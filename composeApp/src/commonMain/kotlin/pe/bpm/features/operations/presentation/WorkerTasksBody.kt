@@ -53,7 +53,7 @@ internal fun WorkerTasksBody(state: OperationsState, viewModel: OperationsViewMo
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) { WorkerDoneList(state, viewModel, onCleaningPhotos) }
         return
     }
-    if (state.todayLoading && !state.todayLoaded) BpmSkeletonList(rows = 3, card = false)
+    if (state.todayLoading && !state.todayLoaded) BpmSkeletonRecordCards(3)
     state.todayFailure?.let { failure ->
         Text(failureText(failure), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow)
         BpmChunkyButton("Reintentar", viewModel::refreshToday, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !state.todayLoading)
