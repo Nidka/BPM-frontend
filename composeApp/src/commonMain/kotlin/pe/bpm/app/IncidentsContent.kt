@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -110,9 +111,11 @@ internal fun IncidentsContent(
             if (siteId != null)
                 BpmTextButton({ choosing = false }) { Text("Seguir con la selección actual") }
         } else {
-            Text("Sede: $siteName", style = MaterialTheme.typography.titleMedium)
-            BpmTextButton({ choosing = true }, enabled = editor.form == null && !editor.busy) {
-                Text("Cambiar sede")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BpmStatusChip(siteName, BpmTone.Info, symbol = BpmSymbol.Company)
+                // Con una sola sede no hay nada que cambiar: el botón solo estorbaba.
+                if ((workspace.workspace?.locations?.size ?: 0) > 1)
+                    BpmTextButton({ choosing = true }, enabled = editor.form == null && !editor.busy, modifier = Modifier.heightIn(min = BpmSpacing.touch)) { Text("Cambiar sede") }
             }
             if (
                 state.userId == userId &&

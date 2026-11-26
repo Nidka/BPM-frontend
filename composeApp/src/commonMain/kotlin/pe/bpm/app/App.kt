@@ -262,6 +262,8 @@ fun App(
     }
     var academyOnAssignments by remember { mutableStateOf(false) }
     var accountsTab by remember { mutableStateOf("team") }
+    // Cada toque en «Invitar persona» suma uno: la pantalla de cuentas abre el formulario aunque ya esté en esa pestaña.
+    var inviteRequest by remember { mutableIntStateOf(0) }
     // Las pestañas de arranque («Invitar persona», «Asignar curso») valen una sola vez: al salir de esa sección se olvidan.
     LaunchedEffect(entry?.destination?.route) {
         val current = entry?.destination?.route
@@ -775,7 +777,7 @@ fun App(
                                 onTraining = { academyOnAssignments = false; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
                                 onAccounts = { accountsTab = "team"; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onEditOrganization = { accountsTab = "organization"; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
-                                onInvite = { accountsTab = "invitations"; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                onInvite = { accountsTab = "invitations"; inviteRequest++; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
                                 homeContent = if (currentWorkspace?.role == "WORKER") ({
@@ -837,7 +839,7 @@ fun App(
                                             // Programar un control empieza por elegir la plantilla publicada (Plantillas → Programar en una sede).
                                             onSchedule = { nav.navigate(TEMPLATE_MANAGEMENT) { launchSingleTop = true } },
                                             onAssignCourse = { academyOnAssignments = true; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
-                                            onInvite = { accountsTab = "invitations"; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                            onInvite = { accountsTab = "invitations"; inviteRequest++; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                             onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } },
                                             onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
                                             onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
@@ -849,7 +851,7 @@ fun App(
                                 }) else if (destination == WorkspaceDestination.Team && adminPlay && currentWorkspace != null) ({
                                     // Una sola pantalla de equipo para el administrador: personas, invitaciones y sedes en pestañas (antes «Equipo» y «Cuentas y equipo»).
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), currentWorkspace.canManage, true, team, accountInvitations, accountOrganization,
-                                        organizationName = currentWorkspace.organization.name, startTab = accountsTab, scrollable = false,
+                                        organizationName = currentWorkspace.organization.name, startTab = accountsTab, inviteRequest = inviteRequest, scrollable = false,
                                         onAssignCourse = { id, name ->
                                             trainingAssignments.open(workspaceState.selected.orEmpty(), true); trainingAssignments.startCreateFor(id, name)
                                             academyOnAssignments = true; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } })
@@ -925,7 +927,7 @@ fun App(
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
-                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty(), startTab = accountsTab)
+                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty(), startTab = accountsTab, inviteRequest = inviteRequest)
                                 }) else if (onboardingRoute) ({
                                     OnboardingIntro(guideRole ?: GuideRole.Worker, onFinish = { feedbackScope.launch { onboardingPreferences.markIntroSeen() }; navigateBack(destination.route) })
                                 }) else if (viewingHelp) ({
