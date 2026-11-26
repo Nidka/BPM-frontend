@@ -54,13 +54,18 @@ internal fun ChefTeamContent(team: List<Member>, sites: List<Location>, modifier
 
 @Composable
 private fun MemberDetail(member: Member, sites: List<Location>, onBack: () -> Unit) {
-    BpmDetailPane(member.name, subtitle = memberRoleLabel(member.role), onBack = onBack) {
-        BpmSection("Datos") {
-            BpmDetailFields(listOf(
-                BpmDetailField("Rol", memberRoleLabel(member.role)),
-                BpmDetailField("Correo", member.email),
-                BpmDetailField("Sedes en común", memberSites(member, sites)),
-            ))
+    BpmDetailPane(member.name, subtitle = null, onBack = onBack, chips = listOf(BpmDetailChip(memberRoleLabel(member.role), roleTone(member.role)))) {
+        BpmSectionCard("Datos de la persona", BpmSymbol.Account) {
+            BpmInfoRow(BpmSymbol.Team, "Rol", memberRoleLabel(member.role), tone = roleTone(member.role))
+            BpmInfoRow(BpmSymbol.Bell, "Correo", member.email.orEmpty().ifBlank { "Sin correo registrado" })
+            BpmInfoRow(BpmSymbol.Company, "Sede", memberSites(member, sites), tone = BpmPlayTone.Correct)
         }
     }
+}
+
+
+internal fun roleTone(role: String): BpmPlayTone = when (role) {
+    "ADMIN" -> BpmPlayTone.Streak
+    "CHEF" -> BpmPlayTone.Gold
+    else -> BpmPlayTone.Action
 }

@@ -8,12 +8,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -79,14 +84,29 @@ private fun AssignmentList(state: AssignmentAdminState, viewModel: TrainingAssig
     } else BpmTextButton(onClick = viewModel::loadCourses) { Text("Filtrar por curso") }
     if (state.items.isEmpty() && !state.loading && state.failure == null) EmptyState("Sin asignaciones", "No hay asignaciones con este filtro.")
     BpmGridLayout(state.items) { item, m ->
+        var confirming by rememberSaveable(item.id) { mutableStateOf(false) }
+        val active = item.status == AssignmentRecordStatus.ACTIVE
         BpmCard(m) {
-            Eyebrow(if (item.status == AssignmentRecordStatus.ACTIVE) "ACTIVA" else "CANCELADA")
-            Text(item.course.title, style = MaterialTheme.typography.titleMedium)
-            Text(targetLabel(item.target))
-            Text(item.dueAt?.let { "Fecha límite: ${dateLabel(it)}" } ?: "Sin fecha límite", style = MaterialTheme.typography.bodySmall)
-            Text("Creada el ${dateLabel(item.createdAt)}", style = MaterialTheme.typography.bodySmall)
-            if (item.status == AssignmentRecordStatus.ACTIVE)
-                BpmChunkyButton(if (state.cancellingId == item.id) "Cancelando…" else "Cancelar asignación", { viewModel.cancel(item.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.cancellingId == null)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                BpmIconTile(BpmSymbol.Learn, if (active) BpmPlayTone.Correct else BpmPlayTone.Action)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.course.title, style = MaterialTheme.typography.titleMedium)
+                    Text(targetLabel(item.target), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            BpmChipRow {
+                BpmStatusChip(if (active) "Activa" else "Cancelada", if (active) BpmTone.Success else BpmTone.Neutral, symbol = if (active) BpmSymbol.Check else BpmSymbol.Close)
+                BpmStatusChip(item.dueAt?.let { "Vence ${dateLabel(it)}" } ?: "Sin fecha límite", BpmTone.Info, symbol = BpmSymbol.Calendar)
+            }
+            Text("Creada el ${dateLabel(item.createdAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (active) {
+                if (!confirming) BpmChunkyButton(if (state.cancellingId == item.id) "Cancelando…" else "Cancelar asignación", { confirming = true }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = state.cancellingId == null)
+                else {
+                    Text("¿Seguro? La persona dejará de ver este curso como tarea.", style = MaterialTheme.typography.bodyMedium)
+                    BpmChunkyButton("Sí, cancelar asignación", { confirming = false; viewModel.cancel(item.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Error, enabled = state.cancellingId == null)
+                    BpmChunkyButton("No, conservarla", { confirming = false }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+                }
+            }
         }
     }
     if (state.next != null) BpmChunkyButton("Ver más asignaciones", viewModel::more, tone = BpmChunkyTone.White, enabled = !state.loading)
@@ -133,7 +153,7 @@ private fun AssignmentFormPanel(state: AssignmentAdminState, form: AssignmentFor
         BpmFormStep("¿Hasta cuándo?", description = "Revisa el resumen. La fecha límite es opcional.") {
             BpmDetailFields(listOf(BpmDetailField("Curso", form.courseTitle), BpmDetailField("Para", targetSummary(form))))
             BpmDatePicker(form.dueDate, { v -> viewModel.edit { it.copy(dueDate = v) } }, "Fecha límite (opcional)", optional = true, min = BpmCalendar.today().iso,
-                error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (hora universal).")
+                error = issues["dueDate"], enabled = enabled, supportingText = "Vence al terminar ese día (11:59 p. m., hora de Lima).")
         },
     )
     BpmStepForm(steps, step, { step = it }, submitLabel = "Crear asignación", onSubmit = viewModel::create,

@@ -78,10 +78,10 @@ fun BpmInlineActions(
     if (currentWindowClass == BpmWindowClass.Compact) {
         Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.grid), verticalAlignment = Alignment.CenterVertically) {
             if (secondary != null) {
-                if (compactSecondaryFixed) secondary() else Box(Modifier.weight(0.8f)) { secondary() }
+                if (compactSecondaryFixed) secondary() else Box(Modifier.weight(0.95f)) { secondary() }
             }
             // La acción principal lleva más ancho que «Cancelar»: «Crear sede» no se parte en dos líneas a 360 dp.
-            Box(Modifier.weight(if (secondary != null) 1.2f else 1f)) { primary() }
+            Box(Modifier.weight(if (secondary != null) 1.05f else 1f)) { primary() }
         }
     } else {
         Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md, Alignment.End), verticalAlignment = Alignment.CenterVertically) {

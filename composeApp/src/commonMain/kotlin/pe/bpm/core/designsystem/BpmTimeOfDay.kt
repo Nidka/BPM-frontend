@@ -10,6 +10,9 @@ data class TimeOfDay(val hour: Int, val minute: Int) : Comparable<TimeOfDay> {
     /** `08:05`. */
     val text: String get() = BpmTime.two(hour) + ":" + BpmTime.two(minute)
 
+    /** Lo que ve la persona: reloj de 12 horas, «8:30 p. m.» (el valor guardado sigue siendo `HH:mm`). */
+    val display: String get() = pe.bpm.core.presentation.displayClock(text)
+
     /** Para el lector de pantalla: «8 y 30 de la mañana», «12 en punto del mediodía». */
     val spoken: String
         get() {

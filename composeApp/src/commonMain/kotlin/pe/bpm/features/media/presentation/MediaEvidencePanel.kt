@@ -42,7 +42,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         onResult = { result -> viewModel.select(result, state.context, state.userId) },
     )
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Fotos guardadas", style = MaterialTheme.typography.titleLarge)
+        Text("Fotos", style = MaterialTheme.typography.titleLarge)
         Text(if (state.confirmedCount == 1) "1 foto guardada" else "${state.confirmedCount} fotos guardadas", style = MaterialTheme.typography.bodyMedium)
         if (state.loading || state.busy) {
             if (state.progress == null) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -67,7 +67,7 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
                 if (state.canEdit) BpmTextButton(onClick = { viewModel.requestRemove(file.id) }, enabled = !state.busy && !state.loading) { Text("Retirar foto") }
             }
         }
-        if (state.pendingName != null) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.secondaryContainer) {
+        if (state.pendingName != null && !state.busy) BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.secondaryContainer) {
             Text(state.pendingName, style = BpmType.bodyStrong)
             Text("Esta foto todavía no se ha guardado. Reintenta el envío antes de cerrar este panel. Si lo cierras, tendrás que volver a seleccionarla.")
             if (state.pendingNeedsConfirmation) Text("Al reintentar comprobaremos si la foto ya se guardó.")
@@ -78,7 +78,6 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
             }
         }
         if (state.canEdit) {
-            Text("Para guardar fotos necesitas conexión. Reintenta cualquier envío pendiente antes de cerrar este panel.", style = MaterialTheme.typography.bodySmall)
             if (camera != null) BpmChunkyButton("Tomar foto", camera, Modifier.bpmPrimaryButtonWidth(), enabled = state.canSelect, icon = BpmSymbol.Camera)
             BpmChunkyButton(if (camera != null) "Elegir de la galería" else "Elegir foto", picker, Modifier.bpmPrimaryButtonWidth(), enabled = state.canSelect, tone = if (camera != null) BpmChunkyTone.White else BpmChunkyTone.Action)
             state.policy?.let { policy ->

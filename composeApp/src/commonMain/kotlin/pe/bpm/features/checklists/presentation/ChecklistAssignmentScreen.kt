@@ -313,7 +313,7 @@ fun ChecklistAssignmentFormScreen(
                     "Hora de referencia (opcional)",
                     enabled = state.editable,
                     error = state.fields["dueTime"],
-                    supportingText = "Hora de 24 horas, en la zona horaria de la sede.",
+                    supportingText = "Hora de la sede.",
                 )
                 },
             ),

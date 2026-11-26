@@ -38,15 +38,13 @@ internal fun IncidentFormContent(
     BpmFormScaffold(title) {
         if (e.recovered)
             Text("Recuperamos tu copia local de esta sede. Revisa los datos antes de continuar.")
-        Text(
-            when (e.saveStatus) {
-                DraftSaveStatus.SAVING -> "Guardando copia local…"
-                DraftSaveStatus.SAVED -> "Copia local guardada"
-                DraftSaveStatus.FAILED -> "No se pudo guardar la copia local"
-                else -> "Los cambios se guardan en este dispositivo."
-            },
-            style = MaterialTheme.typography.bodySmall,
-        )
+        val saveText = when (e.saveStatus) {
+            DraftSaveStatus.SAVING -> "Guardando borrador…"
+            DraftSaveStatus.SAVED -> "Borrador guardado en este teléfono"
+            DraftSaveStatus.FAILED -> "No se pudo guardar el borrador"
+            else -> ""
+        }
+        if (saveText.isNotEmpty()) Text(saveText, style = MaterialTheme.typography.bodySmall)
         e.failure?.let {
             // Al validar, un 403/409 suele significar que existe otra persona elegible para validar.
             val text = if (f.kind == "VERIFY" && (it == IncidentsFailure.DENIED || it == IncidentsFailure.CONFLICT))
@@ -129,13 +127,13 @@ internal fun IncidentFormContent(
                 e.errors["catalogId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
             if (f.kind == "ASSIGN") {
-                Text(f.values["responsibleName"] ?: "Selecciona una persona activa de esta sede.")
-                BpmChunkyButton("Elegir responsable", { vm.picker(IncidentPicker.ASSIGNEE) }, tone = BpmChunkyTone.White, enabled = !e.busy)
+                f.values["responsibleName"]?.let { BpmInfoRow(BpmSymbol.Team, "Responsable", it) } ?: Text("Elige quién lo va a corregir.")
+                BpmChunkyButton(if (f.values["responsibleName"] == null) "Elegir responsable" else "Cambiar responsable", { vm.picker(IncidentPicker.ASSIGNEE) }, tone = BpmChunkyTone.White, enabled = !e.busy)
                 e.errors["responsibleUserId"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Text(
                     if (s.timeZone.isBlank())
                         "La sede no tiene una zona horaria válida. Solicita que se configure antes de asignar un plazo."
-                    else "Fecha y hora local de la sede (${s.timeZone}).",
+                    else "Elige el plazo: fecha y hora de la sede.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 e.errors["dueAt"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -144,7 +142,7 @@ internal fun IncidentFormContent(
             fields.forEach { field ->
                 if (field.key == "dueTime") {
                     BpmTimePicker(f.values["dueTime"].orEmpty(), { editor.edit("dueTime", it) }, "Hora límite en la sede", optional = false,
-                        error = e.errors["dueTime"], enabled = !e.busy, supportingText = "Hora de 24 horas, en la zona horaria de la sede.")
+                        error = e.errors["dueTime"], enabled = !e.busy, supportingText = "Hora de la sede.")
                     return@forEach
                 }
                 if (field.key == "dueDate") {
@@ -184,8 +182,11 @@ internal fun IncidentFormContent(
                     enabled = !e.busy,
                 ) { editor.edit("evidenceRequired", it.toString()) }
             }
-            if (f.kind == "START") Text("Confirma que comenzarás a atender la acción asignada.")
-            BpmChunkyButton("Revisar antes de enviar", editor::review, Modifier.fillMaxWidth(), enabled = !e.busy)
+            if (f.kind == "START") {
+                // Una sola confirmación: antes eran tres toques y dos pantallas casi vacías para un cambio de estado.
+                Text("Confirma que empiezas a corregirlo ahora. Quedará registrado a tu nombre.")
+                BpmChunkyButton("Sí, empezar ahora", { editor.review(); if (editor.state.value.reviewing) editor.submit() }, Modifier.fillMaxWidth(), enabled = !e.busy)
+            } else BpmChunkyButton("Revisar antes de enviar", editor::review, Modifier.fillMaxWidth(), enabled = !e.busy)
         }
         BpmChunkyButton("Guardar y volver", { editor.close { vm.refresh() } }, tone = BpmChunkyTone.White, enabled = !e.busy)
         BpmTextButton(editor::discard, enabled = !e.busy) { Text("Descartar este borrador") }
@@ -200,13 +201,13 @@ private fun IncidentReview(f: IncidentForm) {
             "name" to "Nombre",
             "area" to "Área",
             "normativeCriterion" to "Criterio normativo",
-            "description" to "Descripción",
+            "description" to (if (f.kind == "ASSIGN") "Qué hay que hacer" else "Qué pasó"),
             "note" to "Explicación",
-            "catalogName" to "Criterio",
+            "catalogName" to "Tipo",
             "responsibleName" to "Responsable",
             "dueDate" to "Fecha límite",
             "dueTime" to "Hora límite",
-            "dueZone" to "Zona horaria de la sede",
+            
         )
     labels.forEach { (key, label) ->
         f.values[key]?.takeIf { it.isNotBlank() }?.let { Text("$label: " + if (key == "dueDate") BpmCalendar.parse(it)?.spoken ?: it else it) }

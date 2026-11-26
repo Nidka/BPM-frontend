@@ -98,16 +98,14 @@ internal fun AdminTeamContent(
 
 @Composable
 private fun AdminMemberDetail(member: Member, sites: List<Location>, onBack: () -> Unit, onManage: () -> Unit, onAssignCourse: () -> Unit) {
-    BpmDetailPane(member.name, subtitle = "${roleName(member.role)} · ${siteText(member, sites)}", onBack = onBack, actions = {
+    BpmDetailPane(member.name, subtitle = null, onBack = onBack, chips = listOf(BpmDetailChip(roleName(member.role), adminRoleTone(member.role))), actions = {
         BpmChunkyButton("Asignar curso", onAssignCourse)
         BpmChunkyButton("Cambiar rol o sede", onManage, tone = BpmChunkyTone.White)
     }) {
-        BpmSection("Datos") {
-            BpmDetailFields(listOf(
-                BpmDetailField("Rol", roleName(member.role)),
-                BpmDetailField("Correo", member.email),
-                BpmDetailField("Sedes", memberLocations(member, sites)),
-            ))
+        BpmSectionCard("Datos de la persona", BpmSymbol.Account) {
+            BpmInfoRow(BpmSymbol.Team, "Rol", roleName(member.role), tone = adminRoleTone(member.role))
+            BpmInfoRow(BpmSymbol.Bell, "Correo", member.email.orEmpty().ifBlank { "Sin correo registrado" })
+            BpmInfoRow(BpmSymbol.Company, "Sedes", memberLocations(member, sites), tone = BpmPlayTone.Correct)
         }
     }
 }
@@ -165,7 +163,7 @@ private fun AdminCourseDetail(course: Entry, onBack: () -> Unit, onOpen: () -> U
             BpmChunkyButton("Abrir curso", onOpen)
             BpmChunkyButton("Gestionar cursos", onManage, tone = BpmChunkyTone.White)
         }) {
-        BpmSection("Descripción") { Text(course.detail.ifBlank { "Este curso no tiene descripción." }, style = BpmPlayType.sub, color = BpmPlayColors.ink) }
+        BpmSectionCard("De qué trata", BpmSymbol.Learn, tone = BpmPlayTone.Correct) { Text(course.detail.ifBlank { "Este curso no tiene descripción." }, style = BpmPlayType.sub, color = BpmPlayColors.ink) }
     }
 }
 
@@ -234,15 +232,18 @@ internal fun AdminCompanyContent(
 
 @Composable
 private fun AdminSiteDetail(site: Location, canManage: Boolean, onBack: () -> Unit, onEdit: () -> Unit) {
-    BpmDetailPane(site.name, subtitle = site.address, onBack = onBack,
+    BpmDetailPane(site.name, subtitle = null, onBack = onBack, eyebrow = "Sede",
         actions = if (canManage) ({ BpmChunkyButton("Editar sede", onEdit, tone = BpmChunkyTone.White) }) else null) {
-        BpmSection("Datos") {
-            BpmDetailFields(listOf(
-                BpmDetailField("Dirección", site.address),
-                BpmDetailField("Distrito", site.district),
-                BpmDetailField("Teléfono", site.contactPhone),
-                BpmDetailField("Zona horaria", site.timezone),
-            ))
+        BpmSectionCard("Datos de la sede", BpmSymbol.Company) {
+            BpmInfoRow(BpmSymbol.Route, "Dirección", listOf(site.address, site.district).filter { it.isNotBlank() }.joinToString(", "))
+            BpmInfoRow(BpmSymbol.Bell, "Teléfono", site.contactPhone.orEmpty())
+            BpmInfoRow(BpmSymbol.Clock, "Zona horaria", site.timezone, tone = BpmPlayTone.Gold)
         }
     }
+}
+
+private fun adminRoleTone(role: String): BpmPlayTone = when (role) {
+    "ADMIN" -> BpmPlayTone.Streak
+    "CHEF" -> BpmPlayTone.Gold
+    else -> BpmPlayTone.Action
 }

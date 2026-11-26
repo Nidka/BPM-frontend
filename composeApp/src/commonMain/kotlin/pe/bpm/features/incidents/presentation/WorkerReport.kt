@@ -85,7 +85,7 @@ fun WorkerReportContent(
     val form = e.form
     // Enviado: el formulario se cerró tras confirmar (en línea) o tras guardarse en el dispositivo (sin conexión).
     if (sent && form == null) {
-        ReportSent(s, wantPhoto, onClose, onEvidence, modifier)
+        ReportSent(s, wantPhoto, onClose, onEvidence, onOpenList, modifier)
         return
     }
     if (form == null) {
@@ -229,6 +229,7 @@ private fun ReportSent(
     wantPhoto: Boolean,
     onClose: () -> Unit,
     onEvidence: (String, String?, String, Boolean) -> Unit,
+    onOpenList: () -> Unit,
     modifier: Modifier,
 ) {
     val detail = s.detail
@@ -240,6 +241,7 @@ private fun ReportSent(
         centered = true,
         footer = {
             BpmChunkyButton("Listo", onClose, Modifier.fillMaxWidth())
+            BpmChunkyButton("Ver mis reportes", onOpenList, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             // Siempre disponible: si se cerró el panel de fotos sin adjuntar nada, se puede volver a abrir.
             if (id != null) BpmChunkyButton(if (wantPhoto) "Agregar otra foto" else "Agregar foto", { onEvidence(id, null, "BEFORE", true) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Camera)
         },

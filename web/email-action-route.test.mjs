@@ -53,7 +53,7 @@ test('los recursos relativos de Compose bajo /auth/accion y /verificar-cumplimie
   t.after(async () => { app.closeAllConnections(); await new Promise(resolve => app.close(resolve)); await rm(root, { recursive: true, force: true }); });
   const base = 'http://127.0.0.1:' + app.address().port;
   const resource = 'composeResources/pe.bpm.resources/font/baloo2.ttf';
-  for (const prefix of ['/', '/auth/', '/auth/accion/', '/verificar-cumplimiento/ABCDEFGHIJKLMNOPQRSTUVWX/']) {
+  for (const prefix of ['/', '/auth/', '/auth/accion/', '/cuenta/', '/verificar-cumplimiento/ABCDEFGHIJKLMNOPQRSTUVWX/']) {
     const response = await fetch(base + prefix + resource);
     assert.equal(response.status, 200, prefix);
     assert.equal(await response.text(), 'fuente', prefix);

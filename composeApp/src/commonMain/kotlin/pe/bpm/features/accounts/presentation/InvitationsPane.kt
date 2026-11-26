@@ -102,8 +102,8 @@ internal fun InvitationSharePanel(share: ShareState, organizationName: String, o
 }
 
 private fun statusLine(invitation: Invitation) = when (invitation.status) {
-    InvitationStatus.PENDING -> "Vence: ${displayDateTime(invitation.expiresAt)}. Enviada ${invitation.sendCount} ${if (invitation.sendCount == 1) "vez" else "veces"}."
-    InvitationStatus.EXPIRED -> "Venció el ${displayDateTime(invitation.expiresAt)}. Reenvíala para renovar 7 días."
+    InvitationStatus.PENDING -> "Vence: ${displayDateTime(invitation.expiresAt)} · Enviada ${invitation.sendCount} ${if (invitation.sendCount == 1) "vez" else "veces"}."
+    InvitationStatus.EXPIRED -> "Venció el ${displayDateTime(invitation.expiresAt)} · Reenvíala para renovar 7 días."
     InvitationStatus.ACCEPTED -> "La persona ya se unió al equipo."
     InvitationStatus.REVOKED -> "Ya no se puede usar."
 }

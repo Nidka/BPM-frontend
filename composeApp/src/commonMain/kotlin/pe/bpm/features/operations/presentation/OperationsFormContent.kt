@@ -256,7 +256,7 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
                 if (spec.key == "dueTime") {
                     // La hora se elige con botones grandes (no se escribe «HH:mm»).
                     BpmTimePicker(value, { vm.field(spec.key, it) }, spec.label, error = state.fields[spec.key], enabled = state.editable,
-                        supportingText = "Hora de 24 horas, en la zona horaria de la sede.")
+                        supportingText = "Hora de la sede.")
                     return@forEach
                 }
                 val rule =

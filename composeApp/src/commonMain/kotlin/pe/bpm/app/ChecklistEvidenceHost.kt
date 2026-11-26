@@ -152,7 +152,7 @@ private fun ColumnScope.confirmationScroll(): Modifier =
 @Composable
 private fun EvidenceHeading(label: String, enabled: Boolean, onClose: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        BpmTextButton(onClick = onClose, enabled = enabled) { Text("Cerrar fotos") }
+        BpmTextButton(onClick = onClose, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) { Text("Listo") }
         Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }

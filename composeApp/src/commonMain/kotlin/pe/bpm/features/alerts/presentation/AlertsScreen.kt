@@ -44,39 +44,31 @@ fun AlertsScreen(
     if (s.loading && s.inbox.rows.isEmpty() || s.detailLoading) BpmSkeletonRecordCards(3, label = "Cargando avisos")
     val a = s.detail
     if (a != null) {
-      BpmCard(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-          Text(a.title, style = MaterialTheme.typography.titleLarge)
-          Text(alertStatusLabel(a))
+      val unread = a.viewedAt == null && a.attendedAt == null && a.status != AlertStatus.CANCELLED
+      // Abrir un aviso es verlo: se marca como visto sin pedir otro toque (la persona no distingue «visto» de «leído»).
+      LaunchedEffect(a.id, unread) { if (unread && !s.actionBusy && s.actionFailure == null) viewModel.markViewed() }
+      Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        BpmGuideCard(
+          alertSymbol(a.type), alertTone(a.type), a.title, eyebrow = alertTypeLabel(a.type), message = a.message,
+        ) {
           pe.bpm.core.offline.PendingBadge(a.id)
-          Text(a.message)
-          Text(
-            "${alertTypeLabel(a.type)} · ${displayDateTime(a.createdAt)}",
-            style = MaterialTheme.typography.bodySmall,
-          )
-          if (a.locationName.isNotBlank()) Text("Sede: ${a.locationName}")
-          a.viewedAt?.let { Text("Visto: ${displayDateTime(it)}") }
-          a.attendedAt?.let { Text("Atendido: ${displayDateTime(it)}") }
           if (s.actionBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
           s.actionFailure?.let { AlertError(it, viewModel::retryAction) }
           if (a.status != AlertStatus.CANCELLED) {
-            FlowRow(
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-              verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-              if (a.viewedAt == null)
-                BpmChunkyButton("Marcar como visto", viewModel::markViewed, tone = BpmChunkyTone.White, enabled = !s.actionBusy)
-              if (a.attendedAt == null)
-                BpmChunkyButton("Marcar como atendido", viewModel::markAttended, Modifier.fillMaxWidth(), enabled = !s.actionBusy)
-            }
-            Text(
-              "Atender este aviso registra tu atención. La tarea del recurso se completa desde su propio módulo.",
-              style = MaterialTheme.typography.bodySmall,
-            )
+            if (a.attendedAt == null)
+              BpmChunkyButton("Ya lo atendí", viewModel::markAttended, Modifier.fillMaxWidth(), enabled = !s.actionBusy)
+            if (a.sourceAvailable)
+              BpmChunkyButton("Ir a verlo", { onOpenSource(a) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !s.actionBusy)
           }
-          if (a.sourceAvailable)
-            BpmChunkyButton("Abrir recurso relacionado", { onOpenSource(a) }, tone = BpmChunkyTone.White, enabled = !s.actionBusy)
-          else Text("El recurso relacionado ya no está disponible para tu cuenta.")
+        }
+        BpmSectionCard("Detalle", BpmSymbol.Bell) {
+          BpmChipRow { BpmStatusChip(alertStatusLabel(a), when { unread -> BpmTone.Warning; a.attendedAt != null -> BpmTone.Success; else -> BpmTone.Neutral },
+            symbol = when { unread -> BpmSymbol.Bell; a.attendedAt != null -> BpmSymbol.Check; else -> BpmSymbol.Eye }) }
+          if (a.locationName.isNotBlank()) BpmInfoRow(BpmSymbol.Company, "Sede", a.locationName)
+          BpmInfoRow(BpmSymbol.Clock, "Llegó", displayDateTime(a.createdAt))
+          a.viewedAt?.let { BpmInfoRow(BpmSymbol.Eye, "Visto", displayDateTime(it), tone = BpmPlayTone.Correct) }
+          a.attendedAt?.let { BpmInfoRow(BpmSymbol.Check, "Atendido", displayDateTime(it), tone = BpmPlayTone.Correct) }
+          if (!a.sourceAvailable && a.status != AlertStatus.CANCELLED) Text("Ya no puedes abrir lo relacionado con este aviso.", style = MaterialTheme.typography.bodySmall)
         }
       }
     } else if (!s.detailLoading) {

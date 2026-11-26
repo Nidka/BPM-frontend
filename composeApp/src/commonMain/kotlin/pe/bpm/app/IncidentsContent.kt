@@ -65,7 +65,7 @@ internal fun IncidentsContent(
                 IncidentsScreen(incidents, Modifier.weight(1f), onEvidence)
             }
             else -> pe.bpm.features.incidents.presentation.WorkerReportContent(incidents, onClose!!, onEvidence,
-                onOpenList = { incidents.picker(null); showList = true }, modifier = modifier.fillMaxSize())
+                onOpenList = { incidents.picker(null); incidents.editor.close { showList = true } }, modifier = modifier.fillMaxSize())
         }
         return
     }

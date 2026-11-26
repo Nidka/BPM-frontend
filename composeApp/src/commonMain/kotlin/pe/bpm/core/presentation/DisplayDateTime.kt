@@ -11,6 +11,17 @@ fun displayDateTime(value: String): String = localDateTime(Instant.parse(value).
 
 internal fun localDateTime(epochMilliseconds: Long): String = formatDateTime(epochMilliseconds, localUtcOffsetMinutes(epochMilliseconds))
 
+/**
+ * Fecha «03/12/2026» de un instante visto en la zona del dispositivo (un plazo que vence a las 23:59 de Lima cae a las 04:59 UTC
+ * del día siguiente: leer el día en UTC lo adelantaba un día). Una fecha sin hora «2026-12-03» solo se reordena.
+ */
+fun displayDay(value: String?): String {
+    val text = value?.trim().orEmpty()
+    if (text.isEmpty()) return ""
+    if ('T' !in text) return Regex("(\\d{4})-(\\d{2})-(\\d{2})").matchEntire(text)?.destructured?.let { (y, m, d) -> "$d/$m/$y" } ?: text
+    return runCatching { displayDateTime(text).substringBefore(" · ") }.getOrDefault(text.substringBefore('T'))
+}
+
 /** Hora de reloj de 12 horas de un instante, p. ej. «8:41 p. m.». */
 fun displayClockOf(value: String): String {
     val millis = Instant.parse(value).toEpochMilliseconds()

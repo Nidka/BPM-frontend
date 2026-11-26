@@ -38,7 +38,7 @@ internal fun assignmentStatusLabel(status: AssignmentProgress) = when (status) {
     AssignmentProgress.OVERDUE -> "Vencida"
 }
 
-internal fun dateLabel(instant: String?): String = instant?.substringBefore('T').orEmpty()
+internal fun dateLabel(instant: String?): String = pe.bpm.core.presentation.displayDay(instant)
 
 @Composable
 private fun FailureText(failure: TrainingFailure?) {

@@ -909,7 +909,8 @@ fun App(
                                         confirmButton = { BpmTextButton({ confirmEvaluationExit = false; if (learnerPlay || !training.back()) navigateBack(destination.route) }) { Text("Salir") } },
                                         dismissButton = { BpmTextButton({ confirmEvaluationExit = false }) { Text("Seguir respondiendo") } })
                                     if (trainingCourseId != null) TrainingCourseContent(profile.id, workspaceState.selected.orEmpty(), trainingCourseId, profile.platformRole != "SUPER_ADMIN", training,
-                                        onOpenCourse = { id -> courseIntent = null; nav.navigate("aprender/$id") { launchSingleTop = true } },
+                                        // «Siguiente módulo» reemplaza al curso actual: «atrás» vuelve al camino y no a un curso ya terminado (quedaba en blanco).
+                                        onOpenCourse = { id -> courseIntent = null; nav.navigate("aprender/$id") { popUpTo(nav.currentBackStackEntry?.destination?.route ?: TRAINING_COURSE) { inclusive = true }; launchSingleTop = true } },
                                         worker = if (learnerPlay) {
                                             val learner = trainingLearner.state.collectAsStateWithLifecycle().value
                                             val module = pe.bpm.features.training.presentation.moduleOf(learner.assignments, trainingCourseId)

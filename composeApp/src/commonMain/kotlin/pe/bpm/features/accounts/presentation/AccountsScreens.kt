@@ -29,6 +29,9 @@ fun AccountsManagementScreen(
 ) {
     val teamState by team.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable(startTab) { mutableStateOf(when (startTab) { "invitations" -> AccountsTab.Invitations.name; "organization" -> AccountsTab.Organization.name; else -> AccountsTab.Team.name }) }
+    // «Invitar persona» llega con la pestaña de invitaciones: se abre ya el formulario para que el toque tenga un efecto visible.
+    val invitationState by invitations.state.collectAsStateWithLifecycle()
+    LaunchedEffect(startTab, invitationState.allowed) { if (startTab == "invitations" && invitationState.allowed && invitationState.form == null && invitationState.share == null) invitations.openForm() }
     Column(modifier.then(if (scrollable) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
         if (!teamState.allowed) { EmptyState("Gestión de cuentas restringida", "Solo el administrador de la organización puede gestionar a su equipo."); return@Column }
         // Pestañas de ancho fijo (un tercio cada una): al elegir una, las demás no se mueven.

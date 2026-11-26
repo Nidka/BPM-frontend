@@ -137,23 +137,20 @@ fun IncidentsScreen(
             s.picker == IncidentPicker.ASSIGNEE -> IncidentChoices(s, viewModel)
             e.form != null -> IncidentFormContent(s, e, viewModel)
             s.showHistory -> {
-                Text("Historial de la incidencia", style = MaterialTheme.typography.titleLarge)
+                Text("Qué pasó con este reporte", style = MaterialTheme.typography.titleLarge)
                 if (s.history.loading) BpmSkeletonList(rows = 3, card = false)
                 s.history.failure?.let {
                     Text(incidentFailureText(it))
                     BpmTextButton(viewModel::history) { Text("Reintentar historial") }
                 }
-                s.history.rows.forEach { event -> // lista-apilada: cronología en orden de eventos
-                    BpmCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "${incidentStatusLabel(event.fromStatus)} → ${incidentStatusLabel(event.toStatus)}"
-                            )
-                            Text("${event.actorName} · ${displayDateTime(event.createdAt)}")
-                            event.note?.takeIf { it.isNotEmpty() }?.let { Text(it) }
-                        }
-                    }
-                }
+                BpmTimeline(s.history.rows.map { event ->
+                    BpmTimelineEvent(
+                        title = if (event.fromStatus.isBlank()) "Reporte creado" else "${incidentStatusLabel(event.fromStatus)} → ${incidentStatusLabel(event.toStatus)}",
+                        detail = event.note?.takeIf { it.isNotEmpty() },
+                        meta = "${event.actorName} · ${displayDateTime(event.createdAt)}",
+                        tone = when (incidentStatusTone(event.toStatus)) { BpmTone.Success -> BpmPlayTone.Correct; BpmTone.Warning -> BpmPlayTone.Gold; BpmTone.Danger -> BpmPlayTone.Error; else -> BpmPlayTone.Action },
+                    )
+                })
                 PageNavigation(
                     s.history.number,
                     s.history.previous.isNotEmpty(),

@@ -277,9 +277,9 @@ export function createAppServer({
           return send(503, errorBody('BACKEND_UNAVAILABLE', 'No se pudo conectar con el backend.'));
         }
       }
-      // Compose pide sus recursos con rutas relativas (./composeResources/…): bajo /auth/accion o /verificar-cumplimiento/{código} el
+      // Compose pide sus recursos con rutas relativas (./composeResources/…): bajo /auth/accion, /cuenta/invitacion (enlace del correo de invitación) o /verificar-cumplimiento/{código} el
       // navegador los resuelve contra esa ruta, así que se reconducen a la raíz (la CSP `base-uri 'none'` impide usar <base>).
-      const decoded = decodeURIComponent(url.pathname).replace(/^\/(?:auth(?:\/accion)?|verificar-cumplimiento\/[A-Za-z2-7]{24})\/(composeResources\/)/, '/$1');
+      const decoded = decodeURIComponent(url.pathname).replace(/^\/(?:auth(?:\/accion)?|cuenta|verificar-cumplimiento\/[A-Za-z2-7]{24})\/(composeResources\/)/, '/$1');
       let file = resolve(root, '.' + decoded);
       if (file !== root && !file.startsWith(root + sep)) {
         return send(404, errorBody('NOT_FOUND', 'Recurso no disponible.'));

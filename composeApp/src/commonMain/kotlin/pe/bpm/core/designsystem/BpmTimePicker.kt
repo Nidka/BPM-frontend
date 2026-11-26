@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
  *
  * - [value] y [onValueChange] usan `HH:mm` de 24 horas (vacío = sin hora). Con [optional] aparece «Quitar hora».
  * - Atajos: «Ahora» (hora actual del dispositivo, minutos exactos) y las horas de [presets] (por defecto 08:00, 12:00 y 18:00).
- * - Horas 00–23 en 6 columnas y minutos de 5 en 5 en 6 columnas; cada botón mide al menos 48 dp de alto, lleva su hora dicha en
+ * - Horas en dos bloques «a. m.» y «p. m.» (12, 1…11) en 6 columnas y minutos de 5 en 5 en 6 columnas; cada botón mide al menos 48 dp de alto, lleva su hora dicha en
  *   palabras como descripción para el lector de pantalla y dice «Elegido» además de teñirse.
  * - Al tocar un minuto el panel se cierra; «Listo» lo cierra con la hora ya elegida (las horas en punto no necesitan minutos).
  */
@@ -70,7 +70,7 @@ fun BpmTimePicker(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(label, style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
-                Text(selected?.text ?: if (optional) "Sin hora" else "Elige una hora", style = BpmPlayType.rowTitle,
+                Text(selected?.display ?: if (optional) "Sin hora" else "Elige una hora", style = BpmPlayType.rowTitle,
                     color = if (selected != null) BpmPlayColors.ink else BpmPlayColors.muted,
                     modifier = Modifier.semantics { selected?.let { contentDescription = it.text + ", " + it.spoken } })
             }
@@ -85,12 +85,20 @@ fun BpmTimePicker(
                     { Text("Ahora", modifier = Modifier.semantics { contentDescription = "Ahora, la hora actual del dispositivo" }) }, enabled = enabled)
                 presets.mapNotNull(BpmTime::parse).forEach { t ->
                     BpmFilterChip(selected == t, { onValueChange(t.text); open = false },
-                        { Text(t.text, modifier = Modifier.semantics { contentDescription = t.text + ", " + t.spoken }) }, enabled = enabled)
+                        { Text(t.display, modifier = Modifier.semantics { contentDescription = t.text + ", " + t.spoken }) }, enabled = enabled)
                 }
             }
-            Text("Hora", style = BpmPlayType.label, color = BpmPlayColors.muted)
-            Grid(24) { h ->
-                TimeCell(h.toString().padStart(2, '0'), "$h horas", selected?.hour == h, enabled, Modifier.weight(1f)) {
+            Text("Hora (a. m. = mañana · p. m. = tarde y noche)", style = BpmPlayType.label, color = BpmPlayColors.muted)
+            Text("Mañana, a. m.", style = BpmPlayType.label, color = BpmPlayColors.ink)
+            Grid(12) { h ->
+                TimeCell((if (h == 0) 12 else h).toString(), "$h horas de la mañana", selected?.hour == h, enabled, Modifier.weight(1f)) {
+                    onValueChange(TimeOfDay(h, selected?.minute ?: 0).text)
+                }
+            }
+            Text("Tarde y noche, p. m.", style = BpmPlayType.label, color = BpmPlayColors.ink)
+            Grid(12) { i ->
+                val h = 12 + i
+                TimeCell((if (h == 12) 12 else h - 12).toString(), "$h horas", selected?.hour == h, enabled, Modifier.weight(1f)) {
                     onValueChange(TimeOfDay(h, selected?.minute ?: 0).text)
                 }
             }

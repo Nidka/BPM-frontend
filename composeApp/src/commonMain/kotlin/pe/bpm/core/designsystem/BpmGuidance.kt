@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -102,6 +103,53 @@ fun BpmSkeletonRecordCards(count: Int = 3, modifier: Modifier = Modifier, label:
                         BpmSkeleton(Modifier.size(84.dp, 24.dp), CircleShape)
                         BpmSkeleton(Modifier.size(64.dp, 24.dp), CircleShape)
                     }
+                }
+            }
+        }
+    }
+}
+
+/** Dato con icono: etiqueta pequeña y valor en negrita. Sustituye a los bloques de texto suelto de los detalles. */
+@Composable
+fun BpmInfoRow(symbol: BpmSymbol, label: String, value: String, modifier: Modifier = Modifier, tone: BpmPlayTone = BpmPlayTone.Action) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        BpmIconTile(symbol, tone, size = 36.dp)
+        Column(Modifier.weight(1f)) {
+            Text(label, style = BpmPlayType.statLabel, color = BpmPlayColors.muted)
+            Text(value.ifBlank { "—" }, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
+        }
+    }
+}
+
+/** Sección de un detalle con encabezado de color e icono; el contenido va debajo, con la separación de siempre. */
+@Composable
+fun BpmSectionCard(title: String, symbol: BpmSymbol, modifier: Modifier = Modifier, tone: BpmPlayTone = BpmPlayTone.Action, content: @Composable ColumnScope.() -> Unit) {
+    BpmCard(modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            BpmIconTile(symbol, tone, size = 36.dp)
+            Text(title, style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
+        }
+        content()
+    }
+}
+
+/** Línea de tiempo de un historial: punto de color, qué pasó, quién y cuándo; la línea une los puntos. */
+data class BpmTimelineEvent(val title: String, val detail: String? = null, val meta: String? = null, val tone: BpmPlayTone = BpmPlayTone.Action)
+
+@Composable
+fun BpmTimeline(events: List<BpmTimelineEvent>, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth()) {
+        events.forEachIndexed { index, event ->
+            val shade = BpmPlayColors.shade(event.tone)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.padding(top = 4.dp).size(14.dp).background(shade.face, CircleShape))
+                    if (index < events.lastIndex) Box(Modifier.padding(top = 4.dp).size(2.dp, 40.dp).background(BpmPlayColors.line))
+                }
+                Column(Modifier.weight(1f).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(event.title, style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
+                    event.detail?.takeIf { it.isNotBlank() }?.let { Text(it, style = BpmPlayType.sub, color = BpmPlayColors.ink) }
+                    event.meta?.let { Text(it, style = BpmPlayType.sub, color = BpmPlayColors.muted) }
                 }
             }
         }

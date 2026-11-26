@@ -46,6 +46,7 @@ import pe.bpm.features.checklists.domain.RunAnswerInput
 import pe.bpm.features.checklists.domain.RunFailure
 import pe.bpm.resources.Res
 import pe.bpm.resources.mascot_done
+import pe.bpm.resources.mascot_fix
 
 /**
  * Ejecución de un control del jefe de cocina, **una pregunta por pantalla** (modo enfoque): barra de avance con «3/6», la
@@ -289,12 +290,17 @@ private fun StateNotices(state: ChecklistRunState, onRetry: () -> Unit, onProtec
 @Composable
 private fun FinishedStage(templateName: String, compliance: Double?, onFinished: () -> Unit, modifier: Modifier) {
     val percent = compliance?.let { (DecimalInput.format(it) ?: it.toString()).replace('.', ',') }
+    // El color y el mensaje dicen cómo salió: un 71 % ya no se celebra igual que un 100 %.
+    val tone = when { compliance == null || compliance >= 90.0 -> BpmPlayTone.Correct; compliance >= 70.0 -> BpmPlayTone.Gold; else -> BpmPlayTone.Error }
+    val title = when (tone) { BpmPlayTone.Correct -> "¡Control finalizado!"; BpmPlayTone.Gold -> "Control enviado: hay puntos por mejorar"; else -> "Control enviado: hay que corregir" }
+    val titleColor = when (tone) { BpmPlayTone.Correct -> BpmPlayColors.correct.shadow; BpmPlayTone.Gold -> BpmPlayColors.goldText; else -> BpmPlayColors.error.shadow }
     BpmPlayStage(modifier, centered = true, footer = { BpmChunkyButton("Volver a Controles", onFinished, Modifier.fillMaxWidth()) }) {
         BpmCelebration(
-            Res.drawable.mascot_done, "¡Control finalizado!", templateName.ifBlank { null },
-            percent?.let { listOf(BpmStatTileSpec("Cumplimiento", "$it %", BpmPlayTone.Correct, BpmSymbol.Check)) }.orEmpty(),
-            titleColor = BpmPlayColors.correct.shadow,
+            if (tone == BpmPlayTone.Correct) Res.drawable.mascot_done else Res.drawable.mascot_fix, title, templateName.ifBlank { null },
+            percent?.let { listOf(BpmStatTileSpec("Cumplimiento", "$it %", tone, if (tone == BpmPlayTone.Correct) BpmSymbol.Check else BpmSymbol.Alert)) }.orEmpty(),
+            titleColor = titleColor,
         )
+        if (tone != BpmPlayTone.Correct) Text("Los puntos que no se cumplieron quedan en tu revisión. Si es algo que hay que arreglar, repórtalo como un problema desde Inicio.", style = BpmPlayType.sub, color = BpmPlayColors.ink)
         Text("Las respuestas enviadas ya no se pueden editar.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
     }
 }
