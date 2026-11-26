@@ -153,6 +153,13 @@ class IdentityViewModel(
     fun continueSession() { sessionMonitor?.continueSession() }
     val sessionStatus = sessionMonitor?.state ?: MutableStateFlow(SessionStatus()).asStateFlow()
 
+    /** La persona corrigió un campo: el mensaje del intento anterior ya no aplica. */
+    fun clearMessages() {
+        val s = mutableState.value
+        if (s.busy || (s.errors.isEmpty() && s.notice == null)) return
+        mutableState.value = s.copy(errors = emptyList(), notice = null)
+    }
+
     fun changeMode(mode: AuthMode) {
         if (mutableState.value.busy || mutableState.value.profile != null || mutableState.value.mode == mode) return
         resendCooldownJob?.cancel()

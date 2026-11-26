@@ -90,3 +90,6 @@ sealed interface AccountsResult<out T> {
     data class Success<T>(val value: T) : AccountsResult<T>
     data class Failure(val reason: AccountFailure, val fields: Map<String, String> = emptyMap()) : AccountsResult<Nothing>
 }
+
+/** Lo que se sabe de una invitación antes de iniciar sesión: empresa, rol y correo al que llegó. */
+data class InvitationPreview(val organizationName: String, val role: MemberRole, val email: String)

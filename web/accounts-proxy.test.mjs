@@ -206,3 +206,19 @@ test('workspace: listados de miembros y sedes aceptan solo status ACTIVE/INACTIV
   assert.equal((await call('GET', '/organizations/o1/members?status=DELETED')).status, 404);
   assert.equal((await call('GET', '/organizations/o1/courses?status=ACTIVE')).status, 404);
 });
+
+test('vista previa de la invitación: pública, solo los campos publicables y sin eco del token', async t => {
+  const { state, call } = await fixture(t);
+  state.payload = { data: { organizationName: 'Restaurante Demo', role: 'WORKER', email: 'persona@yopmail.com', expiresAt: '2026-12-03T10:00:00Z', status: 'PENDING', organizationId: 'o1', locationNames: ['Secreta'] } };
+  // Sin Authorization: quien abre el enlace todavía no inició sesión.
+  const ok = await call('POST', '/invitations/preview', { token }, { authorization: '' });
+  assert.equal(ok.status, 200);
+  const body = JSON.stringify(await ok.json());
+  assert.equal(JSON.parse(body).data.organizationName, 'Restaurante Demo');
+  assert.equal(body.includes('Secreta') || body.includes('o1') || body.includes(token), false);
+  for (const bad of [{ token: 'corto' }, { token, extra: 1 }, {}]) assert.equal((await call('POST', '/invitations/preview', bad, { authorization: '' })).status, 400);
+  state.status = 409; state.payload = { errors: [{ code: 'INVITATION_EXPIRED', message: token }] };
+  const expired = await call('POST', '/invitations/preview', { token }, { authorization: '' });
+  assert.equal(expired.status, 409);
+  assert.equal(JSON.stringify(await expired.json()).includes(token), false);
+});

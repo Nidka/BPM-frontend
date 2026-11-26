@@ -1,6 +1,8 @@
 package pe.bpm.app
 
 import pe.bpm.core.designsystem.BpmFilterChip
+import pe.bpm.core.designsystem.BpmSegmentedTabs
+import pe.bpm.core.designsystem.BpmTabOption
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -90,11 +92,8 @@ internal fun TrainingPlusAdminContent(
     }
     var tab by rememberSaveable(startOnAssignments) { mutableIntStateOf(if (startOnAssignments) 1 else 0) }
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (canManage && !tabsLocked) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Cursos", "Asignaciones", "Rutas", "Logros").forEachIndexed { index, label ->
-                BpmFilterChip(tab == index, { tab = index }, { Text(label) }, reserveCheck = true)
-            }
-        }
+        // Cuatro pestañas de ancho fijo en una sola línea (antes dos filas de fichas que ocupaban ~130 dp).
+        if (canManage && !tabsLocked) BpmSegmentedTabs(listOf("Cursos", "Asignaciones", "Rutas", "Logros").mapIndexed { index, label -> BpmTabOption(index.toString(), label) }, tab.toString(), { id -> tab = id.toInt() })
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (if (canManage && !tabsLocked) tab else 0) {
                 1 -> AssignmentAdminScreen(assignments,

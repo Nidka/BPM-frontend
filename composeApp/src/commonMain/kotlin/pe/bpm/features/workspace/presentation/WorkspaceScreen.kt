@@ -31,7 +31,7 @@ internal fun WorkspaceScreen(
     onDailyOperations: () -> Unit = {},
     onIncidents: () -> Unit = {},
     onTraining: () -> Unit = {},
-    onAccounts: () -> Unit = {}, onInvite: () -> Unit = onAccounts, onEditOrganization: () -> Unit = onAccounts, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
+    onAccounts: () -> Unit = {}, onInvite: () -> Unit = onAccounts, onEditOrganization: () -> Unit = onAccounts, onEditSite: (String) -> Unit = { onEditOrganization() }, onDevices: () -> Unit = {}, onAcceptInvitation: () -> Unit = {},
     homeContent: (@Composable () -> Unit)? = null,
     onOpenCourse: ((String) -> Unit)? = null,
     learnHeader: (@Composable () -> Unit)? = null,
@@ -234,16 +234,15 @@ internal fun WorkspaceScreen(
                         }
                         WorkspaceDestination.Company -> if (adminShell) AdminCompanyContent(current,
                             WorkspacePaging(state, onPageSearch, onPageNext, onPagePrevious, onPageRetry),
-                            AdminCompanyActions(onManageTemplates, onDailyOperations, onAlertRules, onWebhooks, onEditOrganization)) else {
+                            AdminCompanyActions(onManageTemplates, onDailyOperations, onAlertRules, onWebhooks, onEditOrganization, onEditSite)) else {
                             if (superAdmin) BpmBackLink(label = "Todas las organizaciones") { navigate(WorkspaceDestination.Home) }
-                            BpmCard(Modifier.fillMaxWidth()) {
-                                // La super administración ya ve el nombre como título de la pantalla.
+                            BpmSectionCard("Datos de la organización", BpmSymbol.Company, tone = BpmPlayTone.Streak) {
                                 if (!superAdmin) Text(current.organization.name, style = MaterialTheme.typography.titleLarge)
                                 // La razón social solo se muestra si difiere del nombre comercial.
-                                if (current.organization.legalName.isNotBlank() && current.organization.legalName != current.organization.name) Text(current.organization.legalName)
-                                if (current.organization.taxId.isNotBlank()) Text("RUC ${current.organization.taxId}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (current.organization.contactEmail.isNotBlank()) Text(current.organization.contactEmail)
-                                if (current.organization.contactPhone.isNotBlank()) Text(current.organization.contactPhone)
+                                if (current.organization.legalName.isNotBlank() && current.organization.legalName != current.organization.name) BpmInfoRow(BpmSymbol.Control, "Razón social", current.organization.legalName)
+                                if (current.organization.taxId.isNotBlank()) BpmInfoRow(BpmSymbol.Award, "RUC", current.organization.taxId, tone = BpmPlayTone.Gold)
+                                if (current.organization.contactEmail.isNotBlank()) BpmInfoRow(BpmSymbol.Bell, "Correo de contacto", current.organization.contactEmail)
+                                if (current.organization.contactPhone.isNotBlank()) BpmInfoRow(BpmSymbol.Play, "Teléfono", current.organization.contactPhone, tone = BpmPlayTone.Correct)
                             }
                             if (current.canManage) BpmGridLayout(listOfNotNull<@Composable (Modifier) -> Unit>(
                                 { m -> BpmActionTile(BpmSymbol.Control, "Plantillas de control", "Prepara preguntas y publica los criterios de tu equipo.", onManageTemplates, m) },

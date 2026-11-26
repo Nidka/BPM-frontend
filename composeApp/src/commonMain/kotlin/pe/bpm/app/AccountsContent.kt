@@ -15,14 +15,14 @@ import pe.bpm.features.accounts.presentation.*
 @Composable
 internal fun AccountsManagementContent(userId: String, organizationId: String, canManage: Boolean, actorIsMember: Boolean,
     team: TeamViewModel, invitations: InvitationsViewModel, organization: OrganizationViewModel, modifier: Modifier = Modifier,
-    organizationName: String = "", startTab: String = "team", inviteRequest: Int = 0, scrollable: Boolean = true, onAssignCourse: ((String, String) -> Unit)? = null) {
+    organizationName: String = "", startTab: String = "team", inviteRequest: Int = 0, editSiteId: String? = null, editSiteRequest: Int = 0, scrollable: Boolean = true, onAssignCourse: ((String, String) -> Unit)? = null) {
     LaunchedEffect(userId, organizationId, canManage, actorIsMember, organizationName) {
         team.open(organizationId, canManage, actorIsMember)
         invitations.open(organizationId, canManage, organizationName)
         organization.open(organizationId, canManage)
     }
     DisposableEffect(userId, organizationId) { onDispose { team.reset(); invitations.reset(); organization.reset() } }
-    pe.bpm.core.offline.ServerOnly { AccountsManagementScreen(team, invitations, organization, userId, modifier, startTab, scrollable, onAssignCourse, inviteRequest) }
+    pe.bpm.core.offline.ServerOnly { AccountsManagementScreen(team, invitations, organization, userId, modifier, startTab, scrollable, onAssignCourse, inviteRequest, editSiteId, editSiteRequest) }
 }
 
 @Composable

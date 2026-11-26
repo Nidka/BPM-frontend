@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -22,15 +23,15 @@ import pe.bpm.features.media.domain.*
 
 /** Panel abierto por una pregunta; no inicia consultas por cada fila del formulario. */
 @Composable
-fun MediaEvidencePanel(viewModel: MediaEvidenceViewModel, modifier: Modifier = Modifier) {
+fun MediaEvidencePanel(viewModel: MediaEvidenceViewModel, modifier: Modifier = Modifier, autoPick: Boolean = false) {
     val state by viewModel.state.collectAsState()
     key(state.userId, state.organizationId, state.runId, state.itemId, state.incidentId, state.actionId, state.stage) {
-        MediaEvidenceContent(state, viewModel, modifier)
+        MediaEvidenceContent(state, viewModel, modifier, autoPick)
     }
 }
 
 @Composable
-private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvidenceViewModel, modifier: Modifier) {
+private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvidenceViewModel, modifier: Modifier, autoPick: Boolean) {
     val picker = rememberEvidencePhotoPicker(
         maxBytes = state.policy?.maxBytes ?: 0,
         allowedMimeTypes = state.policy?.allowedMimeTypes ?: emptySet(),
@@ -41,6 +42,14 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         allowedMimeTypes = state.policy?.allowedMimeTypes ?: emptySet(),
         onResult = { result -> viewModel.select(result, state.context, state.userId) },
     )
+    // «Guardar y agregar foto»: si aún no hay fotos se abre la cámara (o la galería) sin otro toque. Una sola vez por apertura del panel.
+    var autoLaunched by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.canSelect, state.files.size, state.loading) {
+        if (autoPick && !autoLaunched && state.canSelect && !state.loading && state.files.none { it.status != EvidenceStatus.DELETED }) {
+            autoLaunched = true
+            (camera ?: picker)()
+        }
+    }
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Fotos", style = MaterialTheme.typography.titleLarge)
         Text(if (state.confirmedCount == 1) "1 foto guardada" else "${state.confirmedCount} fotos guardadas", style = MaterialTheme.typography.bodyMedium)

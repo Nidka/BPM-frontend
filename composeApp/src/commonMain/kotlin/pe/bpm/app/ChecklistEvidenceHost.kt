@@ -51,7 +51,7 @@ internal fun ChecklistEvidenceHost(
         viewModel,
         state,
         "Las respuestas del control se conservan. La foto pendiente tendrá que seleccionarse de nuevo.",
-        onClose,
+        onClose = onClose,
     )
 }
 
@@ -64,6 +64,7 @@ internal fun PrivateEvidenceHost(
     state: MediaEvidenceState,
     unsavedText: String =
         "El registro se conserva. La foto pendiente tendrá que seleccionarse de nuevo.",
+    autoPick: Boolean = false,
     onClose: () -> Unit,
 ) {
     DisposableEffect(viewModel) { onDispose { viewModel.close() } }
@@ -104,7 +105,7 @@ internal fun PrivateEvidenceHost(
                         EvidenceHeading(label, !state.busy, dismiss)
                         if (confirmClose)
                             EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
-                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false))
+                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick)
                     }
                 }
             }
@@ -121,7 +122,7 @@ internal fun PrivateEvidenceHost(
                     EvidenceHeading(label, !state.busy, dismiss)
                     if (confirmClose)
                         EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
-                    MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false))
+                    MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick)
                 }
             }
         } else
@@ -134,7 +135,7 @@ internal fun PrivateEvidenceHost(
                         EvidenceHeading(label, !state.busy, dismiss)
                         if (confirmClose)
                             EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
-                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false))
+                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick)
                     }
                 }
             }

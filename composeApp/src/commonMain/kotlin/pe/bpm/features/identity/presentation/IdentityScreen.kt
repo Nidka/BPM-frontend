@@ -30,9 +30,11 @@ fun IdentityScreen(
     onRecover: (String) -> Unit, onResend: () -> Unit, onConfirmEmail: () -> Unit,
     /** Correo ya escrito en el acceso (solo en «Entrar»), p. ej. después de crear una contraseña nueva desde el enlace del correo. */
     initialEmail: String = "",
+    /** Al editar el correo se borran el aviso y el error del intento anterior (p. ej. «Revisa el correo.» o «Te enviamos instrucciones»). */
+    onEdit: () -> Unit = {},
 ) = key(state.mode) {
     // Cada recorrido posee sus campos, foco y validación visual; no se transfieren al cambiar de modo.
-    var email by remember { mutableStateOf(if (state.mode == AuthMode.Login) initialEmail else "") }
+    var email by remember(initialEmail) { mutableStateOf(if (state.mode == AuthMode.Login || state.mode == AuthMode.Register) initialEmail else "") }
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     val scroll = rememberScrollState()
@@ -128,7 +130,7 @@ fun IdentityScreen(
                             AuthField(firstName, { firstName = it }, "Nombres", fields["firstName"], !state.busy, inputKind = BpmInputKind.PersonName, rule = IdentityInputRules.personName, navigation = navigation["firstName"])
                             AuthField(lastName, { lastName = it }, "Apellidos", fields["lastName"] ?: fields["displayName"], !state.busy, inputKind = BpmInputKind.PersonName, rule = IdentityInputRules.personName, navigation = navigation["lastName"])
                         }
-                        AuthField(email, { email = it }, "Correo electrónico", fields["email"], !state.busy, BpmInputKind.Email, rule = IdentityInputRules.email,
+                        AuthField(email, { email = it; if (state.errors.isNotEmpty() || state.notice != null) onEdit() }, "Correo electrónico", fields["email"], !state.busy, BpmInputKind.Email, rule = IdentityInputRules.email,
                             autofillType = (if (state.mode == AuthMode.Register) ContentType.NewUsername else ContentType.Username) + ContentType.EmailAddress, navigation = navigation["email"],
                             onSubmit = if (state.mode == AuthMode.Recovery) submitForm else null)
                         if (state.mode != AuthMode.Recovery) {

@@ -49,7 +49,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
                 BpmRecordCard(location.name, cardModifier,
                     status = if (location.status == RecordStatus.ACTIVE) BpmRecordStatus("Activa", BpmTone.Success) else BpmRecordStatus("Inactiva", BpmTone.Neutral),
                     subtitle = listOf(location.address, location.district).filter { it.isNotBlank() }.joinToString(" · "),
-                    details = listOfNotNull(location.contactPhone.takeIf { it.isNotBlank() }, "Zona horaria: ${location.timezone}"),
+                    details = listOfNotNull(location.contactPhone.takeIf { it.isNotBlank() }, "Zona horaria: ${BpmTimezones.label(location.timezone)}"),
                     actionLabel = "Editar sede", onAction = { viewModel.editLocation(location) }, enabled = !state.busy)
             }
         }
@@ -89,8 +89,7 @@ internal fun OrganizationPane(viewModel: OrganizationViewModel) {
             { m -> BpmTextField(value.district, { v -> viewModel.changeLocation { it.copy(district = v) } }, "Distrito", m, error = form.fields["district"], enabled = !busy, rule = AccountsRules.district) })
         BpmTextField(value.contactPhone, { v -> viewModel.changeLocation { it.copy(contactPhone = v) } }, "Teléfono de contacto", Modifier.fillMaxWidth(), error = form.fields["contactPhone"], enabled = !busy,
             inputKind = BpmInputKind.Phone, rule = AccountsRules.contactPhone)
-        BpmTextField(value.timezone, { v -> viewModel.changeLocation { it.copy(timezone = v) } }, "Zona horaria *", Modifier.fillMaxWidth(), error = form.fields["timezone"], enabled = !busy,
-            placeholder = "America/Lima", supportingText = "Nombre de zona, por ejemplo America/Lima.")
+        BpmTimezonePicker(value.timezone, { v -> viewModel.changeLocation { it.copy(timezone = v) } }, enabled = !busy, error = form.fields["timezone"], label = "Zona horaria *")
         Text("Estado", style = MaterialTheme.typography.labelLarge)
         BpmChoiceRow("Activa", value.status == RecordStatus.ACTIVE, !busy, "Aparece para asignar a las personas del equipo.") { viewModel.changeLocation { it.copy(status = RecordStatus.ACTIVE) } }
         BpmChoiceRow("Inactiva", value.status == RecordStatus.INACTIVE, !busy, "No se borra ni se reasigna a nadie, pero ya no puede asignarse.") { viewModel.changeLocation { it.copy(status = RecordStatus.INACTIVE) } }

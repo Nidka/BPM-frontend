@@ -108,7 +108,7 @@ internal fun PlatformIndicatorsContent(
         BpmSectionCard("Organización abierta", BpmSymbol.Company, tone = BpmPlayTone.Streak) {
             Text(organization.name, style = BpmPlayType.h1, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
             Text(organizationSubtitle(organization), style = BpmPlayType.sub, color = BpmPlayColors.muted)
-            BpmChunkyButton("Cambiar de organización", actions.onOrganizations, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Company)
+            BpmChunkyButton("Cambiar organización", actions.onOrganizations, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Company)
         }
         if (dashboard.loading && kpis == null) BpmSkeletonKpis() else KpiRow(adminKpis(kpis))
         dashboard.failure?.takeIf { kpis == null }?.let {

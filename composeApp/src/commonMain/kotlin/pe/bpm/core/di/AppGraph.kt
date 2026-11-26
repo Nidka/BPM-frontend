@@ -268,6 +268,8 @@ class AppGraph(
         loadBank = pe.bpm.features.training.domain.LoadQuestionBank(trainingRepository)) { Uuid.random().toString() }
 
     // Cuentas: miembros, invitaciones, organización/sedes y dispositivos propios.
+    private val invitationPreviewRepository = pe.bpm.features.accounts.data.RemoteInvitationPreview(httpClient, config)
+    fun invitationPreview() = invitationPreviewRepository
     private val accountsRepository = pe.bpm.features.accounts.data.RemoteAccountsRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)

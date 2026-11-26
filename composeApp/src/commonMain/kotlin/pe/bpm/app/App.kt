@@ -2,6 +2,8 @@ package pe.bpm.app
 
 import androidx.compose.animation.EnterTransition
 import pe.bpm.core.designsystem.BpmChunkyButton
+import pe.bpm.core.designsystem.BpmGuideCard
+import pe.bpm.core.designsystem.BpmPlayTone
 import pe.bpm.core.designsystem.BpmChunkyTone
 import androidx.compose.animation.ExitTransition
 
@@ -264,6 +266,9 @@ fun App(
     var accountsTab by remember { mutableStateOf("team") }
     // Cada toque en «Invitar persona» suma uno: la pantalla de cuentas abre el formulario aunque ya esté en esa pestaña.
     var inviteRequest by remember { mutableIntStateOf(0) }
+    // «Editar sede» abre directamente el formulario de esa sede en la pantalla de cuentas.
+    var editSiteId by remember { mutableStateOf<String?>(null) }
+    var editSiteRequest by remember { mutableIntStateOf(0) }
     // Las pestañas de arranque («Invitar persona», «Asignar curso») valen una sola vez: al salir de esa sección se olvidan.
     LaunchedEffect(entry?.destination?.route) {
         val current = entry?.destination?.route
@@ -482,16 +487,21 @@ fun App(
                     else Column {
                         if (identityState.canRetryRestore) BpmTextButton(onClick = identity::restore) { Text("Reintentar sesión guardada") }
                         // El enlace de invitación se conserva mientras la persona inicia sesión o crea su cuenta y confirma su correo.
-                        if (pendingRoute.startsWith(INVITATION_BASE)) BpmCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            Text("Tienes una invitación pendiente", style = MaterialTheme.typography.titleMedium)
-                            Text("Inicia sesión o crea tu cuenta con el correo al que llegó la invitación y confírmalo. Después volverás aquí para aceptarla.")
+                        val invitationLink = pendingRoute.takeIf { it.startsWith(INVITATION_BASE) }?.substringAfter("token=", "")?.takeIf { it.isNotEmpty() }
+                        val preview by produceState<pe.bpm.features.accounts.domain.InvitationPreview?>(null, invitationLink) {
+                            value = invitationLink?.let { owner.graph.invitationPreview().preview(it) }
                         }
+                        if (pendingRoute.startsWith(INVITATION_BASE)) BpmGuideCard(BpmSymbol.Team, BpmPlayTone.Correct,
+                            title = preview?.let { "Te invitaron a ${it.organizationName}" } ?: "Tienes una invitación pendiente",
+                            eyebrow = "Invitación", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            message = preview?.let { "Entrarás como ${it.role.label}. Inicia sesión o crea tu cuenta con ${it.email}; después volverás aquí para aceptarla." }
+                                ?: "Inicia sesión o crea tu cuenta con el correo al que llegó la invitación y confírmalo. Después volverás aquí para aceptarla.")
                         Box(Modifier.weight(1f)) { IdentityScreen(identityState, identity::login, identity::logout,
                         identity::verifySession,
                         googleSupported = identity.googleSupported, onGoogle = identity::loginWithGoogle,
-                        onMode = identity::changeMode, onRegister = identity::register,
+                        onMode = identity::changeMode, onEdit = identity::clearMessages, onRegister = identity::register,
                         onRecover = identity::recover, onResend = identity::resend,
-                        onConfirmEmail = identity::confirmEmail, initialEmail = initialEmail) }
+                        onConfirmEmail = identity::confirmEmail, initialEmail = preview?.email ?: initialEmail) }
                     }
                 } else LaunchedEffect(profile.id) { resetTo(pendingRoute) }
             }
@@ -799,6 +809,7 @@ fun App(
                                 onTraining = { academyOnAssignments = false; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } },
                                 onAccounts = { accountsTab = "team"; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onEditOrganization = { accountsTab = "organization"; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
+                                onEditSite = { id -> accountsTab = "organization"; editSiteId = id; editSiteRequest++; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onInvite = { accountsTab = "invitations"; inviteRequest++; nav.navigate(if (adminPlay) WorkspaceDestination.Team.route else ACCOUNTS_MANAGEMENT) { launchSingleTop = true } },
                                 onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                 onAcceptInvitation = { nav.navigate(INVITATION_BASE) { launchSingleTop = true } },
@@ -873,7 +884,7 @@ fun App(
                                 }) else if (destination == WorkspaceDestination.Team && adminPlay && currentWorkspace != null) ({
                                     // Una sola pantalla de equipo para el administrador: personas, invitaciones y sedes en pestañas (antes «Equipo» y «Cuentas y equipo»).
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), currentWorkspace.canManage, true, team, accountInvitations, accountOrganization,
-                                        organizationName = currentWorkspace.organization.name, startTab = accountsTab, inviteRequest = inviteRequest, scrollable = false,
+                                        organizationName = currentWorkspace.organization.name, startTab = accountsTab, inviteRequest = inviteRequest, editSiteId = editSiteId, editSiteRequest = editSiteRequest, scrollable = false,
                                         onAssignCourse = { id, name ->
                                             trainingAssignments.open(workspaceState.selected.orEmpty(), true); trainingAssignments.startCreateFor(id, name)
                                             academyOnAssignments = true; nav.navigate(TRAINING_MANAGEMENT) { launchSingleTop = true } })
@@ -949,7 +960,7 @@ fun App(
                                     else LaunchedEffect(routeEntry.id) { resetTo(WorkspaceDestination.Learn.route) }
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
-                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty(), startTab = accountsTab, inviteRequest = inviteRequest)
+                                        organizationName = workspaceState.workspace?.organization?.name.orEmpty(), startTab = accountsTab, inviteRequest = inviteRequest, editSiteId = editSiteId, editSiteRequest = editSiteRequest)
                                 }) else if (onboardingRoute) ({
                                     OnboardingIntro(guideRole ?: GuideRole.Worker, onFinish = { feedbackScope.launch { onboardingPreferences.markIntroSeen() }; navigateBack(destination.route) })
                                 }) else if (viewingHelp) ({
@@ -987,7 +998,7 @@ fun App(
                                             "CHECKLIST_ASSIGNMENT"->nav.navigate("control/programacion/${notice.sourceId}"){launchSingleTop=true}
                                             "RECEIPT_ITEM"->{alertSource=notice;nav.navigate(if(workspaceState.workspace?.canManage==true) DAILY_MANAGEMENT else DAILY_EXECUTION){launchSingleTop=true}}
                                             "ORGANIZATION"->nav.navigate(WorkspaceDestination.Company.route){launchSingleTop=true}
-                                            "TRAINING_ASSIGNMENT"->nav.navigate(WorkspaceDestination.Learn.route){launchSingleTop=true}
+                                            "TRAINING_ASSIGNMENT"->nav.navigate(notice.sourceParentId?.let{"aprender/$it"} ?: WorkspaceDestination.Learn.route){launchSingleTop=true}
                                             "INCIDENT"->nav.navigate(if(workspaceState.workspace?.role=="ADMIN") INCIDENT_MANAGEMENT else INCIDENT_EXECUTION){launchSingleTop=true}
                                         }
                                     })
@@ -1263,7 +1274,7 @@ fun App(
         cleaningPhotos?.let {
             PrivateEvidenceHost("Fotos de la limpieza", evidence, evidenceState,
                 "El registro se conserva. La foto pendiente tendrá que seleccionarse de nuevo.",
-                onClose = { evidence.close(); cleaningPhotos = null })
+                autoPick = true, onClose = { evidence.close(); cleaningPhotos = null })
         }
         incidentEvidence?.let { target ->
             PrivateEvidenceHost(if (target.stage == pe.bpm.features.media.domain.EvidenceStage.BEFORE) "Fotos de la incidencia" else "Fotos de la corrección", evidence, evidenceState,

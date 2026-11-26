@@ -28,6 +28,9 @@ fun AccountsManagementScreen(
     onAssignCourse: ((String, String) -> Unit)? = null,
     /** Sube cada vez que se toca «Invitar persona»: abre la pestaña de invitaciones y su formulario. */
     inviteRequest: Int = 0,
+    /** Sede cuyo formulario se abre al tocar «Editar sede» en Empresa ([editSiteRequest] sube en cada toque). */
+    editSiteId: String? = null,
+    editSiteRequest: Int = 0,
 ) {
     val teamState by team.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable(startTab) { mutableStateOf(when (startTab) { "invitations" -> AccountsTab.Invitations.name; "organization" -> AccountsTab.Organization.name; else -> AccountsTab.Team.name }) }
@@ -37,6 +40,15 @@ fun AccountsManagementScreen(
         if (inviteRequest > 0 && invitationState.allowed) {
             tab = AccountsTab.Invitations.name
             if (invitationState.form == null && invitationState.share == null) invitations.openForm()
+        }
+    }
+    val organizationState by organization.state.collectAsStateWithLifecycle()
+    var handledSiteRequest by rememberSaveable { mutableStateOf(0) }
+    LaunchedEffect(editSiteRequest, organizationState.locations.items) {
+        if (editSiteRequest > handledSiteRequest && editSiteId != null) {
+            tab = AccountsTab.Organization.name
+            val site = organizationState.locations.items.firstOrNull { it.id == editSiteId }
+            if (site != null) { handledSiteRequest = editSiteRequest; organization.editLocation(site) }
         }
     }
     Column(modifier.then(if (scrollable) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()).bpmAppear(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {

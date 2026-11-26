@@ -174,6 +174,8 @@ internal class AdminCompanyActions(
     val onAlertRules: () -> Unit,
     val onWebhooks: () -> Unit,
     val onOrganization: () -> Unit,
+    /** Abre directamente el formulario de la sede (sin pasar por otra lista de sedes). */
+    val onEditSite: (String) -> Unit = { onOrganization() },
 )
 
 /**
@@ -213,8 +215,8 @@ internal fun AdminCompanyContent(
         val sites = current.locations
         val selected = sites.firstOrNull { it.id == selectedId }
         val first = sites.firstOrNull()
-        BpmListDetail(detail = selected?.let { site -> { AdminSiteDetail(site, current.canManage, { selectedId = null }, actions.onOrganization) } },
-            defaultDetail = first?.let { site -> { AdminSiteDetail(site, current.canManage, { selectedId = null }, actions.onOrganization) } },
+        BpmListDetail(detail = selected?.let { site -> { AdminSiteDetail(site, current.canManage, { selectedId = null }) { actions.onEditSite(site.id) } } },
+            defaultDetail = first?.let { site -> { AdminSiteDetail(site, current.canManage, { selectedId = null }) { actions.onEditSite(site.id) } } },
             emptyDetail = { BpmEmptyDetail("Elige una sede", "Toca una sede de la lista para ver su dirección, teléfono y zona horaria.") }) {
             val highlighted = bpmSelectedId(selectedId, first?.id)
             paging.list(WorkspaceResource.Locations) {
@@ -237,7 +239,7 @@ private fun AdminSiteDetail(site: Location, canManage: Boolean, onBack: () -> Un
         BpmSectionCard("Datos de la sede", BpmSymbol.Company) {
             BpmInfoRow(BpmSymbol.Route, "Dirección", listOf(site.address, site.district).filter { it.isNotBlank() }.joinToString(", "))
             BpmInfoRow(BpmSymbol.Bell, "Teléfono", site.contactPhone.orEmpty())
-            BpmInfoRow(BpmSymbol.Clock, "Zona horaria", site.timezone, tone = BpmPlayTone.Gold)
+            BpmInfoRow(BpmSymbol.Clock, "Zona horaria", BpmTimezones.label(site.timezone), tone = BpmPlayTone.Gold)
         }
     }
 }
