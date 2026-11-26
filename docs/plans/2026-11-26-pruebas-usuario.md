@@ -41,4 +41,17 @@ Leyenda: PASS = se logra sin ayuda · FRICCIÓN = se logra pero con dudas o toqu
 | 9 | Recuperar contraseña | PASS | El error «Revisa el correo.» queda tras corregir | Pendiente (menor) |
 
 ## Segunda ronda (tras el despliegue)
-Ver la sección final de este archivo; se completa con el resultado de la verificación en producción.
+Verificado en producción tras el despliegue de `4474afb` (390×844):
+
+| Corrección | Resultado |
+|---|---|
+| «Ver mis reportes» abre la lista de reportes propios | PASS |
+| «Invitar persona» abre Invitaciones con el formulario ya abierto | PASS |
+| Botón «Cancelar» de las confirmaciones en una sola línea | PASS |
+| Recursos del enlace de invitación (`/cuenta/composeResources/…`) | PASS (200, antes 404) |
+| Aviso: se marca visto al abrirlo, tarjeta con acciones «Ya lo atendí» e «Ir a verlo» | PASS |
+| Incidencia: «Qué sigue», secciones de fotos y plazo; detalle con iconos | PASS |
+| Fecha de asignación de cursos en día local, «Siguiente módulo» sin pantalla en blanco, resultado del control por puntaje, «Empezar a corregir» en un paso | Cubierto por pruebas unitarias; no repetido de punta a punta en producción (requiere crear datos nuevos) |
+
+No quedaron repetidos de punta a punta los flujos de lección completa, evaluación y control completo; las capturas de la primera ronda siguen
+siendo la referencia.
