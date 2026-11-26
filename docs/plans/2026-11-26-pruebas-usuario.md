@@ -55,3 +55,36 @@ Verificado en producción tras el despliegue de `4474afb` (390×844):
 
 No quedaron repetidos de punta a punta los flujos de lección completa, evaluación y control completo; las capturas de la primera ronda siguen
 siendo la referencia.
+
+
+## Segunda ronda completa (los tres roles, 390×844, tras `415bb8c`)
+
+Cada persona probadora repitió todos sus flujos desde cero. Resultado y lo que quedó:
+
+| Rol | Flujo | Veredicto | Estado final |
+|---|---|---|---|
+| Personal | Ver mis reportes | PASS | — |
+| Personal | Tarea con observación y foto (nota obligatoria, panel «Fotos») | PASS | — |
+| Personal | Aviso: se marca visto, «Ya lo atendí» / «Ir a verlo» | PASS | — |
+| Personal | Horas en 12 h | PASS | — |
+| Personal | Primeros pasos / introducción en navegador nuevo | FAIL (ronda 1 de la 2.ª) | Corregido: la introducción espera hasta 9 s a saber si ya hay actividad; el paso «reportar» se marca al visitarlo (verificado a mano en producción) |
+| Personal | Evaluación: última alternativa tapada por el pie | FRICCIÓN | Corregido: ficha tocable «Hay más abajo» |
+| Personal | Jerga XP / códigos | FRICCIÓN | Corregido: «puntos», «Se aprueba con N %» |
+| Personal | Tarea hecha se reabría; botón Reportar tapaba la última fila; «Aceptar una invitación» | FRICCIÓN | Corregido |
+| Jefe | Control con «No cumple» (nota opcional, resultado por puntaje) | PASS | — |
+| Jefe | Incidencia: iniciar en un paso, textos llanos, hora 12 h, historial, Sede como ficha | PASS | Revisión mostraba «12:00»: corregido a 12 h |
+| Jefe | Avisos (bandeja) | FAIL: 503 por el tipo «incidencia asignada» | Corregido en proxy y cliente; verificado en producción (aviso «Te asignaron una incidencia…» visible, detalle con acciones) |
+| Jefe | Primeros pasos se marcan solos | PASS | — |
+| Admin | Programar control a un toque desde la plantilla | PASS | «Confirmar» sin partir palabra; el motivo del rechazo se repite junto al botón |
+| Admin | Invitar persona; enlace de invitación con logo y fuentes; «Cancelar» en una línea | PASS | Roles con descripción distinta y nombres de la app |
+| Admin | Asignar curso (fecha local, confirmar cancelar) | PASS | — |
+| Admin | Incidencias (asignar, validar, hora 12 h) | PASS | Texto de autovalidación solo para quien corrigió |
+| Admin | Reportes: PDF y CSV (verificados descargando los archivos) | PASS | CSV sin UUID (nombres) y PDF con nombres largos en varias líneas |
+| Admin | Sedes, avisos, ajustes | PASS | Avisos antiguos: texto específico al leer (backend) |
+| Admin | Recuperar contraseña | PASS parcial | «Revisa el correo.» sigue tras corregir: pendiente |
+
+Pendiente real (no corregido): enlace de invitación sin «Te invitaron a X como Y» ni correo precargado; «Editar sede» salta a otra vista;
+zona horaria como texto libre; filas fijas de la Academia (~130 px); «Ir a verlo» de una capacitación abre Aprender y no el curso; un solo
+envío de foto de la tarea aún pide dos toques; al recargar la página se cierra la sesión (decisión de seguridad: no se guarda el token);
+el inicio de sesión de las pruebas a veces no completaba (se reprodujo solo en el guion de pruebas: los campos se escribían antes de
+terminar de cargar; con la cuenta correcta el acceso por API y el real funcionan).

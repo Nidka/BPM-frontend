@@ -293,7 +293,7 @@ fun App(
     }
     // Espera a saber si la persona ya tiene actividad (llega del servidor) antes de ofrecer la introducción; con un tope por si la consulta falla.
     var introWait by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { kotlinx.coroutines.delay(3500); introWait = true }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(9000); introWait = true }
     LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route, learnerRoot.achievements != null, introWait, hasHistory) {
         if (!(learnerRoot.achievements != null || introWait) || hasHistory) return@LaunchedEffect
         // La introducción sale una sola vez, al llegar a la pantalla de inicio; se salta con «Saltar» y se repite desde «Ayuda».
