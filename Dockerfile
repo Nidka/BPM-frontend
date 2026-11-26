@@ -7,7 +7,8 @@ COPY gradle ./gradle
 COPY config ./config
 COPY kotlin-js-store ./kotlin-js-store
 COPY composeApp ./composeApp
-RUN chmod +x gradlew && ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --console=plain
+# Maven Central limita las descargas simultáneas (HTTP 429) y tumbaba la imagen al azar: se reintenta hasta cuatro veces con espera creciente.
+RUN chmod +x gradlew && for attempt in 1 2 3 4; do ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --console=plain && exit 0; echo "Intento $attempt fallido; se reintenta"; sleep $((attempt * 45)); done; exit 1
 
 FROM node:24-alpine
 ENV NODE_ENV=production
