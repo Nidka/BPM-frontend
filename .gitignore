@@ -12,3 +12,13 @@ node_modules/
 iosApp/*.xcodeproj/
 iosApp/Pods/
 artifacts/
+tmp/
+dist/
+screenshots/
+capturas/
+*.dump
+*.log
+*.apk
+*.aab
+*.keystore
+*.jks

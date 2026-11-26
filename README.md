@@ -7,6 +7,83 @@ despliegue independientes.
 
 Repositorio: https://github.com/Nidka/BPM-frontend
 
+## Guía rápida de operación
+
+Backend (API y worker): https://github.com/Nidka/BPM-service · Producción: https://appbpm.com
+
+### Qué es y con qué está hecho
+
+Cliente único de BPM para **web, Android e iOS** más un pequeño servidor Node que sirve la web y actúa como proxy cerrado
+hacia la API.
+
+| Pieza | Tecnología |
+|---|---|
+| UI y lógica compartida | Kotlin Multiplatform 2.x + Compose Multiplatform (módulo `composeApp`) |
+| Web | Compose compilado a Wasm (`wasmJsBrowserDistribution`) servido por Node 24 (`web/server.mjs`) |
+| Android / iOS | App Android (minSdk 24, `bpm.app`) y host SwiftUI en `iosApp/` |
+| Identidad | Firebase Auth (clave pública en `config/firebase.public.json`) y Google Sign-In |
+| Pruebas | `jvmTest`, pruebas Node (`node --test`), `scripts/architecture.test.mjs`, `scripts/check-spacing.mjs` |
+
+### Ejecutar en local
+
+Requisitos: JDK 21, Android SDK 36, Node 24 (Xcode solo para iOS).
+
+```bash
+cp .env.example .env                                   # solo configuración pública
+./gradlew :composeApp:wasmJsBrowserDistribution        # compila la web
+node --env-file=.env web/server.mjs                    # http://localhost:3000 (usa la API de producción por defecto)
+./gradlew :composeApp:assembleDebug :composeApp:installDebug   # Android (APK de depuración)
+```
+
+Para apuntar a otra API: `API_BASE_URL` en `.env` (web) o `-PapiBaseUrl=...` / `-PfirebaseApiKey=...` en Gradle (móvil;
+requiere recompilar).
+
+### Verificación (las mismas puertas que CI)
+
+```bash
+node scripts/check-spacing.mjs --strict
+node --test scripts/*.test.mjs web/*.test.mjs
+./gradlew :composeApp:compileKotlinJvm :composeApp:jvmTest :composeApp:wasmJsBrowserDistribution :composeApp:assembleDebug
+```
+
+### Variables de entorno (solo nombres)
+
+Todas son **públicas**; nunca van credenciales aquí. Ver `.env.example`.
+
+| Variable | Uso |
+|---|---|
+| `API_BASE_URL` | Origen HTTPS de la API, sin `/api/v1` ni barra final (obligatoria en producción) |
+| `NODE_ENV` | `production` activa HSTS y modos de producción |
+| `PORT` | Lo inyecta Railway (3000 solo en local) |
+| `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID` | Sobrescriben `config/firebase.public.json` (opcionales) |
+| `DIST_DIR` | Carpeta de la web compilada (la fija el Dockerfile) |
+| `BPM_ALLOW_LOCAL_API` | Solo desarrollo: permite una API local |
+
+### Despliegue (Railway)
+
+Proyecto Railway `bpm`, ambiente `production`. Cada push a `main` ejecuta *Frontend CI* y Railway despliega el servicio
+**`BPM-frontend`** desde el `Dockerfile` de la raíz (*Wait for CI*, healthcheck `/healthz`). Los demás servicios del
+proyecto son del backend: **`BPM-service`** (API), **`bpm-worker`** (misma imagen del backend con `BPM_PROCESS=worker`) y
+**`Postgres`**; además se usan Cloudflare R2 (archivos), Firebase (Auth y FCM), Resend (correo) y Cloudflare (DNS de
+`appbpm.com`). Orden recomendado al cambiar contratos: primero backend (y sus migraciones), después frontend.
+Detalle de dominio y servicio en [RAILWAY.md](RAILWAY.md).
+
+### Migraciones, catálogo y limpieza de datos
+
+No hay base de datos en este repositorio: las migraciones (`V1`..`V20`, `scripts/aplicar-migraciones.sh`), el comando del
+catálogo de cursos (`go run ./cmd/catalogo-bpm`) y el script de limpieza de organizaciones de prueba
+(`scripts/limpiar-organizacion.sql`) viven en el repositorio del backend; ver su README.
+
+### Documentación
+
+[Índice de specs](specs/README.md) · [Desarrollo](specs/DEVELOPMENT.md) · [Arquitectura](specs/ARCHITECTURE.md) ·
+[Identidad y Firebase](specs/IDENTITY.md) · [Operación](specs/OPERATIONS.md) · [Offline](specs/OFFLINE.md) ·
+[AGENTS.md](AGENTS.md) · planes y revisiones históricas en `docs/`. Las secciones de más abajo («Alcance real y
+extensiones», revisiones por entrega) son registro histórico del desarrollo: el estado vigente está en `specs/FEATURES.md`.
+Los manuales de usuario y el manual técnico (PDF) están en el repositorio de documentación del proyecto.
+
+---
+
 ## Arquitectura implementada
 
 Organización por funcionalidades, Clean Architecture, MVVM y flujo unidireccional.
