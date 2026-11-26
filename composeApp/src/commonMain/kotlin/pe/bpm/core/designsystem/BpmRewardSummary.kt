@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Resumen de recompensas: puntos de experiencia grandes («120 XP»), insignias ganadas («2 de 8 insignias») y,
+ * Resumen de recompensas: puntos de experiencia grandes («120 puntos»), insignias ganadas («2 de 8 insignias») y,
  * si se conoce, la próxima insignia con su pista. Con [onOpen] añade el botón de texto «Ver mis logros».
  */
 @Composable
@@ -39,7 +39,7 @@ fun BpmRewardSummary(
             }
             Column(verticalArrangement = Arrangement.spacedBy(BpmSpacing.xs)) {
                 Text("Tus logros", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$experiencePoints XP", color = MaterialTheme.colorScheme.primary,
+                Text("$experiencePoints puntos", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"))
             }
         }

@@ -35,7 +35,7 @@ object BpmPlayColors {
     val correct = BpmPlayShade(Color(0xFF2E9E5B), Color(0xFF1E7442), Color(0xFFE2F5E8))
     /** Error y «Casi». */
     val error = BpmPlayShade(Color(0xFFC9382D), Color(0xFF962A21), Color(0xFFFDE7E4))
-    /** Logro, XP y lección hecha. El texto sobre fondo suave usa el dorado oscuro. */
+    /** Logro, puntos y lección hecha. El texto sobre fondo suave usa el dorado oscuro. */
     val gold = BpmPlayShade(Color(0xFFF5B700), Color(0xFFC48F00), Color(0xFFFFF4CC), ink = Color(0xFFC48F00))
     /** Texto dorado sobre el fondo suave dorado (contraste ≥ 4,5:1; [gold]`.ink` queda para iconos y números grandes). */
     val goldText = Color(0xFF7A5800)

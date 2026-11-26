@@ -13,7 +13,9 @@ const text = (value, maximum, minimum = 0) => { require(typeof value === 'string
 const actor = value => { text(value, 128); require([...value].length > 0 && !/\p{Cc}/u.test(value)); };
 const types = ['CHECKLIST_MISSING', 'TEMPERATURE_DANGER', 'ORGANIZATION_INACTIVE', 'TRAINING_ASSIGNED'];
 const statuses = ['PENDING', 'SENT', 'VIEWED', 'ATTENDED', 'CANCELLED'];
-const sources = ['CHECKLIST_ASSIGNMENT', 'RECEIPT_ITEM', 'ORGANIZATION', 'TRAINING_ASSIGNMENT'];
+const sources = ['CHECKLIST_ASSIGNMENT', 'RECEIPT_ITEM', 'ORGANIZATION', 'TRAINING_ASSIGNMENT', 'INCIDENT'];
+// «Te asignaron una incidencia» llega a la bandeja pero no es una regla configurable: solo se acepta en avisos, no en reglas.
+const alertTypes = [...types, 'INCIDENT_ASSIGNED'];
 const states = ['ALL', 'UNREAD', 'VIEWED', 'ATTENDED'];
 const ruleFields = ['locationId', 'name', 'type', 'configuration', 'active', 'emailEnabled', 'pushEnabled'];
 const deviceFields = ['id', 'installationId', 'platform', 'pushToken'];
@@ -73,8 +75,8 @@ function publicRule(value) {
   return { id: identifier(value.id), locationId, locationName: text(value.locationName, 160), name: text(value.name, 160, 2), type: value.type, configuration: configuration(value.type, value.configuration), active: value.active, emailEnabled: value.emailEnabled, pushEnabled: value.pushEnabled, rowVersion: value.rowVersion };
 }
 function publicAlert(value, org) {
-  require(object(value) && types.includes(value.type) && statuses.includes(value.status) && sources.includes(value.sourceType) && typeof value.sourceAvailable === 'boolean');
-  require(value.sourceType === { CHECKLIST_MISSING: 'CHECKLIST_ASSIGNMENT', TEMPERATURE_DANGER: 'RECEIPT_ITEM', ORGANIZATION_INACTIVE: 'ORGANIZATION', TRAINING_ASSIGNED: 'TRAINING_ASSIGNMENT' }[value.type]);
+  require(object(value) && alertTypes.includes(value.type) && statuses.includes(value.status) && sources.includes(value.sourceType) && typeof value.sourceAvailable === 'boolean');
+  require(value.sourceType === { CHECKLIST_MISSING: 'CHECKLIST_ASSIGNMENT', TEMPERATURE_DANGER: 'RECEIPT_ITEM', ORGANIZATION_INACTIVE: 'ORGANIZATION', TRAINING_ASSIGNED: 'TRAINING_ASSIGNMENT', INCIDENT_ASSIGNED: 'INCIDENT' }[value.type]);
   const sourceId = value.sourceType === 'ORGANIZATION' ? (require(value.sourceId === org), org) : identifier(value.sourceId);
   const output = { id: identifier(value.id), type: value.type, title: text(value.title, 160, 1), message: text(value.message, 4 * 1024 * 1024), status: value.status, createdAt: timestamp(value.createdAt), locationName: text(value.locationName, 160), sourceType: value.sourceType, sourceId, sourceAvailable: value.sourceAvailable };
   for (const key of ['viewedAt', 'attendedAt']) if (value[key] !== undefined) output[key] = value[key] === null ? null : timestamp(value[key]);

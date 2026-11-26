@@ -29,7 +29,7 @@ fun IncidentsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            if (s.catalogMode) "Criterios de incidencias" else "Incidencias y acciones correctivas",
+            if (s.catalogMode) "Criterios de incidencias" else if (s.role == "WORKER") "Mis reportes" else "Incidencias y acciones correctivas",
             style = MaterialTheme.typography.headlineSmall,
         )
         s.failure?.let { Text(incidentFailureText(it), color = MaterialTheme.colorScheme.error) }
@@ -63,14 +63,12 @@ fun IncidentsScreen(
                             s.status == null,
                             { viewModel.filter(null) },
                             label = { Text("Todas") },
-                            reserveCheck = true,
                         )
                         IncidentStatus.entries.filter { it != IncidentStatus.VERIFIED }.forEach { status ->
                             BpmFilterChip(
                                 s.status == status,
                                 { viewModel.filter(status) },
                                 label = { Text(incidentStatusLabel(status.name)) },
-                                reserveCheck = true,
                             )
                         }
                     }
@@ -205,7 +203,7 @@ private fun IncidentChoices(s: IncidentsState, vm: IncidentsViewModel) {
             BpmCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(value.displayName)
-                    Text(when (value.role) { "ADMIN" -> "Administrador"; "CHEF" -> "Chef"; else -> "Colaborador" })
+                    Text(when (value.role) { "ADMIN" -> "Administrador"; "CHEF" -> "Jefe de cocina"; else -> "Personal" })
                     BpmChunkyButton("Seleccionar responsable", { vm.select(value) }, tone = BpmChunkyTone.White, enabled = !loading)
                 }
             }
@@ -264,7 +262,7 @@ internal fun incidentGuide(status: IncidentStatus, canAct: Boolean): IncidentGui
         else IncidentGuide(BpmSymbol.Clock, BpmPlayTone.Gold, "Qué sigue", "Ya tiene responsable", "La persona asignada debe empezar la corrección dentro del plazo.", emptyList())
     IncidentStatus.IN_PROGRESS ->
         if (canAct) IncidentGuide(BpmSymbol.Wrench, BpmPlayTone.Streak, "Qué sigue", "Registra la corrección", null,
-            listOf("Haz la corrección en el lugar.", "Toma una foto de cómo quedó (botón «Foto después»).", "Cuenta qué hiciste y envíalo."))
+            listOf("Haz la corrección en el lugar.", "Agrega una foto de cómo quedó (botón «Agregar foto», más abajo).", "Cuenta qué hiciste y envíalo."))
         else IncidentGuide(BpmSymbol.Wrench, BpmPlayTone.Streak, "Qué sigue", "Se está corrigiendo", "La persona responsable debe registrar la corrección con su foto.", emptyList())
     IncidentStatus.RESOLVED ->
         if (canAct) IncidentGuide(BpmSymbol.Eye, BpmPlayTone.Gold, "Qué sigue", "Revisa y valida la corrección", null,

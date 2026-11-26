@@ -121,7 +121,7 @@ private fun AlertRuleFormContent(
         AlertType.TEMPERATURE_DANGER ->
           listOf("minimumTemperatureCelsius", "maximumTemperatureCelsius")
         AlertType.ORGANIZATION_INACTIVE -> listOf("inactivityDays")
-        AlertType.TRAINING_ASSIGNED -> emptyList()
+        AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED -> emptyList()
       }
   val nav = rememberBpmFormNavigation(keys)
   val enabled = !s.busy && s.pending == null
@@ -175,7 +175,8 @@ private fun AlertRuleFormContent(
           horizontalArrangement = Arrangement.spacedBy(8.dp),
           verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-          AlertType.entries.forEach { t ->
+          // La asignación de incidencias avisa sola: no se ofrece como regla.
+          AlertType.entries.filter { it != AlertType.INCIDENT_ASSIGNED }.forEach { t ->
             BpmFilterChip(
               f.type == t,
               { vm.editor.type(t) },
@@ -262,6 +263,7 @@ private fun AlertRuleFormContent(
             "Entre 1 y 365 días. Se usa la última actividad empresarial confirmada por el servidor."
           AlertType.TRAINING_ASSIGNED ->
             "Avisa sobre asignaciones activas de cursos publicados creadas después de la regla."
+          AlertType.INCIDENT_ASSIGNED -> "Se avisa a la persona responsable al asignarle una incidencia; no necesita regla."
         },
         style = MaterialTheme.typography.bodySmall,
       )
@@ -308,4 +310,5 @@ private fun ruleConfigurationText(type: AlertType, c: AlertConfiguration) =
       "Intervalo de peligro: ${c.minimumTemperatureCelsius?.let(DecimalInput::format)} a ${c.maximumTemperatureCelsius?.let(DecimalInput::format)} °C (inclusive)."
     AlertType.ORGANIZATION_INACTIVE -> "Sin actividad durante ${c.inactivityDays} días."
     AlertType.TRAINING_ASSIGNED -> "Nueva capacitación asignada."
+    AlertType.INCIDENT_ASSIGNED -> "Incidencia asignada a una persona responsable."
   }

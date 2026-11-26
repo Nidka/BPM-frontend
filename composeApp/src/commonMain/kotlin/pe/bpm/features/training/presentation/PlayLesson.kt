@@ -173,7 +173,7 @@ private fun PlayLessonDone(course: TrainingCourse, lesson: TrainingLesson?, stud
         if (done != null) add(BpmStatTileSpec("Lecciones", "$done/${course.lessons.size}", BpmPlayTone.Gold, BpmSymbol.Star))
         worker.streakDays?.let { add(BpmStatTileSpec("Racha", it.toString(), BpmPlayTone.Streak, BpmSymbol.Flame)) }
         study?.accuracyPercent?.let { add(BpmStatTileSpec("Aciertos", "$it%", BpmPlayTone.Correct, BpmSymbol.Target)) }
-        study?.xpEarned?.takeIf { it > 0 }?.let { add(BpmStatTileSpec("XP", "+$it", BpmPlayTone.Gold, BpmSymbol.Bolt)) }
+        study?.xpEarned?.takeIf { it > 0 }?.let { add(BpmStatTileSpec("Puntos", "+$it", BpmPlayTone.Gold, BpmSymbol.Bolt)) }
     }
     val review = study?.review == true
     BpmPlayStage(

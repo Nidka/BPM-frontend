@@ -145,7 +145,7 @@ internal fun lessonGoalLabel(activeToday: Boolean): String = if (activeToday) "1
 /** Texto del chip de la evaluación: final con su mínimo, de lección o diagnóstica. */
 internal fun evaluationChipLabel(type: AttemptType, passingScore: Int, bankFraction: String? = null): String = when (type) {
     AttemptType.FINAL -> if (bankFraction != null) "Evaluación del módulo · $bankFraction" else "Evaluación final · aprueba con $passingScore"
-    AttemptType.MODULE -> "Evaluación de lección · suma XP"
+    AttemptType.MODULE -> "Evaluación de lección · suma puntos"
     AttemptType.DIAGNOSTIC -> "Diagnóstica · sin constancia"
 }
 

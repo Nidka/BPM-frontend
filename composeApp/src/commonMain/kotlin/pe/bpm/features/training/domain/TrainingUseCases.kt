@@ -15,7 +15,7 @@ class SaveLessonProgress(private val repository: TrainingRepository) {
         repository.saveProgress(org, courseId, lessonId, completedLessonId)
 }
 
-/** Modo estudio: verifica la opción elegida sin crear intento, puntaje, XP ni constancia. */
+/** Modo estudio: verifica la opción elegida sin crear intento, puntaje, puntos ni constancia. */
 class CheckStudyAnswer(private val repository: TrainingRepository) {
     suspend operator fun invoke(org: String, course: TrainingCourse, questionId: String, selected: Int): TrainingResult<StudyFeedback> {
         val question = course.questions.firstOrNull { it.id == questionId }

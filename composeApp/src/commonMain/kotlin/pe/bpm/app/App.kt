@@ -291,7 +291,11 @@ fun App(
             guideRole == GuideRole.Super && visited == WorkspaceDestination.Indicators.route -> onboardingPreferences.markStep("s-kpi")
         }
     }
-    LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route) {
+    // Espera a saber si la persona ya tiene actividad (llega del servidor) antes de ofrecer la introducción; con un tope por si la consulta falla.
+    var introWait by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(3500); introWait = true }
+    LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route, learnerRoot.achievements != null, introWait, hasHistory) {
+        if (!(learnerRoot.achievements != null || introWait) || hasHistory) return@LaunchedEffect
         // La introducción sale una sola vez, al llegar a la pantalla de inicio; se salta con «Saltar» y se repite desde «Ayuda».
         if (guideRole != null && onboarding.loaded && !onboarding.introSeen && !introPrompted && entry?.destination?.route == WorkspaceDestination.Home.route) {
             introPrompted = true
@@ -958,7 +962,8 @@ fun App(
                                     SettingsContent(feedbackSettings, { next -> feedbackScope.launch { feedbackPreferences.save(next) } },
                                         onAlerts = if (currentWorkspace != null) ({ nav.navigate(ALERT_INBOX) { launchSingleTop = true } }) else null,
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
-                                        onAcceptInvitation = { nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } },
+                                        // Personal no se une a otras organizaciones por su cuenta: la invitación llega por el enlace del correo.
+                                        onAcceptInvitation = if (currentWorkspace?.role == "WORKER") null else ({ nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } }),
                                         onLogout = ::requestLogout, modifier = androidx.compose.ui.Modifier.bpmScrollable())
                                 }) else if (viewingDevices) ({
                                     DevicesContent(profile.id, myDevices)
@@ -983,6 +988,7 @@ fun App(
                                             "RECEIPT_ITEM"->{alertSource=notice;nav.navigate(if(workspaceState.workspace?.canManage==true) DAILY_MANAGEMENT else DAILY_EXECUTION){launchSingleTop=true}}
                                             "ORGANIZATION"->nav.navigate(WorkspaceDestination.Company.route){launchSingleTop=true}
                                             "TRAINING_ASSIGNMENT"->nav.navigate(WorkspaceDestination.Learn.route){launchSingleTop=true}
+                                            "INCIDENT"->nav.navigate(if(workspaceState.workspace?.role=="ADMIN") INCIDENT_MANAGEMENT else INCIDENT_EXECUTION){launchSingleTop=true}
                                         }
                                     })
                                 }) else if (normativeRoute) ({

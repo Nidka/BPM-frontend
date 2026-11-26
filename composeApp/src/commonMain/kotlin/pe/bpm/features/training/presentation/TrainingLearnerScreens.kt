@@ -60,7 +60,7 @@ fun AchievementCelebration(achievements: List<Achievement>) {
                 achievements.forEach {
                     Text("¡${it.name}!", style = MaterialTheme.typography.titleLarge)
                     if (it.description.isNotBlank()) Text(it.description)
-                    if (it.points > 0) Text("+${it.points} XP", style = MaterialTheme.typography.labelLarge)
+                    if (it.points > 0) Text("+${it.points} puntos", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -182,7 +182,7 @@ fun AchievementsScreen(viewModel: TrainingLearnerViewModel, modifier: Modifier =
         state.achievements?.let { mine ->
             BpmCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.primaryContainer) {
                 Eyebrow("PUNTOS DE EXPERIENCIA")
-                Text("${mine.totals.experiencePoints} XP", style = MaterialTheme.typography.headlineMedium)
+                Text("${mine.totals.experiencePoints} puntos", style = MaterialTheme.typography.headlineMedium)
                 Text("Cursos: ${mine.totals.courseExperiencePoints} · Lecciones: ${mine.totals.moduleExperiencePoints} · Insignias: ${mine.totals.achievementPoints}", style = MaterialTheme.typography.bodySmall)
             }
             Text("Insignias obtenidas (${mine.earned.size})", style = MaterialTheme.typography.titleLarge)
@@ -208,7 +208,7 @@ private fun AchievementCard(a: Achievement, modifier: Modifier) {
         Eyebrow(if (a.awardedAt != null) "OBTENIDA" else "POR LOGRAR")
         Text(a.name, style = MaterialTheme.typography.titleMedium)
         if (a.description.isNotBlank()) Text(a.description)
-        Text(criterionLabel(a) + " · ${a.points} XP", style = MaterialTheme.typography.bodySmall)
+        Text(criterionLabel(a) + " · ${a.points} puntos", style = MaterialTheme.typography.bodySmall)
         a.awardedAt?.let { Text("Obtenida el ${dateLabel(it)}", style = MaterialTheme.typography.bodySmall) }
     }
 }

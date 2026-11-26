@@ -105,7 +105,7 @@ private fun ColumnScope.LessonBody(state: TrainingState, course: TrainingCourse,
         Text(if (questionCount == 1) "1 pregunta de esta lección" else "$questionCount preguntas de esta lección", style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         val practice: @Composable () -> Unit = { BpmChunkyButton("Practicar · no califica", { viewModel.startStudy(lesson.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White) }
-        val evaluate: @Composable () -> Unit = { BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Evaluar lección · suma XP") } }
+        val evaluate: @Composable () -> Unit = { BpmTextButton(onClick = { viewModel.startModuleEvaluation(lesson.id) }, modifier = Modifier.fillMaxWidth()) { Text("Evaluar lección · suma puntos") } }
         // Con banco oficial la práctica de la unidad reemplaza a la evaluación por lección.
         val canEvaluate = state.canPersist && course.bank == null
         if (compact) { practice(); if (canEvaluate) evaluate() }
@@ -248,7 +248,7 @@ internal fun StudyPractice(study: StudyState, viewModel: TrainingViewModel) {
                 if (!feedback.correct) Text("La respuesta correcta es: ${shown.getOrNull(feedback.correctOption).orEmpty()}")
                 if (feedback.explanation.isNotBlank()) Text(feedback.explanation)
                 sourceLine(feedback.sources).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                if (feedback.xpEarned > 0) BpmStatusChip("+${feedback.xpEarned} XP", BpmTone.Info, symbol = BpmSymbol.Award)
+                if (feedback.xpEarned > 0) BpmStatusChip("+${feedback.xpEarned} puntos", BpmTone.Info, symbol = BpmSymbol.Award)
                 if (feedback.itemCode != null) BpmListenButton(listOf(feedback.explanation, sourceLine(feedback.sources)).filter { it.isNotBlank() }.joinToString(". "), label = "Escuchar la explicación")
             }
         }

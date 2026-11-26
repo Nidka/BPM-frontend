@@ -201,7 +201,7 @@ private fun ReviewRow(number: Int, text: String, choice: String?, enabled: Boole
 }
 
 /**
- * Resultado en modo enfoque. Héroe: mascota si aprobó, estado, puntaje grande, mínimo y «+N XP» (el total del curso va
+ * Resultado en modo enfoque. Héroe: mascota si aprobó, estado, puntaje grande, mínimo y «+N puntos» (el total del curso va
  * como texto pequeño). Después insignias nuevas, constancia con el código en grupos, la acción principal (siguiente
  * curso con su título y ruta, «Intentar otra vez» o «Volver al curso»; fija abajo en clase compacta) y, como botones
  * de texto, «Revisar respuestas» (plegado) y las salidas secundarias.
@@ -224,12 +224,12 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
             xpEarnedChip(attempt)?.let { BpmStatusChip(it, BpmTone.Info, symbol = BpmSymbol.Award) }
             xpRepeatedNotice(attempt)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (attempt.attemptType == AttemptType.FINAL && outcome.progress.experiencePoints > 0) {
-                Text("Total del curso: ${outcome.progress.experiencePoints} XP", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Total del curso: ${outcome.progress.experiencePoints} puntos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
     if (outcome.achievements.isNotEmpty()) AchievementCelebration(outcome.achievements)
-    if (attempt.attemptType == AttemptType.MODULE) Text("La evaluación de lección no completa el curso. Tu XP total está en «Mis logros».", style = MaterialTheme.typography.bodySmall)
+    if (attempt.attemptType == AttemptType.MODULE) Text("La evaluación de lección no completa el curso. Tu puntos total está en «Mis logros».", style = MaterialTheme.typography.bodySmall)
     outcome.certificate?.let { CertificateCard(it, prominent = true) }
     val next = outcome.nextCourse?.takeIf { attempt.passed && attempt.attemptType == AttemptType.FINAL && onOpenCourse != null }
     val retry = !attempt.passed || attempt.attemptType == AttemptType.DIAGNOSTIC
@@ -273,12 +273,12 @@ internal fun EvaluationResult(course: TrainingCourse, outcome: AttemptOutcome, v
     }
 }
 
-/** «+N XP» ganados con este intento; nulo si el servidor no lo informa (histórico o servidor anterior) o fue 0. */
-internal fun xpEarnedChip(attempt: AttemptSummary): String? = attempt.xpEarned?.takeIf { it > 0 }?.let { "+$it XP" }
+/** «+N puntos» ganados con este intento; nulo si el servidor no lo informa (histórico o servidor anterior) o fue 0. */
+internal fun xpEarnedChip(attempt: AttemptSummary): String? = attempt.xpEarned?.takeIf { it > 0 }?.let { "+$it puntos" }
 
 /**
- * Aviso de una evaluación final aprobada que no sumó XP porque ya se tenía ese puntaje. Solo para FINAL aprobada con
+ * Aviso de una evaluación final aprobada que no sumó puntos porque ya se tenía ese puntaje. Solo para FINAL aprobada con
  * `xpEarned == 0`: nulo o un intento reprobado/de otro tipo no lleva aviso.
  */
 internal fun xpRepeatedNotice(attempt: AttemptSummary): String? =
-    if (attempt.attemptType == AttemptType.FINAL && attempt.passed && attempt.xpEarned == 0) "Sin XP nuevo: ya tenías este puntaje" else null
+    if (attempt.attemptType == AttemptType.FINAL && attempt.passed && attempt.xpEarned == 0) "Sin puntos nuevos: ya tenías este puntaje" else null

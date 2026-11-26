@@ -327,7 +327,8 @@ internal constructor(
         val expected = generation
         scope.launch {
             if (flush() && expected == generation) {
-                held = mutable.value.form
+                // Un reporte sin texto no es un borrador: la lista no ofrece «Continuar borrador» con un formulario vacío.
+                held = mutable.value.form?.takeUnless { it.kind == "REPORT" && it.values["description"].isNullOrBlank() }
                 mutable.value =
                     mutable.value.copy(form = null, reviewing = false, hasDraft = held != null)
                 onClosed()

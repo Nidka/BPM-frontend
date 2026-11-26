@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 data class BpmSummaryItem(val value: String, val label: String, val symbol: BpmSymbol? = null)
 
 /**
- * Franja de resumen en una sola tarjeta compacta: hasta tres datos en columnas iguales (por ejemplo racha · XP ·
+ * Franja de resumen en una sola tarjeta compacta: hasta tres datos en columnas iguales (por ejemplo racha · puntos ·
  * insignias). Sustituye a las tarjetas grandes de racha y logros cuando no hay panel de apoyo (clase compacta y
  * media); con [onClick] toda la franja abre el detalle.
  */

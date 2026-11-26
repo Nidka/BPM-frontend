@@ -45,10 +45,10 @@ fun assignmentProgressNote(assignment: MyAssignment): String? = when {
     else -> null
 }
 
-/** Datos de la franja de resumen del alumno (racha · XP · insignias) para Hoy y Aprender sin panel de apoyo. */
+/** Datos de la franja de resumen del alumno (racha · puntos · insignias) para Hoy y Aprender sin panel de apoyo. */
 fun learnerSummary(achievements: MyAchievements): List<BpmSummaryItem> = buildList {
     achievements.streak?.let { add(BpmSummaryItem(if (it.currentDays == 1) "1 día" else "${it.currentDays} días", "Racha", BpmSymbol.Flame)) }
-    add(BpmSummaryItem("${achievements.totals.experiencePoints} XP", "Experiencia"))
+    add(BpmSummaryItem("${achievements.totals.experiencePoints} puntos", "Experiencia"))
     add(BpmSummaryItem("${achievements.earned.size} de ${achievements.achievements.size}", "Insignias", BpmSymbol.Award))
 }
 

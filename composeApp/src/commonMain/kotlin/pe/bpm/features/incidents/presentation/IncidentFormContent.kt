@@ -53,7 +53,7 @@ internal fun IncidentFormContent(
         }
         if (e.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (e.pending != null) {
-            Text("El envío aún no está confirmado. Reintenta para consultar su resultado.")
+            if (!e.busy) Text("El envío aún no está confirmado. Reintenta para consultar su resultado.")
             IncidentReview(f)
             BpmChunkyButton("Reintentar el mismo envío", editor::submit, Modifier.fillMaxWidth(), enabled = !e.busy)
             return@BpmFormScaffold
@@ -89,7 +89,7 @@ internal fun IncidentFormContent(
                     "REPORT" -> listOf(IncidentField("description", "Describe lo observado", 1, 4000))
                     "ASSIGN" ->
                         listOf(
-                            IncidentField("description", "Plan de acción correctiva", 1, 2000),
+                            IncidentField("description", "Qué hay que hacer", 1, 2000),
                             IncidentField(
                                 "dueDate",
                                 "Fecha límite en la sede (yyyy-MM-dd)",
@@ -210,7 +210,7 @@ private fun IncidentReview(f: IncidentForm) {
             
         )
     labels.forEach { (key, label) ->
-        f.values[key]?.takeIf { it.isNotBlank() }?.let { Text("$label: " + if (key == "dueDate") BpmCalendar.parse(it)?.spoken ?: it else it) }
+        f.values[key]?.takeIf { it.isNotBlank() }?.let { Text("$label: " + when (key) { "dueDate" -> BpmCalendar.parse(it)?.spoken ?: it; "dueTime" -> pe.bpm.core.presentation.displayClock(it); else -> it }) }
     }
     f.values["riskLevel"]?.let { Text("Riesgo: ${incidentRiskLabel(IncidentRisk.valueOf(it))}") }
     f.values["evidenceRequired"]?.let {

@@ -20,7 +20,7 @@ internal fun SettingsContent(
     onChange: (BpmFeedbackSettings) -> Unit,
     onAlerts: (() -> Unit)?,
     onDevices: () -> Unit,
-    onAcceptInvitation: () -> Unit,
+    onAcceptInvitation: (() -> Unit)?,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -44,7 +44,7 @@ internal fun SettingsContent(
         }
         BpmSettingsSection("Cuenta") {
             BpmSettingLink("Mis dispositivos", "Dónde tienes abierta tu sesión.", onDevices, symbol = BpmSymbol.Account)
-            BpmSettingLink("Aceptar una invitación", "Únete a otra organización con el código del correo.", onAcceptInvitation, symbol = BpmSymbol.Team)
+            onAcceptInvitation?.let { BpmSettingLink("Aceptar una invitación", "Únete a otra organización con el código del correo.", it, symbol = BpmSymbol.Team) }
             BpmSettingLink("Cerrar sesión", "Sales de la app en este dispositivo.", onLogout, symbol = BpmSymbol.Logout)
         }
     }

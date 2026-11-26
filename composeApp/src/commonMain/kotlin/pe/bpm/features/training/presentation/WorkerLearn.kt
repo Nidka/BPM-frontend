@@ -53,7 +53,7 @@ import pe.bpm.resources.mascot_class
 import pe.bpm.resources.mascot_learning
 
 /**
- * Aprender del personal (WORKER): el camino. Fila de contadores (racha, XP y meta de hoy) y, por cada curso asignado,
+ * Aprender del personal (WORKER): el camino. Fila de contadores (racha, puntos y meta de hoy) y, por cada curso asignado,
  * una cabecera de módulo ([BpmUnitBanner], el libro abre la guía del curso). Los cursos sin terminar muestran su camino
  * de lecciones ([LessonPath]): solo el curso activo ([activeCourseId]) lleva la burbuja «Empezar» y el nodo actual; el
  * resto de lecciones desbloqueadas son nodos normales. Los cursos completados no dibujan su camino: solo la cabecera,
@@ -294,7 +294,7 @@ private fun StartBubble(text: String) {
     )
 }
 
-/** Racha, XP y meta del día en una fila; no muestra nada hasta que llegan los logros. */
+/** Racha, puntos y meta del día en una fila; no muestra nada hasta que llegan los logros. */
 @Composable
 private fun PathPills(achievements: MyAchievements?) {
     if (achievements == null) return

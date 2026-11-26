@@ -122,7 +122,7 @@ internal fun ColumnScope.PlayCourseGuide(course: TrainingCourse, state: Training
         append(if (total == 1) "1 lección" else "$total lecciones"); append(" · ${info.estimatedDurationMinutes} min")
     })
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("${info.code} · aprueba con ${course.version.passingScore}", style = BpmPlayType.label, color = BpmPlayColors.action.face)
+        Text("Se aprueba con ${course.version.passingScore} %", style = BpmPlayType.label, color = BpmPlayColors.action.face)
         Text(info.title, style = BpmPlayType.h1, color = BpmPlayColors.ink)
         if (info.description.isNotBlank()) Text(info.description, style = BpmPlayType.sub, color = BpmPlayColors.muted)
     }

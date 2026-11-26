@@ -139,3 +139,14 @@ test('servidor: registra las rutas y responde al cuerpo excesivo sin cerrar la c
   const response = await fetch(base + '/alert-rules', { method: 'POST', headers: { ...headers, 'idempotency-key': 'stable-key-0001' }, body: JSON.stringify({ ...ruleInput, name: 'x'.repeat(600000) }) });
   assert.equal(response.status, 400); assert.equal(calls, 2);
 });
+
+test('bandeja: el aviso de incidencia asignada pasa por el proxy (antes daba 503 y vaciaba la bandeja)', async t => {
+  const assigned = { ...alert, type: 'INCIDENT_ASSIGNED', title: 'Te asignaron una incidencia: Equipo dañado', message: 'Sede Centro · Plazo 27/11/2026 09:17', sourceType: 'INCIDENT', sourceAvailable: true };
+  const value = await invoke(t, '/alerts', { payload: { data: [assigned], pagination: { nextPageToken: '' } } });
+  assert.equal(value.status, 200);
+  assert.equal(value.body.data[0].type, 'INCIDENT_ASSIGNED');
+  assert.equal(value.body.data[0].sourceType, 'INCIDENT');
+  // Las reglas siguen cerradas: este tipo no se puede configurar como regla.
+  const rule = await invoke(t, '/alert-rules', { method: 'POST', body: { ...ruleInput, type: 'INCIDENT_ASSIGNED', configuration: {} }, requestHeaders: { 'idempotency-key': 'stable-key-0001' } });
+  assert.equal(rule.status, 400);
+});

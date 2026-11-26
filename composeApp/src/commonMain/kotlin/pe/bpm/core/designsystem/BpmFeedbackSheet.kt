@@ -46,7 +46,7 @@ fun BpmFeedbackSheet(
     modifier: Modifier = Modifier,
     /** Fuente normativa del ítem («Fuente: NTS 142 (P01)»); vacía si no hay. */
     source: String = "",
-    /** XP de práctica ganado con esta respuesta; la ficha «+2 XP» solo aparece si es mayor que cero. */
+    /** puntos de práctica ganado con esta respuesta; la ficha «+2 puntos» solo aparece si es mayor que cero. */
     xp: Int = 0,
     /** Si no es nula, ofrece «Escuchar» con ese texto (explicación y fuente). */
     listenText: String? = null,
@@ -79,7 +79,7 @@ fun BpmFeedbackSheet(
                 if (xp > 0) Row(Modifier.background(Color.White, CircleShape).padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     BpmIcon(BpmSymbol.Bolt, tint = BpmPlayColors.gold.shadow, modifier = Modifier.size(16.dp))
-                    Text("+$xp XP", style = BpmPlayType.statLabel, color = BpmPlayColors.gold.shadow)
+                    Text("+$xp puntos", style = BpmPlayType.statLabel, color = BpmPlayColors.gold.shadow)
                 }
                 listenText?.let { BpmListenButton(it, label = "Escuchar la explicación") }
             }

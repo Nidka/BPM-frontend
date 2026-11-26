@@ -46,7 +46,7 @@ internal fun WorkerTaskItem(
     when (entry) {
         is OperationsEntry.PlanEntry -> {
             val plan = entry.value
-            TodayPlanRow(plan, modifier, onClick = { if (plan.active) viewModel.newCleaningFor(plan) else viewModel.detail(entry) })
+            TodayPlanRow(plan, modifier, onClick = { if (plan.active && plan.today?.done != true) viewModel.newCleaningFor(plan) else viewModel.detail(entry) })
         }
         is OperationsEntry.ExecutionEntry -> {
             val tone = resultTone(entry.value.input.result)

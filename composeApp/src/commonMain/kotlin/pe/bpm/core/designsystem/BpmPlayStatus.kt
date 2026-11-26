@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Contador compacto del estilo de juego (`.pill`): icono de 20 dp y valor (Nunito 900, 15 sp) dentro de una píldora con
- * borde de 2 dp y radio 14. El color del icono y del valor sale de [tone]: racha [BpmPlayTone.Streak], XP
+ * borde de 2 dp y radio 14. El color del icono y del valor sale de [tone]: racha [BpmPlayTone.Streak], puntos
  * [BpmPlayTone.Gold], meta del día [BpmPlayTone.Action]. [contentDescription] es lo que lee el lector de pantalla
  * («Racha de 6 días»); si es nulo se lee el valor.
  */

@@ -59,10 +59,10 @@ import pe.bpm.resources.mascot_ready
 private const val MISSION_LIMIT = 6
 
 /**
- * Pantalla «Hoy» del personal (WORKER), estilo de juego: tres contadores (racha, XP, meta), el tomate con una frase que
+ * Pantalla «Hoy» del personal (WORKER), estilo de juego: tres contadores (racha, puntos, meta), el tomate con una frase que
  * dice lo que falta, la tarjeta «Meta de hoy» (barra dorada), «Tu turno» con las tareas como misiones (vencidas primero,
  * luego por hora, hechas al final en verde) y «Sigue aprendiendo» → camino. Solo datos reales: tareas `view=today` de
- * la sede, racha y XP de los logros y la asignación que toca. La meta ([dailyGoal]) suma 1 lección (actividad de hoy)
+ * la sede, racha y puntos de los logros y la asignación que toca. La meta ([dailyGoal]) suma 1 lección (actividad de hoy)
  * y las tareas del turno.
  *
  * El círculo de una misión (o tocar la fila) abre el registro rápido con ese plan ([OperationsViewModel.newCleaningFor]);
@@ -172,7 +172,7 @@ internal fun StudySurveyCard(onOpen: () -> Unit) {
     }
 }
 
-/** Racha y XP en una fila; no muestra nada hasta que llegan los logros. La meta del día va en su propia ficha ([GoalCard]). */
+/** Racha y puntos en una fila; no muestra nada hasta que llegan los logros. La meta del día va en su propia ficha ([GoalCard]). */
 @Composable
 private fun TodayPills(achievements: MyAchievements?) {
     if (achievements == null) return

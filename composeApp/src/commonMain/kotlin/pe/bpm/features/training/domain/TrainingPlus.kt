@@ -102,7 +102,7 @@ data class Assignment(
 /** Alta de asignación: `id` lo genera el cliente, así repetir el envío no duplica. */
 data class NewAssignment(val id: String, val courseId: String, val target: AssignmentTarget, val dueAt: String?)
 
-// ---- Insignias, logros y XP (RF-10) ----------------------------------------------------------
+// ---- Insignias, logros y puntos (RF-10) ----------------------------------------------------------
 
 enum class AchievementCriterion { COURSES_COMPLETED, PERFECT_SCORE, STREAK_DAYS }
 

@@ -25,7 +25,7 @@ private const val FINAL_STEP_ID = "final-evaluation"
 
 /**
  * Vista general del curso. Clase compacta y media (una sola columna, regla G2): tarjeta de avance compacta (anillo,
- * «2 de 5 lecciones» y chips «Mejor 72», «60 XP», «Aprueba con 80»), temario y una tarjeta «Más opciones» de filas
+ * «2 de 5 lecciones» y chips «Mejor 72», «60 puntos», «Aprueba con 80»), temario y una tarjeta «Más opciones» de filas
  * planas (practicar sin calificación, ver sin conexión en una línea, constancia). Desde la expandida el temario va a la
  * izquierda y, en el panel, el avance con la acción principal, las descargas (resumidas, G9), la constancia y el historial.
  * El avance por lección sale de `completedLessonIds` del servidor y, si no lo envía, de la aproximación de
@@ -124,7 +124,7 @@ internal fun CourseOverview(course: TrainingCourse, state: TrainingState, viewMo
     if (compact && total > 0) BpmActionBar { BpmChunkyButton(actionLabel, viewModel::resume, Modifier.fillMaxWidth()) }
 }
 
-/** Chips de avance: «Completado» (solo si lo está), «Mejor 72», «60 XP» y «Aprueba con 80». */
+/** Chips de avance: «Completado» (solo si lo está), «Mejor 72», «60 puntos» y «Aprueba con 80». */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProgressChips(course: TrainingCourse, centered: Boolean = false) {
@@ -132,7 +132,7 @@ private fun ProgressChips(course: TrainingCourse, centered: Boolean = false) {
         verticalArrangement = Arrangement.spacedBy(BpmSpacing.sm)) {
         if (course.progress.status == ProgressStatus.COMPLETED) BpmStatusChip("Completado", BpmTone.Success, symbol = BpmSymbol.Check)
         course.progress.bestScore?.let { BpmStatusChip("Mejor $it", BpmTone.Info) }
-        if (course.progress.experiencePoints > 0) BpmStatusChip("${course.progress.experiencePoints} XP", BpmTone.Info)
+        if (course.progress.experiencePoints > 0) BpmStatusChip("${course.progress.experiencePoints} puntos", BpmTone.Info)
         BpmStatusChip("Aprueba con ${course.version.passingScore}", BpmTone.Neutral)
     }
 }

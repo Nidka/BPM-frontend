@@ -121,7 +121,7 @@ data class StudyFeedback(
     /** Ítem del banco oficial (M01-03); nulo en una pregunta común. */
     val itemCode: String? = null,
     val sources: List<SourceRef> = emptyList(),
-    /** XP de práctica ganado con esta respuesta (primer acierto del ítem); 0 si no hubo. */
+    /** puntos de práctica ganado con esta respuesta (primer acierto del ítem); 0 si no hubo. */
     val xpEarned: Int = 0,
 )
 
@@ -198,7 +198,7 @@ data class AttemptSummary(
     val score: Int,
     val passed: Boolean,
     val completedAt: String,
-    /** XP que ganó con este intento (curso o módulo más insignias); nulo en intentos históricos o servidores anteriores. */
+    /** puntos que ganó con este intento (curso o módulo más insignias); nulo en intentos históricos o servidores anteriores. */
     val xpEarned: Int? = null,
 )
 

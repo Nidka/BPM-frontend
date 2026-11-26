@@ -3,6 +3,8 @@ package pe.bpm.features.operations.presentation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -79,6 +81,8 @@ internal fun WorkerTasksBody(state: OperationsState, viewModel: OperationsViewMo
         if (state.todayLoaded && groups.now.isEmpty() && groups.later.isEmpty()) Text("¡Terminaste las tareas del turno!", style = BpmPlayType.sub, color = BpmPlayColors.correct.shadow)
     }
     BpmChunkyButton("Ver historial", { history = true }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+    // El botón flotante «Reportar» no debe tapar la última fila: se deja su altura libre al final.
+    Spacer(Modifier.height(88.dp))
 }
 
 /** Un grupo de tareas con su título en mayúsculas; sin tareas no ocupa espacio. */
@@ -99,7 +103,8 @@ private fun TaskGroup(title: String, plans: List<CleaningPlan>, viewModel: Opera
 internal fun PlanMission(plan: CleaningPlan, viewModel: OperationsViewModel, modifier: Modifier = Modifier) {
     val icon = missionIcon(plan)
     val done = plan.today?.done == true
-    val open = { if (plan.active) viewModel.newCleaningFor(plan) else viewModel.detail(OperationsEntry.PlanEntry(plan)) }
+    // Una tarea ya hecha hoy no se reabre con un toque: se consulta su detalle.
+    val open = { if (plan.active && !done) viewModel.newCleaningFor(plan) else viewModel.detail(OperationsEntry.PlanEntry(plan)) }
     BpmMissionRow(plan.task, missionDetail(plan), icon.symbol, icon.tone, done, isLate(plan), onCheck = { if (!done) open() }, onOpen = open, modifier = modifier)
 }
 

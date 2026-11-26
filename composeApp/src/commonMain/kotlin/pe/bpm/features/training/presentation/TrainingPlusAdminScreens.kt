@@ -205,7 +205,7 @@ fun AchievementAdminScreen(viewModel: TrainingAchievementAdminViewModel, modifie
                     Eyebrow(if (a.active) "ACTIVA" else "INACTIVA")
                     Text(a.name, style = MaterialTheme.typography.titleMedium)
                     if (a.description.isNotBlank()) Text(a.description)
-                    Text(criterionLabel(a) + " · ${a.points} XP", style = MaterialTheme.typography.bodySmall)
+                    Text(criterionLabel(a) + " · ${a.points} puntos", style = MaterialTheme.typography.bodySmall)
                     BpmChunkyButton("Editar", { viewModel.startEdit(a.id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
                 }
             }

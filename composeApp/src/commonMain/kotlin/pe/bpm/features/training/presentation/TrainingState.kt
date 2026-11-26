@@ -36,7 +36,7 @@ data class StudyState(
     val shuffles: Map<String, List<Int>> = emptyMap(),
     /** Repaso espaciado: la sesión recorre las preguntas pendientes de repasar, no una lección. */
     val review: Boolean = false,
-    /** XP de práctica ganado en esta sesión (primer acierto de cada ítem). */
+    /** puntos de práctica ganado en esta sesión (primer acierto de cada ítem). */
     val xpEarned: Int = 0,
 ) {
     val finished: Boolean get() = index >= questions.size

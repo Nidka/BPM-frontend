@@ -216,7 +216,7 @@ private fun BadgeDetail(badge: Achievement) {
             BpmPlayChip(if (earned) "Ganada" else "Bloqueada", if (earned) BpmPlayTone.Correct else BpmPlayTone.Action)
         }
         if (badge.description.isNotBlank()) Text(badge.description, style = BpmPlayType.sub, color = BpmPlayColors.muted)
-        Text(if (earned) "Ganada el ${readableDate(badge.awardedAt)} · +${badge.points} XP" else "Cómo ganarla: ${badgeCriterion(badge)} · +${badge.points} XP",
+        Text(if (earned) "Ganada el ${readableDate(badge.awardedAt)} · +${badge.points} puntos" else "Cómo ganarla: ${badgeCriterion(badge)} · +${badge.points} puntos",
             style = BpmPlayType.sub, color = BpmPlayColors.ink)
     }
 }

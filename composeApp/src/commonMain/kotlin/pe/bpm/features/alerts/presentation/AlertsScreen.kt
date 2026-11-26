@@ -142,6 +142,7 @@ internal fun alertSymbol(type: AlertType): BpmSymbol = when (type) {
   AlertType.CHECKLIST_MISSING -> BpmSymbol.Control
   AlertType.ORGANIZATION_INACTIVE -> BpmSymbol.Company
   AlertType.TRAINING_ASSIGNED -> BpmSymbol.Learn
+  AlertType.INCIDENT_ASSIGNED -> BpmSymbol.Wrench
 }
 
 internal fun alertTone(type: AlertType): BpmPlayTone = when (type) {
@@ -149,6 +150,7 @@ internal fun alertTone(type: AlertType): BpmPlayTone = when (type) {
   AlertType.CHECKLIST_MISSING -> BpmPlayTone.Gold
   AlertType.ORGANIZATION_INACTIVE -> BpmPlayTone.Streak
   AlertType.TRAINING_ASSIGNED -> BpmPlayTone.Action
+  AlertType.INCIDENT_ASSIGNED -> BpmPlayTone.Streak
 }
 
 @Composable
@@ -176,6 +178,7 @@ internal fun alertTypeLabel(type: AlertType) =
     AlertType.TEMPERATURE_DANGER -> "Temperatura en intervalo de peligro"
     AlertType.ORGANIZATION_INACTIVE -> "Empresa sin actividad"
     AlertType.TRAINING_ASSIGNED -> "Capacitación asignada"
+    AlertType.INCIDENT_ASSIGNED -> "Incidencia asignada"
   }
 
 internal fun alertFailureText(reason: AlertsFailure) =

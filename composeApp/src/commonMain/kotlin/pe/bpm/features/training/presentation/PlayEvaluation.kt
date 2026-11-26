@@ -185,7 +185,7 @@ private fun ReviewTile(number: Int, text: String, choice: String?, enabled: Bool
 }
 
 /**
- * Resultado: la celebración con «¡Aprobaste!» (o «Casi lo logras»), el puntaje grande, fichas de XP, módulo e insignia,
+ * Resultado: la celebración con «¡Aprobaste!» (o «Casi lo logras»), el puntaje grande, fichas de puntos, módulo e insignia,
  * la constancia con su código en grupos de 4 y, abajo, la acción principal («Siguiente módulo», «Intentar otra vez» o
  * «Volver al camino») y «Ver mis respuestas», que despliega cada pregunta con la correcta y su explicación.
  */
@@ -206,7 +206,7 @@ private fun PlayResult(course: TrainingCourse, outcome: AttemptOutcome, viewMode
     }
     val stats = buildList {
         val xp = attempt.xpEarned?.takeIf { it > 0 }
-        if (xp != null) add(BpmStatTileSpec("XP", "+$xp", BpmPlayTone.Gold, BpmSymbol.Bolt))
+        if (xp != null) add(BpmStatTileSpec("Puntos", "+$xp", BpmPlayTone.Gold, BpmSymbol.Bolt))
         else add(BpmStatTileSpec("Mínimo", course.version.passingScore.toString(), BpmPlayTone.Gold, BpmSymbol.Target))
         if (passed && worker.moduleNumber != null && worker.moduleTotal != null) add(BpmStatTileSpec("Módulo", "${worker.moduleNumber}/${worker.moduleTotal}", BpmPlayTone.Correct, BpmSymbol.Route))
         if (outcome.achievements.isNotEmpty()) add(BpmStatTileSpec("Insignia", outcome.achievements.size.toString(), BpmPlayTone.Streak, BpmSymbol.Award))

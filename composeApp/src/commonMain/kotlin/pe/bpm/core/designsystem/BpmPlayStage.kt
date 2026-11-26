@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,6 +101,8 @@ fun BpmPlayStage(
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val viewport = maxHeight
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val viewportPx = with(density) { viewport.toPx() }
             val scroll = rememberScrollState()
             LaunchedEffect(scrollKey) { scroll.scrollTo(0) }
             Box(Modifier.fillMaxWidth().heightIn(min = viewport).verticalScroll(scroll), contentAlignment = if (centered) Alignment.Center else Alignment.TopCenter) {
@@ -105,8 +110,18 @@ fun BpmPlayStage(
                     horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start, content = content)
             }
             // Aviso de que hay más contenido debajo (p. ej. la última alternativa tras un pie alto): un velo blanco que no capta toques.
-            if (scroll.canScrollForward) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(32.dp) // medida: velo de 32 dp
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.White))))
+            if (scroll.canScrollForward) {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(32.dp) // medida: velo de 32 dp
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.White))))
+                // Ficha tocable: antes solo un velo casi invisible y la última alternativa pasaba desapercibida bajo el pie.
+                val more = rememberCoroutineScope()
+                Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).clip(CircleShape).background(BpmPlayColors.action.face)
+                    .clickable(role = Role.Button, onClickLabel = "Ver más abajo") { more.launch { scroll.animateScrollBy(viewportPx * 0.7f) } }
+                    .padding(horizontal = 14.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Hay más abajo", style = BpmPlayType.label, color = Color.White)
+                    BpmIcon(BpmSymbol.ChevronDown, tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+            }
         }
         if (footer != null) Box(Modifier.fillMaxWidth().background(footerColor).drawBehind {
             if (footerColor == Color.White) drawRect(BpmPlayColors.line, size = Size(size.width, BpmPlayBorder.toPx()))

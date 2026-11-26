@@ -35,7 +35,7 @@ import org.jetbrains.compose.resources.painterResource
 
 /**
  * Datos de una ficha de resultado (`.stat`): [label] va en mayúsculas sobre la franja de color y [value] debajo, con
- * [icon] opcional a su izquierda. [tone] da el color de borde, franja y valor: XP [BpmPlayTone.Gold], racha
+ * [icon] opcional a su izquierda. [tone] da el color de borde, franja y valor: puntos [BpmPlayTone.Gold], racha
  * [BpmPlayTone.Streak], aciertos [BpmPlayTone.Correct].
  */
 @Immutable
