@@ -1,5 +1,6 @@
 package pe.bpm.features.checklists.presentation
 
+import pe.bpm.core.presentation.displayClock
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
@@ -159,7 +160,7 @@ fun ChecklistAssignmentDetailScreen(
         BpmSection("Programación", description = frequencyExplanation(value.frequency)) {
             BpmDetailFields(listOf(
                 BpmDetailField("Frecuencia", frequencyLabel(value.frequency)),
-                BpmDetailField("Hora de referencia en la sede", value.dueTime),
+                BpmDetailField("Hora de referencia en la sede", displayClock(value.dueTime)),
             ))
             AssignmentShiftInfo(value)
         }
@@ -340,7 +341,7 @@ internal fun AssignmentShiftInfo(value: ChecklistAssignment) {
         Text("Plantilla versión ${value.templateVersionNumber}", style = MaterialTheme.typography.bodySmall)
     if (value.shiftId.isNotEmpty()) {
         Text(
-            "Turno ${value.shiftName} (${value.shiftStartTime}-${value.shiftEndTime}) · ${shiftStateLabel(value.shiftState)}",
+            "Turno ${value.shiftName} (${displayClock(value.shiftStartTime)} a ${displayClock(value.shiftEndTime)}) · ${shiftStateLabel(value.shiftState)}",
             style = BpmType.bodyStrong,
         )
         if (value.shiftState != ShiftState.OPEN && value.active)

@@ -113,3 +113,10 @@ private external fun photoBufferLength(buffer: JsAny): Int
 
 @JsFun("(buffer, index) => buffer[index]")
 private external fun photoBufferByte(buffer: JsAny, index: Int): Int
+
+@Composable
+actual fun rememberEvidenceCamera(
+    maxBytes: Int,
+    allowedMimeTypes: Set<String>,
+    onResult: (PhotoSelection) -> Unit,
+): (() -> Unit)? = null

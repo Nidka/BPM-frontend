@@ -40,7 +40,7 @@ class WorkerTasksTest {
 
     @Test
     fun dueChipTextIsNullWithoutATime() {
-        assertEquals("hasta 10:00", dueChipText("10:00"))
+        assertEquals("hasta 10:00 a. m.", dueChipText("10:00"))
         assertNull(dueChipText(""))
     }
 
@@ -50,11 +50,11 @@ class WorkerTasksTest {
         // Hecho gana a vencida.
         assertEquals(TodayChip("Hecho", BpmTone.Success), todayChip(plan("a", "10:00").copy(today = today(done = true, overdue = true))))
         assertEquals(TodayChip("Vencida", BpmTone.Danger), todayChip(plan("a", "10:00").copy(today = today(overdue = true))))
-        assertEquals(TodayChip("hasta 10:00", BpmTone.Neutral), todayChip(plan("a", "10:00").copy(today = today())))
+        assertEquals(TodayChip("hasta 10:00 a. m.", BpmTone.Neutral), todayChip(plan("a", "10:00").copy(today = today())))
         assertEquals(TodayChip("Mañana", BpmTone.Neutral), todayChip(plan("a", "").copy(today = today(shift = "Mañana"))))
         assertNull(todayChip(plan("a", "").copy(today = today())))
         // Servidor anterior (sin `today`): solo la hora, siempre Neutral.
-        assertEquals(TodayChip("hasta 10:00", BpmTone.Neutral), todayChip(plan("a", "10:00")))
+        assertEquals(TodayChip("hasta 10:00 a. m.", BpmTone.Neutral), todayChip(plan("a", "10:00")))
         assertNull(todayChip(plan("a", "")))
     }
 

@@ -1,5 +1,6 @@
 package pe.bpm.features.operations.presentation
 
+import pe.bpm.core.presentation.displayClock
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -61,7 +62,7 @@ internal fun OperationDetails(entry: OperationsEntry, onBack: (() -> Unit)? = nu
                 BpmSection("Plan de limpieza") {
                     BpmDetailFields(listOf(
                         BpmDetailField("Frecuencia", frequencyLabel(frequency)), BpmDetailField("Estado", if (active) "Activo" else "Inactivo"),
-                        BpmDetailField("Producto", productName), BpmDetailField("Hora", dueTime),
+                        BpmDetailField("Producto", productName), BpmDetailField("Hora", displayClock(dueTime)),
                         BpmDetailField("Instrucciones", instructions),
                     ))
                 }

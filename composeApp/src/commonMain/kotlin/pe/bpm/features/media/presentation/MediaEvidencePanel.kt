@@ -36,6 +36,11 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         allowedMimeTypes = state.policy?.allowedMimeTypes ?: emptySet(),
         onResult = { result -> viewModel.select(result, state.context, state.userId) },
     )
+    val camera = rememberEvidenceCamera(
+        maxBytes = state.policy?.maxBytes ?: 0,
+        allowedMimeTypes = state.policy?.allowedMimeTypes ?: emptySet(),
+        onResult = { result -> viewModel.select(result, state.context, state.userId) },
+    )
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Fotos guardadas", style = MaterialTheme.typography.titleLarge)
         Text(if (state.confirmedCount == 1) "1 foto guardada" else "${state.confirmedCount} fotos guardadas", style = MaterialTheme.typography.bodyMedium)
@@ -74,7 +79,8 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         }
         if (state.canEdit) {
             Text("Para guardar fotos necesitas conexión. Reintenta cualquier envío pendiente antes de cerrar este panel.", style = MaterialTheme.typography.bodySmall)
-            BpmChunkyButton("Elegir foto", picker, Modifier.bpmPrimaryButtonWidth(), enabled = state.canSelect)
+            if (camera != null) BpmChunkyButton("Tomar foto", camera, Modifier.bpmPrimaryButtonWidth(), enabled = state.canSelect, icon = BpmSymbol.Camera)
+            BpmChunkyButton(if (camera != null) "Elegir de la galería" else "Elegir foto", picker, Modifier.bpmPrimaryButtonWidth(), enabled = state.canSelect, tone = if (camera != null) BpmChunkyTone.White else BpmChunkyTone.Action)
             state.policy?.let { policy ->
                 Text("Máximo ${formatPhotoLimit(policy.maxBytes)} por foto y hasta ${policy.maxFiles} fotos en esta sección.", style = MaterialTheme.typography.bodySmall)
                 if (!policy.uploadAvailable) Text("El envío de fotos no está disponible en este momento. Puedes consultar las fotos existentes.")

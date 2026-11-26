@@ -18,6 +18,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.*
+import pe.bpm.resources.mascot_ready
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -95,8 +97,12 @@ object BpmBrand {
         compact = size == BpmButtonSize.Compact) { Text(label) }
 @Composable fun Eyebrow(text:String){Text(text,style=BpmType.labelStrong,color=MaterialTheme.colorScheme.primary)}
 /** Estado vacío: dice qué pasa y, con [action], ofrece a un toque lo que lo arregla (por ejemplo «Crear curso» para quien administra). */
+/** Estado vacío: el tomate, un título corto y qué hacer ahora; nunca una tarjeta de texto seco. */
 @Composable fun EmptyState(title:String,description:String,action:(@Composable () -> Unit)?=null){BpmCard(Modifier.fillMaxWidth()){
-    Text(title,style=MaterialTheme.typography.titleMedium)
-    Text(description,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    action?.invoke()
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Image(painterResource(pe.bpm.resources.Res.drawable.mascot_ready), contentDescription = null, modifier = Modifier.width(96.dp))
+        Text(title,style=MaterialTheme.typography.titleMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(description,color=MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        action?.invoke()
+    }
 }}

@@ -16,3 +16,10 @@ actual fun rememberEvidencePhotoPicker(
     val callback = rememberUpdatedState(onResult)
     return remember { { callback.value(PhotoSelection.Failed(PhotoSelectionFailure.UNAVAILABLE)) } }
 }
+
+@Composable
+actual fun rememberEvidenceCamera(
+    maxBytes: Int,
+    allowedMimeTypes: Set<String>,
+    onResult: (PhotoSelection) -> Unit,
+): (() -> Unit)? = null

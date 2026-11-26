@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solo la carpeta temporal de capturas de la cámara; se vacía antes de cada captura y tras leerla. -->
+<paths>
+    <cache-path name="evidence_capture" path="evidence-capture/" />
+</paths>

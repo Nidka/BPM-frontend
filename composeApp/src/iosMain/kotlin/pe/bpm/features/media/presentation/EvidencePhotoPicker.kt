@@ -180,3 +180,10 @@ private suspend fun readPhoto(url: NSURL, maxBytes: Int, allowedMimeTypes: Set<S
             if (scoped) url.stopAccessingSecurityScopedResource()
         }
     }
+
+@Composable
+actual fun rememberEvidenceCamera(
+    maxBytes: Int,
+    allowedMimeTypes: Set<String>,
+    onResult: (PhotoSelection) -> Unit,
+): (() -> Unit)? = null

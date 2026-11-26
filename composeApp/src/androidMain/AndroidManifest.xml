@@ -3,7 +3,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- «Escuchar» (lectura en voz alta): Android 11+ exige declarar el servicio de síntesis de voz que se consulta. -->
-    <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
+    <queries>
+        <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+        <!-- «Tomar foto»: Android 11+ exige declarar que se consulta la cámara del sistema. -->
+        <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
+    </queries>
     <application android:name="pe.bpm.features.notifications.data.BpmFirebaseApplication" android:label="BPM" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:allowBackup="false"
         android:usesCleartextTraffic="false" android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
@@ -13,6 +17,10 @@
         <service android:name="pe.bpm.features.notifications.data.BpmMessagingService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/evidence_paths" />
+        </provider>
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

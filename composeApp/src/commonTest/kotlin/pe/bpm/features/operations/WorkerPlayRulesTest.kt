@@ -77,8 +77,8 @@ class WorkerPlayRulesTest {
     }
 
     @Test fun missionDetailSaysLateTimeShiftOrWhoDidIt() {
-        assertEquals("Venció a las 10:00 · Cocina", missionDetail(plan("a", due = "10:00", overdue = true)))
-        assertEquals("Hasta las 12:00 · Cocina", missionDetail(plan("b", due = "12:00")))
+        assertEquals("Venció a las 10:00 a. m. · Cocina", missionDetail(plan("a", due = "10:00", overdue = true)))
+        assertEquals("Hasta las 12:00 p. m. · Cocina", missionDetail(plan("b", due = "12:00")))
         assertEquals("Hecho por ti · Cocina", missionDetail(plan("c", done = true, byMe = true)))
         assertEquals("Hecho por tu equipo · Cocina", missionDetail(plan("d", done = true)))
         assertEquals("Turno tarde · Salón", missionDetail(plan("e", area = "Salón", shift = CleaningPlanShift("s", "Turno tarde", "OPEN"))))
@@ -176,7 +176,7 @@ class WorkerPlayRulesTest {
     }
 
     @Test fun nextTaskTextAddsTheDueTimeWhenThereIsOne() {
-        assertEquals("Temperatura de la cámara (hasta 12:00)", nextTaskText(plan("a", task = "Temperatura de la cámara", due = "12:00")))
+        assertEquals("Temperatura de la cámara (hasta 12:00 p. m.)", nextTaskText(plan("a", task = "Temperatura de la cámara", due = "12:00")))
         assertEquals("Barrer", nextTaskText(plan("b", task = "Barrer")))
     }
 
@@ -189,8 +189,9 @@ class WorkerPlayRulesTest {
     }
 
     @Test fun clockIsTheTimeOfADisplayDate() {
-        assertEquals("10:42", clockOf("20/11/2026 · 10:42 PET"))
-        assertEquals("8:05", clockOf("20/11/26, 8:05 a. m."))
+        assertEquals("10:42 p. m.", clockOf("20/11/2026 · 10:42 p. m."))
+        assertEquals("10:42", clockOf("20/11/2026 · 10:42"))
+        assertEquals("8:05 a. m.", clockOf("20/11/26, 8:05 a. m."))
         assertEquals("", clockOf(""))
     }
 }

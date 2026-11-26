@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import pe.bpm.features.media.domain.*
 
 data class MediaEvidenceState(
@@ -57,10 +59,10 @@ data class MediaEvidenceState(
                 else runId?.let { run -> itemId?.let { EvidenceContext(org, run, it) } }
             }
 
+    /** Una consulta de la lista en curso no impide elegir: se cancela al empezar el envío. */
     val canSelect: Boolean
         get() =
             canEdit &&
-                !loading &&
                 !busy &&
                 pendingId == null &&
                 policy?.uploadAvailable == true &&
@@ -78,6 +80,8 @@ class MediaEvidenceViewModel(
     private val mutable = MutableStateFlow(MediaEvidenceState())
     val state = mutable.asStateFlow()
     private var job: Job? = null
+    private var listJob: Job? = null
+    private var lastListedAt: TimeSource.Monotonic.ValueTimeMark? = null
     private var generation = 0L
     private var revision = 0L
     private var pending: EvidenceUpload? = null
@@ -154,6 +158,9 @@ class MediaEvidenceViewModel(
         generation++
         job?.cancel()
         job = null
+        listJob?.cancel()
+        listJob = null
+        lastListedAt = null
         clearPending()
         clearPreview()
         mutable.value = MediaEvidenceState(revision = revision)
@@ -166,21 +173,29 @@ class MediaEvidenceViewModel(
         super.onCleared()
     }
 
-    fun refresh() {
+    /**
+     * Consulta la lista. [silent] es la revalidación al volver a primer plano: no muestra «Consultando…», no bloquea la
+     * selección, se omite si hubo otra consulta hace pocos segundos o si hay un envío en curso, y nunca pisa un envío:
+     * Android también dispara «volver a primer plano» al cerrar el selector de fotos, justo cuando llega la foto elegida.
+     */
+    fun refresh(silent: Boolean = false) {
         val context = mutable.value.context ?: return
         if (mutable.value.busy || mutable.value.loading) return
+        if (silent) {
+            val last = lastListedAt
+            if (last != null && last.elapsedNow() < SILENT_REFRESH_MIN_INTERVAL) return
+        }
         val expected = generation
         mutable.value =
-            mutable.value.copy(
-                loading = true,
-                failure = null,
-                selectionFailure = null,
-                removalCandidate = null,
-            )
-        job =
+            if (silent) mutable.value
+            else mutable.value.copy(loading = true, failure = null, selectionFailure = null, removalCandidate = null)
+        listJob =
             viewModelScope.launch {
                 val result = safely { load(context) }
                 if (!isCurrent(expected)) return@launch
+                // Un envío empezó mientras tanto: su resultado es más reciente que esta lista.
+                if (silent && mutable.value.busy) return@launch
+                lastListedAt = TimeSource.Monotonic.markNow()
                 when (result) {
                     is MediaResult.Success ->
                         mutable.value =
@@ -190,7 +205,8 @@ class MediaEvidenceViewModel(
                                 loading = false,
                                 revision = ++revision,
                             )
-                    is MediaResult.Failure -> fail(result.reason)
+                    is MediaResult.Failure ->
+                        if (silent) Unit else fail(result.reason)
                 }
             }
     }
@@ -200,12 +216,14 @@ class MediaEvidenceViewModel(
         context: EvidenceContext? = mutable.value.context,
         user: String? = mutable.value.userId,
     ) {
-        if (
-            context != mutable.value.context ||
-                user != mutable.value.userId ||
-                !mutable.value.canSelect
-        )
+        if (context != mutable.value.context || user != mutable.value.userId) return
+        if (!mutable.value.canSelect) {
+            // Antes se ignoraba en silencio y la persona creía haber adjuntado la foto: ahora se dice qué pasó.
+            if (result is PhotoSelection.Selected) result.photo.bytes.fill(0)
+            if (result !is PhotoSelection.Cancelled && !mutable.value.busy && mutable.value.pendingId == null)
+                mutable.value = mutable.value.copy(selectionFailure = PhotoSelectionFailure.UNAVAILABLE)
             return
+        }
         when (result) {
             PhotoSelection.Cancelled -> Unit
             is PhotoSelection.Failed ->
@@ -249,14 +267,17 @@ class MediaEvidenceViewModel(
         if (
             !current.canEdit ||
                 current.busy ||
-                current.loading ||
                 current.failure in setOf(MediaFailure.SESSION, MediaFailure.DENIED)
         )
             return
         val expected = generation
         clearPreview()
+        // Una consulta de la lista empezada antes no debe pisar el resultado de este envío.
+        listJob?.cancel()
+        listJob = null
         mutable.value =
             current.copy(
+                loading = false,
                 busy = true,
                 progress = null,
                 failure = null,
@@ -471,3 +492,5 @@ class MediaEvidenceViewModel(
             MediaResult.Failure(MediaFailure.CONNECTION)
         }
 }
+
+private val SILENT_REFRESH_MIN_INTERVAL = 10.seconds

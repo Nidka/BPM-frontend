@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -32,13 +33,15 @@ fun AlertsScreen(
       style = MaterialTheme.typography.bodyMedium,
     )
     pushControls()
-    if (s.unreadCount != null) Text("Sin leer: ${s.unreadCount}")
+    s.unreadCount?.let { count ->
+      BpmStatusChip(if (count == 0) "Todo al día" else if (count == 1) "1 sin leer" else "$count sin leer", if (count == 0) BpmTone.Success else BpmTone.Warning, symbol = if (count == 0) BpmSymbol.Check else BpmSymbol.Bell)
+    }
     if (s.countFailure != null) {
       Text("No pudimos consultar la cantidad de avisos sin leer.")
       BpmTextButton(viewModel::refreshCount) { Text("Reintentar contador") }
     }
     s.failure?.let { AlertError(it, viewModel::refresh) }
-    if (s.loading && s.inbox.rows.isEmpty() || s.detailLoading) BpmSkeletonList(rows = 3, card = false)
+    if (s.loading && s.inbox.rows.isEmpty() || s.detailLoading) BpmSkeletonRecordCards(3, label = "Cargando avisos")
     val a = s.detail
     if (a != null) {
       BpmCard(Modifier.fillMaxWidth()) {
@@ -78,10 +81,7 @@ fun AlertsScreen(
       }
     } else if (!s.detailLoading) {
       BpmSearchField(s.inbox.query, viewModel::query, "Buscar avisos", loading = s.loading)
-      FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-      ) {
+      BpmChipRow {
         AlertFilter.entries.forEach { f ->
           BpmFilterChip(
             s.filter == f,
@@ -102,17 +102,7 @@ fun AlertsScreen(
       if (s.inboxLoaded && s.inbox.rows.isEmpty() && !s.loading && s.failure == null)
         EmptyState("Sin avisos", "No hay avisos para esta consulta. Cambia la búsqueda o el filtro para ver otros.")
       BpmGridLayout(s.inbox.rows) { row, cardModifier ->
-        BpmCard(cardModifier) {
-          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(row.title, style = MaterialTheme.typography.titleMedium)
-            Text(alertStatusLabel(row))
-            pe.bpm.core.offline.PendingBadge(row.id)
-            Text(row.message)
-            if (row.locationName.isNotBlank()) Text(row.locationName)
-            Text(displayDateTime(row.createdAt), style = MaterialTheme.typography.bodySmall)
-            BpmChunkyButton("Consultar aviso", { viewModel.detail(row.id) }, tone = BpmChunkyTone.White, enabled = !s.loading)
-          }
-        }
+        AlertCard(row, { viewModel.detail(row.id) }, cardModifier, enabled = !s.loading)
       }
       if (s.inboxLoaded)
         PageNavigation(
@@ -125,6 +115,48 @@ fun AlertsScreen(
         )
     }
   }
+}
+
+/** Aviso de la bandeja: icono por tipo, estado con icono (sin leer destacado), mensaje corto y sede con fecha. */
+@Composable
+private fun AlertCard(a: Alert, onOpen: () -> Unit, modifier: Modifier, enabled: Boolean) {
+  val unread = a.viewedAt == null && a.attendedAt == null && a.status != AlertStatus.CANCELLED
+  BpmCard(modifier, onClick = onOpen, onClickLabel = "Consultar aviso", enabled = enabled) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+      BpmIconTile(alertSymbol(a.type), alertTone(a.type))
+      Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(a.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+        Text(a.message, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+      }
+      BpmIcon(BpmSymbol.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    pe.bpm.core.offline.PendingBadge(a.id)
+    BpmChipRow {
+      BpmStatusChip(
+        alertStatusLabel(a),
+        when { unread -> BpmTone.Warning; a.attendedAt != null -> BpmTone.Success; else -> BpmTone.Neutral },
+        symbol = when { unread -> BpmSymbol.Bell; a.attendedAt != null -> BpmSymbol.Check; else -> BpmSymbol.Eye },
+      )
+    }
+    Text(
+      listOf(a.locationName.takeIf { it.isNotBlank() }, displayDateTime(a.createdAt)).filterNotNull().joinToString(" · "),
+      style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+  }
+}
+
+internal fun alertSymbol(type: AlertType): BpmSymbol = when (type) {
+  AlertType.TEMPERATURE_DANGER -> BpmSymbol.Thermometer
+  AlertType.CHECKLIST_MISSING -> BpmSymbol.Control
+  AlertType.ORGANIZATION_INACTIVE -> BpmSymbol.Company
+  AlertType.TRAINING_ASSIGNED -> BpmSymbol.Learn
+}
+
+internal fun alertTone(type: AlertType): BpmPlayTone = when (type) {
+  AlertType.TEMPERATURE_DANGER -> BpmPlayTone.Error
+  AlertType.CHECKLIST_MISSING -> BpmPlayTone.Gold
+  AlertType.ORGANIZATION_INACTIVE -> BpmPlayTone.Streak
+  AlertType.TRAINING_ASSIGNED -> BpmPlayTone.Action
 }
 
 @Composable

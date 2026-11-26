@@ -56,7 +56,7 @@ class ProfileRulesTest {
 
     @Test fun deviceDateFormatsOfEveryPlatform() {
         val expected = parseIsoDay("2026-11-21")
-        assertEquals(expected, parseDeviceDate("21/11/2026 · 10:30 PET"))
+        assertEquals(expected, parseDeviceDate("21/11/2026 · 10:30 p. m."))
         assertEquals(expected, parseDeviceDate("21/11/2026, 10:30"))
         assertEquals(expected, parseDeviceDate("21/11/26, 10:30"))
         assertEquals(parseIsoDay("2026-11-05"), parseDeviceDate("5/11/2026"))

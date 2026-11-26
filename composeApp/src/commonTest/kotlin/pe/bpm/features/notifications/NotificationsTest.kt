@@ -14,9 +14,22 @@ class NotificationsTest {
     assertEquals(id, acceptedAlertId(payload, "org", hash))
     assertNull(acceptedAlertId(payload, "other", hash))
     assertNull(acceptedAlertId(payload, "org", "b".repeat(64)))
-    assertNull(acceptedAlertId(payload + ("message" to "private text"), "org", hash))
+    // El servidor añade claves de navegación: se aceptan; faltar una de las tres obligatorias, no.
+    assertEquals(id, acceptedAlertId(payload + ("route" to "avisos") + ("type" to "TEMPERATURE_DANGER"), "org", hash))
+    assertNull(acceptedAlertId(payload - "recipientHash", "org", hash))
     assertNull(acceptedAlertId(payload + ("alertId" to "../../other"), "org", hash))
     assertNull(acceptedAlertId(payload, null, null))
+  }
+
+  @Test
+  fun tappedPushOnlyOpensKnownRoutes() {
+    assertEquals("avisos", acceptedPushRoute("avisos"))
+    assertEquals("empresa/operacion", acceptedPushRoute("empresa/operacion"))
+    assertEquals("control/programacion/$id", acceptedPushRoute("control/programacion/$id"))
+    assertEquals("avisos", acceptedPushRoute("control/programacion/../../ajustes"))
+    assertEquals("avisos", acceptedPushRoute("https://evil.example"))
+    assertNull(acceptedPushRoute(null))
+    assertNull(acceptedPushRoute("  "))
   }
 
   @Test

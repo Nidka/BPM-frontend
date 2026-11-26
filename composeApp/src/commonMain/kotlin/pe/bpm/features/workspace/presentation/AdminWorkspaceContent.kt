@@ -179,7 +179,7 @@ internal class AdminCompanyActions(
 )
 
 /**
- * «Empresa» del administrador: datos de la organización, accesos de gestión (plantillas, operación diaria, reglas de avisos,
+ * «Empresa» del administrador: accesos de gestión (lo que más se usa, arriba), datos de la organización (plantillas, operación diaria, reglas de avisos,
  * automatizaciones y datos de la organización) y las sedes en lista–detalle. Editar la organización o una sede lleva a
  * «Equipo → Empresa y sedes».
  */
@@ -193,15 +193,6 @@ internal fun AdminCompanyContent(
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val organization = current.organization
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BpmSpacing.section)) {
-        BpmSection("Organización") {
-            BpmDetailFields(listOf(
-                BpmDetailField("Nombre comercial", organization.name),
-                BpmDetailField("Razón social", organization.legalName.takeIf { it != organization.name }),
-                BpmDetailField("Correo de contacto", organization.contactEmail),
-                BpmDetailField("Teléfono", organization.contactPhone),
-            ))
-            if (current.canManage) BpmChunkyButton("Editar datos", actions.onOrganization, tone = BpmChunkyTone.White)
-        }
         if (current.canManage) {
             Text("Gestión", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
             BpmGridLayout(listOf<@Composable (Modifier) -> Unit>(
@@ -210,6 +201,15 @@ internal fun AdminCompanyContent(
                 { m -> BpmActionTile(BpmSymbol.Bell, "Reglas de avisos", "Elige cuándo avisar a las personas responsables.", actions.onAlertRules, m) },
                 { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Envía los avisos a n8n u otra herramienta con webhooks firmados.", actions.onWebhooks, m) },
             ), maxColumns = 2) { card, m -> card(m) } // 4 accesos: 2 × 2, sin una tarjeta huérfana en la tercera columna
+        }
+        BpmSection("Organización") {
+            BpmDetailFields(listOf(
+                BpmDetailField("Nombre comercial", organization.name),
+                BpmDetailField("Razón social", organization.legalName.takeIf { it != organization.name }),
+                BpmDetailField("Correo de contacto", organization.contactEmail),
+                BpmDetailField("Teléfono", organization.contactPhone),
+            ))
+            if (current.canManage) BpmChunkyButton("Editar datos", actions.onOrganization, tone = BpmChunkyTone.White)
         }
         Text("Sedes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         val sites = current.locations

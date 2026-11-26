@@ -10,3 +10,14 @@ expect fun rememberEvidencePhotoPicker(
     allowedMimeTypes: Set<String>,
     onResult: (PhotoSelection) -> Unit,
 ): () -> Unit
+
+/**
+ * Abre la cámara del dispositivo para tomar la foto en el momento; devuelve null donde no hay una cámara propia
+ * (en el navegador y en iOS el selector ya ofrece «Tomar foto»). Misma validación y resultado que el selector.
+ */
+@Composable
+expect fun rememberEvidenceCamera(
+    maxBytes: Int,
+    allowedMimeTypes: Set<String>,
+    onResult: (PhotoSelection) -> Unit,
+): (() -> Unit)?

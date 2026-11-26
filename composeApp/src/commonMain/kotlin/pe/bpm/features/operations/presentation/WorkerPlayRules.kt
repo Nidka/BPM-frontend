@@ -1,5 +1,6 @@
 package pe.bpm.features.operations.presentation
 
+import pe.bpm.core.presentation.displayClock
 import pe.bpm.core.designsystem.BpmPlayTone
 import pe.bpm.core.designsystem.BpmSymbol
 import pe.bpm.features.operations.domain.CleaningFrequency
@@ -102,8 +103,8 @@ internal fun missionDetail(plan: CleaningPlan): String {
     val today = plan.today
     val main = when {
         today?.done == true -> todayDoneBy(plan) ?: "Hecho"
-        today?.overdue == true -> if (plan.dueTime.isBlank()) "Vencida" else "Venció a las ${plan.dueTime}"
-        plan.dueTime.isNotBlank() -> "Hasta las ${plan.dueTime}"
+        today?.overdue == true -> if (plan.dueTime.isBlank()) "Vencida" else "Venció a las ${displayClock(plan.dueTime)}"
+        plan.dueTime.isNotBlank() -> "Hasta las ${displayClock(plan.dueTime)}"
         else -> today?.shift?.name?.takeIf { it.isNotBlank() } ?: frequencyLabel(plan.frequency)
     }
     return if (plan.area.isBlank()) main else "$main · ${plan.area}"
@@ -186,7 +187,7 @@ internal fun shiftProgress(plans: List<CleaningPlan>, justDoneId: String? = null
 
 /** «Temperatura de la cámara (hasta 12:00)»: lo que falta, con su hora si la tiene. */
 internal fun nextTaskText(plan: CleaningPlan): String =
-    if (plan.dueTime.isBlank()) plan.task else "${plan.task} (hasta ${plan.dueTime})"
+    if (plan.dueTime.isBlank()) plan.task else "${plan.task} (hasta ${displayClock(plan.dueTime)})"
 
 // ---- Registro rápido de una tarea -----------------------------------------------------------------------
 
@@ -198,5 +199,5 @@ internal fun quickSteps(result: CleaningResult): List<QuickStep> =
     if (result == CleaningResult.COMPLETED) listOf(QuickStep.Result, QuickStep.Photo)
     else listOf(QuickStep.Result, QuickStep.Note, QuickStep.Photo)
 
-/** Hora «10:42» dentro de una fecha legible del dispositivo («20/11/2026 · 10:42 PET»); vacío si no hay hora. */
-internal fun clockOf(display: String): String = Regex("""\d{1,2}:\d{2}""").find(display)?.value.orEmpty()
+/** Hora «10:42 p. m.» dentro de una fecha legible del dispositivo («20/11/2026 · 10:42 p. m.»); vacío si no hay hora. */
+internal fun clockOf(display: String): String = Regex("""\d{1,2}:\d{2}(\s?[ap]\.\s?m\.)?""").find(display)?.value.orEmpty()

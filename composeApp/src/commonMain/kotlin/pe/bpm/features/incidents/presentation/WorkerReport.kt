@@ -240,7 +240,8 @@ private fun ReportSent(
         centered = true,
         footer = {
             BpmChunkyButton("Listo", onClose, Modifier.fillMaxWidth())
-            if (id != null && !wantPhoto) BpmChunkyButton("Agregar foto", { onEvidence(id, null, "BEFORE", true) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Camera)
+            // Siempre disponible: si se cerró el panel de fotos sin adjuntar nada, se puede volver a abrir.
+            if (id != null) BpmChunkyButton(if (wantPhoto) "Agregar otra foto" else "Agregar foto", { onEvidence(id, null, "BEFORE", true) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Camera)
         },
     ) {
         BpmCelebration(Res.drawable.mascot_done, "¡Reporte enviado!", detail?.summary?.name, emptyList(), titleColor = BpmPlayColors.correct.shadow,

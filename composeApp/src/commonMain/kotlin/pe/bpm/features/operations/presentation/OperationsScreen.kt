@@ -60,10 +60,8 @@ fun OperationsScreen(
                     { viewModel.resource(OperationsResource.valueOf(it)) },
                 )
             } else if (state.form == null && state.detail == null) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
+                // Una sola línea con desplazamiento lateral: en el teléfono ocho fichas apiladas empujaban el contenido fuera de la pantalla.
+                BpmChipRow {
                     OperationsResource.entries
                         .filter { OperationsAccess.canRead(state.role, it) }
                         .forEach { resource ->
@@ -80,7 +78,7 @@ fun OperationsScreen(
             state.failure?.let { Text(failureText(it), color = MaterialTheme.colorScheme.error) }
             state.notice?.let { Text(it) }
             pe.bpm.core.offline.PendingOperationsNotice("supply-receipts", "cleaning-executions")
-            if (state.loading && state.rows.isEmpty()) BpmSkeletonList(rows = 3, card = false)
+            if (state.loading && state.rows.isEmpty()) BpmSkeletonRecordCards(3)
             // Lista–detalle: desde 840 dp el detalle de un registro va junto a la lista.
             val listBody: @Composable () -> Unit = {
                     if (state.resource.needsSite && state.siteId == null)

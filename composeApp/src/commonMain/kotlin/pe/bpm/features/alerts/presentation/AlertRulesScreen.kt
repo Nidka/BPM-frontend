@@ -1,5 +1,6 @@
 package pe.bpm.features.alerts.presentation
 
+import pe.bpm.core.presentation.displayClock
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -302,7 +303,7 @@ private fun RowSwitch(
 
 private fun ruleConfigurationText(type: AlertType, c: AlertConfiguration) =
   when (type) {
-    AlertType.CHECKLIST_MISSING -> "A partir de las ${c.afterLocalTime} en la sede."
+    AlertType.CHECKLIST_MISSING -> "A partir de las ${c.afterLocalTime?.let(::displayClock)} en la sede."
     AlertType.TEMPERATURE_DANGER ->
       "Intervalo de peligro: ${c.minimumTemperatureCelsius?.let(DecimalInput::format)} a ${c.maximumTemperatureCelsius?.let(DecimalInput::format)} °C (inclusive)."
     AlertType.ORGANIZATION_INACTIVE -> "Sin actividad durante ${c.inactivityDays} días."

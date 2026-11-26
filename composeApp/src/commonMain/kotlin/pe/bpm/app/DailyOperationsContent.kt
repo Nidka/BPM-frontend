@@ -108,8 +108,8 @@ internal fun DailyOperationsContent(
                 }
             }
             if ((showShifts || showStock) && state.form == null) {
-                // Tres chips no caben en una fila a 360 dp: se envuelven en lugar de cortarse.
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Tres fichas en una sola línea (con desplazamiento lateral si no caben), sin empujar el contenido.
+                BpmChipRow {
                     BpmFilterChip(section == "daily", { section = "daily" }, label = { Text("Operación") })
                     if (showStock) BpmFilterChip(section == "stock", { section = "stock" }, label = { Text("Consumos y descartes") })
                     if (showShifts) BpmFilterChip(section == "shifts", { section = "shifts" }, label = { Text("Turnos") })

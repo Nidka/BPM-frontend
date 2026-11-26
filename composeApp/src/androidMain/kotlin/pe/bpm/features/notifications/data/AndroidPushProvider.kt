@@ -29,6 +29,12 @@ import pe.bpm.features.notifications.domain.*
 class BpmFirebaseApplication : Application() {
   override fun onCreate() {
     super.onCreate()
+    // El canal debe existir antes del primer aviso: el servidor lo indica en el mensaje y el sistema lo usa con la app cerrada.
+    if (android.os.Build.VERSION.SDK_INT >= 26)
+      getSystemService(android.app.NotificationManager::class.java)
+        .createNotificationChannel(
+          android.app.NotificationChannel("bpm-alerts", "Avisos BPM", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+        )
     firebaseMessaging(this)
   }
 }

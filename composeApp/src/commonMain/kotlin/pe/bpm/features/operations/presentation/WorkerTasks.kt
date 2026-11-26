@@ -1,5 +1,6 @@
 package pe.bpm.features.operations.presentation
 
+import pe.bpm.core.presentation.displayClock
 import pe.bpm.core.designsystem.BpmTone
 import pe.bpm.features.operations.domain.CleaningPlan
 import pe.bpm.features.operations.domain.CleaningResult
@@ -47,7 +48,7 @@ internal fun <T> withoutDoneToday(items: List<T>, donePlans: List<CleaningPlan>,
 }
 
 /** Texto del chip de vencimiento («hasta 10:00») o `null` si el plan no tiene hora. */
-internal fun dueChipText(dueTime: String): String? = dueTime.takeIf { it.isNotBlank() }?.let { "hasta $it" }
+internal fun dueChipText(dueTime: String): String? = dueTime.takeIf { it.isNotBlank() }?.let { "hasta ${displayClock(it)}" }
 
 /**
  * Chip de un plan según el servidor: hecho = «Hecho» (Success); vencida = «Vencida» (Danger); si no, «hasta HH:mm»

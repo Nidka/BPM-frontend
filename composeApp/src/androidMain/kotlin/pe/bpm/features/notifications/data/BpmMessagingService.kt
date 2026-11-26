@@ -15,9 +15,11 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import pe.bpm.MainActivity
 import pe.bpm.features.notifications.domain.acceptedAlertId
+import pe.bpm.features.notifications.domain.acceptedPushRoute
 
 /**
- * Solo presenta avisos genéricos para la cuenta vinculada; no guarda ni muestra datos del negocio.
+ * Presenta los avisos de la cuenta vinculada con el texto que manda el servidor (sede, plantilla, medición; nunca datos
+ * personales) y abre la pantalla relacionada. No guarda el texto: solo los identificadores ya vistos.
  */
 class BpmMessagingService : FirebaseMessagingService() {
   // Se conserva el protocolo de tokens FCM del backend; el modo FID no está habilitado.
@@ -38,7 +40,6 @@ class BpmMessagingService : FirebaseMessagingService() {
   }
 
   override fun onMessageReceived(message: RemoteMessage) {
-    if (message.notification != null) return
     if (
       Build.VERSION.SDK_INT >= 33 &&
         ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -57,21 +58,27 @@ class BpmMessagingService : FirebaseMessagingService() {
         manager.createNotificationChannel(
           NotificationChannel("bpm-alerts", "Avisos BPM", NotificationManager.IMPORTANCE_DEFAULT)
         )
+      // El servidor manda el texto específico (tipo de aviso, sede, medición); sin él se conserva el genérico.
+      val title = message.notification?.title?.takeIf { it.isNotBlank() } ?: "Tienes un aviso en BPM"
+      val body = message.notification?.body?.takeIf { it.isNotBlank() } ?: "Abre la aplicación para consultar tus avisos."
+      val route = acceptedPushRoute(message.data["route"]) ?: "avisos"
       val intent =
         Intent(this, MainActivity::class.java)
           .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+          .putExtra("route", route)
       val pending =
         PendingIntent.getActivity(
           this,
-          0,
+          id.hashCode(),
           intent,
           PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
       val notification =
         NotificationCompat.Builder(this, "bpm-alerts")
           .setSmallIcon(android.R.drawable.ic_dialog_info)
-          .setContentTitle("Tienes un aviso en BPM")
-          .setContentText("Abre la aplicación para consultar tus avisos.")
+          .setContentTitle(title)
+          .setContentText(body)
+          .setStyle(NotificationCompat.BigTextStyle().bigText(body))
           .setContentIntent(pending)
           .setAutoCancel(true)
           .build()

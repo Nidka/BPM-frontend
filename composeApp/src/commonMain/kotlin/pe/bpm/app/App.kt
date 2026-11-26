@@ -88,6 +88,9 @@ fun App(
     offline: OfflinePlatform = remember { OfflinePlatform() },
     /** Correo que se muestra ya escrito en el acceso (p. ej. tras crear una contraseña nueva desde el enlace del correo). */
     initialEmail: String = "",
+    /** Destino de un aviso tocado (ya validado contra la lista de rutas); se abre cuando hay sesión y empresa. */
+    externalRoute: String? = null,
+    onExternalRouteHandled: () -> Unit = {},
 ) {
     val owner = viewModel { GraphOwner(sessionStore, googleAuthProvider, draftStorage,pushProvider, offline) }
     val offlineVm = viewModel<OfflineViewModel> { owner.graph.offlineViewModel() }
@@ -227,9 +230,16 @@ fun App(
     }
     OnAppForeground {
         identity.onForeground(); usage.flushNow(); offlineVm.onForeground()
-        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null || incidentEvidence != null) evidence.refresh() }
+        if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null || incidentEvidence != null) evidence.refresh(silent = true) }
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
+    // Tocar un aviso del sistema abre la pantalla relacionada una vez que la sesión y la empresa están listas.
+    LaunchedEffect(externalRoute, profile?.id, workspaceState.workspace?.organization?.id) {
+        if (externalRoute != null && profile != null && workspaceState.workspace != null) {
+            nav.navigate(externalRoute) { launchSingleTop = true }
+            onExternalRouteHandled()
+        }
+    }
     val currentWorkspace = workspaceState.workspace
     // Estudio CAP: la participación se consulta al entrar (miembros, no la super administración) para invitar a la encuesta
     // inicial y, pasado el piloto, a la final desde Hoy, Turno, Inicio y Aprender; nunca bloquea nada.

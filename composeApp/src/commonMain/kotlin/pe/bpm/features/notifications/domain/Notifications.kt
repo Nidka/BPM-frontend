@@ -145,18 +145,31 @@ class ManageNotificationDevices(
   }
 }
 
-/** El adaptador nativo rechaza payloads ajenos, datos adicionales e identificadores inválidos. */
+/**
+ * El adaptador nativo rechaza payloads ajenos e identificadores inválidos. Las tres claves del vínculo son obligatorias;
+ * el servidor añade claves de navegación (`route`, `type`, `entityId`, `siteId`) que se ignoran aquí y se validan aparte.
+ */
 fun acceptedAlertId(
   data: Map<String, String>,
   organizationId: String?,
   recipientHash: String?,
 ): String? {
   if (organizationId.isNullOrEmpty() || recipientHash.isNullOrEmpty()) return null
-  if (data.keys != setOf("alertId", "organizationId", "recipientHash")) return null
+  if (!data.keys.containsAll(setOf("alertId", "organizationId", "recipientHash"))) return null
   if (data["organizationId"] != organizationId || data["recipientHash"] != recipientHash)
     return null
   if (!recipientHash.matches(Regex("[0-9a-f]{64}"))) return null
   return data["alertId"]?.takeIf {
     it.matches(Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
   }
+}
+
+private val PUSH_ROUTES = setOf("avisos", "empresa/operacion", "control/operacion", "empresa", "aprender")
+private val PUSH_ASSIGNMENT = Regex("control/programacion/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+/** Destino que se abre al tocar un aviso: solo rutas conocidas de la app; cualquier otra cosa cae en «avisos». */
+fun acceptedPushRoute(raw: String?): String? {
+  val route = raw?.trim().orEmpty()
+  if (route.isEmpty()) return null
+  return if (route in PUSH_ROUTES || PUSH_ASSIGNMENT.matches(route)) route else "avisos"
 }

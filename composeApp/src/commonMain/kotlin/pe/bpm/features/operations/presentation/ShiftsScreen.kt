@@ -1,5 +1,6 @@
 package pe.bpm.features.operations.presentation
 
+import pe.bpm.core.presentation.displayClock
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -58,7 +59,7 @@ private fun ShiftList(state: ShiftsState, vm: ShiftsViewModel) {
     BpmGridLayout(state.shifts) { shift, cardModifier ->
         BpmCard(cardModifier) {
             Text(shift.name, style = MaterialTheme.typography.titleMedium)
-            Text("${shift.startTime} a ${shift.endTime}" + if (shift.crossesMidnight) " · cruza la medianoche" else "")
+            Text("${displayClock(shift.startTime)} a ${displayClock(shift.endTime)}" + if (shift.crossesMidnight) " · cruza la medianoche" else "")
             Text(
                 when {
                     !shift.active -> "Inactivo"

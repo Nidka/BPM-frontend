@@ -1,5 +1,6 @@
 package pe.bpm.features.operations.presentation
 
+import pe.bpm.core.presentation.displayClock
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -194,7 +195,7 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
                 Text("Plan: ${form.values["planName"]?:"Sin seleccionar"}")
                 state.selectedPlan?.let {
                     Text(
-                        "${it.instructions}\nFrecuencia: ${frequencyLabel(it.frequency)} · Hora: ${it.dueTime.ifEmpty{"Sin hora"}}"
+                        "${it.instructions}\nFrecuencia: ${frequencyLabel(it.frequency)} · Hora: ${if (it.dueTime.isEmpty()) "Sin hora" else displayClock(it.dueTime)}"
                     )
                 }
                 BpmChunkyButton("Buscar plan de limpieza", { vm.pick(OperationsResource.PLANS) }, tone = BpmChunkyTone.White, enabled = state.editable)
@@ -217,7 +218,7 @@ internal fun OperationForm(state: OperationsState, vm: OperationsViewModel) {
                     (if (perShift) emptyList() else listOf("" to "Sin turno")) +
                         state.shifts.map {
                             it.id to
-                                "${it.name} (${it.startTime}-${it.endTime})${if (it.openNow) " · abierto" else ""}"
+                                "${it.name} (${displayClock(it.startTime)} a ${displayClock(it.endTime)})${if (it.openNow) " · abierto" else ""}"
                         },
                     form.values["shiftId"].orEmpty(),
                     state.editable,
