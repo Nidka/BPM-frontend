@@ -31,6 +31,8 @@ data class ReportsState(
     val exportFailure: ReportFailure? = null,
     /** Archivo listo para que la plataforma lo guarde; la pantalla lo consume con [ReportsViewModel.exportHandled]. */
     val exportReady: CsvExport? = null,
+    val pdfReady: PdfExport? = null,
+    val exportingPdf: Boolean = false,
     val exportNotice: String? = null,
 ) {
     val maxDays: Int get() = if (tab == ReportTab.COMPLIANCE) ReportPeriodRules.COMPLIANCE_MAX_DAYS else ReportPeriodRules.SUMMARY_MAX_DAYS
@@ -139,6 +141,31 @@ class ReportsViewModel(
                 is ReportResult.Failure -> mutable.value.copy(exporting = false, exportFailure = result.reason)
             }
         }
+    }
+
+    /** Pide el PDF del mismo período (el servidor limita a 5 000 controles; con más se pide acortar o usar el CSV). */
+    fun exportPdf() {
+        val s = mutable.value
+        val org = s.organizationId ?: return
+        if (s.exporting || s.exportingPdf) return
+        val error = ReportPeriodRules.validate(s.from, s.to, ReportPeriodRules.SUMMARY_MAX_DAYS)
+        if (error != null) { mutable.value = s.copy(periodError = error); return }
+        val expected = generation
+        mutable.value = s.copy(exportingPdf = true, exportFailure = null, exportNotice = null, pdfReady = null)
+        exportJob = viewModelScope.launch {
+            val result = exportCsv.pdf(org, s.role, s.from, s.to, s.locationId)
+            if (expected != generation) return@launch
+            mutable.value = when (result) {
+                is ReportResult.Success -> mutable.value.copy(exportingPdf = false, pdfReady = result.value)
+                is ReportResult.Failure -> mutable.value.copy(exportingPdf = false, exportFailure = result.reason)
+            }
+        }
+    }
+
+    fun pdfHandled(saved: Boolean) {
+        val file = mutable.value.pdfReady ?: return
+        mutable.value = mutable.value.copy(pdfReady = null,
+            exportNotice = if (saved) "Archivo ${file.fileName} listo." else "No se guardó el archivo. Puedes volver a descargarlo.")
     }
 
     /** La plataforma terminó de guardar o compartir el archivo (o el usuario canceló). */

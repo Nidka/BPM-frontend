@@ -108,6 +108,18 @@ test('exportación CSV se entrega en streaming con tipo text/csv', async t => {
   assert.equal((await f.get('/reports/compliance/export.csv?from=2026-11-01')).status, 400);
 });
 
+test('exportación PDF se entrega con tipo application/pdf y nombre local', async t => {
+  const f = await fixture(t);
+  f.state.type = 'application/pdf';
+  f.state.payload = '%PDF-1.4\n%%EOF\n';
+  const response = await f.get('/reports/compliance/export.pdf?from=2026-11-01&to=2026-11-30');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/pdf');
+  assert.equal(response.headers.get('content-disposition'), 'attachment; filename="checklists_2026-11-01_2026-11-30.pdf"');
+  assert.equal(await response.text(), '%PDF-1.4\n%%EOF\n');
+  assert.equal((await f.get('/reports/compliance/export.pdf?from=2026-11-01')).status, 400);
+});
+
 test('exportación demasiado grande conserva el código público', async t => {
   const f = await fixture(t);
   f.state.status = 422;

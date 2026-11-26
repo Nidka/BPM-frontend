@@ -8,7 +8,7 @@ import { forwardSessionHeaders } from './session-headers.mjs';
 
 const idPattern = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
 const orgPattern = '[A-Za-z0-9_-]{1,64}';
-const route = new RegExp(`^/backend/api/v1/organizations/(${orgPattern})/(?:reports/(compliance/export\\.csv|compliance|summary|kpis|settings|training/courses|training/people|certificates)|usage/(events))$`);
+const route = new RegExp(`^/backend/api/v1/organizations/(${orgPattern})/(?:reports/(compliance/export\\.csv|compliance/export\\.pdf|compliance|summary|kpis|settings|training/courses|training/people|certificates)|usage/(events))$`);
 const publicRoute = /^\/backend\/api\/v1\/compliance-certificates\/([A-Z2-7]{24})$/;
 
 export const reportsRoute = path => route.test(path) || publicRoute.test(path);
@@ -65,7 +65,7 @@ function operation(match, method) {
   if (usage) return method === 'POST' ? { kind: 'usage' } : null;
   const table = {
     'compliance': { GET: 'json' }, 'summary': { GET: 'json' }, 'kpis': { GET: 'json' },
-    'compliance/export.csv': { GET: 'csv' }, 'settings': { GET: 'json', PUT: 'settings' },
+    'compliance/export.csv': { GET: 'csv' }, 'compliance/export.pdf': { GET: 'pdf' }, 'settings': { GET: 'json', PUT: 'settings' },
     'training/courses': { GET: 'json' }, 'training/people': { GET: 'json' },
     'certificates': { GET: 'json', POST: 'certificate' },
   };
@@ -75,7 +75,7 @@ function operation(match, method) {
 
 function queryFor(op, url) {
   switch (op.resource) {
-    case 'compliance': case 'summary': case 'compliance/export.csv': return query(url, periodQuery, ['from', 'to']);
+    case 'compliance': case 'summary': case 'compliance/export.csv': case 'compliance/export.pdf': return query(url, periodQuery, ['from', 'to']);
     case 'training/people': return query(url, { ...pageQuery, courseId: uuid });
     case 'certificates': return query(url, pageQuery);
     default: need(!url.search); return '';
@@ -174,7 +174,7 @@ export async function proxyReports(request, url, upstream, send, response) {
     if (publicMatch) need(!url.search); else search = queryFor(op, url);
     if (!writing) need(!request.headers['transfer-encoding'] && (!request.headers['content-length'] || request.headers['content-length'] === '0'));
   } catch { return send(400, error('INVALID_REQUEST', 'Revisa los filtros de la solicitud.')); }
-  const headers = { Accept: op.kind === 'csv' ? 'text/csv' : 'application/json' };
+  const headers = { Accept: op.kind === 'csv' ? 'text/csv' : op.kind === 'pdf' ? 'application/pdf' : 'application/json' };
   if (!publicMatch) {
     const authorization = request.headers.authorization;
     if (typeof authorization !== 'string' || authorization.length > 8192 || !/^Bearer [A-Za-z0-9._-]+$/.test(authorization)) return send(401, error('UNAUTHENTICATED', 'Inicia sesión para continuar.'));
@@ -192,7 +192,7 @@ export async function proxyReports(request, url, upstream, send, response) {
   response?.setHeader('Cache-Control', 'no-store');
   try {
     const target = new URL(url.pathname.slice('/backend'.length) + search, upstream);
-    const result = await fetch(target, { method: request.method, headers, body, redirect: 'error', cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(op.kind === 'csv' ? 120000 : 10000) });
+    const result = await fetch(target, { method: request.method, headers, body, redirect: 'error', cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(op.kind === 'csv' || op.kind === 'pdf' ? 120000 : 10000) });
     if (!publicMatch) forwardSessionHeaders(result, response);
     if (!result.ok) return await mapFailure(result, send);
     if (op.kind === 'csv') {
@@ -204,6 +204,23 @@ export async function proxyReports(request, url, upstream, send, response) {
         'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
         'Content-Disposition': `attachment; filename="checklists_${from}_${to}.csv"`,
       });
+      const stream = Readable.fromWeb(result.body);
+      stream.on('error', () => response.destroy());
+      response.on('close', () => stream.destroy());
+      stream.pipe(response);
+      return;
+    }
+    if (op.kind === 'pdf') {
+      const type = result.headers.get('Content-Type') || '';
+      if (!/^application\/pdf\b/i.test(type) || !result.body) return unavailable(send);
+      const from = url.searchParams.get('from'), to = url.searchParams.get('to');
+      const headersOut = {
+        'Content-Type': 'application/pdf', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+        'Content-Disposition': `attachment; filename="checklists_${from}_${to}.pdf"`,
+      };
+      const length = result.headers.get('Content-Length');
+      if (length && /^\d{1,9}$/.test(length)) headersOut['Content-Length'] = length;
+      response.writeHead(200, headersOut);
       const stream = Readable.fromWeb(result.body);
       stream.on('error', () => response.destroy());
       response.on('close', () => stream.destroy());

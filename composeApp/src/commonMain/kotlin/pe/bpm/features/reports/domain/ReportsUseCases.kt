@@ -39,6 +39,12 @@ class ExportComplianceCsv(private val repository: ReportsReadRepository) {
         if (ReportPeriodRules.validate(from, to, ReportPeriodRules.SUMMARY_MAX_DAYS) != null) return invalidPeriod
         return repository.exportCsv(org, from.trim(), to.trim(), locationId)
     }
+
+    suspend fun pdf(org: String, role: String?, from: String, to: String, locationId: String?): ReportResult<PdfExport> {
+        if (!ReportAccess.canView(role)) return denied
+        if (ReportPeriodRules.validate(from, to, ReportPeriodRules.SUMMARY_MAX_DAYS) != null) return invalidPeriod
+        return repository.exportPdf(org, from.trim(), to.trim(), locationId)
+    }
 }
 
 class LoadTrainingCourseProgress(private val repository: ReportsAdminRepository) {

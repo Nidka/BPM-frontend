@@ -19,7 +19,7 @@ import pe.bpm.core.network.SessionAccessException
 import pe.bpm.features.reports.domain.*
 
 /** Encabezado que debe tener todo CSV de historial; sirve para reconocer descargas incorrectas. */
-internal const val CSV_HEADER = "runId,localDate,submittedAtUtc,locationId,locationName,templateName,area,templateVersion,compliancePercent"
+internal const val CSV_HEADER = "ID de ejecución,Fecha local,Enviado el,ID de sede,Sede,Control,Área,Versión de la plantilla,Cumplimiento (%)"
 
 /**
  * Adaptador Ktor de reportes. No registra cuerpos ni tokens; los mensajes del servidor se descartan y solo
@@ -59,7 +59,20 @@ class RemoteReportsRepository(
         if (expected != null && expected != bytes.size.toLong()) throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
         val text = bytes.decodeToString().removePrefix("﻿")
         if (!text.startsWith(CSV_HEADER) || !text.endsWith("\n")) throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
-        CsvExport("checklists_${from}_$to.csv", text)
+        // Excel necesita la marca BOM UTF-8 para leer bien los acentos del encabezado en español.
+        CsvExport("checklists_${from}_$to.csv", "\uFEFF" + text)
+    }
+
+    override suspend fun exportPdf(org: String, from: String, to: String, locationId: String?): ReportResult<PdfExport> = guarded {
+        val response = request(org, "reports/compliance/export.pdf", periodQuery(from, to, locationId)) { timeout { requestTimeoutMillis = 120_000L; socketTimeoutMillis = 120_000L } }
+        require(response.contentType()?.match(ContentType.Application.Pdf) == true)
+        val bytes: ByteArray = response.body()
+        currentCoroutineContext().ensureActive()
+        // Igual que el CSV: tamaño completo y firma de PDF; un flujo cortado no se guarda como si estuviera bien.
+        val expected = response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+        if (expected != null && expected != bytes.size.toLong()) throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
+        if (bytes.size < 8 || bytes.decodeToString(0, 5) != "%PDF-") throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
+        PdfExport("checklists_${from}_$to.pdf", bytes)
     }
 
     override suspend fun trainingCourses(org: String): ReportResult<List<CourseProgressRow>> = guarded {

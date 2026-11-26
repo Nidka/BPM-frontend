@@ -13,5 +13,9 @@ actual fun rememberTextFileSaver(): TextFileSaver = remember {
             } catch (_: Exception) { false }
             onResult(if (saved) FileSaveResult.SAVED else FileSaveResult.FAILED)
         }
+        override fun saveBytes(fileName: String, mimeType: String, bytes: ByteArray, onResult: (FileSaveResult) -> Unit) {
+            val saved = try { java.io.File(System.getProperty("java.io.tmpdir"), safeFileName(fileName)).writeBytes(bytes); true } catch (_: Exception) { false }
+            onResult(if (saved) FileSaveResult.SAVED else FileSaveResult.FAILED)
+        }
     }
 }

@@ -16,19 +16,19 @@ import kotlinx.coroutines.withContext
 actual fun rememberTextFileSaver(): TextFileSaver {
     val resolver = LocalContext.current.contentResolver
     val scope = rememberCoroutineScope()
-    // Un único guardado a la vez: el texto y la devolución de llamada se retienen hasta el resultado.
-    val pending = remember { arrayOfNulls<Pair<String, (FileSaveResult) -> Unit>>(1) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+    // Un único guardado a la vez: los bytes y la devolución de llamada se retienen hasta el resultado.
+    val pending = remember { arrayOfNulls<Pair<ByteArray, (FileSaveResult) -> Unit>>(1) }
+    val deliver: (android.net.Uri?) -> Unit = deliver@{ uri ->
         val job = pending[0]
         pending[0] = null
-        if (job == null) return@rememberLauncherForActivityResult
-        if (uri == null) { job.second(FileSaveResult.CANCELLED); return@rememberLauncherForActivityResult }
+        if (job == null) return@deliver
+        if (uri == null) { job.second(FileSaveResult.CANCELLED); return@deliver }
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 try {
                     val stream = resolver.openOutputStream(uri, "wt")
                     if (stream == null) FileSaveResult.FAILED else {
-                        stream.use { it.write(job.first.toByteArray(Charsets.UTF_8)) }
+                        stream.use { it.write(job.first) }
                         FileSaveResult.SAVED
                     }
                 } catch (cancelled: CancellationException) {
@@ -40,13 +40,19 @@ actual fun rememberTextFileSaver(): TextFileSaver {
             job.second(result)
         }
     }
-    return remember(launcher) {
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv"), deliver)
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf"), deliver)
+    return remember(csvLauncher, pdfLauncher) {
         object : TextFileSaver {
-            override fun save(fileName: String, mimeType: String, text: String, onResult: (FileSaveResult) -> Unit) {
+            private fun start(fileName: String, bytes: ByteArray, pdf: Boolean, onResult: (FileSaveResult) -> Unit) {
                 if (pending[0] != null) { onResult(FileSaveResult.FAILED); return }
-                pending[0] = text to onResult
-                try { launcher.launch(safeFileName(fileName)) } catch (_: Exception) { pending[0] = null; onResult(FileSaveResult.FAILED) }
+                pending[0] = bytes to onResult
+                try { (if (pdf) pdfLauncher else csvLauncher).launch(safeFileName(fileName)) } catch (_: Exception) { pending[0] = null; onResult(FileSaveResult.FAILED) }
             }
+            override fun save(fileName: String, mimeType: String, text: String, onResult: (FileSaveResult) -> Unit) =
+                start(fileName, text.toByteArray(Charsets.UTF_8), false, onResult)
+            override fun saveBytes(fileName: String, mimeType: String, bytes: ByteArray, onResult: (FileSaveResult) -> Unit) =
+                start(fileName, bytes, mimeType == "application/pdf", onResult)
         }
     }
 }

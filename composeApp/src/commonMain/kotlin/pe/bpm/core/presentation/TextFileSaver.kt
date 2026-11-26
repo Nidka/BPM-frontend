@@ -17,6 +17,9 @@ enum class FileSaveResult { SAVED, CANCELLED, FAILED }
  */
 interface TextFileSaver {
     fun save(fileName: String, mimeType: String, text: String, onResult: (FileSaveResult) -> Unit)
+
+    /** Igual que [save] para un archivo binario (PDF): los bytes se escriben tal cual, sin marca BOM ni recodificación. */
+    fun saveBytes(fileName: String, mimeType: String, bytes: ByteArray, onResult: (FileSaveResult) -> Unit)
 }
 
 @Composable

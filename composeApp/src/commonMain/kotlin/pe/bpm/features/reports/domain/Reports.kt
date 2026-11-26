@@ -80,6 +80,9 @@ data class PublicCertificate(
 /** Contenido CSV ya validado como completo; el texto es UTF-8 y no contiene personas. */
 data class CsvExport(val fileName: String, val text: String)
 
+/** PDF del mismo informe (A4, en español); los bytes se entregan a la plataforma una sola vez. */
+class PdfExport(val fileName: String, val bytes: ByteArray)
+
 enum class ReportFailure {
     CONNECTION, SESSION, DENIED, NOT_FOUND, INVALID_PERIOD, INVALID, NO_DATA, THRESHOLD_NOT_MET, EXPORT_TOO_LARGE,
     CERTIFICATE_NOT_FOUND, RATE_LIMITED, UNAVAILABLE, INVALID_RESPONSE, INCOMPLETE_DOWNLOAD;
@@ -100,6 +103,7 @@ interface ReportsReadRepository {
     suspend fun compliance(org: String, from: String, to: String, locationId: String?): ReportResult<ComplianceReport>
     suspend fun summary(org: String, from: String, to: String, locationId: String?): ReportResult<SummaryReport>
     suspend fun exportCsv(org: String, from: String, to: String, locationId: String?): ReportResult<CsvExport>
+    suspend fun exportPdf(org: String, from: String, to: String, locationId: String?): ReportResult<PdfExport>
 }
 
 /** Operaciones solo para ADMIN y SUPER_ADMIN: personas, configuración y constancias. */

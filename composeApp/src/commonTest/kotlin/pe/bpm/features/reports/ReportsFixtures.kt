@@ -21,6 +21,7 @@ class FakeReportsRepository : ReportsReadRepository, ReportsAdminRepository, Cer
     override suspend fun compliance(org: String, from: String, to: String, locationId: String?) = complianceResult.also { calls += "compliance:$from:$to:$locationId" }
     override suspend fun summary(org: String, from: String, to: String, locationId: String?) = summaryResult.also { calls += "summary:$from:$to:$locationId" }
     override suspend fun exportCsv(org: String, from: String, to: String, locationId: String?) = exportResult.also { calls += "export:$from:$to:$locationId" }
+    override suspend fun exportPdf(org: String, from: String, to: String, locationId: String?): ReportResult<PdfExport> { calls += "pdf:$from:$to:$locationId"; return ReportResult.Success(PdfExport("checklists_${from}_$to.pdf", "%PDF-1.4".encodeToByteArray())) }
     override suspend fun trainingCourses(org: String) = coursesResult.also { calls += "courses" }
     override suspend fun trainingPeople(org: String, courseId: String?, pageToken: String?) = peopleResult.also { calls += "people:$courseId:$pageToken" }
     override suspend fun settings(org: String) = settingsResult.also { calls += "settings" }

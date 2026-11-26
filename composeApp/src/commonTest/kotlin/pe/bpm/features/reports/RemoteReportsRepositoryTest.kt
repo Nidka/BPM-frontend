@@ -14,7 +14,7 @@ class RemoteReportsRepositoryTest {
     private val csv = headersOf(HttpHeaders.ContentType, "text/csv; charset=utf-8")
     private val config = AppConfig("https://api.example.com")
     private val base = "/api/v1/organizations/org"
-    private val header = "runId,localDate,submittedAtUtc,locationId,locationName,templateName,area,templateVersion,compliancePercent"
+    private val header = "ID de ejecución,Fecha local,Enviado el,ID de sede,Sede,Control,Área,Versión de la plantilla,Cumplimiento (%)"
 
     private fun repo(engine: MockEngine, token: String? = "token") = RemoteReportsRepository(createHttpClient(engine), config, token = { token })
 
@@ -89,14 +89,26 @@ class RemoteReportsRepositoryTest {
     }
 
     @Test fun csvIsValidatedAndNamedLocally() = runTest {
-        val text = "$header\r\nr1,2026-11-01,2026-11-01T10:00:00Z,l1,Sede,Higiene,COCINA,1,90.00\r\n".replace("\r\n", "\n")
+        val text = "$header\r\nr1,01/11/2026,01/11/2026 05:00,l1,Sede,Higiene,COCINA,1,90.00\r\n".replace("\r\n", "\n")
         val result = repo(MockEngine { request ->
             assertEquals("$base/reports/compliance/export.csv", request.url.encodedPath)
             respond(text, HttpStatusCode.OK, csv)
         }).exportCsv("org", "2026-11-01", "2026-11-30", null)
         val export = (result as ReportResult.Success).value
         assertEquals("checklists_2026-11-01_2026-11-30.csv", export.fileName)
-        assertEquals(text, export.text)
+        // Se antepone la marca BOM para que Excel lea bien los acentos.
+        assertEquals("\uFEFF" + text, export.text)
+    }
+
+    @Test fun pdfIsValidatedAndNamedLocally() = runTest {
+        val pdf = "%PDF-1.4\n%%EOF\n"
+        val ok = repo(MockEngine { request ->
+            assertEquals("$base/reports/compliance/export.pdf", request.url.encodedPath)
+            respond(pdf, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/pdf"))
+        }).exportPdf("org", "2026-11-01", "2026-11-30", null)
+        assertEquals("checklists_2026-11-01_2026-11-30.pdf", (ok as ReportResult.Success).value.fileName)
+        val notPdf = repo(MockEngine { respond("<html></html>", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/pdf")) }).exportPdf("org", "2026-11-01", "2026-11-30", null)
+        assertEquals(ReportFailure.INCOMPLETE_DOWNLOAD, (notPdf as ReportResult.Failure).reason)
     }
 
     @Test fun truncatedOrWrongCsvIsRejected() = runTest {
