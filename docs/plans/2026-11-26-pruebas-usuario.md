@@ -88,3 +88,29 @@ zona horaria como texto libre; filas fijas de la Academia (~130 px); «Ir a verl
 envío de foto de la tarea aún pide dos toques; al recargar la página se cierra la sesión (decisión de seguridad: no se guarda el token);
 el inicio de sesión de las pruebas a veces no completaba (se reprodujo solo en el guion de pruebas: los campos se escribían antes de
 terminar de cargar; con la cuenta correcta el acceso por API y el real funcionan).
+
+## Tercera ronda (producción, 390×844, tras `e6368e5`)
+
+| Corrección | Resultado |
+|---|---|
+| Enlace de invitación: «Te invitaron a <empresa>», rol y correo precargado; sin errores 404 | PASS |
+| «Editar sede» abre directamente el formulario; zona horaria como selector (Lima por defecto) | PASS |
+| Tarea con foto: «Guardar y agregar foto» abre el selector con un solo toque | PASS |
+| Aviso de capacitación: texto específico y «Ir a verlo» abre ese curso (`aprender/<id>`) | PASS |
+| Introducción no reaparece para quien ya tiene actividad | PASS |
+| Pestañas de la Academia en una línea (cursos, asignaciones, rutas, logros) | Hecho; no retomado visualmente en esta ronda |
+| Recuperar contraseña: «Revisa el correo.» se borra al editar el correo | PASS |
+| Evaluación: ficha «Hay más abajo» (visible con alto de pantalla reducido, 390×640) | PASS |
+| CSV con nombres (encabezado `Fecha local,Enviado el,Sede,Control,Área,Versión de la plantilla,Cumplimiento (%)`) y PDF A4 | PASS (por API con el token del administrador; el PDF de 1 página no ejercita el salto de línea de nombres largos) |
+| Avisos antiguos con texto específico (0 genéricos en la bandeja del jefe) | PASS |
+| «Siguiente módulo» y volver | No retestado: exige completar una evaluación de módulo real |
+
+**Superadministrador:** sin cuenta de prueba; revisión con el arnés de capturas de Compose (`./gradlew :composeApp:jvmTest --tests '*WorkerScreenshots*'`,
+`composeApp/build/screenshots/super-*-390-full.png`). Se retocó «Organización abierta» y «Datos de la organización» (filas con icono, botón en una línea).
+
+**Sesión web al recargar:** se deja como está. `specs/IDENTITY.md` (líneas 17 y 445) establece que la web no persiste tokens («Web no persiste tokens y
+exige entrar tras recargar»); guardar el refresh token en `sessionStorage` lo dejaría legible por cualquier script de la página, contradice esa
+decisión de seguridad y no se hace sin que se cambie la especificación.
+
+**Datos E2E creados en esta ronda:** una invitación a `e2e-r3-…@yopmail.com` (ya revocada) y un registro de tarea de personal2 («E2E r3 foto en un toque»
+con foto `t.png`); el aviso de capacitación de personal2 quedó marcado como visto.
