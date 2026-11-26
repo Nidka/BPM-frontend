@@ -298,9 +298,10 @@ fun App(
     }
     // Espera a saber si la persona ya tiene actividad (llega del servidor) antes de ofrecer la introducción; con un tope por si la consulta falla.
     var introWait by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { kotlinx.coroutines.delay(9000); introWait = true }
+    LaunchedEffect(profile?.id) { introWait = false; if (profile != null) { kotlinx.coroutines.delay(6000); introWait = true } }
     LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route, learnerRoot.achievements != null, introWait, hasHistory) {
-        if (!(learnerRoot.achievements != null || introWait) || hasHistory) return@LaunchedEffect
+        // El aviso de «sin actividad» solo vale cuando ya dio tiempo a que llegaran los datos del servidor.
+        if (!introWait || hasHistory) return@LaunchedEffect
         // La introducción sale una sola vez, al llegar a la pantalla de inicio; se salta con «Saltar» y se repite desde «Ayuda».
         if (guideRole != null && onboarding.loaded && !onboarding.introSeen && !introPrompted && entry?.destination?.route == WorkspaceDestination.Home.route) {
             introPrompted = true

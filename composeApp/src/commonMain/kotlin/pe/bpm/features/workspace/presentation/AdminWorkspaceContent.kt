@@ -202,14 +202,12 @@ internal fun AdminCompanyContent(
                 { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Opción avanzada: conecta los avisos con otras herramientas de tu empresa.", actions.onWebhooks, m) },
             ), maxColumns = 2) { card, m -> card(m) } // 4 accesos: 2 × 2, sin una tarjeta huérfana en la tercera columna
         }
-        BpmSection("Organización") {
-            BpmDetailFields(listOf(
-                BpmDetailField("Nombre comercial", organization.name),
-                BpmDetailField("Razón social", organization.legalName.takeIf { it != organization.name }),
-                BpmDetailField("Correo de contacto", organization.contactEmail),
-                BpmDetailField("Teléfono", organization.contactPhone),
-            ))
-            if (current.canManage) BpmChunkyButton("Editar datos", actions.onOrganization, tone = BpmChunkyTone.White)
+        BpmSectionCard("Mi organización", BpmSymbol.Company, tone = BpmPlayTone.Streak) {
+            BpmInfoRow(BpmSymbol.Control, "Nombre comercial", organization.name)
+            organization.legalName.takeIf { it != organization.name && it.isNotBlank() }?.let { BpmInfoRow(BpmSymbol.Award, "Razón social", it, tone = BpmPlayTone.Gold) }
+            BpmInfoRow(BpmSymbol.Bell, "Correo de contacto", organization.contactEmail)
+            BpmInfoRow(BpmSymbol.Play, "Teléfono", organization.contactPhone, tone = BpmPlayTone.Correct)
+            if (current.canManage) BpmChunkyButton("Editar datos", actions.onOrganization, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
         Text("Sedes", style = BpmPlayType.h2, color = BpmPlayColors.ink, modifier = Modifier.semantics { heading() })
         val sites = current.locations

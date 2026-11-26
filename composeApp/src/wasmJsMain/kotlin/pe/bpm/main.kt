@@ -32,6 +32,12 @@ fun main() {
         ComposeViewport { PublicEmailAction(request) { destination -> window.location.assign(destination) } }
         return
     }
+    // Enlace del correo de invitación: https://appbpm.com/cuenta/invitacion?token=… . La navegación de la app vive en el fragmento (#ruta), así que el
+    // enlace se traslada a «#cuenta/invitacion?token=…» antes de arrancar; sin esto el token se perdía al pedir el acceso y la invitación no se podía aceptar.
+    if (location.pathname.trimEnd('/') == "/cuenta/invitacion") {
+        val token = Regex("[?&]token=([A-Za-z0-9_-]{43})(?:&|$)").find(location.search)?.groupValues?.get(1)
+        window.history.replaceState(null, "", if (token != null) "/#cuenta/invitacion?token=$token" else "/")
+    }
     // Correo precargado en el acceso (viene de «Iniciar sesión» tras crear una contraseña nueva); se retira de la dirección al leerlo.
     val initialEmail = EmailActionLink.prefilledEmail(location.search).orEmpty()
     if (location.search.contains("correo=")) window.history.replaceState(null, "", location.pathname + location.hash)
