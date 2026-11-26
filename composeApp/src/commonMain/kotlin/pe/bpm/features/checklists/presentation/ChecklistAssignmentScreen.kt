@@ -37,7 +37,7 @@ fun ChecklistAssignmentsScreen(
             )
         Text(
             if (management)
-                "Asigna una plantilla publicada desde Gestionar plantillas. Aquí puedes consultar y detener su programación."
+                "Programa una plantilla publicada desde «Plantillas de control». Aquí puedes consultar y detener su programación."
             else
                 "Consulta lo que corresponde a este período. Si ya empezaste una revisión, continúa con ese mismo registro."
         )
@@ -315,10 +315,12 @@ fun ChecklistAssignmentFormScreen(
                     error = state.fields["dueTime"],
                     supportingText = "Hora de la sede.",
                 )
+                // El motivo del rechazo (p. ej. ya existe esa programación) se repite junto al botón, donde se está mirando.
+                state.failure?.let { Text(assignmentFailureMessage(it), color = MaterialTheme.colorScheme.error) }
                 },
             ),
             step, { step = it },
-            submitLabel = if (state.pending) "Comprobar programación" else "Confirmar programación",
+            submitLabel = if (state.pending) "Comprobar programación" else "Confirmar",
             onSubmit = onSave,
             busy = state.busy,
             busyLabel = "Confirmando…",

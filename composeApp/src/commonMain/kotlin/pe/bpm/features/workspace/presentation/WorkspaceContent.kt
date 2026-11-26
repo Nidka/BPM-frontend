@@ -101,4 +101,4 @@ internal fun entryStatusLabel(status: String) = when (status) { "PUBLISHED" -> "
     errors.forEach { error -> Text(error.message, color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
 }
-internal fun roleLabel(role: String) = when (role) { "ADMIN" -> "Administrador"; "CHEF" -> "Responsable / chef"; else -> "Colaborador" }
+internal fun roleLabel(role: String) = when (role) { "ADMIN" -> "Administrador"; "CHEF" -> "Jefe de cocina"; else -> "Personal" }

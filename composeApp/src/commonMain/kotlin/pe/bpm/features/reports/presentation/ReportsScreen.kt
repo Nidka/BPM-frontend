@@ -107,7 +107,7 @@ private fun ComplianceContent(report: ComplianceReport) {
                 Text(formatPercent(report.average), style = MaterialTheme.typography.headlineMedium)
             }
         }
-        BpmChipRow {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             BpmStatusChip("${report.runs} controles", BpmTone.Info, symbol = BpmSymbol.Control)
             BpmStatusChip("${longDate(report.from)} → ${longDate(report.to)}", BpmTone.Neutral, symbol = BpmSymbol.Calendar)
         }

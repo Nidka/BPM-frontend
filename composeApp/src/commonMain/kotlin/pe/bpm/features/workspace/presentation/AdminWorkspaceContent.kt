@@ -197,7 +197,7 @@ internal fun AdminCompanyContent(
                 { m -> BpmActionTile(BpmSymbol.Control, "Plantillas de control", "Prepara preguntas y publica los criterios de tu equipo.", actions.onTemplates, m) },
                 { m -> BpmActionTile(BpmSymbol.Sprout, "Operación diaria", "Proveedores, productos, planes de limpieza y registros de tus sedes.", actions.onDaily, m) },
                 { m -> BpmActionTile(BpmSymbol.Bell, "Reglas de avisos", "Elige cuándo avisar a las personas responsables.", actions.onAlertRules, m) },
-                { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Envía los avisos a n8n u otra herramienta con webhooks firmados.", actions.onWebhooks, m) },
+                { m -> BpmActionTile(BpmSymbol.Bell, "Automatizaciones", "Opción avanzada: conecta los avisos con otras herramientas de tu empresa.", actions.onWebhooks, m) },
             ), maxColumns = 2) { card, m -> card(m) } // 4 accesos: 2 × 2, sin una tarjeta huérfana en la tercera columna
         }
         BpmSection("Organización") {

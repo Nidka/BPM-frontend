@@ -61,7 +61,7 @@ internal fun IncidentFormContent(
         if (e.reviewing) {
             Text("Revisa antes de confirmar", style = MaterialTheme.typography.titleMedium)
             IncidentReview(f)
-            if (f.kind == "VERIFY")
+            if (f.kind == "VERIFY" && IncidentsAccess.isSelfVerification(s.detail?.actions.orEmpty(), s.userId))
                 Text(
                     "Confirmar cerrará la incidencia. Debes haber revisado la corrección y las fotos. Si eres quien la corrigió, solo puedes validarla cuando no hay otra persona elegible; la nota es obligatoria y quedará marcada como autovalidada."
                 )

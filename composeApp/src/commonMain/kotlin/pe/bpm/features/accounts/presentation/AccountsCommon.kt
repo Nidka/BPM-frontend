@@ -30,7 +30,11 @@ import pe.bpm.features.accounts.domain.*
         Text("Rol", style = MaterialTheme.typography.labelLarge)
         MemberRole.entries.forEach { role ->
             BpmChoiceRow(role.label, selected == role, enabled,
-                supportingText = if (role == MemberRole.ADMIN) "Ve y administra todas las sedes." else "Trabaja solo en las sedes que elijas.") { onSelect(role) }
+                supportingText = when (role) {
+                    MemberRole.ADMIN -> "Ve y administra todas las sedes: equipo, controles, reportes y cursos."
+                    MemberRole.CHEF -> "Dirige el turno de sus sedes: hace controles, atiende incidencias y ve a su equipo."
+                    MemberRole.WORKER -> "Hace sus tareas, aprende y reporta problemas en las sedes que elijas."
+                }) { onSelect(role) }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }

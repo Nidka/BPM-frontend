@@ -19,6 +19,8 @@ import pe.bpm.core.network.SessionAccessException
 import pe.bpm.features.reports.domain.*
 
 /** Encabezado que debe tener todo CSV de historial; sirve para reconocer descargas incorrectas. */
+/** Encabezado actual (sin identificadores: sede por nombre). Se sigue aceptando el anterior para no romper entre despliegues. */
+internal const val CSV_HEADER_NAMES = "Fecha local,Enviado el,Sede,Control,Área,Versión de la plantilla,Cumplimiento (%)"
 internal const val CSV_HEADER = "ID de ejecución,Fecha local,Enviado el,ID de sede,Sede,Control,Área,Versión de la plantilla,Cumplimiento (%)"
 
 /**
@@ -58,7 +60,7 @@ class RemoteReportsRepository(
         val expected = response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
         if (expected != null && expected != bytes.size.toLong()) throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
         val text = bytes.decodeToString().removePrefix("﻿")
-        if (!text.startsWith(CSV_HEADER) || !text.endsWith("\n")) throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
+        if (!(text.startsWith(CSV_HEADER) || text.startsWith(CSV_HEADER_NAMES)) || !text.endsWith("\n")) throw TransportFailure(ReportFailure.INCOMPLETE_DOWNLOAD)
         // Excel necesita la marca BOM UTF-8 para leer bien los acentos del encabezado en español.
         CsvExport("checklists_${from}_$to.csv", "\uFEFF" + text)
     }

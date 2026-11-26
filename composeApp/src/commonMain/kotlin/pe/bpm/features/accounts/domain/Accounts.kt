@@ -14,7 +14,7 @@ enum class BusinessType(val label: String) {
 enum class RecordStatus { ACTIVE, INACTIVE }
 
 enum class MemberRole(val label: String) {
-    ADMIN("Administrador"), CHEF("Responsable / chef"), WORKER("Colaborador");
+    ADMIN("Administrador"), CHEF("Jefe de cocina"), WORKER("Personal");
 
     /** Solo CHEF y WORKER necesitan sedes asignadas; ADMIN ve todas. */
     val needsLocations get() = this != ADMIN
