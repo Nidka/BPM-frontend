@@ -4,6 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.json.Json
 import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
@@ -18,6 +20,15 @@ import pe.bpm.features.support.domain.*
 @Serializable internal data class WhatsappEnvelope(val data: WhatsappDto)
 @Serializable internal data class WhatsappDto(val whatsapp: String? = null)
 
+private val contactJson = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInputValues = true }
+
+/** Lee el contacto del jefe sin fallar nunca: claves desconocidas, nulos o un número raro dan «sin WhatsApp» (null). */
+internal fun contactFromJson(body: String): SupervisorContact? {
+    val c = runCatching { contactJson.decodeFromString<ContactEnvelope>(body).data }.getOrNull() ?: return null
+    val phone = c.whatsapp?.filter { it.isDigit() }?.takeIf { it.length in 8..15 } ?: return null
+    return SupervisorContact(c.name.orEmpty(), c.role.orEmpty(), phone)
+}
+
 /** «Avisar a mi jefe», WhatsApp del jefe y WhatsApp propio. No registra tokens ni mensajes. */
 class RemoteTeamRepository(
     private val client: HttpClient,
@@ -30,17 +41,14 @@ class RemoteTeamRepository(
     private val org = Regex("[A-Za-z0-9_-]{1,64}")
 
     override suspend fun sendStaffMessage(org: String, id: String, locationId: String, kind: StaffMessageKind, text: String, key: String): SupportResult<Unit> {
-        require(this.org.matches(org) && this.id.matches(id) && this.id.matches(locationId))
+        if (!(this.org.matches(org) && this.id.matches(id) && this.id.matches(locationId))) return SupportResult.Failure(SupportFailure.INVALID)
         return call(HttpMethod.Post, "organizations/$org/staff-messages", StaffMessageBody(id, locationId, kind.name, text.trim().take(StaffMessageRules.TEXT_MAX)), key) { Unit }
     }
 
     override suspend fun supervisorContact(org: String, locationId: String): SupportResult<SupervisorContact?> {
-        require(this.org.matches(org) && this.id.matches(locationId))
+        if (!(this.org.matches(org) && this.id.matches(locationId))) return SupportResult.Failure(SupportFailure.INVALID)
         return call(HttpMethod.Get, "organizations/$org/staff-messages/contact?locationId=$locationId", null, null) { r ->
-            val c = r.body<ContactEnvelope>().data
-            val phone = c.whatsapp?.takeIf { it.isNotBlank() } ?: return@call null
-            require(phone.length in 8..15 && phone.all { it.isDigit() })
-            SupervisorContact(c.name.orEmpty(), c.role.orEmpty(), phone)
+            contactFromJson(r.bodyAsText())
         }
     }
 

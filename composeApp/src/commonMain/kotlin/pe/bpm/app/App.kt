@@ -1139,7 +1139,7 @@ fun App(
                                     evidence = { item -> runState.run?.let { active -> EvidenceQuestionAction(item.label, active.evidenceCounts[item.id] ?: 0, runState.editable && !runState.reviewing,
                                         onOpen = { edit -> evidenceQuestion = EvidenceQuestion(active.id, item.id, item.label); evidence.open(profile.id, active.organizationId, active.id, item.id, edit && currentWorkspace?.role in setOf("CHEF", "ADMIN")) }) }
                                     }) }) else managementContent,
-                                secondaryEditor = workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || viewingSettings || viewingHelp || onboardingRoute || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
+                                secondaryEditor = staffMessageRoute || workerQuickHome || chefRunStage || studySurvey || researching || learningCourse || learningExtras || managingAccounts || viewingDevices || viewingSettings || viewingHelp || onboardingRoute || acceptingInvitation || managingTraining || alertRoute || reportsRoute || normativeRoute || managingWebhooks || incidentRoute || editingTemplate || daily && destination != WorkspaceDestination.Tasks,
                                 // Patrón de la pantalla alojada: lectura de una columna (pasos), formulario o contenido amplio.
                                 secondaryPattern = when {
                                     learningCourse && courseOverview -> BpmPattern.Panel

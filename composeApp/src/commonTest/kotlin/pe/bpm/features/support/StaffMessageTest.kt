@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.*
 import pe.bpm.features.support.domain.*
+import pe.bpm.features.support.data.contactFromJson
 import pe.bpm.features.support.presentation.StaffMessageViewModel
 import kotlin.test.*
 
@@ -42,5 +43,32 @@ class StaffMessageTest {
         assertNull(StaffMessageRules.myWhatsappError(""))
         assertNotNull(StaffMessageRules.myWhatsappError("12"))
         assertNotNull(StaffMessageRules.myWhatsappError("98765abc"))
+    }
+
+    @Test fun contactLookupThatThrowsNeverCrashesTheScreen() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val repo = object : TeamRepository {
+            override suspend fun sendStaffMessage(org: String, id: String, locationId: String, kind: StaffMessageKind, text: String, key: String): SupportResult<Unit> = throw IllegalStateException("boom")
+            override suspend fun supervisorContact(org: String, locationId: String): SupportResult<SupervisorContact?> = throw IllegalArgumentException("bad id")
+            override suspend fun saveMyWhatsapp(raw: String?) = SupportResult.Success<String?>(raw)
+        }
+        val vm = StaffMessageViewModel(repo) { "id-1" }
+        try {
+            vm.open("org", "site"); advanceUntilIdle()
+            assertNull(vm.state.value.contact)
+            vm.pick(StaffMessageKind.HELP); vm.send(); advanceUntilIdle()
+            assertFalse(vm.state.value.sending)
+            assertNotNull(vm.state.value.error)
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+
+    @Test fun contactJsonToleratesUnknownKeysNullsAndOddNumbers() {
+        assertEquals(SupervisorContact("Ana", "CHEF", "51987654321"),
+            contactFromJson("""{"data":{"name":"Ana","role":"CHEF","whatsapp":"+51 987 654 321","userId":"x","extra":{"a":1}},"meta":{}}"""))
+        assertEquals(SupervisorContact("", "", "987654321"), contactFromJson("""{"data":{"name":null,"role":null,"whatsapp":"987654321"}}"""))
+        assertNull(contactFromJson("""{"data":{"name":"Ana","whatsapp":null}}"""))
+        assertNull(contactFromJson("""{"data":null}"""))
+        assertNull(contactFromJson("""{"data":{"whatsapp":"12"}}"""))
+        assertNull(contactFromJson("not json"))
     }
 }

@@ -33,7 +33,8 @@ class StaffMessageViewModel(private val repository: TeamRepository, private val 
         _state.value = StaffMessageState(org = org, locationId = locationId)
         pendingId = null
         viewModelScope.launch {
-            val r = repository.supervisorContact(org, locationId)
+            // El contacto es opcional: si falla la consulta, la pantalla sigue sin el botón de WhatsApp.
+            val r = try { repository.supervisorContact(org, locationId) } catch (c: kotlinx.coroutines.CancellationException) { throw c } catch (_: Throwable) { null }
             if (r is SupportResult.Success && _state.value.locationId == locationId) _state.update { it.copy(contact = r.value) }
         }
     }
@@ -50,7 +51,9 @@ class StaffMessageViewModel(private val repository: TeamRepository, private val 
         val id = pendingId ?: newId().also { pendingId = it }
         _state.update { it.copy(sending = true, error = null) }
         viewModelScope.launch {
-            when (val r = repository.sendStaffMessage(s.org, id, s.locationId, kind, s.text, "staff-$id")) {
+            val r = try { repository.sendStaffMessage(s.org, id, s.locationId, kind, s.text, "staff-$id") }
+                catch (c: kotlinx.coroutines.CancellationException) { throw c } catch (_: Throwable) { SupportResult.Failure(SupportFailure.UNAVAILABLE) }
+            when (r) {
                 is SupportResult.Success -> { pendingId = null; _state.update { it.copy(sending = false, sent = true, kind = null, text = "") } }
                 is SupportResult.Failure -> _state.update { it.copy(sending = false, error = when (r.reason) {
                     SupportFailure.CONNECTION -> "Sin conexión. Inténtalo cuando tengas internet."
