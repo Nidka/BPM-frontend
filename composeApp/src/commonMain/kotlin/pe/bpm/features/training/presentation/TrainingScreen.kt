@@ -149,8 +149,10 @@ internal fun hasOfflineVideos(course: TrainingCourse) = course.lessons.any { it.
 @Composable
 internal fun DownloadsRow(course: TrainingCourse, state: TrainingState, viewModel: TrainingViewModel) {
     val downloads = state.downloads
-    val videos = course.lessons.filter { it.video != null }
-    val external = course.lessons.count { it.externalVideo != null }
+    // Solo cuentan los videos que el servidor permite guardar (offlineAvailable y con huella); los demás requieren conexión.
+    // Antes se contaban todos: «Descargar» seguía visible y no hacía nada porque no quedaba ninguno descargable.
+    val videos = downloadableVideos(course)
+    val external = course.lessons.count { it.externalVideo != null || it.video != null && it !in videos }
     if (videos.isEmpty() && external == 0) return
     val online = LocalOnline.current
     val issue = videos.mapNotNull { downloads.of(it.video!!.mediaId)?.issue }.firstOrNull()
@@ -185,9 +187,10 @@ internal fun DownloadsRow(course: TrainingCourse, state: TrainingState, viewMode
                 issue?.let {
                     Text(downloadIssueMessage(it, downloads.limitBytes), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 }
+                if (!busy && done == videos.size) Text("Descargado, disponible sin conexión.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 if (done > 0) BpmTextButton(onClick = viewModel::deleteCourseDownloads) { Text("Borrar descargas de este curso") }
             }
-            if (external > 0) Text("$external lección(es) usan video de YouTube: requieren conexión y no se pueden descargar.", style = MaterialTheme.typography.bodySmall,
+            if (external > 0) Text("$external lección(es) tienen videos que requieren conexión y no se pueden descargar.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (downloads.supported) {
                 Text("Espacio usado por descargas: ${formatBytes(downloads.usedBytes)} de ${formatBytes(downloads.limitBytes)}", style = MaterialTheme.typography.bodySmall)
@@ -229,3 +232,6 @@ internal fun CertificateCard(certificate: TrainingCertificate, prominent: Boolea
         Text("Emitida: ${certificate.issuedAt.substringBefore('T')}", style = MaterialTheme.typography.bodySmall)
     }
 }
+
+/** Videos de un curso que se pueden guardar en el teléfono: privados, marcados para uso sin conexión y con huella SHA-256. */
+internal fun downloadableVideos(course: TrainingCourse) = course.lessons.filter { it.offlineAvailable && it.video?.sha256 != null }

@@ -172,7 +172,7 @@ internal fun ColumnScope.PlayCourseGuide(course: TrainingCourse, state: Training
 @Composable
 private fun PlayDownloads(course: TrainingCourse, state: TrainingState, viewModel: TrainingViewModel) {
     val downloads = state.downloads
-    val videos = course.lessons.filter { it.video != null }
+    val videos = downloadableVideos(course)
     if (!downloads.supported || videos.isEmpty()) return
     val online = LocalOnline.current
     val busy = downloads.activeCourseId == course.course.id
@@ -184,6 +184,7 @@ private fun PlayDownloads(course: TrainingCourse, state: TrainingState, viewMode
         issue?.let { Text(downloadIssueMessage(it, downloads.limitBytes), style = BpmPlayType.sub, color = BpmPlayColors.error.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         if (busy) BpmChunkyButton("Pausar descarga", viewModel::cancelDownload, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         else if (saved < videos.size) BpmChunkyButton("Descargar", viewModel::downloadCourse, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = online)
+        if (!busy && saved == videos.size) Text("Descargado, disponible sin conexión.", style = BpmPlayType.sub, color = BpmPlayColors.correct.shadow, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         if (!busy && saved > 0) BpmChunkyButton("Borrar descargas", viewModel::deleteCourseDownloads, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
     }
 }

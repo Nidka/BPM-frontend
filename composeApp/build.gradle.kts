@@ -181,8 +181,8 @@ android {
         applicationId = "bpm.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
     }
     // Firma oficial: variables de entorno (CI) o keystore.properties local (ignorado por git). Nunca se versiona la clave.
     val keystoreProps = Properties().apply {

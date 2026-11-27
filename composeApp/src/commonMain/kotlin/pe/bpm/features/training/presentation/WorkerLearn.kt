@@ -56,8 +56,8 @@ import pe.bpm.resources.mascot_learning
  * Aprender del personal (WORKER): el camino. Fila de contadores (racha, puntos y meta de hoy) y, por cada curso asignado,
  * una cabecera de módulo ([BpmUnitBanner], el libro abre la guía del curso). Los cursos sin terminar muestran su camino
  * de lecciones ([LessonPath]): solo el curso activo ([activeCourseId]) lleva la burbuja «Empezar» y el nodo actual; el
- * resto de lecciones desbloqueadas son nodos normales. Los cursos completados no dibujan su camino: solo la cabecera,
- * el chip «Completado» y una fila compacta con la constancia que abre la guía. Al final, «Más cursos» con el [catalog]
+ * resto de lecciones desbloqueadas son nodos normales. Los cursos completados muestran su camino entero en dorado
+ * (cada unidad se puede repasar), la evaluación aprobada y, al final, «Completado» y «Ver tu constancia». Al final, «Más cursos» con el [catalog]
  * de cursos no asignados. Desde la clase expandida los contadores, la meta y la próxima insignia pasan a un panel derecho.
  */
 @Composable
@@ -138,7 +138,6 @@ private fun CoursePath(
         BpmUnitBanner(unitKicker(assignment), assignment.course.title, colors[index % colors.size], onGuide = { onOpenCourse(id) },
             guideDescription = "Lo esencial de ${assignment.course.title}")
         when {
-            completed -> CompletedCourse { onOpenCourse(id) }
             course != null -> Box(Modifier.fillMaxWidth()) {
                 val nodes = remember(course, member) { pathNodes(course, member) }
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -147,12 +146,17 @@ private fun CoursePath(
                         when {
                             node.lessonId != null -> onOpenLesson(id, node.lessonId)
                             node.kind == PathNodeKind.REVIEW -> onOpenReview(id)
+                            // Aprobada: el trofeo lleva a la constancia (en la guía), no a otro intento.
+                            completed -> onOpenCourse(id)
                             else -> onOpenFinal(id)
                         }
                     }
+                    // El camino completado no se pliega: la constancia va después de las unidades.
+                    if (completed) CompletedCourse { onOpenCourse(id) }
                 }
                 if (index == 0 && course.bank == null) Image(painterResource(Res.drawable.mascot_class), contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).padding(top = 96.dp).width(96.dp))
             }
+            completed -> CompletedCourse { onOpenCourse(id) }
             failed -> BpmChunkyButton("Abrir el curso", { onOpenCourse(id) }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
             else -> BpmSkeletonList(rows = 3, label = "Cargando lecciones")
         }
@@ -178,8 +182,8 @@ private fun CompletedCourse(onOpen: () -> Unit) {
                 BpmIcon(BpmSymbol.Trophy, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             Column(Modifier.weight(1f)) {
-                Text("Constancia del curso", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
-                Text("Abre la guía del curso", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
+                Text("Ver tu constancia", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
+                Text("Código y fecha de tu certificado", style = BpmPlayType.rowDetail, color = BpmPlayColors.muted)
             }
             BpmIcon(BpmSymbol.ChevronRight, tint = BpmPlayColors.muted)
         }
@@ -303,7 +307,7 @@ private fun PathPills(achievements: MyAchievements?) {
         streak?.let { BpmStatPill(BpmSymbol.Flame, it.currentDays.toString(), BpmPlayTone.Streak, contentDescription = "Racha de ${it.currentDays} días") }
         BpmStatPill(BpmSymbol.Bolt, achievements.totals.experiencePoints.toString(), BpmPlayTone.Gold, contentDescription = "${achievements.totals.experiencePoints} puntos de experiencia")
         Spacer(Modifier.weight(1f))
-        streak?.let { BpmStatPill(BpmSymbol.Target, lessonGoalLabel(it.activeToday) + " lección", BpmPlayTone.Action, contentDescription = "Lección de hoy: " + if (it.activeToday) "hecha" else "falta una lección") }
+        streak?.let { BpmStatPill(BpmSymbol.Target, "Hoy: " + lessonGoalLabel(it.activeToday), BpmPlayTone.Action, contentDescription = "Lección de hoy: " + if (it.activeToday) "hecha" else "falta una lección") }
     }
 }
 

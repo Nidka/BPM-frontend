@@ -93,7 +93,9 @@ internal fun reviewCaption(due: Int): String = "Repaso · " + if (due == 1) "1 p
  * (membresía). En cursos con banco oficial cada nodo lleva un [PathNodeModel.caption] visible: «1. Título · 5 preguntas».
  */
 internal fun pathNodes(course: TrainingCourse, canEvaluate: Boolean): List<PathNodeModel> {
-    val steps = lessonStepStates(course)
+    val finished = course.progress.status == ProgressStatus.COMPLETED
+    // Curso completado: todo el camino en dorado (para repasar) y la evaluación aprobada.
+    val steps = if (finished) course.lessons.map { BpmStepState.Done } else lessonStepStates(course)
     val bank = course.bank != null
     val nodes = course.lessons.mapIndexed { index, lesson ->
         val count = course.questions.count { it.lessonId == lesson.id }
@@ -111,6 +113,7 @@ internal fun pathNodes(course: TrainingCourse, canEvaluate: Boolean): List<PathN
         listOf(PathNodeModel(BpmPathNodeState.Current, true, null, "Repaso: ${course.review.dueCount} por repasar", PathNodeKind.REVIEW, reviewCaption(course.review.dueCount)))
     else emptyList()
     val trophyCaption = if (bank) "Evaluación del módulo · ${questionCountLabel(course.bank?.itemsPerAttempt ?: 5)} · aprueba con ${passingFraction(course)}" else ""
+    if (finished) return nodes + review + PathNodeModel(BpmPathNodeState.Done, true, null, "Evaluación final: aprobada", PathNodeKind.FINAL, trophyCaption)
     return nodes + review + PathNodeModel(BpmPathNodeState.Trophy, open, null,
         if (open) "Evaluación final: abierta" else "Evaluación final: termina primero las lecciones", PathNodeKind.FINAL, trophyCaption)
 }

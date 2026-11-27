@@ -1334,8 +1334,10 @@ fun App(
 
 @Composable
 private fun RestoringSession() {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-        BpmSkeletonCard(Modifier.widthIn(max = pe.bpm.core.designsystem.BpmPatternRules.readingWidth), lines = 2, action = true, label = "Verificando acceso")
+    // El mismo esqueleto que muestra el espacio de trabajo mientras carga: al abrir la app se ve un solo «cargando»
+    // continuo (sesión → espacio → Hoy) en lugar de una tarjeta centrada que luego salta a otro esqueleto.
+    Column(Modifier.fillMaxSize().padding(top = 64.dp)) {
+        pe.bpm.core.designsystem.BpmSkeletonScreen(Modifier.padding(horizontal = 16.dp, vertical = 20.dp), label = "Verificando acceso")
     }
 }
 
