@@ -25,6 +25,8 @@ internal fun SettingsContent(
     modifier: Modifier = Modifier,
     /** Solo SUPER_ADMIN: edición del contacto de soporte. */
     platformSupport: (@Composable () -> Unit)? = null,
+    /** Interruptor de notificaciones push (solo donde existen, p. ej. Android). */
+    pushSwitch: (@Composable () -> Unit)? = null,
 ) {
     BpmSettingsScaffold("Ajustes", modifier, subtitle = "Haz la app más fácil de ver y de escuchar. Los cambios se guardan solo en este dispositivo.") {
         BpmSettingsSection("Accesibilidad", description = "Para leer mejor, escuchar y ver menos movimiento.") {
@@ -39,6 +41,7 @@ internal fun SettingsContent(
             BpmSettingToggle("Sonido", "Un sonido corto al acertar y al terminar.", settings.sound, { onChange(settings.copy(sound = it)) })
             BpmSettingToggle("Vibración", "Una vibración suave al responder.", settings.vibration, { onChange(settings.copy(vibration = it)) })
         }
+        pushSwitch?.invoke()
         onAlerts?.let { open ->
             BpmSettingsSection("Avisos") {
                 BpmSettingLink("Mis avisos", "Mira tus avisos y elige si el teléfono te los notifica.", open, symbol = BpmSymbol.Bell)

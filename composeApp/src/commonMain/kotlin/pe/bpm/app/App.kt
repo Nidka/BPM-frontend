@@ -984,6 +984,7 @@ fun App(
                                         // Personal no se une a otras organizaciones por su cuenta: la invitación llega por el enlace del correo.
                                         onAcceptInvitation = if (currentWorkspace?.role == "WORKER") null else ({ nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } }),
                                         onLogout = ::requestLogout, modifier = androidx.compose.ui.Modifier.bpmScrollable(),
+                                        pushSwitch = if (currentWorkspace != null) ({ pe.bpm.features.notifications.presentation.PushOptInPanel(notificationDevices) }) else null,
                                         platformSupport = if (profile.platformRole == "SUPER_ADMIN") ({
                                             LaunchedEffect(Unit) { support.load() }
                                             pe.bpm.features.support.presentation.SupportSettingsSection(supportState, support::editEmail, support::editWhatsapp, support::save, support::dismissNotice)

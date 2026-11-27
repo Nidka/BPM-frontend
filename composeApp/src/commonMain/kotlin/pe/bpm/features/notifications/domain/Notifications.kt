@@ -73,6 +73,9 @@ interface PushProvider {
 
   /** Olvida la activación (Desactivar o cierre de sesión explícito). */
   fun forgetOptIn() {}
+
+  /** Abre los ajustes de notificaciones de la app en el sistema (permiso bloqueado). Devuelve false si no se puede. */
+  fun openSystemSettings(): Boolean = false
 }
 
 class UnavailablePushProvider(
@@ -129,6 +132,8 @@ class ManageNotificationDevices(
   fun shouldRefresh(user: String, org: String): Boolean = provider.available && provider.rememberedOptIn(user, org)
 
   fun forgetOptIn() = provider.forgetOptIn()
+
+  fun openSystemSettings(): Boolean = provider.openSystemSettings()
 
   suspend fun enable(user: String, org: String): NotificationResult<NotificationDevice> {
     if (!provider.available) return NotificationResult.Failure(NotificationFailure.UNAVAILABLE)

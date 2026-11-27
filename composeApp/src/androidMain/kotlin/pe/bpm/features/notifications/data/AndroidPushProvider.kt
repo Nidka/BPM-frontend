@@ -207,6 +207,15 @@ class AndroidPushProvider(private val application: Application) : PushProvider, 
   override fun rememberedOptIn(userId: String, organizationId: String): Boolean =
     prefs.getString("optIn", null) == optInKey(userId, organizationId)
 
+  override fun openSystemSettings(): Boolean = runCatching {
+    application.startActivity(
+      android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, application.packageName)
+        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
+    true
+  }.getOrDefault(false)
+
   override fun forgetOptIn() {
     prefs.edit().remove("optIn").commit()
   }

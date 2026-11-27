@@ -4,54 +4,29 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.notifications.domain.*
 
+/** Estado visible del interruptor: encendido solo si el servidor confirmó el dispositivo (y el permiso del sistema está dado). */
+fun pushStatusText(s: NotificationDevicesState): String = when {
+  s.busy -> "Activando…"
+  s.device != null -> "Activadas. Te llegan los avisos a este celular."
+  s.failure == NotificationFailure.PERMISSION -> "Bloqueadas en Android: ábrelo en Ajustes del sistema."
+  s.failure == NotificationFailure.CONNECTION -> "Sin conexión. Vuelve a intentarlo cuando tengas internet."
+  s.failure == NotificationFailure.SESSION -> "Vuelve a entrar a tu cuenta para activarlas."
+  s.failure == NotificationFailure.CONFLICT -> "Este celular no pudo vincularse. Apágalo y vuelve a encenderlo."
+  s.failure != null -> "No pudimos activarlas. Inténtalo otra vez."
+  else -> "Desactivadas. Los avisos siguen en la bandeja de la app."
+}
+
+/** «Notificaciones en este celular»: un solo interruptor con su estado real y, si Android las bloquea, acceso a sus ajustes. */
 @Composable
 fun PushOptInPanel(viewModel: NotificationDevicesViewModel) {
   val s by viewModel.state.collectAsState()
   if (!s.available) return
-  BpmCard(Modifier.fillMaxWidth()) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      Text("Avisos en este dispositivo", style = MaterialTheme.typography.titleMedium)
-      if (!s.available) Text(s.unavailableReason)
-      else {
-        Text(
-          "Activa notificaciones para recibir un aviso genérico. El contenido privado se consulta dentro de la aplicación."
-        )
-        if (s.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        s.failure?.let {
-          Text(
-            when (it) {
-              NotificationFailure.TOKEN_CHANGED ->
-                "El dispositivo renovó su vinculación. Activa de nuevo para confirmar las notificaciones con tu sesión actual."
-              NotificationFailure.PERMISSION ->
-                "Permiso de notificaciones no concedido. Puedes habilitarlo en los ajustes del dispositivo y reintentar."
-              NotificationFailure.CONFLICT ->
-                "Este dispositivo no pudo vincularse a esta cuenta. Desactiva y vuelve a intentar."
-              NotificationFailure.SESSION -> "Vuelve a ingresar para activar las notificaciones."
-              NotificationFailure.DENIED -> "Tu cuenta no tiene acceso a este registro."
-              NotificationFailure.UNAVAILABLE -> "Las notificaciones externas no están disponibles."
-              NotificationFailure.INVALID_RESPONSE ->
-                "No pudimos verificar la activación. Reintenta."
-              NotificationFailure.CONNECTION ->
-                "No pudimos confirmar el cambio en el servidor. Puedes reintentar."
-            },
-            color = MaterialTheme.colorScheme.error,
-          )
-        }
-        if (s.device != null) {
-          Text(
-            "Dispositivo registrado por el servidor. La entrega de cada aviso depende del proveedor."
-          )
-          BpmChunkyButton("Desactivar notificaciones", viewModel::disable, tone = BpmChunkyTone.White, enabled = !s.busy)
-        } else {
-          BpmChunkyButton("Activar notificaciones", viewModel::enable, Modifier.fillMaxWidth(), enabled = !s.busy)
-          if (s.failure == NotificationFailure.CONFLICT)
-            BpmChunkyButton("Limpiar vinculación de este dispositivo", viewModel::disable, tone = BpmChunkyTone.White, enabled = !s.busy)
-        }
-      }
-    }
+  BpmSettingsSection("Notificaciones") {
+    BpmSettingToggle("Notificaciones en este celular", pushStatusText(s), s.device != null || s.busy, { on -> if (!s.busy) viewModel.setEnabled(on) })
+    if (s.failure == NotificationFailure.PERMISSION)
+      BpmChunkyButton("Abrir ajustes de Android", { viewModel.openSystemSettings() }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
   }
 }

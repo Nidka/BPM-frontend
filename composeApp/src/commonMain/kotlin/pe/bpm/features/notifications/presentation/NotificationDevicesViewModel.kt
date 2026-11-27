@@ -107,6 +107,11 @@ class NotificationDevicesViewModel(private val manage: ManageNotificationDevices
       }
   }
 
+  /** Interruptor «Notificaciones en este celular»: encendido = registrar; apagado = desactivar en el servidor. */
+  fun setEnabled(on: Boolean) { if (on) enable() else disable() }
+
+  fun openSystemSettings() = manage.openSystemSettings()
+
   fun disable() {
     val o = org ?: return
     if (mutable.value.busy) return
