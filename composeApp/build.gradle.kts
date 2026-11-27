@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import java.net.URI
 import groovy.json.JsonSlurper
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -180,8 +181,32 @@ android {
         applicationId = "bpm.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+    // Firma oficial: variables de entorno (CI) o keystore.properties local (ignorado por git). Nunca se versiona la clave.
+    val keystoreProps = Properties().apply {
+        val f = rootProject.file("keystore.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    fun signingValue(env: String, prop: String): String? =
+        System.getenv(env)?.takeIf { it.isNotBlank() } ?: keystoreProps.getProperty(prop)?.takeIf { it.isNotBlank() }
+    val releaseStoreFile = signingValue("ANDROID_KEYSTORE_FILE", "storeFile")
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = signingValue("ANDROID_KEY_ALIAS", "keyAlias")
+                keyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

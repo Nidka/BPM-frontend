@@ -21,6 +21,7 @@ import pe.bpm.core.designsystem.*
 import pe.bpm.features.identity.domain.hasPendingRegistration
 import pe.bpm.features.identity.domain.IdentityInputRules
 import pe.bpm.core.domain.InputRule
+import pe.bpm.core.presentation.offersAndroidDownload
 
 @Composable
 fun IdentityScreen(
@@ -202,6 +203,7 @@ fun IdentityScreen(
                     modifier = Modifier.align(Alignment.CenterHorizontally))
                 GoogleSignInButton(onClick = { autofill?.cancel(); password = ""; confirmation = ""; onGoogle() }, enabled = !state.busy)
             }
+            if (profile == null && state.mode == AuthMode.Login && offersAndroidDownload()) AndroidDownloadCard()
         }
         }
         }
