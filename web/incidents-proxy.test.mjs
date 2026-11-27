@@ -87,6 +87,8 @@ test('incidencias: creación, versiones y comandos confirman el destino y la car
   // Con categoría integrada el cuerpo lleva `catalogCode` y el detalle devuelto trae el `catalogId` que creó el servidor.
   const { catalogId: _own, ...builtIn } = report;
   assert.equal((await write('/incidents', { ...builtIn, catalogCode: 'TEMPERATURA' })).status, 200);
+  assert.equal((await write('/incidents', { ...builtIn, catalogCode: 'TEMPERATURA', priority: 'URGENT' })).status, 200);
+  assert.equal((await write('/incidents', { ...builtIn, catalogCode: 'TEMPERATURA', priority: 'ALTA' })).status, 400);
   state.payload = { data: { ...detail, rowVersion: 2, status: 'ASSIGNED', actions: [action], allowedActions: [] } };
   assert.equal((await write(`/incidents/${id}/actions`, assign)).status, 200);
   assert.equal(state.requests.at(-1).headers['idempotency-key'], headers['Idempotency-Key']);

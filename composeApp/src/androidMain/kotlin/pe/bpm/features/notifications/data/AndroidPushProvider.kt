@@ -199,9 +199,21 @@ class AndroidPushProvider(private val application: Application) : PushProvider, 
       if (!tokenCurrent(token)) false
       else {
         bind(userId, organizationId, deviceId)
+        prefs.edit().putString("optIn", optInKey(userId, organizationId)).commit()
         true
       }
     }
+
+  override fun rememberedOptIn(userId: String, organizationId: String): Boolean =
+    prefs.getString("optIn", null) == optInKey(userId, organizationId)
+
+  override fun forgetOptIn() {
+    prefs.edit().remove("optIn").commit()
+  }
+
+  /** Huella de persona y empresa (no se guarda el id en claro). */
+  private fun optInKey(userId: String, organizationId: String): String =
+    java.security.MessageDigest.getInstance("SHA-256").digest("$userId|$organizationId".encodeToByteArray()).joinToString("") { "%02x".format(it) }
 
   override fun bind(userId: String, organizationId: String, deviceId: String) {
     synchronized(BpmMessagingService::class.java) {

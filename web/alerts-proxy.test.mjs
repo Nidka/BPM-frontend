@@ -145,6 +145,9 @@ test('bandeja: el aviso de incidencia asignada pasa por el proxy (antes daba 503
   const value = await invoke(t, '/alerts', { payload: { data: [assigned], pagination: { nextPageToken: '' } } });
   assert.equal(value.status, 200);
   assert.equal(value.body.data[0].type, 'INCIDENT_ASSIGNED');
+  const reported = await invoke(t, '/alerts', { payload: { data: [{ ...assigned, type: 'INCIDENT_REPORTED', title: 'Problema urgente: Plaga' }], pagination: { nextPageToken: '' } } });
+  assert.equal(reported.status, 200);
+  assert.equal(reported.body.data[0].type, 'INCIDENT_REPORTED');
   assert.equal(value.body.data[0].sourceType, 'INCIDENT');
   // Las reglas siguen cerradas: este tipo no se puede configurar como regla.
   const rule = await invoke(t, '/alert-rules', { method: 'POST', body: { ...ruleInput, type: 'INCIDENT_ASSIGNED', configuration: {} }, requestHeaders: { 'idempotency-key': 'stable-key-0001' } });

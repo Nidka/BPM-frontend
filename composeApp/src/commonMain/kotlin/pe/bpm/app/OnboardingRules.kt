@@ -17,7 +17,7 @@ fun introCards(role: GuideRole): List<IntroCard> = when (role) {
         IntroCard("welcome", "¡Bienvenido a BPM!", "Aquí cuidas la cocina día a día y aprendes las buenas prácticas de manipulación, en pasos cortos."),
         IntroCard("ready", "Hoy: tus tareas", "En «Hoy» ves lo que toca en tu turno. Toca el círculo de una tarea cuando la termines y cuéntanos cómo quedó."),
         IntroCard("learning", "Aprender un poquito cada día", "Las lecciones duran pocos minutos. Si aprendes algo cada día, tu racha sube y ganas insignias."),
-        IntroCard("fix", "¿Viste un problema?", "Pulsa «Reportar un problema», elige de qué se trata y cuéntalo con tus palabras. Tu jefe lo recibe al instante."),
+        IntroCard("fix", "¿Viste un problema?", "Pulsa «Reportar un problema», elige de qué se trata y cuéntalo con tus palabras. Tu jefe lo ve en sus avisos; si es urgente, le llega a su teléfono al instante."),
         IntroCard("done", "Ayuda siempre a mano", "El botón «?» de arriba explica cada pantalla. En «Ajustes» (la rueda) puedes agrandar el texto o pedir que la app te lea en voz alta."),
     )
     GuideRole.Chef -> listOf(

@@ -67,6 +67,12 @@ interface PushProvider {
   fun clearBinding()
 
   suspend fun deleteToken()
+
+  /** La persona activó las notificaciones para esta empresa en este dispositivo (sobrevive a reinicios y a sesiones vencidas). */
+  fun rememberedOptIn(userId: String, organizationId: String): Boolean = false
+
+  /** Olvida la activación (Desactivar o cierre de sesión explícito). */
+  fun forgetOptIn() {}
 }
 
 class UnavailablePushProvider(
@@ -119,6 +125,11 @@ class ManageNotificationDevices(
     provider.deleteToken()
   }
 
+  /** Si ya estaban activadas aquí, se vuelve a registrar el token al abrir la app (el servidor lo actualiza sin duplicar). */
+  fun shouldRefresh(user: String, org: String): Boolean = provider.available && provider.rememberedOptIn(user, org)
+
+  fun forgetOptIn() = provider.forgetOptIn()
+
   suspend fun enable(user: String, org: String): NotificationResult<NotificationDevice> {
     if (!provider.available) return NotificationResult.Failure(NotificationFailure.UNAVAILABLE)
     val expected = generation
@@ -139,6 +150,7 @@ class ManageNotificationDevices(
 
   suspend fun disable(org: String, id: String?): NotificationResult<Unit> {
     clearLocal()
+    provider.forgetOptIn()
     val r = if (id == null) NotificationResult.Success(Unit) else repository.deactivate(org, id)
     provider.deleteToken()
     return r

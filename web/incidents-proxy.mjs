@@ -29,7 +29,7 @@ const risk = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const statuses = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'VERIFIED'];
 const commands = ['ASSIGN', 'START', 'RESOLVE', 'VERIFY', 'RETURN'];
 const catalogFields = ['id', 'code', 'name', 'area', 'normativeCriterion', 'riskLevel', 'evidenceRequired'];
-const reportFields = ['id', 'locationId', 'catalogId', 'catalogCode', 'description', 'clientOperationId', 'clientCreatedAt'];
+const reportFields = ['id', 'locationId', 'catalogId', 'catalogCode', 'description', 'clientOperationId', 'clientCreatedAt', 'priority'];
 // Categorías integradas: se reporta con `catalogCode` en lugar de `catalogId` (exactamente uno de los dos).
 const builtInCodes = ['TEMPERATURA', 'LIMPIEZA', 'PLAGAS', 'EQUIPO_DANADO', 'PRODUCTO_MAL_ESTADO', 'HIGIENE_PERSONAL', 'OTRO'];
 const commandFields = ['operationId', 'rowVersion', 'actionType', 'actionId', 'responsibleUserId', 'description', 'dueAt', 'note'];
@@ -89,7 +89,7 @@ function inputFor(value, resource, kind) {
   } else {
     exact(value, reportFields); ['id', 'locationId', 'clientOperationId'].forEach(key => identifier(value, key));
     require((value.catalogId === undefined) !== (value.catalogCode === undefined));
-    if (value.catalogId !== undefined) identifier(value, 'catalogId'); else require(builtInCodes.includes(value.catalogCode)); text(value, 'description', 4000, 1); require(Date.parse(stamp(value, 'clientCreatedAt')) <= Date.now() + 300000);
+    if (value.catalogId !== undefined) identifier(value, 'catalogId'); else require(builtInCodes.includes(value.catalogCode)); text(value, 'description', 4000, 1); require(value.priority === undefined || ['NORMAL', 'URGENT'].includes(value.priority)); require(Date.parse(stamp(value, 'clientCreatedAt')) <= Date.now() + 300000);
   }
   return value;
 }

@@ -24,7 +24,7 @@ class NotificationDevicesViewModelTest {
       advanceUntilIdle()
       assertEquals("alice", provider.bound)
       provider.deletionGate = CompletableDeferred()
-      vm.reset()
+      vm.reset(forget = true)
       runCurrent()
       vm.open("bob", "org")
       vm.enable()
@@ -65,7 +65,7 @@ class NotificationDevicesViewModelTest {
   }
 
   @Test
-  fun tokenRotationInvalidatesConfirmedDeviceWithoutRequestingPermissionAgain() = runTest {
+  fun tokenRotationReRegistersTheDeviceAutomatically() = runTest {
     Dispatchers.setMain(StandardTestDispatcher(testScheduler))
     val provider = Provider()
     val vm = NotificationDevicesViewModel(ManageNotificationDevices(Repo(), provider))
@@ -77,9 +77,11 @@ class NotificationDevicesViewModelTest {
       provider.bound = null
       provider.invalidations.emit(Unit)
       advanceUntilIdle()
-      assertNull(vm.state.value.device)
-      assertEquals(NotificationFailure.TOKEN_CHANGED, vm.state.value.failure)
-      assertEquals(1, provider.requests)
+      // onNewToken: se vuelve a pedir el token y a registrarlo solo, sin que la persona pulse «Activar».
+      assertNotNull(vm.state.value.device)
+      assertNull(vm.state.value.failure)
+      assertEquals(2, provider.requests)
+      assertEquals("alice", provider.bound)
     } finally {
       vm.reset()
       advanceUntilIdle()
@@ -97,6 +99,11 @@ class NotificationDevicesViewModelTest {
     var bound: String? = null
     var deletionGate: CompletableDeferred<Unit>? = null
     val events = mutableListOf<String>()
+    var optIn: String? = null
+
+    override fun rememberedOptIn(userId: String, organizationId: String) = optIn == "$userId|$organizationId"
+
+    override fun forgetOptIn() { optIn = null }
 
     override suspend fun requestToken(userId: String, organizationId: String): PushTokenResult {
       requests++
@@ -126,5 +133,30 @@ class NotificationDevicesViewModelTest {
 
     override suspend fun deactivate(org: String, id: String): NotificationResult<Unit> =
       NotificationResult.Success(Unit)
+  }
+
+  @Test
+  fun reloadKeepsTheTokenAndARememberedOptInRegistersAgainOnOpen() = runTest {
+    Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    val provider = Provider()
+    val vm = NotificationDevicesViewModel(ManageNotificationDevices(Repo(), provider))
+    try {
+      vm.open("alice", "org")
+      vm.enable()
+      advanceUntilIdle()
+      provider.optIn = "alice|org"
+      vm.reset()
+      advanceUntilIdle()
+      assertTrue("delete-start" !in provider.events, "una recarga no borra el token de FCM")
+      vm.open("alice", "org")
+      advanceUntilIdle()
+      assertNotNull(vm.state.value.device)
+      assertEquals(2, provider.requests)
+    } finally {
+      vm.reset(forget = true)
+      advanceUntilIdle()
+      vm.viewModelScope.cancel()
+      Dispatchers.resetMain()
+    }
   }
 }

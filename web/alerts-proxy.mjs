@@ -15,7 +15,7 @@ const types = ['CHECKLIST_MISSING', 'TEMPERATURE_DANGER', 'ORGANIZATION_INACTIVE
 const statuses = ['PENDING', 'SENT', 'VIEWED', 'ATTENDED', 'CANCELLED'];
 const sources = ['CHECKLIST_ASSIGNMENT', 'RECEIPT_ITEM', 'ORGANIZATION', 'TRAINING_ASSIGNMENT', 'INCIDENT'];
 // «Te asignaron una incidencia» llega a la bandeja pero no es una regla configurable: solo se acepta en avisos, no en reglas.
-const alertTypes = [...types, 'INCIDENT_ASSIGNED'];
+const alertTypes = [...types, 'INCIDENT_ASSIGNED', 'INCIDENT_REPORTED'];
 const states = ['ALL', 'UNREAD', 'VIEWED', 'ATTENDED'];
 const ruleFields = ['locationId', 'name', 'type', 'configuration', 'active', 'emailEnabled', 'pushEnabled'];
 const deviceFields = ['id', 'installationId', 'platform', 'pushToken'];
@@ -76,7 +76,7 @@ function publicRule(value) {
 }
 function publicAlert(value, org) {
   require(object(value) && alertTypes.includes(value.type) && statuses.includes(value.status) && sources.includes(value.sourceType) && typeof value.sourceAvailable === 'boolean');
-  require(value.sourceType === { CHECKLIST_MISSING: 'CHECKLIST_ASSIGNMENT', TEMPERATURE_DANGER: 'RECEIPT_ITEM', ORGANIZATION_INACTIVE: 'ORGANIZATION', TRAINING_ASSIGNED: 'TRAINING_ASSIGNMENT', INCIDENT_ASSIGNED: 'INCIDENT' }[value.type]);
+  require(value.sourceType === { CHECKLIST_MISSING: 'CHECKLIST_ASSIGNMENT', TEMPERATURE_DANGER: 'RECEIPT_ITEM', ORGANIZATION_INACTIVE: 'ORGANIZATION', TRAINING_ASSIGNED: 'TRAINING_ASSIGNMENT', INCIDENT_ASSIGNED: 'INCIDENT', INCIDENT_REPORTED: 'INCIDENT' }[value.type]);
   const sourceId = value.sourceType === 'ORGANIZATION' ? (require(value.sourceId === org), org) : identifier(value.sourceId);
   const output = { id: identifier(value.id), type: value.type, title: text(value.title, 160, 1), message: text(value.message, 4 * 1024 * 1024), status: value.status, createdAt: timestamp(value.createdAt), locationName: text(value.locationName, 160), sourceType: value.sourceType, sourceId, sourceAvailable: value.sourceAvailable };
   for (const key of ['viewedAt', 'attendedAt']) if (value[key] !== undefined) output[key] = value[key] === null ? null : timestamp(value[key]);

@@ -36,6 +36,8 @@ fun prepareIncident(form: IncidentForm, site: String, key: String): PendingIncid
                         else put("catalogCode", values["catalogCode"].orEmpty())
                         put("description", values["description"].orEmpty().trim())
                         put("clientOperationId", form.id)
+                        // Urgente: además de la bandeja, push al jefe y al administrador. Normal: solo la bandeja.
+                        put("priority", if (values["priority"] == "URGENT") "URGENT" else "NORMAL")
                         put("clientCreatedAt", form.createdAt)
                     }
                     else -> {

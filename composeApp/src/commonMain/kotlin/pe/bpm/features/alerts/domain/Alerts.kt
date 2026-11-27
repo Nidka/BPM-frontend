@@ -9,6 +9,8 @@ enum class AlertType {
   TRAINING_ASSIGNED,
   /** Llega a la bandeja del responsable de una acción correctiva; no es una regla configurable. */
   INCIDENT_ASSIGNED,
+  /** Llega al jefe de cocina y al administrador cuando alguien reporta un problema; no es una regla configurable. */
+  INCIDENT_REPORTED,
 }
 
 enum class AlertStatus {
@@ -196,7 +198,7 @@ object AlertRuleValidation {
         if (!v.matches(Regex("[0-9]{1,3}")) || v.toIntOrNull() !in 1..365)
           put("inactivityDays", "Ingresa un número entero entre 1 y 365 días.")
       }
-      AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED -> Unit
+      AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED -> Unit
     }
   }
 
@@ -214,7 +216,7 @@ object AlertRuleValidation {
         )
       AlertType.ORGANIZATION_INACTIVE ->
         AlertConfiguration(inactivityDays = f.values.getValue("inactivityDays").toInt())
-      AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED -> AlertConfiguration()
+      AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED -> AlertConfiguration()
     }
   }
 }

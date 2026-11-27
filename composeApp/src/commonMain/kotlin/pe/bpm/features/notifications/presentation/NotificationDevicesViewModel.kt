@@ -36,6 +36,8 @@ class NotificationDevicesViewModel(private val manage: ManageNotificationDevices
               busy = false,
               failure = NotificationFailure.TOKEN_CHANGED,
             )
+          // Token rotado (onNewToken): se registra de nuevo solo, sin que la persona tenga que reactivar.
+          enable()
         }
       }
     }
@@ -46,9 +48,15 @@ class NotificationDevicesViewModel(private val manage: ManageNotificationDevices
     if (user != null || org != null) reset()
     user = userId
     org = organizationId
+    // Cada arranque vuelve a registrar el token si ya estaban activadas: un token vencido o rotado se repara solo.
+    if (manage.shouldRefresh(userId, organizationId)) enable()
   }
 
-  fun reset() {
+  /**
+   * Limpia el vínculo local. Solo con [forget] (cierre de sesión explícito o cambio de cuenta) se borra el token de FCM y la
+   * activación recordada: borrarlo en cada recarga invalidaba el token ya registrado en el servidor (UNREGISTERED).
+   */
+  fun reset(forget: Boolean = false) {
     generation++
     job?.cancel()
     manage.clearLocal()
@@ -56,6 +64,8 @@ class NotificationDevicesViewModel(private val manage: ManageNotificationDevices
     org = null
     mutable.value = NotificationDevicesState(manage.available, manage.unavailableReason)
     // La limpieza nativa no depende de que la API conserve una sesión válida.
+    if (!forget) return
+    manage.forgetOptIn()
     val previous = cleanup
     cleanup =
       viewModelScope.launch {
