@@ -100,7 +100,7 @@ fun BpmChoiceTile(
     val clickable = Modifier
         .semantics { this.selected = selected }
         .bpmPlayFrame(frame, fill, 18.dp, bottom = 5.dp)
-        .clickable(role = Role.RadioButton, onClick = onClick)
+        .clickable(role = Role.RadioButton, onClick = rememberGuardedClick(onClick))
     if (horizontal) Row(modifier.then(clickable).padding(horizontal = 10.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         big(); label(Modifier.weight(1f))

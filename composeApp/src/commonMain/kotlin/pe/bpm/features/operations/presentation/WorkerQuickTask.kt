@@ -185,7 +185,7 @@ private fun PhotoStep(state: OperationsState, onPhoto: () -> Unit, busy: Boolean
                 drawRoundRect(line, Offset(stroke / 2f, stroke / 2f), Size(size.width - stroke, size.height - stroke), CornerRadius(18.dp.toPx()),
                     style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))))
             }
-            .clickable(enabled = !busy, role = Role.Button, onClick = onPhoto)
+            .clickable(enabled = !busy, role = Role.Button, onClick = pe.bpm.core.designsystem.rememberGuardedClick(onPhoto))
             .semantics { contentDescription = "Guardar la tarea y agregar una foto" }.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {

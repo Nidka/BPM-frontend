@@ -162,6 +162,8 @@ fun App(
     var evidenceQuestion by remember { mutableStateOf<EvidenceQuestion?>(null) }
     var incidentEvidence by remember { mutableStateOf<IncidentEvidenceTarget?>(null) }
     var cleaningPhotos by remember { mutableStateOf<String?>(null) }
+    // Una apertura de «Fotos de la limpieza» = una sola cámara automática, aunque el panel se recree.
+    var cleaningAutoPick by remember { mutableStateOf(false) }
     val versionsVm = viewModel<pe.bpm.features.checklists.presentation.ChecklistVersionsViewModel> { owner.graph.checklistVersionsViewModel() }
     val shiftsVm = viewModel<pe.bpm.features.operations.presentation.ShiftsViewModel> { owner.graph.shiftsViewModel() }
     val stockVm = viewModel<pe.bpm.features.operations.presentation.StockMovementsViewModel> { owner.graph.stockMovementsViewModel() }
@@ -400,7 +402,9 @@ fun App(
         val role = workspaceState.workspace?.role
         val recent = runCatching { kotlin.time.Clock.System.now() - kotlin.time.Instant.parse(execution.createdAt) < 24.hours }.getOrDefault(false)
         val canEdit = execution.responsibleUserId == user && recent && role in setOf("CHEF", "ADMIN", "WORKER")
+        if (cleaningPhotos == execution.input.id) return
         cleaningPhotos = execution.input.id
+        cleaningAutoPick = true
         evidence.openCleaning(user, org, execution.input.id, canEdit)
     }
     LaunchedEffect(offlineState.preparedId) {
@@ -780,7 +784,7 @@ fun App(
                                             templateEditor::move, templateEditor::undoRemove, templateEditor::clearUndo, templateEditor::review, templateEditor::confirmPublication, templateEditor::backToEdit,
                                             templateEditor::requestDiscard, templateEditor::keepEditing,
                                             onConfirmDiscard = { templateEditor.discard { navigateBack(TEMPLATE_MANAGEMENT) } },
-                                            onPublished = { id -> workspace.load(); nav.navigate("empresa/plantillas/detalle/$id") { popUpTo(TEMPLATE_CREATE) { inclusive = true } } },
+                                            onPublished = { id -> workspace.load(); nav.navigate("empresa/plantillas/detalle/$id") { popUpTo(TEMPLATE_CREATE) { inclusive = true }; launchSingleTop = true } },
                                             onClose = { if (templateEditorState.published != null) workspace.load(); nav.navigate(TEMPLATE_MANAGEMENT) { popUpTo(TEMPLATE_MANAGEMENT) { inclusive = true }; launchSingleTop = true } },
                                             onProtectDraft = templateEditor::protectDraft, onSuggestion = templateEditor::useSuggestion)
                                     } else {
@@ -1318,7 +1322,7 @@ fun App(
         cleaningPhotos?.let {
             PrivateEvidenceHost("Fotos de la limpieza", evidence, evidenceState,
                 "El registro se conserva. La foto pendiente tendrá que seleccionarse de nuevo.",
-                autoPick = true, onClose = { evidence.close(); cleaningPhotos = null })
+                autoPick = cleaningAutoPick, onAutoPicked = { cleaningAutoPick = false }, onClose = { evidence.close(); cleaningPhotos = null; cleaningAutoPick = false })
         }
         incidentEvidence?.let { target ->
             PrivateEvidenceHost(if (target.stage == pe.bpm.features.media.domain.EvidenceStage.BEFORE) "Fotos de la incidencia" else "Fotos de la corrección", evidence, evidenceState,

@@ -23,15 +23,15 @@ import pe.bpm.features.media.domain.*
 
 /** Panel abierto por una pregunta; no inicia consultas por cada fila del formulario. */
 @Composable
-fun MediaEvidencePanel(viewModel: MediaEvidenceViewModel, modifier: Modifier = Modifier, autoPick: Boolean = false) {
+fun MediaEvidencePanel(viewModel: MediaEvidenceViewModel, modifier: Modifier = Modifier, autoPick: Boolean = false, onAutoPicked: () -> Unit = {}) {
     val state by viewModel.state.collectAsState()
     key(state.userId, state.organizationId, state.runId, state.itemId, state.incidentId, state.actionId, state.stage) {
-        MediaEvidenceContent(state, viewModel, modifier, autoPick)
+        MediaEvidenceContent(state, viewModel, modifier, autoPick, onAutoPicked)
     }
 }
 
 @Composable
-private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvidenceViewModel, modifier: Modifier, autoPick: Boolean) {
+private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvidenceViewModel, modifier: Modifier, autoPick: Boolean, onAutoPicked: () -> Unit) {
     val picker = rememberEvidencePhotoPicker(
         maxBytes = state.policy?.maxBytes ?: 0,
         allowedMimeTypes = state.policy?.allowedMimeTypes ?: emptySet(),
@@ -42,11 +42,14 @@ private fun MediaEvidenceContent(state: MediaEvidenceState, viewModel: MediaEvid
         allowedMimeTypes = state.policy?.allowedMimeTypes ?: emptySet(),
         onResult = { result -> viewModel.select(result, state.context, state.userId) },
     )
-    // «Guardar y agregar foto»: si aún no hay fotos se abre la cámara (o la galería) sin otro toque. Una sola vez por apertura del panel.
+    // «Guardar y agregar foto»: si aún no hay fotos se abre la cámara (o la galería) sin otro toque. Una sola vez por apertura del panel:
+    // quien abre el panel guarda [autoPick] y lo apaga con [onAutoPicked]; el contenido se recrea (key, hoja, ventana) y un flag local
+    // se perdería, abriendo la cámara otra vez al volver de ella.
     var autoLaunched by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.canSelect, state.files.size, state.loading) {
         if (autoPick && !autoLaunched && state.canSelect && !state.loading && state.files.none { it.status != EvidenceStatus.DELETED }) {
             autoLaunched = true
+            onAutoPicked()
             (camera ?: picker)()
         }
     }

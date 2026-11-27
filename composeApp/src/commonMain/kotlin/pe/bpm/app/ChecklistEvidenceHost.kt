@@ -65,6 +65,7 @@ internal fun PrivateEvidenceHost(
     unsavedText: String =
         "El registro se conserva. La foto pendiente tendrá que seleccionarse de nuevo.",
     autoPick: Boolean = false,
+    onAutoPicked: () -> Unit = {},
     onClose: () -> Unit,
 ) {
     DisposableEffect(viewModel) { onDispose { viewModel.close() } }
@@ -105,7 +106,7 @@ internal fun PrivateEvidenceHost(
                         EvidenceHeading(label, !state.busy, dismiss)
                         if (confirmClose)
                             EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
-                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick)
+                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick, onAutoPicked)
                     }
                 }
             }
@@ -122,7 +123,7 @@ internal fun PrivateEvidenceHost(
                     EvidenceHeading(label, !state.busy, dismiss)
                     if (confirmClose)
                         EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
-                    MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick)
+                    MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick, onAutoPicked)
                 }
             }
         } else
@@ -135,7 +136,7 @@ internal fun PrivateEvidenceHost(
                         EvidenceHeading(label, !state.busy, dismiss)
                         if (confirmClose)
                             EvidenceCloseConfirmation(unsavedText, onClose, { confirmClose = false }, confirmationScroll())
-                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick)
+                        MediaEvidencePanel(viewModel, Modifier.weight(1f, fill = false), autoPick, onAutoPicked)
                     }
                 }
             }

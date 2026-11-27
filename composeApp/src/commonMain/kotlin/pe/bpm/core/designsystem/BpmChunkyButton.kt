@@ -101,6 +101,7 @@ internal fun BpmChunkyShell(
         BpmChunkyTone.Disabled -> { face = BpmPlayColors.lock; relief = BpmPlayColors.lockShadow; contentColor = BpmPlayColors.lockText }
     }
     val interactions = remember { MutableInteractionSource() }
+    val guarded = rememberGuardedClick(onClick)
     val pressed by interactions.collectIsPressedAsState()
     val focused by interactions.collectIsFocusedAsState()
     val reduceMotion = rememberReduceMotion()
@@ -119,7 +120,7 @@ internal fun BpmChunkyShell(
                         .then(if (effective == BpmChunkyTone.White) Modifier.border(BpmPlayBorder, BpmPlayColors.line, ChunkyShape) else Modifier)
                         .then(if (focused && active) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, ChunkyShape) else Modifier)
                         .then(if (active) Modifier.pointerHoverIcon(PointerIcon.Hand) else Modifier)
-                        .clickable(interactionSource = interactions, indication = null, enabled = active, role = Role.Button, onClick = onClick)
+                        .clickable(interactionSource = interactions, indication = null, enabled = active, role = Role.Button, onClick = guarded)
                         .padding(horizontal = 18.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
