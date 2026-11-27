@@ -8,6 +8,8 @@ data class Profile(
     val displayName: String,
     val organizations: List<Organization>,
     val platformRole: String = "USER",
+    /** El servidor ya registró que terminó u omitió la introducción de «Primeros pasos» (V22). */
+    val onboardingSeen: Boolean = false,
 )
 
 data class Organization(val id: String, val name: String, val role: String)

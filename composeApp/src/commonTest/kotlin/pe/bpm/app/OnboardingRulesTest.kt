@@ -9,6 +9,12 @@ import pe.bpm.core.presentation.OnboardingPreferences
 import pe.bpm.core.presentation.OnboardingState
 import pe.bpm.core.presentation.decodeOnboarding
 import pe.bpm.core.presentation.encodeOnboarding
+import pe.bpm.core.presentation.introAlreadySeen
+import pe.bpm.core.presentation.OnboardingSync
+import pe.bpm.core.offline.InMemoryOfflineDatabase
+import pe.bpm.core.offline.OfflinePlatform
+import pe.bpm.core.offline.OfflineRuntime
+import pe.bpm.core.offline.OfflineScope
 
 /** «Primeros pasos» y «Ayuda»: tarjetas por rol, pasos que se marcan solos, ayuda por ruta y persistencia. */
 class OnboardingRulesTest {
@@ -74,5 +80,55 @@ class OnboardingRulesTest {
         prefs.hide(true); prefs.replay()
         assertFalse(prefs.state.value.introSeen); assertFalse(prefs.state.value.hidden)
         assertTrue("c-turn" in prefs.state.value.done)
+    }
+
+    @Test fun introShowsOnlyIfNobodyMarkedItSeen() {
+        assertFalse(introAlreadySeen(serverSeen = false, accountSeen = false, deviceSeen = false))
+        assertTrue(introAlreadySeen(serverSeen = true, accountSeen = false, deviceSeen = false))
+        assertTrue(introAlreadySeen(serverSeen = false, accountSeen = true, deviceSeen = false))
+        assertTrue(introAlreadySeen(serverSeen = false, accountSeen = false, deviceSeen = true))
+    }
+
+    private class RecordingSync(var ok: Boolean = true) : OnboardingSync {
+        val calls = mutableListOf<Boolean>()
+        override suspend fun setSeen(seen: Boolean): Boolean { calls += seen; return ok }
+    }
+
+    @Test fun introSeenSurvivesLogoutAndSyncsWithTheServer() = runTest {
+        val runtime = OfflineRuntime(OfflinePlatform(database = InMemoryOfflineDatabase()), { 1_000L }, { "op" })
+        runtime.activate(OfflineScope("https://api.test", "ana"))
+        val sync = RecordingSync()
+        val prefs = OnboardingPreferences(runtime.store, runtime.device, sync)
+        prefs.load("ana", serverSeen = false)
+        assertFalse(prefs.state.value.introSeen)
+        assertTrue(sync.calls.isEmpty())
+        prefs.markIntroSeen()
+        assertEquals(listOf(true), sync.calls)
+        // Cierre de sesión explícito: se borra la cuenta, pero la marca del dispositivo queda.
+        runtime.wipe(); prefs.reset()
+        runtime.activate(OfflineScope("https://api.test", "ana"))
+        prefs.load("ana", serverSeen = false)
+        assertTrue(prefs.state.value.introSeen)
+        // El servidor aún no lo tenía: se vuelve a subir la marca.
+        assertEquals(listOf(true, true), sync.calls)
+        // Otra persona en el mismo teléfono sí la ve.
+        prefs.reset(); runtime.activate(OfflineScope("https://api.test", "beto"))
+        prefs.load("beto", serverSeen = false)
+        assertFalse(prefs.state.value.introSeen)
+    }
+
+    @Test fun serverSeenWinsOnANewDeviceAndReplayClearsEverywhere() = runTest {
+        val runtime = OfflineRuntime(OfflinePlatform(database = InMemoryOfflineDatabase()), { 1_000L }, { "op" })
+        runtime.activate(OfflineScope("https://api.test", "ana"))
+        val sync = RecordingSync(ok = false)
+        val prefs = OnboardingPreferences(runtime.store, runtime.device, sync)
+        prefs.load("ana", serverSeen = true)
+        assertTrue(prefs.state.value.introSeen)
+        assertTrue(sync.calls.isEmpty(), "no hace falta subir lo que el servidor ya sabe")
+        prefs.replay()
+        assertFalse(prefs.state.value.introSeen)
+        assertEquals(listOf(false), sync.calls)
+        prefs.load("ana", serverSeen = false)
+        assertFalse(prefs.state.value.introSeen)
     }
 }

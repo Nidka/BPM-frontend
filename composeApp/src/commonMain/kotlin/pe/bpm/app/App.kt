@@ -147,6 +147,8 @@ fun App(
     val reportsDashboardState by reportsDashboard.state.collectAsStateWithLifecycle()
     val reportsView = viewModel<pe.bpm.features.reports.presentation.ReportsViewModel> { owner.graph.reportsViewModel() }
     val normative = viewModel<pe.bpm.features.normative.presentation.NormativeViewModel> { owner.graph.normativeViewModel() }
+    val support = viewModel<pe.bpm.features.support.presentation.SupportViewModel> { owner.graph.supportViewModel() }
+    val supportState by support.state.collectAsStateWithLifecycle()
     val webhooks = viewModel<pe.bpm.features.webhooks.presentation.WebhooksViewModel> { owner.graph.webhooksViewModel() }
     val reportsAdmin = viewModel<pe.bpm.features.reports.presentation.ReportsAdminViewModel> { owner.graph.reportsAdminViewModel() }
     val usage = viewModel<pe.bpm.features.usage.presentation.UsageViewModel> { owner.graph.usageViewModel() }
@@ -209,7 +211,9 @@ fun App(
             if (nav.currentDestination?.route == LOGIN) resetTo(pendingRoute)
         }
     }
-    LaunchedEffect(profile?.id) { if (profile != null) { feedbackPreferences.load(); onboardingPreferences.load() } else onboardingPreferences.reset() }
+    LaunchedEffect(profile?.id) { if (profile != null) { feedbackPreferences.load(); support.load() } }
+    // La introducción vista se combina con la del servidor (perfil) y la del dispositivo, que no se borra al cerrar sesión.
+    LaunchedEffect(profile?.id, profile?.onboardingSeen) { if (profile != null) onboardingPreferences.load(profile.id, profile.onboardingSeen) else onboardingPreferences.reset() }
     // «Haz tu primer control» también se cumple con una revisión libre (no programada) finalizada por la propia persona.
     val finishedOwnRun = runState.run?.let { it.status == "SUBMITTED" && it.performedBy == profile?.id } == true
     LaunchedEffect(finishedOwnRun, onboarding.loaded) { if (finishedOwnRun && onboarding.loaded) onboardingPreferences.markStep("c-control") }
@@ -278,7 +282,8 @@ fun App(
     var helpRoute by remember { mutableStateOf(WorkspaceDestination.Home.route) }
     var introPrompted by remember { mutableStateOf(false) }
     val learnerRoot by trainingLearner.state.collectAsStateWithLifecycle()
-    // Quien ya tiene actividad en el servidor (puntos de aprendizaje o un control hecho) no necesita la introducción en un navegador o teléfono nuevo.
+    // Cuentas anteriores a la marca del servidor (V22): quien ya tiene actividad (puntos de aprendizaje o un control hecho) no necesita la
+    // introducción; se marca como vista una vez y la marca queda en el servidor.
     val hasHistory = (learnerRoot.achievements?.totals?.experiencePoints ?: 0) > 0 ||
         assignmentState.items.any { it.run?.status == "SUBMITTED" && it.run.performedBy == profile?.id }
     LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, hasHistory) {
@@ -298,7 +303,7 @@ fun App(
     }
     // Espera a saber si la persona ya tiene actividad (llega del servidor) antes de ofrecer la introducción; con un tope por si la consulta falla.
     var introWait by remember { mutableStateOf(false) }
-    LaunchedEffect(profile?.id) { introWait = false; if (profile != null) { kotlinx.coroutines.delay(6000); introWait = true } }
+    LaunchedEffect(profile?.id, onboarding.introSeen) { introWait = false; if (profile != null && !onboarding.introSeen) { kotlinx.coroutines.delay(6000); introWait = true } }
     LaunchedEffect(guideRole, onboarding.loaded, onboarding.introSeen, entry?.destination?.route, learnerRoot.achievements != null, introWait, hasHistory) {
         // El aviso de «sin actividad» solo vale cuando ya dio tiempo a que llegaran los datos del servidor.
         if (!introWait || hasHistory) return@LaunchedEffect
@@ -969,14 +974,19 @@ fun App(
                                         onReplay = { feedbackScope.launch { onboardingPreferences.replay() }; introPrompted = true; nav.navigate(ONBOARDING) { launchSingleTop = true } },
                                         onSettings = { nav.navigate(SETTINGS) { launchSingleTop = true } },
                                         // El anfitrión de pantallas secundarias no desplaza: sin esto la ayuda larga queda cortada en teléfonos.
-                                        modifier = androidx.compose.ui.Modifier.bpmScrollable())
+                                        modifier = androidx.compose.ui.Modifier.bpmScrollable(),
+                                        support = supportState.contact, organizationName = workspaceState.workspace?.organization?.name)
                                 }) else if (viewingSettings) ({
                                     SettingsContent(feedbackSettings, { next -> feedbackScope.launch { feedbackPreferences.save(next) } },
                                         onAlerts = if (currentWorkspace != null) ({ nav.navigate(ALERT_INBOX) { launchSingleTop = true } }) else null,
                                         onDevices = { nav.navigate(DEVICES) { launchSingleTop = true } },
                                         // Personal no se une a otras organizaciones por su cuenta: la invitación llega por el enlace del correo.
                                         onAcceptInvitation = if (currentWorkspace?.role == "WORKER") null else ({ nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } }),
-                                        onLogout = ::requestLogout, modifier = androidx.compose.ui.Modifier.bpmScrollable())
+                                        onLogout = ::requestLogout, modifier = androidx.compose.ui.Modifier.bpmScrollable(),
+                                        platformSupport = if (profile.platformRole == "SUPER_ADMIN") ({
+                                            LaunchedEffect(Unit) { support.load() }
+                                            pe.bpm.features.support.presentation.SupportSettingsSection(supportState, support::editEmail, support::editWhatsapp, support::save, support::dismissNotice)
+                                        }) else null)
                                 }) else if (viewingDevices) ({
                                     DevicesContent(profile.id, myDevices)
                                 }) else if (acceptingInvitation) ({

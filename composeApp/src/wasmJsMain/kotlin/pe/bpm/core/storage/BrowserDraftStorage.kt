@@ -38,9 +38,12 @@ class BrowserDraftStorage : DraftStorage {
         try {
             const tx = db.transaction('documents', operation === 'read' ? 'readonly' : 'readwrite');
             const store = tx.objectStore('documents');
-            const item = operation === 'read' || operation === 'compare' ? store.get(key) : operation === 'write' ? store.put(value, key) : operation === 'clear' ? store.clear() : store.delete(key);
+            // «clear» (cierre de sesión) conserva solo las marcas del dispositivo (DeviceStore.DOCUMENT_PREFIX), nunca datos personales.
+            const keep = k => typeof k === 'string' && k.startsWith('offline-r/8:__device/');
+            const item = operation === 'read' || operation === 'compare' ? store.get(key) : operation === 'write' ? store.put(value, key) : operation === 'clear' ? store.openCursor() : store.delete(key);
             let result = null;
-            item.onsuccess = () => {
+            if (operation === 'clear') item.onsuccess = () => { const cursor = item.result; if (cursor) { if (!keep(cursor.key)) cursor.delete(); cursor.continue(); } };
+            else item.onsuccess = () => {
                 if (operation === 'read' || operation === 'compare') {
                     const actual = item.result === undefined ? null : item.result;
                     if (operation === 'read') result = actual;

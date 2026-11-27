@@ -61,6 +61,8 @@ class OfflineRuntime(
     val changes = OfflineChanges()
     val connectivity: ConnectivityMonitor get() = platform.connectivity
     val store: LocalStore = DefaultLocalStore(platform.database, active, changes, clock)
+    /** Marcas del dispositivo que no se borran al cerrar sesión (ver [DeviceStore]). */
+    val device = DeviceStore(platform.database, clock)
     private val queue = DefaultOutbox(platform.database, active, changes, clock)
     val outbox: Outbox get() = queue
 
@@ -91,7 +93,7 @@ class OfflineRuntime(
      * nueva nunca ve ni envía la cola de otra: el motor trabaja solo con la partición activa.
      */
     suspend fun activate(scope: OfflineScope) {
-        val hadOthers = platform.database.scopes().any { it != scope.id }
+        val hadOthers = platform.database.scopes().any { it != scope.id && it != DeviceStore.SCOPE }
         val retained = prunePartitions(except = scope.id)
         // Los archivos personales (fotos pendientes) no están separados por cuenta: solo se borran si nada se conserva.
         if (hadOthers && !retained) platform.files.deleteAll()
@@ -105,7 +107,7 @@ class OfflineRuntime(
      */
     private suspend fun prunePartitions(except: String?): Boolean {
         var retained = false
-        for (id in platform.database.scopes().filter { it != except }) {
+        for (id in platform.database.scopes().filter { it != except && it != DeviceStore.SCOPE }) {
             val unresolved = platform.database.operations(id).filter { !it.resolved }
             val lastActivity = unresolved.maxOfOrNull { maxOf(it.updatedAt, it.clientCreatedAt) }
             if (lastActivity != null && clock() - lastActivity <= OfflinePolicy.OTHER_ACCOUNT_RETENTION_MS) retained = true
@@ -120,7 +122,7 @@ class OfflineRuntime(
      */
     suspend fun otherAccountsPending(): List<OtherAccountPending> {
         val current = active.current?.id
-        return platform.database.scopes().filter { it != current }.mapNotNull { id ->
+        return platform.database.scopes().filter { it != current && it != DeviceStore.SCOPE }.mapNotNull { id ->
             val unresolved = platform.database.operations(id).filter { !it.resolved }
             if (unresolved.isEmpty()) return@mapNotNull null
             val email = platform.database.getRecord(id, RuntimeOfflineIdentity.PROFILE_COLLECTION, RuntimeOfflineIdentity.PROFILE_KEY)

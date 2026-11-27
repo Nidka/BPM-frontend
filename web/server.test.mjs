@@ -87,7 +87,7 @@ test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t
       return res.end(JSON.stringify({ errors: [{ code: 'AUTHENTICATION_UNAVAILABLE', message: 'SQL internal secret' }] }));
     }
     assert.equal(req.headers.authorization, 'Bearer test.id.token');
-    res.end(JSON.stringify({ data: { id: 'uid', email: 'test@example.com', displayName: 'Persona',
+    res.end(JSON.stringify({ data: { id: 'uid', email: 'test@example.com', displayName: 'Persona', onboardingSeenAt: '2026-11-27T15:00:00Z',
       internalSecret: 'hidden', organizations: [{ id: 'org', legalName: 'BPM', role: 'WORKER', secret: 'hidden' }] } }));
   });
   backend.listen(0, '127.0.0.1');
@@ -115,7 +115,7 @@ test('perfil autenticado: solo Bearer, sin cookies ni errores internos', async t
     Authorization: 'Bearer test.id.token', Cookie: 'private=true', 'X-Organization-ID': 'untrusted',
   } });
   assert.equal(result.status, 200);
-  assert.deepEqual(await result.json(), { data: { id: 'uid', email: 'test@example.com', displayName: 'Persona',
+  assert.deepEqual(await result.json(), { data: { id: 'uid', email: 'test@example.com', displayName: 'Persona', onboardingSeenAt: '2026-11-27T15:00:00Z',
     organizations: [{ id: 'org', legalName: 'BPM', role: 'WORKER' }] } });
   const denied = await fetch(base + '/backend/api/v1/me', { headers: { Authorization: 'Bearer invalid.token' } });
   assert.equal(denied.status, 403);

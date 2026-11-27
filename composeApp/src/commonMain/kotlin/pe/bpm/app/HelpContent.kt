@@ -5,11 +5,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.bpm.core.designsystem.*
+import pe.bpm.core.presentation.APP_VERSION
+import pe.bpm.core.presentation.platformLabel
+import pe.bpm.features.support.domain.SupportContact
+import pe.bpm.features.support.domain.SupportRules
 
 /** Nombre del rol para el antetítulo de la ayuda. */
 internal fun GuideRole.label(): String = when (this) {
@@ -28,7 +37,12 @@ internal fun HelpContent(
     onReplay: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    support: SupportContact = SupportContact(SupportRules.DEFAULT_EMAIL),
+    organizationName: String? = null,
 ) {
+    val uriHandler = LocalUriHandler.current
+    var supportNotice by remember { mutableStateOf<String?>(null) }
+    val supportBody = SupportRules.messageBody(role.label(), organizationName, APP_VERSION, platformLabel())
     val entry = helpEntry(topic, role)
     BpmDetailScaffold("Ayuda: ${entry.title}", modifier, eyebrow = role.label(), subtitle = entry.purpose) {
         BpmListenButton("Ayuda: ${entry.title}. ${entry.purpose} " + entry.steps.mapIndexed { i, s -> "Paso ${i + 1}. $s" }.joinToString(" "), label = "Escuchar esta ayuda")
@@ -51,11 +65,35 @@ internal fun HelpContent(
             BpmChunkyButton("Ver primeros pasos otra vez", onReplay, Modifier.fillMaxWidth())
         }
         BpmSettingsSection("¿Necesitas más ayuda?") {
-            Text(
-                if (role == GuideRole.Admin || role == GuideRole.Super) "Si algo no funciona, usa «Reportar un problema» y cuenta qué pasó, o revisa tu contacto de soporte de BPM."
-                else "Pregúntale a tu jefe de cocina o a tu administrador. Si algo no funciona en la app, usa «Reportar un problema».",
-                style = BpmPlayType.sub, color = BpmPlayColors.muted)
+            Text(helpNextSteps(role), style = BpmPlayType.sub, color = BpmPlayColors.muted)
             BpmSettingLink("Ajustes de la app", "Texto más grande, más contraste y «Escuchar».", onSettings, symbol = BpmSymbol.Settings)
         }
+        BpmSettingsSection("Contactar soporte", description = "Si la app falla o no puedes entrar a una pantalla. Te responde el equipo de BPM.") {
+            Text("Escríbenos a ${support.email}", style = BpmPlayType.text, color = BpmPlayColors.ink)
+            BpmChunkyButton("Escribir un correo", {
+                runCatching { uriHandler.openUri(SupportRules.mailtoUrl(support.email, supportBody)) }
+                    .onFailure { supportNotice = "No pudimos abrir tu correo. Escribe a ${support.email}." }
+            }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+            support.whatsapp?.let { number ->
+                BpmChunkyButton("Escribir por WhatsApp", {
+                    runCatching { uriHandler.openUri(SupportRules.whatsappUrl(number, supportBody)) }
+                        .onFailure { supportNotice = "No pudimos abrir WhatsApp. Escribe al +$number." }
+                }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
+            }
+            supportNotice?.let { BpmInlineNotice(it, onDismiss = { supportNotice = null }, warning = true) }
+        }
     }
+}
+
+/**
+ * A quién acudir: los problemas de la cocina van por «Reportar un problema» (crea una incidencia para el jefe o el
+ * administrador); las fallas de la app, por «Contactar soporte».
+ */
+internal fun helpNextSteps(role: GuideRole): String = when (role) {
+    GuideRole.Worker, GuideRole.Chef ->
+        "Si tienes dudas, pregúntale primero a tu ${if (role == GuideRole.Worker) "jefe de cocina o a tu administrador" else "administrador"}. " +
+            "Si hay un problema en la cocina (algo roto, sucio o fuera de temperatura), usa «Reportar un problema». Si la app falla, usa «Contactar soporte»."
+    GuideRole.Admin ->
+        "Si hay un problema en la cocina, usa «Reportar un problema»: tu equipo lo ve y lo puede corregir. Si la app falla, usa «Contactar soporte»."
+    GuideRole.Super -> "Si la app falla, usa «Contactar soporte». Puedes cambiar el correo de soporte en Ajustes."
 }

@@ -19,6 +19,7 @@ import { accountsRoute, proxyAccounts } from './accounts-proxy.mjs';
 import { researchRoute, proxyResearch } from './research-proxy.mjs';
 import { reportsRoute, proxyReports } from './reports-proxy.mjs';
 import { normativeRoute, proxyNormative } from './normative-proxy.mjs';
+import { platformRoute, proxyPlatform } from './platform-proxy.mjs';
 import { webhooksRoute, proxyWebhooks } from './webhooks-proxy.mjs';
 import { authEmailRoute, proxyAuthEmail } from './auth-email-proxy.mjs';
 
@@ -131,12 +132,14 @@ export function createAppServer({
     const isNormative = normativeRoute(request.url?.split('?')[0] || '');
     const isWebhooks = webhooksRoute(request.url?.split('?')[0] || '');
     const isAuthEmail = authEmailRoute(request.url?.split('?')[0] || '');
-    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations && !isIncidents && !isAlerts && !isTraining && !isAccounts && !isResearch && !isReports && !isNormative && !isWebhooks && !isAuthEmail) {
+    const isPlatform = platformRoute(request.url?.split('?')[0] || '');
+    if (!['GET', 'HEAD'].includes(request.method) && !isRegistration && !isSession && !isWorkspace && !isChecklist && !isRun && !isAssignment && !isMedia && !isOperations && !isIncidents && !isAlerts && !isTraining && !isAccounts && !isResearch && !isReports && !isNormative && !isWebhooks && !isAuthEmail && !isPlatform) {
       response.setHeader('Allow', 'GET, HEAD');
       return send(405, errorBody('METHOD_NOT_ALLOWED', 'Método no permitido.'));
     }
     try {
       const url = new URL(request.url, 'http://localhost');
+      if (isPlatform) return await proxyPlatform(request, url, upstream, send, response);
       if (isAuthEmail) return await proxyAuthEmail(request, url, upstream, send, response);
       if (isNormative) return await proxyNormative(request, url, upstream, send, response);
       if (isWebhooks) return await proxyWebhooks(request, url, upstream, send, response);
@@ -264,6 +267,9 @@ export function createAppServer({
             return send(200, JSON.stringify({ data: {
               id: profile.id, email: profile.email, displayName: profile.displayName, organizations,
               ...(['USER', 'SUPER_ADMIN'].includes(profile.platformRole) ? { platformRole: profile.platformRole } : {}),
+              // Fecha en que terminó u omitió la introducción (V22); solo una fecha válida, nunca otro valor.
+              ...(typeof profile.onboardingSeenAt === 'string' && profile.onboardingSeenAt.length <= 40 && Number.isFinite(Date.parse(profile.onboardingSeenAt))
+                ? { onboardingSeenAt: profile.onboardingSeenAt } : {}),
             } }));
           }
           if (path === '/health' && data.status === 'ok' && typeof data.version === 'string') {

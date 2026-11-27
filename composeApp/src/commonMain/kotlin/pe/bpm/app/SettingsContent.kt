@@ -23,6 +23,8 @@ internal fun SettingsContent(
     onAcceptInvitation: (() -> Unit)?,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Solo SUPER_ADMIN: edición del contacto de soporte. */
+    platformSupport: (@Composable () -> Unit)? = null,
 ) {
     BpmSettingsScaffold("Ajustes", modifier, subtitle = "Haz la app más fácil de ver y de escuchar. Los cambios se guardan solo en este dispositivo.") {
         BpmSettingsSection("Accesibilidad", description = "Para leer mejor, escuchar y ver menos movimiento.") {
@@ -42,6 +44,7 @@ internal fun SettingsContent(
                 BpmSettingLink("Mis avisos", "Mira tus avisos y elige si el teléfono te los notifica.", open, symbol = BpmSymbol.Bell)
             }
         }
+        platformSupport?.invoke()
         BpmSettingsSection("Cuenta") {
             BpmSettingLink("Mis dispositivos", "Dónde tienes abierta tu sesión.", onDevices, symbol = BpmSymbol.Account)
             onAcceptInvitation?.let { BpmSettingLink("Aceptar una invitación", "Únete a otra organización con el código del correo.", it, symbol = BpmSymbol.Team) }

@@ -104,8 +104,8 @@ class AppGraph(
     private val localFirst = pe.bpm.core.offline.LocalFirstReader.Cached
     /** Sonido y vibración del estilo de juego (Perfil): preferencia local de la cuenta activa, sin servidor. */
     val feedbackPreferences = pe.bpm.core.presentation.FeedbackPreferences(offlineRuntime.store)
-    /** «Primeros pasos» de la cuenta activa: introducción vista y pasos hechos, en este dispositivo. */
-    val onboardingPreferences = pe.bpm.core.presentation.OnboardingPreferences(offlineRuntime.store)
+    /** «Primeros pasos» de la cuenta activa: pasos hechos en este dispositivo; «introducción vista» también en el servidor y en el dispositivo. */
+    val onboardingPreferences by lazy { pe.bpm.core.presentation.OnboardingPreferences(offlineRuntime.store, offlineRuntime.device, supportRepository) }
     private val platformEngine = if (httpClientOverride == null) platformHttpEngine() else null
     private val offlineEngine = platformEngine?.let { OfflineHttpEngine(it, offlineRuntime.http, config.apiBaseUrl) }
     private val httpClient: HttpClient = httpClientOverride ?: createHttpClient(offlineEngine!!)
@@ -341,6 +341,11 @@ class AppGraph(
     private val normativeRepository = pe.bpm.features.normative.data.RemoteNormativeRepository(httpClient, config,
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
+    /** Contacto de soporte (Ayuda; edición solo SUPER_ADMIN) y marca «introducción vista» en el servidor. */
+    private val supportRepository = pe.bpm.features.support.data.RemoteSupportRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    fun supportViewModel() = pe.bpm.features.support.presentation.SupportViewModel(supportRepository)
     /** Buscador de normativa (RF-46/47): búsqueda para todos y gestión de documentos para el administrador general. */
     fun normativeViewModel() = pe.bpm.features.normative.presentation.NormativeViewModel(pe.bpm.features.normative.domain.NormativeUseCases(normativeRepository))
     private val webhookRepository = pe.bpm.features.webhooks.data.RemoteWebhookRepository(httpClient, config,
