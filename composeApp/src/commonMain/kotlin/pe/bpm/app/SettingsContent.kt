@@ -27,6 +27,8 @@ internal fun SettingsContent(
     platformSupport: (@Composable () -> Unit)? = null,
     /** Interruptor de notificaciones push (solo donde existen, p. ej. Android). */
     pushSwitch: (@Composable () -> Unit)? = null,
+    /** WhatsApp propio (opcional) para que el equipo pueda escribir. */
+    myWhatsapp: (@Composable () -> Unit)? = null,
 ) {
     BpmSettingsScaffold("Ajustes", modifier, subtitle = "Haz la app más fácil de ver y de escuchar. Los cambios se guardan solo en este dispositivo.") {
         BpmSettingsSection("Accesibilidad", description = "Para leer mejor, escuchar y ver menos movimiento.") {
@@ -48,6 +50,7 @@ internal fun SettingsContent(
             }
         }
         platformSupport?.invoke()
+        myWhatsapp?.invoke()
         BpmSettingsSection("Cuenta") {
             BpmSettingLink("Mis dispositivos", "Dónde tienes abierta tu sesión.", onDevices, symbol = BpmSymbol.Account)
             onAcceptInvitation?.let { BpmSettingLink("Aceptar una invitación", "Únete a otra organización con el código del correo.", it, symbol = BpmSymbol.Team) }

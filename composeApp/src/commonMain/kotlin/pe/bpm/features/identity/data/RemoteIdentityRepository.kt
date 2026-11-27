@@ -410,10 +410,10 @@ class RemoteIdentityRepository internal constructor(
 
 /** Perfil verificado guardado para abrir sin conexión; no contiene tokens ni credenciales. */
 @Serializable private class CachedProfile(val id: String, val email: String, val displayName: String,
-    val organizations: List<CachedOrganization>, val platformRole: String, val onboardingSeen: Boolean = false) {
-    fun domain() = Profile(id, email, displayName, organizations.map { Organization(it.id, it.name, it.role) }, platformRole, onboardingSeen)
+    val organizations: List<CachedOrganization>, val platformRole: String, val onboardingSeen: Boolean = false, val whatsapp: String? = null) {
+    fun domain() = Profile(id, email, displayName, organizations.map { Organization(it.id, it.name, it.role) }, platformRole, onboardingSeen, whatsapp)
     companion object {
-        fun of(p: Profile) = CachedProfile(p.id, p.email, p.displayName, p.organizations.map { CachedOrganization(it.id, it.name, it.role) }, p.platformRole, p.onboardingSeen)
+        fun of(p: Profile) = CachedProfile(p.id, p.email, p.displayName, p.organizations.map { CachedOrganization(it.id, it.name, it.role) }, p.platformRole, p.onboardingSeen, p.whatsapp)
     }
 }
 @Serializable private class CachedOrganization(val id: String, val name: String, val role: String)

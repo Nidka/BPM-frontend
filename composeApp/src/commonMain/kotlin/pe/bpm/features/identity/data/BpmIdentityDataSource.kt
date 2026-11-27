@@ -104,7 +104,7 @@ internal class BpmIdentityDataSource(private val client: HttpClient, private val
         onSessionResponse(response)
         return IdentityResult.Success(Profile(profile.id, profile.email, profile.displayName,
             profile.organizations.map { Organization(it.id, it.tradeName?.takeIf(String::isNotBlank) ?: it.legalName, it.role) }, profile.platformRole,
-            onboardingSeen = !profile.onboardingSeenAt.isNullOrBlank()))
+            onboardingSeen = !profile.onboardingSeenAt.isNullOrBlank(), whatsapp = profile.phoneNumber?.takeIf { it.matches(Regex("[0-9]{8,15}")) }))
     }
 
 }
@@ -114,6 +114,6 @@ internal class BpmIdentityDataSource(private val client: HttpClient, private val
 @Serializable private data class ApiErrorEnvelope(val errors: List<ApiErrorDto> = emptyList())
 @Serializable private data class ApiErrorDto(val code: String)
 @Serializable private data class ProfileEnvelope(val data: ProfileDto)
-@Serializable private data class ProfileDto(val id: String, val email: String, val displayName: String, val organizations: List<OrganizationDto>, val platformRole: String = "USER", val onboardingSeenAt: String? = null)
+@Serializable private data class ProfileDto(val id: String, val email: String, val displayName: String, val organizations: List<OrganizationDto>, val platformRole: String = "USER", val onboardingSeenAt: String? = null, val phoneNumber: String? = null)
 @Serializable private data class OrganizationDto(val id: String, val legalName: String, val tradeName: String? = null, val role: String)
 

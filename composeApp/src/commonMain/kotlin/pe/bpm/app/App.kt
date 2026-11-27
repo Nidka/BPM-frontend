@@ -149,6 +149,8 @@ fun App(
     val normative = viewModel<pe.bpm.features.normative.presentation.NormativeViewModel> { owner.graph.normativeViewModel() }
     val support = viewModel<pe.bpm.features.support.presentation.SupportViewModel> { owner.graph.supportViewModel() }
     val supportState by support.state.collectAsStateWithLifecycle()
+    val staffMessage = viewModel<pe.bpm.features.support.presentation.StaffMessageViewModel> { owner.graph.staffMessageViewModel() }
+    val myWhatsapp = viewModel<pe.bpm.features.support.presentation.MyWhatsappViewModel> { owner.graph.myWhatsappViewModel() }
     val webhooks = viewModel<pe.bpm.features.webhooks.presentation.WebhooksViewModel> { owner.graph.webhooksViewModel() }
     val reportsAdmin = viewModel<pe.bpm.features.reports.presentation.ReportsAdminViewModel> { owner.graph.reportsAdminViewModel() }
     val usage = viewModel<pe.bpm.features.usage.presentation.UsageViewModel> { owner.graph.usageViewModel() }
@@ -240,10 +242,20 @@ fun App(
         if (identity.state.value.profile != null) { refreshVisibleData(); offlineRuns.sync(); if (evidenceQuestion != null || incidentEvidence != null) evidence.refresh(silent = true) }
     }
     LaunchedEffect(entry?.id, profile?.id) { refreshVisibleData() }
+    // Incidencia que pidió abrir un aviso (push o bandeja); se abre cuando la pantalla de incidencias está lista.
+    var pendingIncident by remember { mutableStateOf<String?>(null) }
+    val incidentsAuthorized = incidents.state.collectAsStateWithLifecycle().value.authorized
+    LaunchedEffect(pendingIncident, incidentsAuthorized) {
+        val id = pendingIncident ?: return@LaunchedEffect
+        if (incidentsAuthorized) { incidents.detail(id); pendingIncident = null }
+    }
     // Tocar un aviso del sistema abre la pantalla relacionada una vez que la sesión y la empresa están listas.
     LaunchedEffect(externalRoute, profile?.id, workspaceState.workspace?.organization?.id) {
         if (externalRoute != null && profile != null && workspaceState.workspace != null) {
-            nav.navigate(externalRoute) { launchSingleTop = true }
+            // Aviso de una incidencia concreta: abre la pantalla de incidencias y luego su detalle.
+            val incident = pe.bpm.features.notifications.domain.incidentDeepLink(externalRoute)
+            if (incident != null) pendingIncident = incident.second
+            nav.navigate(incident?.first ?: externalRoute) { launchSingleTop = true }
             onExternalRouteHandled()
         }
     }
@@ -540,7 +552,7 @@ fun App(
                     WorkspaceDestination.Operations -> listOf(destination.route, DAILY_EXECUTION, INCIDENT_EXECUTION, CHECKLIST_CATALOG, CHECKLIST_DETAIL, CHECKLIST_START, CHECKLIST_RUN, CHECKLIST_OFFLINE, CHECKLIST_OFFLINE_DETAIL, CHECKLIST_HISTORY, CHECKLIST_HISTORY_DETAIL, ASSIGNMENT_DETAIL,
                         INCIDENT_MANAGEMENT, ASSIGNMENT_CREATE, ASSIGNMENT_MANAGEMENT, ASSIGNMENT_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Supervision -> listOf(destination.route, SUPERVISION_DETAIL)
-                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE, REPORT_PROBLEM, ONBOARDING)
+                    WorkspaceDestination.Home -> listOf(destination.route, ORGANIZATION_PICKER, ALERT_INBOX, STUDY_SURVEY, RESEARCH_PANEL, REPORTS, NORMATIVE, REPORT_PROBLEM, ONBOARDING, STAFF_MESSAGE)
                     WorkspaceDestination.Company -> listOf(destination.route, WEBHOOKS_MANAGEMENT, TEMPLATE_VERSIONS, ALERT_RULES, DAILY_MANAGEMENT, TEMPLATE_MANAGEMENT, TEMPLATE_CREATE, TEMPLATE_MANAGEMENT_DETAIL)
                     WorkspaceDestination.Tasks -> listOf(destination.route, INCIDENT_TASKS)
                     WorkspaceDestination.Account -> listOf(destination.route, DEVICES, INVITATION_ACCEPT, SETTINGS, HELP)
@@ -592,6 +604,7 @@ fun App(
                     val viewingSettings = route == SETTINGS
                     val viewingHelp = route == HELP
                     val onboardingRoute = route == ONBOARDING
+                    val staffMessageRoute = route == STAFF_MESSAGE
                     val acceptingInvitation = route == INVITATION_ACCEPT
                     val studySurvey = route == STUDY_SURVEY
                     val researching = route == RESEARCH_PANEL
@@ -830,6 +843,7 @@ fun App(
                                         onLearn = { nav.navigate(WorkspaceDestination.Learn.route) { launchSingleTop = true } },
                                         onTasks = { nav.navigate(WorkspaceDestination.Tasks.route) { launchSingleTop = true } },
                                         onReport = { leaveRun { nav.navigate(INCIDENT_TASKS) { launchSingleTop = true } } },
+                                        onTellBoss = { leaveRun { nav.navigate(STAFF_MESSAGE) { launchSingleTop = true } } },
                                         onAchievements = { nav.navigate(TRAINING_ACHIEVEMENTS) { launchSingleTop = true } },
                                         displayName = profile.displayName,
                                         onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } })
@@ -847,6 +861,7 @@ fun App(
                                         onFinalCourse = { id -> courseIntent = id to pe.bpm.features.training.presentation.CourseIntent.FinalEvaluation; nav.navigate("aprender/$id") { launchSingleTop = true } },
                                         onStudySurvey = { nav.navigate(STUDY_SURVEY) { launchSingleTop = true } },
                                         onReport = { leaveRun { nav.navigate(REPORT_PROBLEM) { launchSingleTop = true } } },
+                                        onTellBoss = { leaveRun { nav.navigate(STAFF_MESSAGE) { launchSingleTop = true } } },
                                         onNormative = { nav.navigate(NORMATIVE) { launchSingleTop = true } })
                                 }) else null,
                                 // Super administración: Organizaciones (todas) e Indicadores (de la organización abierta).
@@ -968,6 +983,17 @@ fun App(
                                 }) else if (managingAccounts) ({
                                     AccountsManagementContent(profile.id, workspaceState.selected.orEmpty(), workspaceState.workspace?.canManage == true, workspaceState.workspace?.role == "ADMIN", team, accountInvitations, accountOrganization,
                                         organizationName = workspaceState.workspace?.organization?.name.orEmpty(), startTab = accountsTab, inviteRequest = inviteRequest, editSiteId = editSiteId, editSiteRequest = editSiteRequest)
+                                }) else if (staffMessageRoute) ({
+                                    val sites = currentWorkspace?.locations.orEmpty()
+                                    var siteId by remember(currentWorkspace?.organization?.id) { mutableStateOf(sites.singleOrNull()?.id) }
+                                    LaunchedEffect(siteId, currentWorkspace?.organization?.id) {
+                                        val org = currentWorkspace?.organization?.id
+                                        val site = siteId
+                                        if (org != null && site != null) staffMessage.open(org, site)
+                                    }
+                                    pe.bpm.features.support.presentation.StaffMessageScreen(staffMessage, profile.displayName, sites.firstOrNull { it.id == siteId }?.name.orEmpty(),
+                                        sites.map { it.id to it.name }, { siteId = it }, onClose = { navigateBack(destination.route) },
+                                        modifier = androidx.compose.ui.Modifier.bpmScrollable())
                                 }) else if (onboardingRoute) ({
                                     OnboardingIntro(guideRole ?: GuideRole.Worker, onFinish = { feedbackScope.launch { onboardingPreferences.markIntroSeen() }; navigateBack(destination.route) })
                                 }) else if (viewingHelp) ({
@@ -984,6 +1010,10 @@ fun App(
                                         // Personal no se une a otras organizaciones por su cuenta: la invitación llega por el enlace del correo.
                                         onAcceptInvitation = if (currentWorkspace?.role == "WORKER") null else ({ nav.navigate(INVITATION_ACCEPT) { launchSingleTop = true } }),
                                         onLogout = ::requestLogout, modifier = androidx.compose.ui.Modifier.bpmScrollable(),
+                                        myWhatsapp = if (currentWorkspace != null) ({
+                                            LaunchedEffect(profile.id) { myWhatsapp.open(profile.id, profile.whatsapp) }
+                                            pe.bpm.features.support.presentation.MyWhatsappSection(myWhatsapp)
+                                        }) else null,
                                         pushSwitch = if (currentWorkspace != null) ({ pe.bpm.features.notifications.presentation.PushOptInPanel(notificationDevices) }) else null,
                                         platformSupport = if (profile.platformRole == "SUPER_ADMIN") ({
                                             LaunchedEffect(Unit) { support.load() }
@@ -1012,7 +1042,8 @@ fun App(
                                             "RECEIPT_ITEM"->{alertSource=notice;nav.navigate(if(workspaceState.workspace?.canManage==true) DAILY_MANAGEMENT else DAILY_EXECUTION){launchSingleTop=true}}
                                             "ORGANIZATION"->nav.navigate(WorkspaceDestination.Company.route){launchSingleTop=true}
                                             "TRAINING_ASSIGNMENT"->nav.navigate(notice.sourceParentId?.let{"aprender/$it"} ?: WorkspaceDestination.Learn.route){launchSingleTop=true}
-                                            "INCIDENT"->nav.navigate(if(workspaceState.workspace?.role=="ADMIN") INCIDENT_MANAGEMENT else INCIDENT_EXECUTION){launchSingleTop=true}
+                                            "INCIDENT"->{pendingIncident=notice.sourceId.lowercase();nav.navigate(if(workspaceState.workspace?.role=="ADMIN") INCIDENT_MANAGEMENT else INCIDENT_EXECUTION){launchSingleTop=true}}
+                                            "CHECKLIST_RUN"->nav.navigate("seguimiento/${notice.sourceId}"){launchSingleTop=true}
                                         }
                                     })
                                 }) else if (normativeRoute) ({
@@ -1339,6 +1370,7 @@ private const val INCIDENT_EXECUTION = "control/incidencias"
 private const val INCIDENT_TASKS = "tareas/incidencias"
 /** Reportar un problema en modo enfoque, para cualquier rol que pueda reportar (Personal, Jefe de cocina y Administrador). */
 private const val REPORT_PROBLEM = "reportar"
+private const val STAFF_MESSAGE = "avisar-jefe"
 
 private const val TRAINING_COURSE = "aprender/{courseId}"
 private const val TRAINING_MANAGEMENT = "empresa/academia"

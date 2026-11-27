@@ -98,6 +98,20 @@ interface NotificationDevicesRepository {
   suspend fun register(org: String, token: PushToken): NotificationResult<NotificationDevice>
 
   suspend fun deactivate(org: String, id: String): NotificationResult<Unit>
+
+  /** Pide al servidor una notificación de prueba para los celulares activos de la persona (máximo una por minuto). */
+  suspend fun testPush(org: String): TestPushOutcome = TestPushOutcome.FAILED
+}
+
+enum class TestPushOutcome { SENT, RATE_LIMITED, NO_DEVICE, OFFLINE, FAILED }
+
+/** Texto corto del resultado de la prueba. */
+fun testPushText(outcome: TestPushOutcome): String = when (outcome) {
+  TestPushOutcome.SENT -> "Prueba enviada. Debería llegar en unos segundos."
+  TestPushOutcome.RATE_LIMITED -> "Ya enviamos una prueba. Espera un minuto."
+  TestPushOutcome.NO_DEVICE -> "Primero enciende «Notificaciones en este celular»."
+  TestPushOutcome.OFFLINE -> "Sin conexión. Inténtalo cuando tengas internet."
+  TestPushOutcome.FAILED -> "No pudimos enviar la prueba. Inténtalo más tarde."
 }
 
 class ManageNotificationDevices(
@@ -134,6 +148,8 @@ class ManageNotificationDevices(
   fun forgetOptIn() = provider.forgetOptIn()
 
   fun openSystemSettings(): Boolean = provider.openSystemSettings()
+
+  suspend fun testPush(org: String): TestPushOutcome = repository.testPush(org)
 
   suspend fun enable(user: String, org: String): NotificationResult<NotificationDevice> {
     if (!provider.available) return NotificationResult.Failure(NotificationFailure.UNAVAILABLE)
@@ -182,11 +198,21 @@ fun acceptedAlertId(
 }
 
 private val PUSH_ROUTES = setOf("avisos", "empresa/operacion", "control/operacion", "empresa", "aprender")
-private val PUSH_ASSIGNMENT = Regex("control/programacion/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+private const val UUID_RE = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+private val PUSH_ASSIGNMENT = Regex("control/programacion/$UUID_RE")
+/** Incidencia concreta (se abre su detalle) o control enviado (seguimiento del jefe). */
+private val PUSH_ENTITY = Regex("(control/incidencias|empresa/incidencias|seguimiento)/$UUID_RE")
+
+/** Separa «control/incidencias/<id>» en la pantalla de incidencias y el id a abrir; null si no es una incidencia concreta. */
+fun incidentDeepLink(route: String): Pair<String, String>? {
+  val m = Regex("(control/incidencias|empresa/incidencias)/($UUID_RE)").matchEntire(route) ?: return null
+  return m.groupValues[1] to m.groupValues[2].lowercase()
+}
 
 /** Destino que se abre al tocar un aviso: solo rutas conocidas de la app; cualquier otra cosa cae en «avisos». */
 fun acceptedPushRoute(raw: String?): String? {
   val route = raw?.trim().orEmpty()
   if (route.isEmpty()) return null
-  return if (route in PUSH_ROUTES || PUSH_ASSIGNMENT.matches(route)) route else "avisos"
+  return if (route in PUSH_ROUTES || PUSH_ASSIGNMENT.matches(route) || PUSH_ENTITY.matches(route) ||
+    route in setOf("control/incidencias", "empresa/incidencias")) route else "avisos"
 }

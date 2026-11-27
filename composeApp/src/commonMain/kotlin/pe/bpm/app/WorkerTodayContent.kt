@@ -86,6 +86,8 @@ internal fun WorkerTodayContent(
     onLearn: () -> Unit,
     onTasks: () -> Unit,
     onReport: () -> Unit,
+    /** «Avisar a mi jefe»: mensaje rápido (no es un reporte). */
+    onTellBoss: (() -> Unit)? = null,
     onAchievements: () -> Unit,
     modifier: Modifier = Modifier,
     displayName: String = "",
@@ -157,6 +159,7 @@ internal fun WorkerTodayContent(
             }
         }
         LearnCard(next, state.assignmentsLoaded, onLearn, onContinueCourse, onFinal = onFinalCourse)
+        onTellBoss?.let { BpmChunkyButton("Avisar a mi jefe", it, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Team) }
         BpmChunkyButton("Reportar un problema", onReport, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert)
         onNormative?.let { open -> NormativeTile(open) }
     }

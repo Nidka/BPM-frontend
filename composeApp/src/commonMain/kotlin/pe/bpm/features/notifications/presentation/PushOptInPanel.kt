@@ -26,6 +26,9 @@ fun PushOptInPanel(viewModel: NotificationDevicesViewModel) {
   if (!s.available) return
   BpmSettingsSection("Notificaciones") {
     BpmSettingToggle("Notificaciones en este celular", pushStatusText(s), s.device != null || s.busy, { on -> if (!s.busy) viewModel.setEnabled(on) })
+    if (s.device != null)
+      BpmChunkyButton(if (s.testing) "Enviando prueba…" else "Enviar notificación de prueba", viewModel::testPush, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !s.testing)
+    s.testResult?.let { Text(testPushText(it), style = BpmPlayType.sub, color = BpmPlayColors.muted) }
     if (s.failure == NotificationFailure.PERMISSION)
       BpmChunkyButton("Abrir ajustes de Android", { viewModel.openSystemSettings() }, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
   }

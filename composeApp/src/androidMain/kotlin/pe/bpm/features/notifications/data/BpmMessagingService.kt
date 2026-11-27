@@ -56,7 +56,7 @@ class BpmMessagingService : FirebaseMessagingService() {
       val manager = getSystemService(NotificationManager::class.java)
       if (Build.VERSION.SDK_INT >= 26)
         manager.createNotificationChannel(
-          NotificationChannel("bpm-alerts", "Avisos BPM", NotificationManager.IMPORTANCE_DEFAULT)
+          NotificationChannel("bpm-alerts-v2", "Avisos BPM", NotificationManager.IMPORTANCE_HIGH)
         )
       // El servidor manda el texto específico (tipo de aviso, sede, medición); sin él se conserva el genérico.
       val title = message.notification?.title?.takeIf { it.isNotBlank() } ?: "Tienes un aviso en BPM"
@@ -74,7 +74,7 @@ class BpmMessagingService : FirebaseMessagingService() {
           PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
       val notification =
-        NotificationCompat.Builder(this, "bpm-alerts")
+        NotificationCompat.Builder(this, "bpm-alerts-v2")
           .setSmallIcon(android.R.drawable.ic_dialog_info)
           .setContentTitle(title)
           .setContentText(body)

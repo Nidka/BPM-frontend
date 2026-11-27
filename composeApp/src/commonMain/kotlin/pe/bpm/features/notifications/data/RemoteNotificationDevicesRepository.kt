@@ -78,6 +78,27 @@ class RemoteNotificationDevicesRepository(
     NotificationDevice(r.id, r.platform, r.status)
   }
 
+  override suspend fun testPush(org: String): TestPushOutcome =
+    try {
+      require(org.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+      val access = token()?.takeIf { it.isNotBlank() } ?: return TestPushOutcome.FAILED
+      val r = client.request("${config.apiBaseUrl}/api/v1/organizations/$org/notifications/test") { method = HttpMethod.Post; bearerAuth(access) }
+      onSessionResponse(r)
+      if (r.status.value == 401) onSessionRejected(access)
+      when (r.status.value) {
+        202, 200 -> TestPushOutcome.SENT
+        429 -> TestPushOutcome.RATE_LIMITED
+        409 -> TestPushOutcome.NO_DEVICE
+        else -> TestPushOutcome.FAILED
+      }
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: SessionAccessException) {
+      if (e.expired) TestPushOutcome.FAILED else TestPushOutcome.OFFLINE
+    } catch (_: Exception) {
+      TestPushOutcome.OFFLINE
+    }
+
   override suspend fun deactivate(org: String, id: String): NotificationResult<Unit> = guarded {
     val r = response(org, id = id).body<Envelope>().data
     require(r.id == id && r.status == "INACTIVE")

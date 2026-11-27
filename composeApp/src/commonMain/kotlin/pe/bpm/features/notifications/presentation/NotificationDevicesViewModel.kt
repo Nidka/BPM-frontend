@@ -12,6 +12,8 @@ data class NotificationDevicesState(
   val busy: Boolean = false,
   val device: NotificationDevice? = null,
   val failure: NotificationFailure? = null,
+  val testing: Boolean = false,
+  val testResult: TestPushOutcome? = null,
 )
 
 class NotificationDevicesViewModel(private val manage: ManageNotificationDevices) : ViewModel() {
@@ -111,6 +113,17 @@ class NotificationDevicesViewModel(private val manage: ManageNotificationDevices
   fun setEnabled(on: Boolean) { if (on) enable() else disable() }
 
   fun openSystemSettings() = manage.openSystemSettings()
+
+  /** «Enviar notificación de prueba»: solo con el celular activado. */
+  fun testPush() {
+    val o = org ?: return
+    if (mutable.value.testing) return
+    mutable.value = mutable.value.copy(testing = true, testResult = null)
+    viewModelScope.launch {
+      val r = try { manage.testPush(o) } catch (e: CancellationException) { throw e } catch (_: Exception) { TestPushOutcome.FAILED }
+      if (org == o) mutable.value = mutable.value.copy(testing = false, testResult = r)
+    }
+  }
 
   fun disable() {
     val o = org ?: return

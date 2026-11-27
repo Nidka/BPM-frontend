@@ -144,6 +144,9 @@ internal fun alertSymbol(type: AlertType): BpmSymbol = when (type) {
   AlertType.TRAINING_ASSIGNED -> BpmSymbol.Learn
   AlertType.INCIDENT_ASSIGNED -> BpmSymbol.Wrench
   AlertType.INCIDENT_REPORTED -> BpmSymbol.Alert
+  AlertType.STAFF_MESSAGE -> BpmSymbol.Team
+  AlertType.CONTROL_FLAGGED -> BpmSymbol.Control
+  AlertType.TEST_PUSH -> BpmSymbol.Bell
 }
 
 internal fun alertTone(type: AlertType): BpmPlayTone = when (type) {
@@ -153,6 +156,9 @@ internal fun alertTone(type: AlertType): BpmPlayTone = when (type) {
   AlertType.TRAINING_ASSIGNED -> BpmPlayTone.Action
   AlertType.INCIDENT_ASSIGNED -> BpmPlayTone.Streak
   AlertType.INCIDENT_REPORTED -> BpmPlayTone.Streak
+  AlertType.STAFF_MESSAGE -> BpmPlayTone.Action
+  AlertType.CONTROL_FLAGGED -> BpmPlayTone.Streak
+  AlertType.TEST_PUSH -> BpmPlayTone.Action
 }
 
 @Composable
@@ -182,6 +188,9 @@ internal fun alertTypeLabel(type: AlertType) =
     AlertType.TRAINING_ASSIGNED -> "Capacitación asignada"
     AlertType.INCIDENT_ASSIGNED -> "Incidencia asignada"
     AlertType.INCIDENT_REPORTED -> "Problema reportado"
+    AlertType.STAFF_MESSAGE -> "Aviso del equipo"
+    AlertType.CONTROL_FLAGGED -> "Control con observaciones"
+    AlertType.TEST_PUSH -> "Prueba"
   }
 
 internal fun alertFailureText(reason: AlertsFailure) =

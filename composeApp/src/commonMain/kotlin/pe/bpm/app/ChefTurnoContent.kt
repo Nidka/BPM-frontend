@@ -75,6 +75,8 @@ internal fun ChefTurnoContent(
     onFinalCourse: ((String) -> Unit)? = null,
     /** Abre el reporte de un problema (cualquier rol puede reportar, sin categorías creadas). */
     onReport: (() -> Unit)? = null,
+    /** «Avisar al administrador»: mensaje rápido (no es un reporte). */
+    onTellBoss: (() -> Unit)? = null,
     /** Abre el buscador de normativa; va en la columna principal, con el mismo ancho que las demás tarjetas. */
     onNormative: (() -> Unit)? = null,
 ) {
@@ -177,6 +179,7 @@ internal fun ChefTurnoContent(
             }
             BpmChunkyButton("Ver equipo", onTeam, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White)
         }
+        onTellBoss?.let { BpmChunkyButton("Avisar al administrador", it, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Team) }
         onReport?.let { report -> BpmChunkyButton("Reportar un problema", report, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, icon = BpmSymbol.Alert) }
         onNormative?.let { open -> NormativeTile(open) }
         if (!railVisible) {

@@ -64,6 +64,9 @@ internal data class AlertDto(
           AlertType.ORGANIZATION_INACTIVE -> "ORGANIZATION"
           AlertType.TRAINING_ASSIGNED -> "TRAINING_ASSIGNMENT"
           AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED -> "INCIDENT"
+          AlertType.STAFF_MESSAGE -> "STAFF_MESSAGE"
+          AlertType.CONTROL_FLAGGED -> "CHECKLIST_RUN"
+          AlertType.TEST_PUSH -> "TEST"
         }
     )
     return Alert(
@@ -111,7 +114,7 @@ internal data class RuleDto(
         AlertType.TEMPERATURE_DANGER ->
           setOf("minimumTemperatureCelsius", "maximumTemperatureCelsius")
         AlertType.ORGANIZATION_INACTIVE -> setOf("inactivityDays")
-        AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED -> emptySet()
+        AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED, AlertType.STAFF_MESSAGE, AlertType.CONTROL_FLAGGED, AlertType.TEST_PUSH -> emptySet()
       }
     require(c.keys == expected)
     val config =
@@ -167,7 +170,7 @@ internal fun configurationJson(type: AlertType, c: AlertConfiguration) = buildJs
       put("maximumTemperatureCelsius", c.maximumTemperatureCelsius!!)
     }
     AlertType.ORGANIZATION_INACTIVE -> put("inactivityDays", c.inactivityDays!!)
-    AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED -> Unit
+    AlertType.TRAINING_ASSIGNED, AlertType.INCIDENT_ASSIGNED, AlertType.INCIDENT_REPORTED, AlertType.STAFF_MESSAGE, AlertType.CONTROL_FLAGGED, AlertType.TEST_PUSH -> Unit
   }
 }
 

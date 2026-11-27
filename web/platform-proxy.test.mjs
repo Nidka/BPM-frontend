@@ -49,3 +49,12 @@ test('soporte: lectura proyectada y edición validada', async () => {
   const invalid = await invoke('/backend/api/v1/platform/support', { method: 'PUT', body: { supportEmail: 'mal' }, status: 422, payload: { errors: [{ code: 'VALIDATION_ERROR', fields: { supportEmail: 'x' } }] } });
   assert.equal(invalid.status, 422); assert.ok(invalid.body.errors[0].fields.supportEmail);
 });
+
+test('mi WhatsApp: guarda y quita, solo dígitos de vuelta', async () => {
+  const ok = await invoke('/backend/api/v1/me/whatsapp', { method: 'PUT', body: { whatsapp: '987 654 321' }, payload: { data: { whatsapp: '51987654321' } } });
+  assert.equal(ok.status, 200); assert.equal(ok.body.data.whatsapp, '51987654321');
+  assert.deepEqual(JSON.parse(ok.calls[0].body), { whatsapp: '987 654 321' });
+  assert.equal((await invoke('/backend/api/v1/me/whatsapp', { method: 'PUT', body: { whatsapp: null }, payload: { data: { whatsapp: null } } })).body.data.whatsapp, null);
+  assert.equal((await invoke('/backend/api/v1/me/whatsapp', { method: 'PUT', body: { whatsapp: '1', otro: 1 } })).status, 400);
+  assert.equal((await invoke('/backend/api/v1/me/whatsapp')).status, 405);
+});

@@ -10,6 +10,8 @@ data class Profile(
     val platformRole: String = "USER",
     /** El servidor ya registró que terminó u omitió la introducción de «Primeros pasos» (V22). */
     val onboardingSeen: Boolean = false,
+    /** WhatsApp propio (solo dígitos con código de país), opcional. */
+    val whatsapp: String? = null,
 )
 
 data class Organization(val id: String, val name: String, val role: String)

@@ -18,6 +18,7 @@ COPY --chown=node:node web/server.mjs ./web/server.mjs
 COPY --chown=node:node web/proxy-common.mjs ./web/proxy-common.mjs
 COPY --chown=node:node web/normative-proxy.mjs ./web/normative-proxy.mjs
 COPY --chown=node:node web/platform-proxy.mjs ./web/platform-proxy.mjs
+COPY --chown=node:node web/team-proxy.mjs ./web/team-proxy.mjs
 COPY --chown=node:node web/webhooks-proxy.mjs ./web/webhooks-proxy.mjs
 COPY --chown=node:node web/auth-email-proxy.mjs ./web/auth-email-proxy.mjs
 COPY --chown=node:node web/workspace-proxy.mjs ./web/workspace-proxy.mjs

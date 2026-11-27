@@ -346,6 +346,13 @@ class AppGraph(
         onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
         token = identityRepository::validSessionToken)
     fun supportViewModel() = pe.bpm.features.support.presentation.SupportViewModel(supportRepository)
+    private val teamRepository = pe.bpm.features.support.data.RemoteTeamRepository(httpClient, config,
+        onSessionRejected = identityRepository::rejectSession, onSessionResponse = identityRepository::observeSessionResponse,
+        token = identityRepository::validSessionToken)
+    /** «Avisar a mi jefe» y el WhatsApp del jefe de la sede. */
+    fun staffMessageViewModel() = pe.bpm.features.support.presentation.StaffMessageViewModel(teamRepository)
+    /** WhatsApp propio (Ajustes). */
+    fun myWhatsappViewModel() = pe.bpm.features.support.presentation.MyWhatsappViewModel(teamRepository)
     /** Buscador de normativa (RF-46/47): búsqueda para todos y gestión de documentos para el administrador general. */
     fun normativeViewModel() = pe.bpm.features.normative.presentation.NormativeViewModel(pe.bpm.features.normative.domain.NormativeUseCases(normativeRepository))
     private val webhookRepository = pe.bpm.features.webhooks.data.RemoteWebhookRepository(httpClient, config,

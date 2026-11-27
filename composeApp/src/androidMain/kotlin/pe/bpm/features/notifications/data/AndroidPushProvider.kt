@@ -30,11 +30,14 @@ class BpmFirebaseApplication : Application() {
   override fun onCreate() {
     super.onCreate()
     // El canal debe existir antes del primer aviso: el servidor lo indica en el mensaje y el sistema lo usa con la app cerrada.
+    // v2 con importancia alta (aparece arriba de la pantalla); el canal anterior, de importancia normal, se elimina.
     if (android.os.Build.VERSION.SDK_INT >= 26)
-      getSystemService(android.app.NotificationManager::class.java)
-        .createNotificationChannel(
-          android.app.NotificationChannel("bpm-alerts", "Avisos BPM", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+      getSystemService(android.app.NotificationManager::class.java).apply {
+        createNotificationChannel(
+          android.app.NotificationChannel("bpm-alerts-v2", "Avisos BPM", android.app.NotificationManager.IMPORTANCE_HIGH)
         )
+        deleteNotificationChannel("bpm-alerts")
+      }
     firebaseMessaging(this)
   }
 }
