@@ -46,7 +46,7 @@ internal fun SettingsContent(
         pushSwitch?.invoke()
         onAlerts?.let { open ->
             BpmSettingsSection("Avisos") {
-                BpmSettingLink("Mis avisos", "Mira tus avisos y elige si el teléfono te los notifica.", open, symbol = BpmSymbol.Bell)
+                BpmSettingLink("Mis avisos", if (pe.bpm.core.presentation.platformLabel() == "Android") "Mira tus avisos y elige si el teléfono te los notifica." else "Mira tus avisos y los que te faltan atender.", open, symbol = BpmSymbol.Bell)
             }
         }
         platformSupport?.invoke()

@@ -167,6 +167,7 @@ fun BpmInlineNotice(
     onDismiss: (() -> Unit)? = null,
     dismissLabel: String = "Entendido",
     warning: Boolean = false,
+    success: Boolean = false,
 ) {
     val fill = if (warning) BpmTokens.warningSurface else MaterialTheme.colorScheme.primaryContainer
     val ink = if (warning) BpmTokens.warningText else MaterialTheme.colorScheme.onPrimaryContainer
@@ -174,7 +175,7 @@ fun BpmInlineNotice(
         Row(Modifier.padding(start = BpmSpacing.lg, top = BpmSpacing.xs, bottom = BpmSpacing.xs,
             end = if (onDismiss == null) BpmSpacing.lg else BpmSpacing.sm).heightIn(min = BpmSpacing.touch),
             horizontalArrangement = Arrangement.spacedBy(BpmSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-            BpmIcon(BpmSymbol.Alert, tint = ink, modifier = Modifier.size(20.dp))
+            BpmIcon(if (success && !warning) BpmSymbol.Check else BpmSymbol.Alert, tint = ink, modifier = Modifier.size(20.dp))
             Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = ink)
             if (onDismiss != null) BpmTextButton(onDismiss) { Text(dismissLabel, color = ink) }
         }

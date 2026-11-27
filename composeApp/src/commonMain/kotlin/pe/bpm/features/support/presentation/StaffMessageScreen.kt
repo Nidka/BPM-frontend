@@ -47,7 +47,7 @@ fun StaffMessageScreen(
             BpmTextField(s.text, viewModel::edit, "Cuéntale más (opcional)", Modifier.fillMaxWidth(), singleLine = false, minLines = 2, enabled = !s.sending,
                 placeholder = "Ejemplo: se acabó el aceite")
             s.error?.let { BpmInlineNotice(it, warning = true) }
-            if (s.sent) BpmInlineNotice("Listo. Tu jefe recibió el aviso.")
+            if (s.sent) BpmInlineNotice("Listo. Tu jefe recibió el aviso.", success = true)
             BpmChunkyButton(if (s.sending) "Enviando…" else "Enviar aviso", viewModel::send, Modifier.fillMaxWidth(), tone = BpmChunkyTone.Report, enabled = !s.sending && s.locationId.isNotEmpty())
         }
         s.contact?.let { c ->

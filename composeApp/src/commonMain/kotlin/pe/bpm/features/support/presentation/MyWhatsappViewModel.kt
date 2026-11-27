@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import pe.bpm.core.designsystem.*
 import pe.bpm.features.support.domain.*
 
-data class MyWhatsappState(val userId: String = "", val value: String = "", val error: String? = null, val saving: Boolean = false, val notice: String? = null)
+data class MyWhatsappState(val userId: String = "", val value: String = "", val error: String? = null, val saving: Boolean = false, val notice: String? = null, val noticeOk: Boolean = false)
 
 /** Mi WhatsApp (opcional): lo usa el equipo para escribirme desde «Avisar a mi jefe». */
 class MyWhatsappViewModel(private val repository: TeamRepository) : ViewModel() {
@@ -34,9 +34,9 @@ class MyWhatsappViewModel(private val repository: TeamRepository) : ViewModel() 
         _state.update { it.copy(saving = true, notice = null) }
         viewModelScope.launch {
             when (val r = repository.saveMyWhatsapp(s.value)) {
-                is SupportResult.Success -> _state.update { it.copy(saving = false, value = r.value.orEmpty(), notice = if (r.value == null) "Quitamos tu WhatsApp." else "WhatsApp guardado.") }
+                is SupportResult.Success -> _state.update { it.copy(saving = false, value = r.value.orEmpty(), notice = if (r.value == null) "Quitamos tu WhatsApp." else "WhatsApp guardado.", noticeOk = true) }
                 is SupportResult.Failure -> _state.update { it.copy(saving = false, error = if (r.reason == SupportFailure.INVALID) StaffMessageRules.myWhatsappError("x") else null,
-                    notice = if (r.reason == SupportFailure.CONNECTION) "Sin conexión. Inténtalo cuando tengas internet." else "No pudimos guardar. Inténtalo otra vez.") }
+                    noticeOk = false, notice = if (r.reason == SupportFailure.CONNECTION) "Sin conexión. Inténtalo cuando tengas internet." else "No pudimos guardar. Inténtalo otra vez.") }
             }
         }
     }
@@ -50,6 +50,6 @@ fun MyWhatsappSection(viewModel: MyWhatsappViewModel) {
         BpmTextField(s.value, viewModel::edit, "Celular", Modifier.fillMaxWidth(), error = s.error, enabled = !s.saving, inputKind = BpmInputKind.Phone,
             placeholder = "987654321", supportingText = "Déjalo vacío si no quieres compartirlo.")
         BpmChunkyButton(if (s.saving) "Guardando…" else "Guardar WhatsApp", viewModel::save, Modifier.fillMaxWidth(), tone = BpmChunkyTone.White, enabled = !s.saving)
-        s.notice?.let { BpmInlineNotice(it) }
+        s.notice?.let { BpmInlineNotice(it, success = s.noticeOk, warning = !s.noticeOk) }
     }
 }

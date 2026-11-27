@@ -163,8 +163,8 @@ private fun ReportSteps(
         when (step) {
             ReportStep.Category -> CategoryStep(options, selectedKey, { editor.selectReportOption(it) }, s.catalogChoices, viewModel, onOpenList)
             ReportStep.Describe -> {
-                ReportPriority(values["priority"] == "URGENT", !busy && e.pending == null) { urgent -> editor.edit("priority", if (urgent) "URGENT" else "NORMAL") }
                 DescribeStep(e, selected, place, note, wantPhoto, !busy, { place = it }, { note = it }, setWantPhoto)
+                ReportPriority(values["priority"] == "URGENT", !busy && e.pending == null) { urgent -> editor.edit("priority", if (urgent) "URGENT" else "NORMAL") }
             }
         }
     }
@@ -268,8 +268,9 @@ private fun ReportSent(
 private fun ReportPriority(urgent: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
     Text("¿Es urgente?", style = BpmPlayType.rowTitle, color = BpmPlayColors.ink)
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BpmChoiceTile("Normal", BpmSymbol.Check, BpmPlayTone.Action, !urgent, { if (enabled) onChange(false) }, Modifier.weight(1f).fillMaxHeight())
-        BpmChoiceTile("Urgente", BpmSymbol.Alert, BpmPlayTone.Streak, urgent, { if (enabled) onChange(true) }, Modifier.weight(1f).fillMaxHeight())
+        // La ficha elegida lleva el check: así se ve clara cuál está marcada.
+        BpmChoiceTile("Normal", if (!urgent) BpmSymbol.Check else BpmSymbol.Clock, BpmPlayTone.Action, !urgent, { if (enabled) onChange(false) }, Modifier.weight(1f).fillMaxHeight())
+        BpmChoiceTile("Urgente", if (urgent) BpmSymbol.Check else BpmSymbol.Alert, BpmPlayTone.Action, urgent, { if (enabled) onChange(true) }, Modifier.weight(1f).fillMaxHeight())
     }
     Text(if (urgent) "Tu jefe recibe un aviso en su teléfono al instante." else "Tu jefe lo verá en sus avisos.", style = BpmPlayType.sub, color = BpmPlayColors.muted)
 }

@@ -46,8 +46,8 @@ class ChefRulesTest {
 
     @Test fun controlDetailSaysWhatIsMissingWithTheSite() {
         val clock = { _: String -> "9:12" }
-        assertEquals("Hasta las 12:00 · Sede principal", controlDetail(control("a"), "chef", clock))
-        assertEquals("Venció a las 10:00 · Sede principal", controlDetail(control("a", shift = ShiftState.CLOSED, end = "10:00"), "chef", clock))
+        assertEquals("Hasta las 12:00 p. m. · Sede principal", controlDetail(control("a"), "chef", clock))
+        assertEquals("Venció a las 10:00 a. m. · Sede principal", controlDetail(control("a", shift = ShiftState.CLOSED, end = "10:00"), "chef", clock))
         assertEquals("Hecho 9:12 · Carlos · Sede principal", controlDetail(control("a", run("SUBMITTED", submitted = "2026-11-22T14:12:00Z")), "chef", clock))
         assertEquals("En curso · tu revisión · Sede principal", controlDetail(control("a", run("DRAFT")), "chef", clock))
     }

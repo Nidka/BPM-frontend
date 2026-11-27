@@ -87,7 +87,7 @@ internal fun controlDetail(item: ChecklistAssignment, userId: String, clock: (St
     return if (site.isBlank()) main else "$main · $site"
 }
 
-private fun deadline(item: ChecklistAssignment): String? = (item.shiftEndTime.ifBlank { item.dueTime }).takeIf { it.isNotBlank() }
+private fun deadline(item: ChecklistAssignment): String? = (item.shiftEndTime.ifBlank { item.dueTime }).takeIf { it.isNotBlank() }?.let { pe.bpm.core.presentation.displayClock(it) }
 
 private fun frequencyText(value: ChecklistFrequency) = when (value) {
     ChecklistFrequency.ONCE -> "Una sola vez"
